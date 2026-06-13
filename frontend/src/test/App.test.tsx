@@ -1,0 +1,274 @@
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import App from "../App";
+
+const FRAME1 = {
+  image_id: "K01/K01_V001/001",
+  submit_keyframe_id: "K01/K01_V001/001",
+  video_id: "K01_V001",
+  keyframe_n: 1,
+  frame_idx: 0,
+  fps: 25,
+  pts_time: 0,
+  score: 0.9,
+  channels: ["image_pe", "ocr"],
+  per_channel_score: { image_pe: 0.9, ocr: 5 },
+  keyframe_url: "https://media.test/Keyframes/Keyframes_K01/K01_V001/001.jpg",
+  video_url: "https://media.test/Videos/Videos_K01/K01_V001.mp4",
+  evidence: [{ type: "ocr", score: 5, text: "Bản tin thời sự HTV7" }],
+};
+const FRAME2 = { ...FRAME1, submit_keyframe_id: "K01/K01_V001/006", image_id: "K01/K01_V001/006", keyframe_n: 6, frame_idx: 450, pts_time: 18 };
+
+const SEARCH_RESPONSE = {
+  query: "thời sự",
+  parsed: {
+    query_type: "T-KIS",
+    confidence: 0.4,
+    translated_en_visual: "news broadcast",
+    channels: { image_pe: { enabled: true, weight: 1 }, ocr: { enabled: true, weight: 0.8 }, speech: { enabled: false }, audio: { enabled: false } },
+    filters: { must_not_include: [] },
+    trake: { enabled: false, events: [] },
+    qa: { enabled: false },
+    ui_hints: {},
+    _engine: "heuristic",
+  },
+  groups: [
+    {
+      video_id: "K01_V001",
+      video_score: 1.23,
+      max_score: 0.9,
+      mean_top_score: 0.5,
+      frame_count: 2,
+      timestamp_dispersion: 1,
+      ambiguous: false,
+      channels: ["image_pe", "ocr"],
+      video_url: FRAME1.video_url,
+      frames: [FRAME1, FRAME2],
+    },
+  ],
+  latency_ms: { parse_ms: 1, fusion_ms: 0.2, total_ms: 5 },
+  mode: "mock",
+};
+
+const TIMELINE = {
+  video_id: "K01_V001",
+  fps: 25,
+  duration: 30,
+  video_url: FRAME1.video_url,
+  keyframes: [{ submit_keyframe_id: "K01/K01_V001/001", keyframe_n: 1, frame_idx: 0, pts_time: 0, keyframe_url: FRAME1.keyframe_url }],
+  speech_segments: [],
+  ocr_markers: [],
+  audio_windows: [],
+  heatmap: [],
+};
+
+const TRAKE_RESPONSE = {
+  query: "trake",
+  parsed: {
+    query_type: "TRAKE",
+    confidence: 0.5,
+    translated_en_visual: "a then b",
+    channels: { image_pe: { enabled: true, weight: 1 }, ocr: { enabled: false }, speech: { enabled: false }, audio: { enabled: false } },
+    filters: { must_not_include: [] },
+    trake: { enabled: true, events: [{ event_index: 1 }, { event_index: 2 }] },
+    qa: { enabled: false },
+    ui_hints: {},
+    _engine: "heuristic",
+  },
+  events: [{ event_index: 1, candidate_count: 5 }, { event_index: 2, candidate_count: 5 }],
+  sequences: [
+    {
+      video_id: "K19_V028",
+      score: 0.06,
+      complete: true,
+      coverage: 2,
+      warning: null,
+      video_url: "https://media.test/Videos/Videos_K19/K19_V028.mp4",
+      frames: [
+        { event_index: 1, submit_keyframe_id: "K19/K19_V028/203", keyframe_n: 203, frame_idx: 15926, pts_time: 530, score: 0.03, keyframe_url: "https://media.test/Keyframes/Keyframes_K19/K19_V028/203.jpg" },
+        { event_index: 2, submit_keyframe_id: "K19/K19_V028/301", keyframe_n: 301, frame_idx: 21030, pts_time: 842, score: 0.03, keyframe_url: "https://media.test/Keyframes/Keyframes_K19/K19_V028/301.jpg" },
+      ],
+    },
+  ],
+  mode: "mock",
+};
+
+let historyStore: any[] = [];
+
+function mockFetch(historySeed: any[] = []) {
+  historyStore = historySeed;
+  return vi.fn(async (url: string, init?: RequestInit) => {
+    const path = String(url);
+    const json = (body: unknown, status = 200) =>
+      ({ ok: status < 400, status, json: async () => body } as Response);
+
+    if (path.endsWith("/api/health"))
+      return json({ ok: true, mode: "mock", services: {}, capabilities: {}, warnings: [] });
+    if (path.includes("/api/submit/history")) return json({ history: historyStore });
+    if (path.endsWith("/api/search/trake")) return json(TRAKE_RESPONSE);
+    if (path.endsWith("/api/search")) return json(SEARCH_RESPONSE);
+    if (path.endsWith("/api/query/parse")) return json(SEARCH_RESPONSE.parsed);
+    if (path.includes("/timeline")) return json(TIMELINE);
+    if (path.endsWith("/api/submit")) {
+      const body = JSON.parse((init?.body as string) || "{}");
+      const key = `${body.payload.video_id}:${body.payload.frame_idx}`;
+      if (historyStore.some((h) => h.task_id === body.task_id && (h.dedup_keys || []).includes(key)) && !body.allow_duplicate) {
+        return json({ detail: { error: "duplicate_submit", submit_keyframe_id: key } }, 409);
+      }
+      const entry = { id: "x", ts: Date.now() / 1000, task_id: body.task_id, query_type: body.query_type, payload: body.payload, dedup_keys: [key], status: "local", was_duplicate: false };
+      historyStore.push(entry);
+      return json(entry);
+    }
+    return json({}, 404);
+  });
+}
+
+beforeEach(() => {
+  // App defaults to the full console view when no saved preference exists.
+  globalThis.localStorage?.clear?.();
+  vi.stubGlobal("fetch", mockFetch());
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+  historyStore = [];
+});
+
+describe("AIC26 retrieval console (full)", () => {
+  it("renders the search form", async () => {
+    render(<App />);
+    expect(screen.getByTestId("query-input")).toBeInTheDocument();
+    expect(screen.getByTestId("search-btn")).toBeInTheDocument();
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+  });
+
+  it("displays grouped results with thumbnails and evidence", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByTestId("query-input"), "thời sự");
+    await user.click(screen.getByTestId("search-btn"));
+
+    await waitFor(() => expect(screen.getByTestId("results")).toBeInTheDocument());
+    expect(within(screen.getByTestId("results")).getByText("K01_V001")).toBeInTheDocument();
+
+    await waitFor(() => {
+      const thumbs = screen.getAllByTestId("frame-thumb");
+      expect(thumbs.length).toBe(2);
+    });
+    const imgs = screen.getAllByRole("img");
+    expect(imgs.some((i) => (i as HTMLImageElement).src.includes("/Keyframes_K01/K01_V001/001.jpg"))).toBe(true);
+
+    const detail = screen.getByTestId("detail-panel");
+    expect(within(detail).getByTestId("submit-id")).toHaveTextContent("K01/K01_V001/001");
+    expect(screen.getByText(/Bản tin thời sự HTV7/)).toBeInTheDocument();
+  });
+
+  it("supports keyboard frame selection (ArrowRight)", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByTestId("query-input"), "thời sự");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => screen.getAllByTestId("frame-thumb"));
+
+    (document.activeElement as HTMLElement)?.blur();
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+
+    await waitFor(() => {
+      const detail = screen.getByTestId("detail-panel");
+      expect(within(detail).getByTestId("submit-id")).toHaveTextContent("K01/K01_V001/006");
+    });
+  });
+
+  it("submit guard blocks a duplicate submit", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetch([
+        { id: "old", ts: Date.now() / 1000, task_id: "q001", query_type: "T-KIS", payload: { video_id: "K01_V001", frame_idx: 0 }, dedup_keys: ["K01_V001:0"], status: "local", was_duplicate: false },
+      ]),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByTestId("query-input"), "thời sự");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => screen.getByTestId("detail-panel"));
+
+    await user.click(screen.getByTestId("open-submit"));
+    await waitFor(() => expect(screen.getByTestId("submit-guard")).toBeInTheDocument());
+    expect(screen.getByTestId("dup-warn")).toBeInTheDocument();
+    expect(screen.getByTestId("confirm-submit")).toHaveTextContent(/Submit anyway/i);
+  });
+
+  it("switches between grouped and flat top-K views", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByTestId("query-input"), "thời sự");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => expect(screen.getByTestId("results")).toBeInTheDocument());
+
+    await user.click(screen.getByTestId("view-flat"));
+    await waitFor(() => expect(screen.getByTestId("results-flat")).toBeInTheDocument());
+    // both frames shown as flat cards, ranked
+    expect(screen.getAllByTestId("flat-card")).toHaveLength(2);
+
+    await user.click(screen.getByTestId("view-grouped"));
+    await waitFor(() => expect(screen.getByTestId("results")).toBeInTheDocument());
+  });
+
+  it("'v' shows the inline video under the group and hides on a second press", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByTestId("query-input"), "thời sự");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => screen.getByTestId("detail-panel"));
+
+    // no video until 'v'
+    expect(screen.queryByTestId("video-viewer")).not.toBeInTheDocument();
+
+    (document.activeElement as HTMLElement)?.blur();
+    fireEvent.keyDown(window, { key: "v" });
+    await waitFor(() => {
+      const v = screen.getByTestId("video-viewer") as HTMLVideoElement;
+      expect(v.getAttribute("src")).toContain("/Videos/Videos_K01/K01_V001.mp4");
+    });
+
+    fireEvent.keyDown(window, { key: "v" });
+    await waitFor(() => expect(screen.queryByTestId("video-viewer")).not.toBeInTheDocument());
+  });
+
+  it("Ctrl+/ toggles the keyboard shortcuts help", async () => {
+    render(<App />);
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    expect(screen.queryByTestId("shortcuts-modal")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "/", ctrlKey: true });
+    await waitFor(() => expect(screen.getByTestId("shortcuts-modal")).toBeInTheDocument());
+    expect(screen.getByText("Keyboard shortcuts")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByTestId("shortcuts-modal")).not.toBeInTheDocument());
+  });
+
+  it("TRAKE: a full-coverage video can be submitted directly from the result list", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("tab", { name: "TRAKE" }));
+    await user.type(screen.getByTestId("query-input"), "a then b");
+    await user.click(screen.getByTestId("search-btn"));
+
+    // 2/2 coverage video shows a quick-submit button
+    await waitFor(() => expect(screen.getByTestId("trake-quick-submit")).toBeInTheDocument());
+    await user.click(screen.getByTestId("trake-quick-submit"));
+
+    // guard opens with the ordered frame_idx list filled from the video
+    await waitFor(() => expect(screen.getByTestId("submit-guard")).toBeInTheDocument());
+    expect(screen.getByTestId("trake-ordered-ids")).toHaveTextContent("frame 15926");
+    expect(screen.getByTestId("trake-ordered-ids")).toHaveTextContent("frame 21030");
+  });
+
+  it("can switch to the simple view", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByText("Simple ⤴"));
+    expect(screen.getByTestId("topk-slider")).toBeInTheDocument();
+  });
+});
