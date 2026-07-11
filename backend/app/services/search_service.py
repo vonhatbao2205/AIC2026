@@ -43,9 +43,12 @@ class SearchService:
         if not queries:
             return [], 0.0
         vectors = await self.pe.encode_text(queries)
-        raws = await asyncio.gather(
-            *(asyncio.to_thread(self.milvus.search_image, v, top_k=top_k) for v in vectors)
-        )
+        if self.milvus.mock:
+            raws = [self.milvus.search_image(vector, top_k=top_k) for vector in vectors]
+        else:
+            raws = await asyncio.gather(
+                *(asyncio.to_thread(self.milvus.search_image, vector, top_k=top_k) for vector in vectors)
+            )
         # Union variants, keep the best (max) cosine per frame.
         best: dict[str, dict[str, Any]] = {}
         for raw in raws:

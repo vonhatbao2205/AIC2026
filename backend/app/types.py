@@ -62,7 +62,7 @@ class FusedFrame:
     per_channel_score: dict[str, float] = field(default_factory=dict)
     frame_idx: int | None = None  # absolute frame index in the video (for DRES submit)
     fps: float | None = None
-    via_fill: bool = False  # True if surfaced by TRAKE pass-2 in-video fill (synthetic relevance)
+    via_fill: bool = False  # True if surfaced by TRAKE pass-2 in-video fill (fallback relevance)
 
     @property
     def image_id(self) -> str:

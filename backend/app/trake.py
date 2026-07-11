@@ -3,8 +3,8 @@
 TRAKE = locate an ordered set of events E1..En inside ONE video, where the chosen
 frames must occur in strictly increasing time. Given each event's ranked
 candidate frames, the best per-video assignment is found with an exact
-dynamic-programming **maximum-weight strictly-increasing chain** (by event index
-AND time): it picks at most one frame per event, in order, maximizing
+dynamic-programming strictly-increasing chain over retrieved candidates (by
+event index AND time): it picks at most one frame per event, in order, maximizing
 (events covered, then total relevance). This is globally optimal — unlike a greedy
 left-to-right pick it never gets trapped by a locally-good early choice, and it
 can skip an event (partial sequence) when no orderable candidate exists.
@@ -18,10 +18,6 @@ from typing import Any
 
 from .types import FusedFrame
 
-# Each covered event is worth far more than any relevance score, so the DP
-# maximizes coverage first, then total relevance (lexicographic via one weight).
-COVERAGE_WEIGHT = 1000.0
-
 
 @dataclass
 class TrakeCandidateFrame:
@@ -31,7 +27,7 @@ class TrakeCandidateFrame:
     pts_time: float
     score: float
     frame_idx: int | None = None
-    via_fill: bool = False  # came from pass-2 in-video fill (synthetic 0.02-scale score)
+    via_fill: bool = False  # came from pass-2 in-video fill (small 0.02-scale score)
 
 
 @dataclass
@@ -43,8 +39,8 @@ class TrakeSequence:
     coverage: int = 0  # number of events covered (real + pass-2 fill)
     warning: str | None = None
     # Events backed by genuine pass-1 retrieval (excludes pass-2 in-video fills).
-    # This drives ranking so a fabricated full-coverage video can't bury a video
-    # with more real evidence; `filled_events = coverage - confident_coverage`.
+    # This drives ranking so a fill-heavy full-coverage video cannot bury a video
+    # with more direct evidence; `filled_events = coverage - confident_coverage`.
     confident_coverage: int = 0
     filled_events: int = 0
     mean_score: float = 0.0  # mean relevance over real (non-filled) frames
@@ -79,9 +75,10 @@ class TrakeSequence:
 def _best_increasing_chain(
     per_event: list[list[TrakeCandidateFrame]], n_events: int
 ) -> list[TrakeCandidateFrame | None]:
-    """Exact DP: maximum-weight chain of candidates with strictly increasing
-    (event_index, pts_time). Each node contributes COVERAGE_WEIGHT + score, so the
-    optimum covers the most events first, then maximizes total relevance.
+    """Exact DP: lexicographic best chain of candidates with strictly increasing
+    (event_index, pts_time). The state value is compared lexicographically as
+    (coverage, relevance), so adding one covered event always dominates any
+    relevance difference.
     Returns one pick per event (None where that event isn't covered)."""
     nodes: list[TrakeCandidateFrame] = [c for cands in per_event for c in cands]
     if not nodes:
@@ -89,17 +86,17 @@ def _best_increasing_chain(
     # Topological order for the (event, time) DAG: ascending event then time.
     nodes.sort(key=lambda c: (c.event_index, c.pts_time))
     m = len(nodes)
-    dp = [0.0] * m
+    dp: list[tuple[int, float]] = [(0, 0.0)] * m
     parent = [-1] * m
-    best_i, best_val = -1, float("-inf")
+    best_i, best_val = -1, (-1, float("-inf"))
     for i in range(m):
         ni = nodes[i]
-        best_prev, best_j = 0.0, -1
+        best_prev, best_j = (0, 0.0), -1
         for j in range(i):
             nj = nodes[j]
             if nj.event_index < ni.event_index and nj.pts_time < ni.pts_time and dp[j] > best_prev:
                 best_prev, best_j = dp[j], j
-        dp[i] = COVERAGE_WEIGHT + ni.score + best_prev
+        dp[i] = (best_prev[0] + 1, best_prev[1] + ni.score)
         parent[i] = best_j
         if dp[i] > best_val:
             best_val, best_i = dp[i], i
@@ -182,8 +179,8 @@ def assemble_trake_sequences(
             )
         )
 
-    # Rank by REAL coverage first so a video that fabricated full coverage via
-    # pass-2 fills can't outrank one with more genuine evidence; then total
+    # Rank by REAL coverage first so a fill-heavy full-coverage video cannot
+    # outrank one with more direct evidence; then total
     # coverage (the extra filled event still helps), then relevance, then id.
     sequences.sort(key=lambda s: (-s.confident_coverage, -s.coverage, -s.score, s.video_id))
     return sequences[:max_results]

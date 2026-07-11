@@ -13,6 +13,19 @@ from ..identity import parse_submit_keyframe_id
 from .. import mock_data
 
 
+_FLOAT16_MIN_NORMAL = 2**-14
+
+
+def _sanitize_float16_vector(vector: list[float]) -> list[float]:
+    """Zero values that Milvus rejects as float16 underflow.
+
+    The audio collection uses FLOAT16_VECTOR. Some normalized GLAP text
+    embeddings contain values below the smallest normal float16 magnitude;
+    replacing those negligible components with zero keeps cosine search stable.
+    """
+    return [0.0 if 0.0 < abs(value) < _FLOAT16_MIN_NORMAL else float(value) for value in vector]
+
+
 class MilvusClient:
     def __init__(self, settings: Settings):
         self.s = settings
@@ -84,7 +97,7 @@ class MilvusClient:
         client = self._connect()
         results = client.search(
             collection_name=self.s.milvus_audio_collection,
-            data=[vector],
+            data=[_sanitize_float16_vector(vector)],
             limit=top_k,
             output_fields=["submit_keyframe_id", "video_id", "keyframe_n", "top1_label", "start", "end"],
             search_params={"metric_type": "COSINE"},

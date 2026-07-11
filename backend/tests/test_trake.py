@@ -70,6 +70,36 @@ def test_dp_finds_global_optimum_where_greedy_fails():
     assert [f.pts_time for f in seqs[0].frames] == [10.0, 30.0]  # A then C, time-ordered
 
 
+def test_dp_completes_controlled_three_event_trace_that_greedy_blocks():
+    """The paper's controlled TRAKE trace: local greedy choices leave E3 behind
+    the selected time, whereas lexicographic DP takes earlier E1/E2 candidates
+    and covers all three events."""
+    e1 = [
+        _frame("K01/K01_V001/010", "K01_V001", 10, 10.0, 0.80),
+        _frame("K01/K01_V001/050", "K01_V001", 50, 50.0, 0.95),
+    ]
+    e2 = [
+        _frame("K01/K01_V001/030", "K01_V001", 30, 30.0, 0.83),
+        _frame("K01/K01_V001/070", "K01_V001", 70, 70.0, 0.93),
+    ]
+    e3 = [_frame("K01/K01_V001/060", "K01_V001", 60, 60.0, 0.90)]
+
+    last_time = float("-inf")
+    greedy = []
+    for candidates in (e1, e2, e3):
+        feasible = [candidate for candidate in candidates if candidate.pts_time > last_time]
+        pick = max(feasible, key=lambda candidate: candidate.score, default=None)
+        greedy.append(pick)
+        if pick is not None:
+            last_time = pick.pts_time
+    assert [pick.pts_time if pick else None for pick in greedy] == [50.0, 70.0, None]
+
+    sequence = assemble_trake_sequences([e1, e2, e3])[0]
+    assert sequence.complete is True
+    assert sequence.coverage == 3
+    assert [frame.pts_time for frame in sequence.frames] == [10.0, 30.0, 60.0]
+
+
 def test_coverage_dominates_ranking_over_raw_score():
     # Video A covers both events (modest scores); video B covers only one (huge score).
     a1 = [_frame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.10)]
@@ -81,7 +111,7 @@ def test_coverage_dominates_ranking_over_raw_score():
 
 
 def test_via_fill_excluded_from_confidence_metrics():
-    # E2 came from pass-2 in-video fill (synthetic 0.02 score); it counts toward
+    # E2 came from pass-2 in-video fill (small 0.02 score); it counts toward
     # coverage but not toward confidence, and must not drag mean/min relevance.
     e1 = [_frame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.80)]
     e2 = [_frame("K01/K01_V001/010", "K01_V001", 10, 50.0, 0.02, via_fill=True)]
@@ -97,8 +127,8 @@ def test_via_fill_excluded_from_confidence_metrics():
     assert d["frames"][1]["via_fill"] is True
 
 
-def test_real_coverage_outranks_fabricated_fill_coverage():
-    # FAKE video: 1 genuine event + 2 in-video fills -> coverage 3 but confident 1.
+def test_real_coverage_outranks_fill_heavy_coverage():
+    # Fill-heavy video: 1 genuine event + 2 in-video fills -> coverage 3 but confident 1.
     fake_e1 = [_frame("K02/K02_V001/001", "K02_V001", 1, 10.0, 0.90)]
     fake_e2 = [_frame("K02/K02_V001/005", "K02_V001", 5, 20.0, 0.02, via_fill=True)]
     fake_e3 = [_frame("K02/K02_V001/010", "K02_V001", 10, 30.0, 0.02, via_fill=True)]
@@ -108,7 +138,7 @@ def test_real_coverage_outranks_fabricated_fill_coverage():
     seqs = assemble_trake_sequences(
         [fake_e1 + true_e1, fake_e2 + true_e2, fake_e3], fallback_partial=True
     )
-    # Old (coverage-first) ranking would float the fabricated 3/3 to the top;
+    # Old total-coverage ranking would float the fill-heavy 3/3 to the top;
     # real-coverage-first puts the genuinely-supported 2/3 video first.
     assert seqs[0].video_id == "K01_V001"
     assert seqs[0].confident_coverage == 2

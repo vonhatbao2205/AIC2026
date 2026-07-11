@@ -4,8 +4,8 @@ Pass 1: retrieve each event globally (wide pool).
 Pass 2: for promising videos that cover only SOME events, re-search that exact
 video (Milvus filtered by video_id) for each MISSING event — this surfaces the
 video's own best frame for the gap event, turning 3/4 coverage into 4/4 when the
-costume/scene really is in that video. A relative similarity floor keeps it from
-fabricating coverage for videos that genuinely lack the event.
+costume/scene really is in that video. A relative similarity floor prevents
+low-confidence fill candidates from overstating coverage when the event is absent.
 """
 from __future__ import annotations
 

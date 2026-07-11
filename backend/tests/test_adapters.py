@@ -2,7 +2,7 @@
 import pytest
 
 from app.adapters.elastic_client import ElasticClient
-from app.adapters.milvus_client import MilvusClient
+from app.adapters.milvus_client import MilvusClient, _sanitize_float16_vector
 from app.adapters.pe_encoder import GLAP_DIM, PE_DIM, GlapEncoderClient, PeEncoderClient
 
 
@@ -69,6 +69,11 @@ async def test_milvus_audio_vector_mock(settings):
     hits = client.search_audio([0.0] * GLAP_DIM, top_k=6)
     assert hits and all(h["submit_keyframe_id"].count("/") == 2 for h in hits)
     assert all("top1_label" in h for h in hits)
+
+
+def test_milvus_audio_vector_zeros_float16_underflow():
+    vector = [0.0, 5.6401743e-05, -5.0e-05, 6.103515625e-05, 0.25]
+    assert _sanitize_float16_vector(vector) == [0.0, 0.0, 0.0, 6.103515625e-05, 0.25]
 
 
 @pytest.mark.asyncio
