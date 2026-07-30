@@ -18,11 +18,12 @@ import { HistorySidebar } from "./components/HistorySidebar";
 import { QueryPanel } from "./components/QueryPanel";
 import { QueryUnderstanding } from "./components/QueryUnderstanding";
 import { Results } from "./components/Results";
+import { PausedFramePanel, type PausedFrame } from "./components/PausedFramePanel";
 import { ShortcutsModal } from "./components/ShortcutsModal";
 import { SubmitGuard } from "./components/SubmitGuard";
 import { Timeline } from "./components/Timeline";
 import { TopBar } from "./components/TopBar";
-import { TrakePanel, type PendingChip, type TrakeSlot } from "./components/TrakePanel";
+import { TrakePanel, type TrakeSlot } from "./components/TrakePanel";
 import { VideoViewer, type VideoViewerHandle } from "./components/VideoViewer";
 import { validateIncreasingOrder } from "./lib/snap";
 
@@ -59,7 +60,8 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
 
   const [trakeSlots, setTrakeSlots] = useState<(TrakeSlot | null)[]>([null, null]);
   const [activeSlot, setActiveSlot] = useState(0);
-  const [pendingChip, setPendingChip] = useState<PendingChip | null>(null);
+  const [pausedFrame, setPausedFrame] = useState<PausedFrame | null>(null);
+  const [usePausedFrame, setUsePausedFrame] = useState(false);
   const [eventMarkers, setEventMarkers] = useState<{ eventIndex: number; pts_time: number }[]>([]);
 
   const [keymapOpen, setKeymapOpen] = useState(false);
@@ -80,6 +82,13 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
 
   const selectedGroup = groups[selectedVideo] ?? null;
   const selectedFrameObj: FrameResult | null = selectedGroup?.frames[selectedFrame] ?? null;
+  const pausedSubmitFrame =
+    queryType !== "TRAKE"
+    && usePausedFrame
+    && pausedFrame
+    && pausedFrame.video_id === selectedGroup?.video_id
+      ? pausedFrame
+      : null;
 
   // ---- bootstrap: health + history + timer ----
   useEffect(() => {
@@ -131,6 +140,8 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     if (!query.trim() && hints.length === 0) return;
     setLoading(true);
     setDuplicateId(null);
+    setPausedFrame(null);
+    setUsePausedFrame(false);
     try {
       if (queryType === "TRAKE") {
         const res = await api.searchTrake({ query, previous_hints: hints, manual_overrides: overrides, use_llm: useLLM, expand });
@@ -205,6 +216,10 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
       setVideoVisible(false);
       setActiveVideoId(null);
     }
+    if (pausedFrame && selectedVideoId && pausedFrame.video_id !== selectedVideoId) {
+      setPausedFrame(null);
+      setUsePausedFrame(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedVideoId]);
 
@@ -252,34 +267,44 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     queryRef.current?.focus();
   }
 
-  // ---- TRAKE frame-pick (RAW paused frame, no BTC snapping) ----
+  // ---- Global frame-pick (RAW paused frame, no BTC snapping) ----
   const onVideoPaused = useCallback(
     (rawTime: number, thumbnail: string | null) => {
-      if (queryType !== "TRAKE" || !activeVideoId) return;
-      const fps = timeline?.fps ?? 25;
+      if (!activeVideoId) return;
+      const fps = timeline?.fps ?? selectedFrameObj?.fps ?? 25;
       const frameIdx = Math.round(rawTime * fps); // frame_idx = round(pts * fps)
-      setPendingChip({ video_id: activeVideoId, frame_idx: frameIdx, pts_time: rawTime, thumbnail });
+      setPausedFrame({
+        video_id: activeVideoId,
+        frame_idx: frameIdx,
+        pts_time: rawTime,
+        fps,
+        thumbnail,
+      });
+      // For single-frame tasks, pausing explicitly arms this exact raw frame as
+      // the submit target. TRAKE still requires assigning it to an event slot.
+      setUsePausedFrame(queryType !== "TRAKE");
     },
-    [queryType, activeVideoId, timeline],
+    [queryType, activeVideoId, timeline, selectedFrameObj?.fps],
   );
 
-  const assignChipToSlot = useCallback(
+  const assignPausedFrameToSlot = useCallback(
     (slotIdx: number) => {
-      if (!pendingChip) return;
+      if (!pausedFrame) return;
       setTrakeSlots((slots) => {
         const next = [...slots];
         next[slotIdx] = {
-          video_id: pendingChip.video_id,
-          frame_idx: pendingChip.frame_idx,
-          pts_time: pendingChip.pts_time,
-          thumbnail: pendingChip.thumbnail,
+          video_id: pausedFrame.video_id,
+          frame_idx: pausedFrame.frame_idx,
+          pts_time: pausedFrame.pts_time,
+          thumbnail: pausedFrame.thumbnail,
         };
         return next;
       });
-      setActiveSlot((s) => Math.min(s + 1, trakeSlots.length - 1));
-      setPendingChip(null);
+      setActiveSlot(Math.min(slotIdx + 1, trakeSlots.length - 1));
+      setPausedFrame(null);
+      setUsePausedFrame(false);
     },
-    [pendingChip, trakeSlots.length],
+    [pausedFrame, trakeSlots.length],
   );
 
   // Effective frame_idx for a result frame: prefer the exact value from the
@@ -290,7 +315,11 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     const fps = f.fps ?? timeline?.fps ?? 25;
     return Math.round(f.pts_time * fps);
   }
-  const selectedFrameIdx = selectedFrameObj ? frameIdxOf(selectedFrameObj) : null;
+  const selectedFrameIdx = pausedSubmitFrame
+    ? pausedSubmitFrame.frame_idx
+    : selectedFrameObj
+      ? frameIdxOf(selectedFrameObj)
+      : null;
 
   function autoFillSlotsFromSelected() {
     if (!selectedGroup) return;
@@ -306,13 +335,20 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
       };
     });
     setTrakeSlots(next);
-    setEventMarkers(next.filter(Boolean).map((s, i) => ({ eventIndex: i + 1, pts_time: (s as TrakeSlot).pts_time })));
   }
 
   const orderViolations = useMemo(
     () => validateIncreasingOrder(trakeSlots.map((s) => (s ? s.frame_idx : null))),
     [trakeSlots],
   );
+
+  useEffect(() => {
+    setEventMarkers(
+      trakeSlots.flatMap((slot, index) =>
+        slot ? [{ eventIndex: index + 1, pts_time: slot.pts_time }] : [],
+      ),
+    );
+  }, [trakeSlots]);
 
   // Swap two TRAKE slots (drag a keyframe onto another slot to reorder events).
   function moveSlot(from: number, to: number) {
@@ -349,6 +385,9 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
       if (!filled.length) return null;
       return `${filled[0].video_id}|${filled.map((s) => s.frame_idx).join(",")}`;
     }
+    if (pausedSubmitFrame) {
+      return `${pausedSubmitFrame.video_id}:${pausedSubmitFrame.frame_idx}`;
+    }
     if (selectedFrameObj) return `${selectedFrameObj.video_id}:${frameIdxOf(selectedFrameObj)}`;
     return null;
   }
@@ -368,7 +407,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
         setToast({ msg: "No TRAKE frames selected", kind: "bad" });
         return;
       }
-    } else if (!selectedFrameObj) {
+    } else if (!pausedSubmitFrame && !selectedFrameObj) {
       return;
     }
     setDuplicateId(computeDuplicate());
@@ -386,17 +425,22 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
         payload.events = trakeSlots
           .map((s, i) => (s ? { event_index: i + 1, frame_idx: s.frame_idx, pts_time: s.pts_time, submit_keyframe_id: s.submit_keyframe_id } : null))
           .filter((e): e is NonNullable<typeof e> => e !== null);
-      } else if (selectedFrameObj) {
-        const fi = frameIdxOf(selectedFrameObj);
+      } else if (pausedSubmitFrame || selectedFrameObj) {
+        const fi = pausedSubmitFrame?.frame_idx
+          ?? (selectedFrameObj ? frameIdxOf(selectedFrameObj) : null);
         if (fi == null) {
           setToast({ msg: "Không xác định được frame_idx cho frame này — không thể nộp.", kind: "bad" });
           setSubmitting(false);
           return;
         }
-        payload.video_id = selectedFrameObj.video_id;
+        payload.video_id = pausedSubmitFrame?.video_id ?? selectedFrameObj?.video_id;
         payload.frame_idx = fi;
-        payload.timestamp = selectedFrameObj.pts_time ?? undefined;
-        payload.submit_keyframe_id = selectedFrameObj.submit_keyframe_id;
+        payload.timestamp = pausedSubmitFrame?.pts_time
+          ?? selectedFrameObj?.pts_time
+          ?? undefined;
+        if (!pausedSubmitFrame && selectedFrameObj) {
+          payload.submit_keyframe_id = selectedFrameObj.submit_keyframe_id;
+        }
         if (queryType === "QA") payload.answer = answer;
       }
       await api.submit({
@@ -439,7 +483,10 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
       if (e.key === "Escape") {
         if (keymapOpen) setKeymapOpen(false);
         else if (guardOpen) setGuardOpen(false);
-        else if (pendingChip) setPendingChip(null);
+        else if (pausedFrame) {
+          setPausedFrame(null);
+          setUsePausedFrame(false);
+        }
         return;
       }
       if (e.key === "Enter" && guardOpen) {
@@ -457,7 +504,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
       switch (e.key) {
         case "Enter":
           e.preventDefault();
-          if (queryType === "TRAKE" && pendingChip) assignChipToSlot(activeSlot);
+          if (queryType === "TRAKE" && pausedFrame) assignPausedFrameToSlot(activeSlot);
           else openGuard();
           break;
         case "ArrowDown":
@@ -506,7 +553,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guardOpen, keymapOpen, pendingChip, queryType, activeSlot, groups.length, selectedGroup, selectedFrameObj, selectedVideoId, videoVisible, activeVideoId, submitting, assignChipToSlot]);
+  }, [guardOpen, keymapOpen, pausedFrame, queryType, activeSlot, groups.length, selectedGroup, selectedFrameObj, selectedVideoId, videoVisible, activeVideoId, submitting, assignPausedFrameToSlot]);
 
   function seekVideo(t: number) {
     viewerRef.current?.seek(t);
@@ -521,7 +568,12 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     <div className="app">
       <TopBar
         queryType={queryType}
-        onQueryType={(t) => { setQueryType(t); setParsed(null); }}
+        onQueryType={(t) => {
+          setQueryType(t);
+          setParsed(null);
+          setPausedFrame(null);
+          setUsePausedFrame(false);
+        }}
         elapsed={elapsed}
         penalties={penalties}
         latency={latency}
@@ -628,6 +680,19 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
 
         {/* RIGHT */}
         <div className="col col-right" style={focusZone === "detail" ? { boxShadow: "inset 0 2px 0 var(--accent)" } : undefined}>
+          <PausedFramePanel
+            frame={pausedFrame}
+            queryType={queryType}
+            activeForSubmit={pausedSubmitFrame !== null}
+            activeTrakeSlot={activeSlot}
+            onUseForSubmit={() => setUsePausedFrame(true)}
+            onUseResultFrame={() => setUsePausedFrame(false)}
+            onAssignToTrake={() => assignPausedFrameToSlot(activeSlot)}
+            onClear={() => {
+              setPausedFrame(null);
+              setUsePausedFrame(false);
+            }}
+          />
           {queryType === "TRAKE" && (
             <>
               <div className="panel" style={{ paddingBottom: 0 }}>
@@ -638,10 +703,10 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
               <TrakePanel
                 slots={trakeSlots}
                 activeSlot={activeSlot}
-                pendingChip={pendingChip}
+                hasPausedFrame={pausedFrame !== null}
                 violations={orderViolations}
                 onSetActive={setActiveSlot}
-                onAssignChip={assignChipToSlot}
+                onAssignChip={assignPausedFrameToSlot}
                 onClearSlot={(i) => setTrakeSlots((s) => s.map((x, idx) => (idx === i ? null : x)))}
                 onMoveSlot={moveSlot}
                 onAddEvent={() => setTrakeSlots((s) => [...s, null])}
@@ -649,7 +714,13 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
               />
             </>
           )}
-          <DetailPanel frame={selectedFrameObj} queryType={queryType} onSubmit={openGuard} onCopyId={copyId} />
+          <DetailPanel
+            frame={selectedFrameObj}
+            queryType={queryType}
+            usingPausedFrame={pausedSubmitFrame !== null}
+            onSubmit={openGuard}
+            onCopyId={copyId}
+          />
           <HistorySidebar history={history} />
         </div>
       </div>
@@ -658,6 +729,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
         open={guardOpen}
         queryType={queryType}
         frame={selectedFrameObj}
+        pausedFrame={pausedSubmitFrame}
         frameIdx={selectedFrameIdx}
         trakeSlots={trakeSlots}
         taskId={taskId}

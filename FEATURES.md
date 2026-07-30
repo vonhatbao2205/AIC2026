@@ -63,13 +63,13 @@ Toàn bộ tính năng hiện có của hệ thống truy hồi video AIC26 (bac
 - **Xếp hạng theo evidence thật**: cross-video rank theo `confident_coverage` (event do retrieval thật phủ, **loại** event fill) trước → video 4/4 "giả" (nhiều fill) không đè được video có nhiều bằng chứng thật; clean full-coverage luôn lên đầu.
 - **Badge coverage** `4/4 / 3/4 events` + chip `+N in-video` khi có fill + `μ` điểm TB frame thật → operator thấy độ tin cậy, tránh wrong submit.
 - **Submit nhanh**: video đủ event → nút **Submit sequence ↵** điền hết slot + mở guard.
-- **Frame-pick lúc pause** (phím `v` mở video → pause): lấy **frame_idx = round(pts×fps) ngay tại điểm dừng** (KHÔNG snap về BTC keyframe), thumbnail trích thẳng từ video (canvas) → chip kéo thả/Enter gán slot.
+- **Frame-pick lúc pause là tính năng global** (phím `v` mở video → pause): lấy **frame_idx = round(pts×fps) ngay tại điểm dừng** (KHÔNG snap về BTC keyframe) và thumbnail trực tiếp từ video (canvas). T-KIS/QA/V-KIS tự dùng raw frame này làm submit target (có thể chuyển lại result keyframe); TRAKE kéo thả/Enter để gán vào event slot.
 - **Kéo-thả keyframe giữa các ô event** để sắp xếp lại thứ tự (swap); validate thứ tự tăng dần, cảnh báo `⚠ order`.
 - **Auto-fill E1..En** từ video đang chọn; marker event màu trên timeline.
 
 ## 10. Submit (định dạng DRES) & lịch sử
 - Payload: **TKIS/VKIS** `{video_id, frame_idx, timestamp}` · **QA** `+answer` · **TRAKE** `{video_id, events:[{event_index, frame_idx}]}` (frame_idx tăng dần). Map T-KIS→TKIS, V-KIS→VKIS.
-- **Submit guard** trước mọi submit: thumbnail, video_id, frame_idx, btc id, thời gian, evidence OCR/ASR/audio, ô answer (QA), danh sách frame_idx có thứ tự (TRAKE).
+- **Submit guard** trước mọi submit: thumbnail, video_id, frame_idx, nguồn raw paused frame hoặc btc id, thời gian, evidence OCR/ASR/audio, ô answer (QA), danh sách frame_idx có thứ tự (TRAKE).
 - **Chống nộp trùng**: dedup theo `video_id:frame_idx` (KIS/QA) / `video_id|f1,f2,…` (TRAKE) per task → 409 + nút "Submit anyway". Chặn submit khi không tính được frame_idx.
 - **Submit history sidebar**: loại task, frame, trạng thái (local / dres_ok / dres_error), cờ dup, answer.
 - **DRES adapter** tùy chọn (`DRES_BASE_URL`/`DRES_TOKEN`); thiếu thì lưu local history (đúng format).
@@ -86,7 +86,7 @@ Toàn bộ tính năng hiện có của hệ thống truy hồi video AIC26 (bac
 - **Tự dịch VI→EN** sau khi nói (Whisper trả sẵn; Web Speech gọi `/api/translate`).
 
 ## 13. Phím tắt
-`/` focus query · `Enter` search / mở guard / xác nhận / gán chip TRAKE · `↑↓` chọn video · `←→` chọn frame · `v` hiện/ẩn video · `Space` play/pause video · `Tab` đổi vùng · `T` ẩn/hiện timeline · `Esc` đóng modal/chip · `Ctrl+M` voice · `Ctrl+/` **bảng phím tắt**. Nút **?** ở top bar mở keymap.
+`/` focus query · `Enter` search / mở guard / xác nhận / gán paused frame cho TRAKE · `↑↓` chọn video · `←→` chọn frame · `v` hiện/ẩn video · `Space` play/pause và capture raw frame · `Tab` đổi vùng · `T` ẩn/hiện timeline · `Esc` đóng modal/xóa paused frame · `Ctrl+M` voice · `Ctrl+/` **bảng phím tắt**. Nút **?** ở top bar mở keymap.
 
 ## 14. Hiệu năng & độ bền
 - **Latency badge**: parse/fusion/total ms.

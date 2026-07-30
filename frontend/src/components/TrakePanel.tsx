@@ -11,17 +11,10 @@ export interface TrakeSlot {
   submit_keyframe_id?: string; // nearest BTC keyframe, display only
 }
 
-export interface PendingChip {
-  video_id: string;
-  frame_idx: number;
-  pts_time: number;
-  thumbnail?: string | null;
-}
-
 interface Props {
   slots: (TrakeSlot | null)[];
   activeSlot: number;
-  pendingChip: PendingChip | null;
+  hasPausedFrame: boolean;
   violations: number[];
   onSetActive: (i: number) => void;
   onAssignChip: (slotIdx: number) => void;
@@ -41,7 +34,7 @@ function SlotThumb({ slot }: { slot: TrakeSlot }) {
 }
 
 export function TrakePanel(props: Props) {
-  const { slots, activeSlot, pendingChip, violations } = props;
+  const { slots, activeSlot, violations } = props;
 
   function onDrop(e: React.DragEvent, slotIdx: number) {
     e.preventDefault();
@@ -51,7 +44,9 @@ export function TrakePanel(props: Props) {
       if (from !== slotIdx) props.onMoveSlot(from, slotIdx); // reorder events
       return;
     }
-    if (e.dataTransfer.getData("text/x-trake-chip")) props.onAssignChip(slotIdx);
+    if (e.dataTransfer.getData("text/x-paused-frame") && props.hasPausedFrame) {
+      props.onAssignChip(slotIdx);
+    }
   }
 
   return (
@@ -102,30 +97,6 @@ export function TrakePanel(props: Props) {
         ))}
       </div>
 
-      {pendingChip && (
-        <div
-          className="frame-chip"
-          data-testid="frame-chip"
-          draggable
-          onDragStart={(e) => e.dataTransfer.setData("text/x-trake-chip", String(pendingChip.frame_idx))}
-          title="Drag into a slot, or press Enter to assign to the active slot"
-        >
-          <div className="row">
-            {pendingChip.thumbnail && <img src={pendingChip.thumbnail} style={{ width: 64, height: 36, objectFit: "cover", borderRadius: 4 }} alt="" />}
-            <div>
-              <div className="mono" style={{ fontSize: 11 }}>
-                {pendingChip.video_id} · frame <b>{pendingChip.frame_idx}</b>
-              </div>
-              <div className="mono" style={{ fontSize: 9.5, color: "var(--fg-faint)" }}>
-                paused {pendingChip.pts_time.toFixed(3)}s → frame_idx = round(pts × fps)
-              </div>
-            </div>
-          </div>
-          <div style={{ fontSize: 9.5, color: "var(--fg-faint)", marginTop: 4 }}>
-            <span className="kbd">↵</span> assign to E{activeSlot + 1}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

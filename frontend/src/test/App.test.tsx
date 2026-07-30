@@ -235,6 +235,81 @@ describe("AIC26 retrieval console (full)", () => {
     await waitFor(() => expect(screen.queryByTestId("video-viewer")).not.toBeInTheDocument());
   });
 
+  it.each(["T-KIS", "QA", "V-KIS"] as const)(
+    "%s: pausing video makes the exact raw frame the submit target",
+    async (queryType) => {
+      const user = userEvent.setup();
+      render(<App />);
+      if (queryType !== "T-KIS") {
+        await user.click(screen.getByRole("tab", { name: queryType }));
+      }
+      await user.type(screen.getByTestId("query-input"), "thời sự");
+      await user.click(screen.getByTestId("search-btn"));
+      await waitFor(() => screen.getByTestId("detail-panel"));
+
+      (document.activeElement as HTMLElement)?.blur();
+      fireEvent.keyDown(window, { key: "v" });
+      const video = await screen.findByTestId("video-viewer") as HTMLVideoElement;
+      Object.defineProperty(video, "currentTime", {
+        configurable: true,
+        writable: true,
+        value: 5.2,
+      });
+      fireEvent.pause(video);
+
+      const chip = await screen.findByTestId("paused-frame-chip");
+      expect(chip).toHaveTextContent("frame 130");
+      expect(screen.getByText("submit target")).toBeInTheDocument();
+
+      await user.click(screen.getByTestId("open-submit"));
+      expect(await screen.findByTestId("guard-frame-idx")).toHaveTextContent("130");
+      expect(screen.getByText(/exact paused/)).toBeInTheDocument();
+      if (queryType === "QA") {
+        await user.type(screen.getByTestId("qa-answer"), "HTV7");
+      }
+      await user.click(screen.getByTestId("confirm-submit"));
+
+      await waitFor(() => {
+        const submitCall = vi.mocked(fetch).mock.calls.find(
+          ([url]) => String(url).endsWith("/api/submit"),
+        );
+        expect(submitCall).toBeDefined();
+        const body = JSON.parse(String(submitCall?.[1]?.body));
+        expect(body.query_type).toBe(queryType);
+        expect(body.payload).toMatchObject({
+          video_id: "K01_V001",
+          frame_idx: 130,
+          timestamp: 5.2,
+        });
+        expect(body.payload.submit_keyframe_id).toBeUndefined();
+      });
+    },
+  );
+
+  it("TRAKE: a paused raw frame can be assigned to the active event slot", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("tab", { name: "TRAKE" }));
+    await user.type(screen.getByTestId("query-input"), "a then b");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => screen.getByTestId("trake-panel"));
+
+    (document.activeElement as HTMLElement)?.blur();
+    fireEvent.keyDown(window, { key: "v" });
+    const video = await screen.findByTestId("video-viewer") as HTMLVideoElement;
+    Object.defineProperty(video, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 5.2,
+    });
+    fireEvent.pause(video);
+
+    expect(await screen.findByTestId("paused-frame-chip")).toHaveTextContent("frame 130");
+    await user.click(screen.getByTestId("assign-paused-frame"));
+    expect(screen.getByTestId("trake-slot-0")).toHaveTextContent("f130");
+    expect(screen.queryByTestId("paused-frame-chip")).not.toBeInTheDocument();
+  });
+
   it("Ctrl+/ toggles the keyboard shortcuts help", async () => {
     render(<App />);
     await waitFor(() => expect(fetch).toHaveBeenCalled());

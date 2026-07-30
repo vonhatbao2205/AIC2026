@@ -5,6 +5,7 @@ import { ChannelBadge } from "./Badges";
 interface Props {
   frame: FrameResult | null;
   queryType: QueryType;
+  usingPausedFrame: boolean;
   onSubmit: () => void;
   onCopyId: (id: string) => void;
 }
@@ -33,7 +34,7 @@ function EvidenceCard({ e }: { e: Evidence }) {
   );
 }
 
-export function DetailPanel({ frame, queryType, onSubmit, onCopyId }: Props) {
+export function DetailPanel({ frame, queryType, usingPausedFrame, onSubmit, onCopyId }: Props) {
   if (!frame) {
     return (
       <div className="panel">
@@ -66,7 +67,12 @@ export function DetailPanel({ frame, queryType, onSubmit, onCopyId }: Props) {
       </div>
       <div className="row" style={{ marginBottom: 8 }}>
         <button className="btn primary" data-testid="open-submit" onClick={onSubmit}>
-          {queryType === "TRAKE" ? "Submit sequence" : "Submit"} <span className="kbd">↵</span>
+          {queryType === "TRAKE"
+            ? "Submit sequence"
+            : usingPausedFrame
+              ? "Submit paused frame"
+              : "Submit result frame"}{" "}
+          <span className="kbd">↵</span>
         </button>
       </div>
       <h3>Evidence · explain match</h3>

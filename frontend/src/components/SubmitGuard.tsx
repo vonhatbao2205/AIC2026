@@ -1,11 +1,13 @@
 import type { FrameResult, QueryType } from "../api/types";
 import { formatTime } from "../lib/media";
+import type { PausedFrame } from "./PausedFramePanel";
 import type { TrakeSlot } from "./TrakePanel";
 
 interface Props {
   open: boolean;
   queryType: QueryType;
   frame: FrameResult | null;
+  pausedFrame: PausedFrame | null;
   frameIdx: number | null; // effective frame_idx that will be submitted
   trakeSlots: (TrakeSlot | null)[];
   taskId: string;
@@ -20,7 +22,7 @@ interface Props {
 }
 
 export function SubmitGuard(props: Props) {
-  const { open, queryType, frame, frameIdx, trakeSlots, duplicateId, orderViolations, submitting } = props;
+  const { open, queryType, frame, pausedFrame, frameIdx, trakeSlots, duplicateId, orderViolations, submitting } = props;
   if (!open) return null;
 
   const isTrake = queryType === "TRAKE";
@@ -29,8 +31,12 @@ export function SubmitGuard(props: Props) {
   const speech = frame?.evidence.find((e) => e.type === "speech");
   const audio = frame?.evidence.find((e) => e.type === "audio");
 
-  const missingFrameIdx = !isTrake && !!frame && frameIdx == null;
-  const blocked = isTrake ? filledSlots.length === 0 : !frame || missingFrameIdx;
+  const missingFrameIdx = !isTrake && !pausedFrame && !!frame && frameIdx == null;
+  const blocked = isTrake ? filledSlots.length === 0 : (!pausedFrame && !frame) || missingFrameIdx;
+  const preview = pausedFrame?.thumbnail ?? frame?.keyframe_url ?? null;
+  const previewAlt = pausedFrame
+    ? `Paused frame ${pausedFrame.frame_idx}`
+    : frame?.submit_keyframe_id ?? "Submission frame";
 
   return (
     <div className="modal-backdrop" onClick={props.onCancel} data-testid="submit-guard">
@@ -78,20 +84,38 @@ export function SubmitGuard(props: Props) {
                 {filledSlots.map((s) => `frame ${s.frame_idx}`).join("  →  ")}
               </div>
             </div>
-          ) : frame ? (
+          ) : pausedFrame || frame ? (
             <>
-              <img className="guard-thumb" src={frame.keyframe_url} alt={frame.submit_keyframe_id} />
+              {preview ? (
+                <img className="guard-thumb" src={preview} alt={previewAlt} />
+              ) : (
+                <div className="guard-thumb guard-placeholder">no preview</div>
+              )}
               <div className="kv">
                 <span className="k">video</span>
-                <span className="v" data-testid="guard-submit-id">{frame.video_id}</span>
+                <span className="v" data-testid="guard-submit-id">
+                  {pausedFrame?.video_id ?? frame?.video_id}
+                </span>
                 <span className="k">frame_idx</span>
-                <span className="v" style={{ color: frameIdx == null ? "var(--bad)" : "var(--accent)", fontWeight: 700 }}>
+                <span
+                  className="v"
+                  data-testid="guard-frame-idx"
+                  style={{ color: frameIdx == null ? "var(--bad)" : "var(--accent)", fontWeight: 700 }}
+                >
                   {frameIdx ?? "không xác định"}
                 </span>
                 <span className="k">time</span>
-                <span className="v">#{frame.keyframe_n} · {formatTime(frame.pts_time)}</span>
-                <span className="k">btc id</span>
-                <span className="v" style={{ fontSize: 11, color: "var(--fg-faint)" }}>{frame.submit_keyframe_id}</span>
+                <span className="v">
+                  {pausedFrame
+                    ? `exact paused · ${formatTime(pausedFrame.pts_time)} · ${pausedFrame.pts_time.toFixed(3)}s`
+                    : `#${frame?.keyframe_n} · ${formatTime(frame?.pts_time)}`}
+                </span>
+                <span className="k">{pausedFrame ? "source" : "btc id"}</span>
+                <span className="v" style={{ fontSize: 11, color: "var(--fg-faint)" }}>
+                  {pausedFrame
+                    ? `raw paused frame · ${pausedFrame.fps.toFixed(3)} fps`
+                    : frame?.submit_keyframe_id}
+                </span>
               </div>
               {missingFrameIdx && (
                 <div className="dup-warn">⚠ Không trích được frame_idx (thiếu pts_time/fps) — không thể nộp frame này.</div>

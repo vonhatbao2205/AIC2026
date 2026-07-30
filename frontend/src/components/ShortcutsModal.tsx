@@ -29,22 +29,22 @@ const GROUPS: Group[] = [
     title: "Video & timeline",
     rows: [
       { keys: ["v"], desc: "Show / hide video at the selected keyframe" },
-      { keys: ["Space"], desc: "Play / pause the video (when focused)" },
+      { keys: ["Space"], desc: "Play / pause and capture the exact raw frame" },
       { keys: ["T"], desc: "Toggle the timeline" },
     ],
   },
   {
     title: "Submit",
     rows: [
-      { keys: ["Enter"], desc: "Open submit guard (a result is selected)" },
+      { keys: ["Enter"], desc: "Open submit guard (uses paused frame when active)" },
       { keys: ["Enter"], desc: "Confirm submit (inside the guard)" },
-      { keys: ["Enter"], desc: "TRAKE: assign snapped frame to active slot" },
+      { keys: ["Enter"], desc: "TRAKE: assign paused frame to active slot" },
     ],
   },
   {
     title: "General",
     rows: [
-      { keys: ["Esc"], desc: "Close modal / cancel chip / close this help" },
+      { keys: ["Esc"], desc: "Close modal / clear paused frame / close this help" },
       { keys: ["Ctrl", "/"], desc: "Toggle this shortcuts help" },
     ],
   },

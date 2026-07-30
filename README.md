@@ -72,6 +72,7 @@ The broader design/strategy is in **[AIC26_Pipeline.md](AIC26_Pipeline.md)**.
 | `keyframe_mapping.py` | Build the keyframe → (video, pts_time) map. |
 | `elastic_upload.py` | Index OCR / speech / audio / keyframe-map records into Elastic. |
 | `milvus_upload.py` | Upload PE-Core-G14 image vectors into Milvus. |
+| `aic26_query_factory_qwen3vl8b_t4x2.ipynb` | Kaggle T4×2 workflow dùng Qwen3-VL-8B, PE-G14/Milvus visual hard negatives, critic, review và export benchmark T-KIS/QA/TRAKE/V-KIS. |
 | `*.ipynb` | Pipeline notebooks: `audio_pipeline`, `speech_pipeline`, `cloudflareR2`, `model-setup-backend`, `glap-encoder-kaggle`, `ui-streamlit`. |
 | `*_PIPELINE.md`, `*_HANDOFF.md`, `FEATURES.md` | Per-stage documentation (audio, speech, OCR, Elastic, Milvus, R2). |
 | `HUONG_DAN_SU_DUNG_DRES.md`, `dres_readme.md` | DRES submission notes. |
@@ -163,6 +164,7 @@ cd frontend && npm run test                       # vitest component tests
 | [ELASTIC_RETRIEVAL_HANDOFF.md](ELASTIC_RETRIEVAL_HANDOFF.md) / [MILVUS_EMBEDDING_HANDOFF.md](MILVUS_EMBEDDING_HANDOFF.md) | Index/collection schemas |
 | [CLOUDFLARE_R2_MEDIA_HANDOFF.md](CLOUDFLARE_R2_MEDIA_HANDOFF.md) | Media hosting on R2 |
 | [HUONG_DAN_SU_DUNG_DRES.md](HUONG_DAN_SU_DUNG_DRES.md) | DRES usage (Vietnamese) |
+| [aic26_query_factory_qwen3vl8b_t4x2.ipynb](aic26_query_factory_qwen3vl8b_t4x2.ipynb) | Source-first benchmark factory: Qwen3-VL generator/critic, PE-G14/Milvus + TF-IDF hard negatives, human review, private ground truth and evaluator |
 
 ---
 

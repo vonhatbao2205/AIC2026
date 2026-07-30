@@ -27,6 +27,7 @@ export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoVi
 ) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const latestMediaTime = useRef(0);
+  const hasPresentedFrame = useRef(false);
   const rvfcId = useRef<number | null>(null);
 
   useImperativeHandle(ref, () => ({
@@ -70,11 +71,13 @@ export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoVi
 
     const step = (_now: number, metadata: { mediaTime: number }) => {
       latestMediaTime.current = metadata.mediaTime;
+      hasPresentedFrame.current = true;
       onTime?.(metadata.mediaTime);
       rvfcId.current = vAny.requestVideoFrameCallback!(step);
     };
 
     function startTracking() {
+      hasPresentedFrame.current = false;
       if (supportsRVFC) rvfcId.current = vAny.requestVideoFrameCallback!(step);
     }
     function stopTracking() {
@@ -100,7 +103,9 @@ export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoVi
       }
     }
     function handlePause() {
-      const rawTime = supportsRVFC ? latestMediaTime.current : v!.currentTime;
+      const rawTime = supportsRVFC && hasPresentedFrame.current
+        ? latestMediaTime.current
+        : v!.currentTime;
       onPaused?.(rawTime, captureThumbnail());
       stopTracking();
     }
