@@ -7,8 +7,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-Channel = Literal["image_pe", "ocr", "speech", "audio"]
-ALL_CHANNELS: tuple[Channel, ...] = ("image_pe", "ocr", "speech", "audio")
+# `similar` is the relevance-feedback channel: image-to-image kNN seeded by the
+# frames the operator marked "more like this". It is fused by RRF like any other
+# channel, which keeps feedback on the same scale instead of a hard-coded boost.
+Channel = Literal["image_pe", "ocr", "speech", "audio", "similar"]
+ALL_CHANNELS: tuple[Channel, ...] = ("image_pe", "ocr", "speech", "audio", "similar")
 
 
 @dataclass

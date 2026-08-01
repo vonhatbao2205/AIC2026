@@ -31,6 +31,8 @@ const GROUPS: Group[] = [
       { keys: ["v"], desc: "Show / hide video at the selected keyframe" },
       { keys: ["Space"], desc: "Play / pause and capture the exact raw frame" },
       { keys: ["T"], desc: "Toggle the timeline" },
+      { keys: ["K"], desc: "Browse neighbouring keyframes of the selected frame" },
+      { keys: ["←", "→"], desc: "Page the neighbour strip (video follows) when it is open" },
     ],
   },
   {

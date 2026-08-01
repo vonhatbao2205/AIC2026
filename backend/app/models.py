@@ -23,8 +23,11 @@ class ParseRequest(BaseModel):
 
 
 class FeedbackState(BaseModel):
+    # Video-level priority is a soft multiplier on the aggregate video score;
+    # positive_frames seed the image-to-image `similar` retrieval channel.
     positive_videos: list[str] = Field(default_factory=list)
     negative_videos: list[str] = Field(default_factory=list)
+    positive_frames: list[str] = Field(default_factory=list, max_length=12)
     negative_frames: list[str] = Field(default_factory=list)
 
 

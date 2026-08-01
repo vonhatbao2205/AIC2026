@@ -14,27 +14,32 @@ from .types import ALL_CHANNELS, Channel, ChannelHit, Evidence, FusedFrame, Vide
 
 DEFAULT_RRF_K = 60
 
+# Operator video priority is a SOFT multiplier on the aggregate score, not a pin:
+# a prioritised video climbs, but a rival holding far stronger evidence still wins.
+PRIORITIZED_VIDEO_MULTIPLIER = 1.5
+DEPRIORITIZED_VIDEO_MULTIPLIER = 0.5
+
 
 def reciprocal_rank_fusion(
     channel_hits: dict[Channel, list[ChannelHit]],
     *,
     weights: dict[str, float] | None = None,
     k: int = DEFAULT_RRF_K,
-    positive_videos: set[str] | None = None,
     negative_frames: set[str] | None = None,
-    negative_videos: set[str] | None = None,
-    feedback_boost: float = 0.15,
 ) -> list[FusedFrame]:
     """Fuse per-channel ranked hits into a single ranked list of frames.
 
-    `weights` scales each channel's contribution. Relevance-feedback sets apply a
-    simple deterministic re-rank: positive videos get a small additive boost,
-    negative frames are dropped, negative videos demoted.
+    `weights` scales each channel's contribution.
+
+    Frame-level feedback is expressed here only as an exclusion: a frame the
+    operator rejected is dropped. Positive feedback is NOT an additive bonus —
+    an RRF score maxes out near `n_channels / (k + 1)` (~0.016 per channel), so
+    any constant large enough to be felt also swamps the ranking. "More like
+    this frame" is instead a real retrieval channel (`similar`), and video-level
+    priority is a multiplier on the aggregate score in `group_by_video`.
     """
     weights = weights or {}
-    positive_videos = positive_videos or set()
     negative_frames = negative_frames or set()
-    negative_videos = negative_videos or set()
 
     fused: dict[str, FusedFrame] = {}
 
@@ -70,10 +75,6 @@ def reciprocal_rank_fusion(
     for kf_id, frame in fused.items():
         if kf_id in negative_frames:
             continue
-        if frame.video_id in negative_videos:
-            frame.score *= 0.5
-        if frame.video_id in positive_videos:
-            frame.score += feedback_boost
         # Order channels canonically for stable display.
         frame.channels = [c for c in ALL_CHANNELS if c in frame.channels]
         results.append(frame)
@@ -109,6 +110,8 @@ def group_by_video(
     cluster_window_seconds: float = 30.0,
     cluster_full_support: int = 4,
     ambiguous_gap_seconds: float = 30.0,
+    prioritized_videos: set[str] | None = None,
+    deprioritized_videos: set[str] | None = None,
 ) -> list[VideoGroup]:
     """Group fused frames by video and compute a composite video score.
 
@@ -122,7 +125,13 @@ def group_by_video(
     (mediocre) frames. `cluster_support` only counts frames temporally close to
     the best frame, and is bounded — it nudges near-ties, it does not bury raw
     top frames. (Replaces the old count-dominated additive formula.)
+
+    Operator video feedback scales this aggregate. Applying it here rather than to
+    every frame is deliberate: marking one frame must not lift all 380 frames of
+    its video above every other video's best frame.
     """
+    prioritized_videos = prioritized_videos or set()
+    deprioritized_videos = deprioritized_videos or set()
     by_video: dict[str, list[FusedFrame]] = defaultdict(list)
     for frame in frames:
         by_video[frame.video_id].append(frame)
@@ -161,6 +170,10 @@ def group_by_video(
             + w_mean * (mean_top / max_overall)
             + w_cluster * cluster_support
         )
+        if video_id in prioritized_videos:
+            video_score *= PRIORITIZED_VIDEO_MULTIPLIER
+        if video_id in deprioritized_videos:
+            video_score *= DEPRIORITIZED_VIDEO_MULTIPLIER
 
         channels: list[Channel] = []
         for f in vframes:

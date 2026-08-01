@@ -1,6 +1,6 @@
 // Types mirroring the backend API contract (see backend/README and main.py).
 
-export type Channel = "image_pe" | "ocr" | "speech" | "audio";
+export type Channel = "image_pe" | "ocr" | "speech" | "audio" | "similar";
 export type QueryType = "T-KIS" | "QA" | "V-KIS" | "TRAKE";
 export type QueryTypeHint = "auto" | QueryType;
 
@@ -314,7 +314,10 @@ export interface SubmitEntry {
 }
 
 export interface FeedbackState {
+  /** Soft multiplier on the aggregate video score. */
   positive_videos: string[];
   negative_videos: string[];
+  /** Seeds the image-to-image `similar` retrieval channel. */
+  positive_frames: string[];
   negative_frames: string[];
 }

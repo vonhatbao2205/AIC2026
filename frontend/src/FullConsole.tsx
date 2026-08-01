@@ -15,7 +15,9 @@ import type {
 } from "./api/types";
 import { ChannelControls } from "./components/ChannelControls";
 import { DetailPanel } from "./components/DetailPanel";
+import { FeedbackBar } from "./components/FeedbackBar";
 import { HistorySidebar } from "./components/HistorySidebar";
+import { NeighborStrip } from "./components/NeighborStrip";
 import { QueryPanel } from "./components/QueryPanel";
 import { QueryUnderstanding } from "./components/QueryUnderstanding";
 import { QaAssistPanel } from "./components/QaAssistPanel";
@@ -34,7 +36,9 @@ import { validateIncreasingOrder } from "./lib/snap";
 type GuardTarget = "result" | "paused";
 
 const EMPTY_OVERRIDES: ManualOverrides = { force_channels: [], disable_channels: [] };
-const EMPTY_FEEDBACK: FeedbackState = { positive_videos: [], negative_videos: [], negative_frames: [] };
+const EMPTY_FEEDBACK: FeedbackState = {
+  positive_videos: [], negative_videos: [], positive_frames: [], negative_frames: [],
+};
 
 export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void }) {
   const [queryType, setQueryType] = useState<QueryType>("T-KIS");
@@ -63,6 +67,11 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
   // video, hidden automatically when the selection moves to a different video.
   const [videoVisible, setVideoVisible] = useState(false);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+  // Neighbour browser: the selected result keyframe is the anchor and the offset
+  // is how far the operator has paged from it. Storing an offset (not an index)
+  // keeps the state valid while the timeline is still loading.
+  const [neighborsVisible, setNeighborsVisible] = useState(false);
+  const [neighborOffset, setNeighborOffset] = useState(0);
 
   const [trakeSlots, setTrakeSlots] = useState<(TrakeSlot | null)[]>([null, null]);
   const [activeSlot, setActiveSlot] = useState(0);
@@ -114,6 +123,61 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     () => new Map((qaAnalysis?.hotspots ?? []).map((hotspot) => [hotspot.submit_keyframe_id, hotspot.relevance])),
     [qaAnalysis],
   );
+
+  // ---- neighbour keyframe browser ----
+  const neighborKeyframes =
+    neighborsVisible && timeline && timeline.video_id === activeVideoId ? timeline.keyframes : [];
+  const neighborAnchorId = selectedFrameObj?.submit_keyframe_id ?? null;
+  const neighborAnchorIndex = useMemo(() => {
+    if (!neighborKeyframes.length) return 0;
+    const byId = neighborKeyframes.findIndex((kf) => kf.submit_keyframe_id === neighborAnchorId);
+    if (byId >= 0) return byId;
+    // A result frame can be missing from the map; fall back to nearest in time.
+    const pts = selectedFrameObj?.pts_time;
+    if (pts == null) return 0;
+    let best = 0;
+    let bestDelta = Infinity;
+    neighborKeyframes.forEach((kf, index) => {
+      if (kf.pts_time == null) return;
+      const delta = Math.abs(kf.pts_time - pts);
+      if (delta < bestDelta) {
+        bestDelta = delta;
+        best = index;
+      }
+    });
+    return best;
+  }, [neighborKeyframes, neighborAnchorId, selectedFrameObj?.pts_time]);
+  const neighborIndex = neighborKeyframes.length
+    ? Math.min(Math.max(neighborAnchorIndex + neighborOffset, 0), neighborKeyframes.length - 1)
+    : 0;
+
+  function toggleNeighbors() {
+    if (!selectedFrameObj || !selectedVideoId) return;
+    if (neighborsVisible) {
+      setNeighborsVisible(false);
+      return;
+    }
+    // Reuse the same timeline fetch the inline video uses (client-cached).
+    setActiveVideoId(selectedVideoId);
+    setNeighborOffset(0);
+    setNeighborsVisible(true);
+  }
+
+  /** Page the strip; the inline video, when open, follows to that keyframe. */
+  function moveNeighbor(delta: number) {
+    if (!neighborKeyframes.length) return;
+    const next = Math.min(Math.max(neighborIndex + delta, 0), neighborKeyframes.length - 1);
+    setNeighborOffset(next - neighborAnchorIndex);
+    const pts = neighborKeyframes[next]?.pts_time;
+    if (videoVisible && pts != null) seekVideo(pts);
+  }
+
+  function pickNeighbor(index: number) {
+    setNeighborOffset(index - neighborAnchorIndex);
+    const pts = neighborKeyframes[index]?.pts_time;
+    if (videoVisible && pts != null) seekVideo(pts);
+  }
+
 
   // ---- bootstrap: health + history + timer ----
   useEffect(() => {
@@ -246,8 +310,36 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     if (pausedFrame && selectedVideoId && pausedFrame.video_id !== selectedVideoId) {
       setPausedFrame(null);
     }
+    if (neighborsVisible && selectedVideoId && selectedVideoId !== activeVideoId) {
+      setNeighborsVisible(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedVideoId]);
+
+  // Re-run the search whenever feedback changes, so the ranking the operator is
+  // looking at always matches the feedback chips shown above it.
+  useEffect(() => {
+    if (!feedbackDirty.current) return;
+    feedbackDirty.current = false;
+    if (groups.length) runSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feedback]);
+
+  // Feedback belongs to ONE question. Carrying it into the next query (or task
+  // type) would silently re-rank an unrelated search for the rest of the session.
+  const feedbackScope = useRef(`${queryType} `);
+  useEffect(() => {
+    const scope = `${queryType} ${query}`;
+    if (scope === feedbackScope.current) return;
+    feedbackScope.current = scope;
+    setFeedback((fb) =>
+      fb.positive_videos.length || fb.negative_videos.length
+      || fb.positive_frames.length || fb.negative_frames.length
+        ? EMPTY_FEEDBACK
+        : fb,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, queryType]);
 
   // Expand every group by default when a new result set lands
   // (operator can still collapse individual videos by clicking the header).
@@ -275,14 +367,45 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
   }
 
   // ---- feedback ----
+  // Feedback only re-ranks after a fresh search, so every mutation re-runs it —
+  // otherwise the toast claims an effect the results do not show.
+  const feedbackDirty = useRef(false);
+  function mutateFeedback(next: (fb: FeedbackState) => FeedbackState) {
+    feedbackDirty.current = true;
+    setFeedback(next);
+  }
+
   function onFeedback(frame: FrameResult, kind: "more" | "exclude") {
-    setFeedback((fb) => {
-      if (kind === "more") {
-        return { ...fb, positive_videos: Array.from(new Set([...fb.positive_videos, frame.video_id])) };
-      }
-      return { ...fb, negative_frames: Array.from(new Set([...fb.negative_frames, frame.submit_keyframe_id])) };
-    });
-    setToast({ msg: kind === "more" ? `Boosted ${frame.video_id}` : `Excluded ${frame.submit_keyframe_id}`, kind: "ok" });
+    const add = (list: string[], value: string) => Array.from(new Set([...list, value]));
+    if (kind === "more") {
+      // "More like this FRAME" seeds image-to-image kNN — it no longer promotes
+      // the whole video, which is a separate, explicit action.
+      mutateFeedback((fb) => ({ ...fb, positive_frames: add(fb.positive_frames, frame.submit_keyframe_id) }));
+      setToast({ msg: `Similar to ${frame.submit_keyframe_id}`, kind: "ok" });
+      return;
+    }
+    mutateFeedback((fb) => ({ ...fb, negative_frames: add(fb.negative_frames, frame.submit_keyframe_id) }));
+    setToast({ msg: `Excluded ${frame.submit_keyframe_id}`, kind: "ok" });
+  }
+
+  function onVideoFeedback(videoId: string, kind: "prioritize" | "deprioritize") {
+    const bucket = kind === "prioritize" ? "positive_videos" : "negative_videos";
+    const opposite = kind === "prioritize" ? "negative_videos" : "positive_videos";
+    mutateFeedback((fb) => ({
+      ...fb,
+      [bucket]: Array.from(new Set([...(fb[bucket] as string[]), videoId])),
+      [opposite]: (fb[opposite] as string[]).filter((id) => id !== videoId),
+    }));
+    setToast({ msg: `${kind === "prioritize" ? "Prioritized" : "Deprioritized"} ${videoId}`, kind: "ok" });
+  }
+
+  function removeFeedback(bucket: keyof FeedbackState, value: string) {
+    mutateFeedback((fb) => ({ ...fb, [bucket]: (fb[bucket] as string[]).filter((item) => item !== value) }));
+  }
+
+  function clearFeedback() {
+    mutateFeedback(() => EMPTY_FEEDBACK);
+    setToast({ msg: "Feedback cleared", kind: "ok" });
   }
 
   function focusQaEvidence(submitKeyframeId: string, showVideo = true) {
@@ -599,13 +722,22 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
           setSelectedVideo((v) => Math.max(v - 1, 0));
           setSelectedFrame(0);
           break;
+        // While the neighbour strip is open the arrows browse it; otherwise they
+        // keep moving between the retrieved frames of the selected video.
         case "ArrowRight":
           e.preventDefault();
-          setSelectedFrame((f) => Math.min(f + 1, (selectedGroup?.frames.length ?? 1) - 1));
+          if (neighborsVisible) moveNeighbor(1);
+          else setSelectedFrame((f) => Math.min(f + 1, (selectedGroup?.frames.length ?? 1) - 1));
           break;
         case "ArrowLeft":
           e.preventDefault();
-          setSelectedFrame((f) => Math.max(f - 1, 0));
+          if (neighborsVisible) moveNeighbor(-1);
+          else setSelectedFrame((f) => Math.max(f - 1, 0));
+          break;
+        case "k":
+        case "K":
+          e.preventDefault();
+          toggleNeighbors();
           break;
         case "v":
         case "V":
@@ -635,7 +767,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guardOpen, guardTarget, keymapOpen, pausedFrame, queryType, activeSlot, groups.length, selectedGroup, selectedFrameObj, selectedVideoId, videoVisible, activeVideoId, submitting, assignPausedFrameToSlot]);
+  }, [guardOpen, guardTarget, keymapOpen, pausedFrame, queryType, activeSlot, groups.length, selectedGroup, selectedFrameObj, selectedVideoId, videoVisible, activeVideoId, submitting, assignPausedFrameToSlot, neighborsVisible, neighborKeyframes, neighborIndex, neighborAnchorIndex]);
 
   function seekVideo(t: number) {
     viewerRef.current?.seek(t);
@@ -716,6 +848,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
               </button>
             </div>
           </div>
+          <FeedbackBar feedback={feedback} onRemove={removeFeedback} onClear={clearFeedback} />
           <Results
             groups={groups}
             viewMode={viewMode}
@@ -736,32 +869,49 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
               })
             }
             onFeedback={onFeedback}
-            videoSlotVideoId={videoVisible ? activeVideoId : null}
+            onVideoFeedback={onVideoFeedback}
+            videoSlotVideoId={videoVisible || neighborsVisible ? activeVideoId : null}
             videoSlot={
-              videoVisible && activeVideoId && selectedGroup && selectedGroup.video_id === activeVideoId ? (
+              (videoVisible || neighborsVisible) && activeVideoId && selectedGroup
+              && selectedGroup.video_id === activeVideoId ? (
                 <>
-                  <VideoViewer
-                    ref={viewerRef}
-                    src={selectedGroup.video_url}
-                    fps={timeline?.fps ?? 25}
-                    startTime={selectedFrameObj?.pts_time ?? 0}
-                    onPaused={onVideoPaused}
-                    onTime={setPlayhead}
-                  />
-                  {showTimeline && timeline && timeline.video_id === activeVideoId && (
-                    <Timeline
-                      data={timeline}
-                      playhead={playhead}
-                      selectedPts={selectedFrameObj?.pts_time ?? null}
-                      eventMarkers={eventMarkers}
-                      qaHotspots={(qaAnalysis?.hotspots ?? [])
-                        .filter((hotspot) => hotspot.video_id === activeVideoId && hotspot.pts_time != null)
-                        .map((hotspot) => ({
-                          submit_keyframe_id: hotspot.submit_keyframe_id,
-                          pts_time: hotspot.pts_time as number,
-                          relevance: hotspot.relevance,
-                        }))}
-                      onSeek={seekVideo}
+                  {videoVisible && (
+                    <>
+                      <VideoViewer
+                        ref={viewerRef}
+                        src={selectedGroup.video_url}
+                        fps={timeline?.fps ?? 25}
+                        startTime={selectedFrameObj?.pts_time ?? 0}
+                        onPaused={onVideoPaused}
+                        onTime={setPlayhead}
+                      />
+                      {showTimeline && timeline && timeline.video_id === activeVideoId && (
+                        <Timeline
+                          data={timeline}
+                          playhead={playhead}
+                          selectedPts={selectedFrameObj?.pts_time ?? null}
+                          eventMarkers={eventMarkers}
+                          qaHotspots={(qaAnalysis?.hotspots ?? [])
+                            .filter((hotspot) => hotspot.video_id === activeVideoId && hotspot.pts_time != null)
+                            .map((hotspot) => ({
+                              submit_keyframe_id: hotspot.submit_keyframe_id,
+                              pts_time: hotspot.pts_time as number,
+                              relevance: hotspot.relevance,
+                            }))}
+                          onSeek={seekVideo}
+                        />
+                      )}
+                    </>
+                  )}
+                  {/* Always below the player, so pressing V and K in either order
+                      gives the same layout. */}
+                  {neighborsVisible && (
+                    <NeighborStrip
+                      keyframes={neighborKeyframes}
+                      centerIndex={neighborIndex}
+                      anchorId={neighborAnchorId}
+                      videoLinked={videoVisible}
+                      onPick={pickNeighbor}
                     />
                   )}
                 </>

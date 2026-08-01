@@ -89,6 +89,35 @@ class MilvusClient:
             )
         return out
 
+    def get_image_vectors(self, submit_keyframe_ids: list[str]) -> dict[str, list[float]]:
+        """Fetch stored PE-G14 embeddings by primary key.
+
+        The image collection's PK `id` IS the submit_keyframe_id (see
+        milvus_upload.py), so a marked frame can seed an image-to-image kNN
+        without re-encoding the picture.
+        """
+        ids = [kf_id for kf_id in dict.fromkeys(submit_keyframe_ids) if kf_id]
+        if not ids:
+            return {}
+        if self.mock:
+            return {kf_id: [0.1] * 8 for kf_id in ids}
+        client = self._connect()
+        rows = client.get(
+            collection_name=self.s.milvus_image_collection,
+            ids=ids,
+            output_fields=["id", "submit_keyframe_id", "embedding"],
+        )
+        out: dict[str, list[float]] = {}
+        for row in rows or []:
+            if not isinstance(row, dict):
+                continue
+            kf_id = row.get("submit_keyframe_id") or row.get("id")
+            vector = row.get("embedding")
+            if not kf_id or vector is None:
+                continue
+            out[str(kf_id)] = [float(value) for value in vector]
+        return out
+
     def search_audio(self, vector: list[float], *, top_k: int = 100) -> list[dict[str, Any]]:
         """GLAP audio-vector search over `aic26_audio_glap_v1` (COSINE). Hits carry
         submit_keyframe_id / video_id / keyframe_n / top1_label (window-level)."""

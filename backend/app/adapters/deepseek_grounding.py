@@ -90,6 +90,32 @@ def _parse_response(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# Sent as the Responses API `instructions` field. It carries the standing role and
+# grading contract; the per-request prompt carries the question and candidates.
+_SYSTEM_INSTRUCTIONS = """You are the external-knowledge stage of a Vietnamese broadcast-video retrieval \
+system competing under a timed, exact-string grader.
+
+Operating rules:
+- Video evidence (frames, OCR, ASR) is primary and was already collected by a vision model. \
+Your only job is to resolve what is NOT visible: proper names, aliases, brands, organizations, \
+places, people, dates and the relationships between them.
+- Search the web whenever the question hinges on a named real-world entity, or when the supplied \
+clues look partial, misspelled or transliterated. Vietnamese ASR routinely mangles foreign names, \
+so search for the corrected form instead of trusting the transcript spelling.
+- The grader compares your `answer` as an exact string. Apply every formatting constraint stated \
+in the question (uppercase, no spaces, no diacritics, digits only, ...) to the `answer` field \
+itself, never only to the explanation.
+- A real-world entity usually has several legitimate names: a short brand form, a fuller corporate \
+form, and sometimes a local Vietnamese form. Under an exact-string grader these are genuinely \
+different answers. When the question asks for a name, emit each as its own separate alternative \
+(e.g. for the Disney castle logo: "DISNEY", "WALTDISNEY", "THEWALTDISNEYCOMPANY"), ordered by \
+which one a Vietnamese broadcaster most likely means. Never merge them into a single answer and \
+never assume the shortest form is the intended one.
+- Explain the canonical entity in `reason`, but keep `answer` in the exact format the question demands.
+- Never invent a citation: cite only domains you actually opened.
+- Output no chain-of-thought."""
+
+
 def _candidate_manifest(candidates: list[dict[str, Any]]) -> str:
     rows = []
     for candidate in candidates:
@@ -133,15 +159,12 @@ Candidate evidence (IDs are immutable; OCR/ASR may be incomplete or misspelled):
 NVILA visual answer hypotheses:
 {json.dumps(visual_options, ensure_ascii=False)}
 
-Requirements:
-- Search the web when it helps resolve the entity or fact.
+Requirements for this request:
 - Produce {min_answers} to {max_answers} distinct plausible exact-answer alternatives when supported; do not create fake alternatives merely to reach a count.
-- Apply formatting requested by the question (for example uppercase and removal of spaces) to the `answer`, while explaining the canonical entity in `reason`.
-- When the question asks for the NAME of an entity, the short common form and the fuller official form are genuinely different answers under a strict grader. List each as its own alternative, formatted as the question demands, ordered by which a Vietnamese broadcast audience would most likely intend (e.g. for the Disney castle logo: "DISNEY", "WALTDISNEY", "THEWALTDISNEYCOMPANY").
 - Every answer must cite one or more candidate IDs whose video clues motivated the web lookup.
-- `source_domains` must list only the hostnames you actually relied on for THAT answer (for example "thewaltdisneycompany.com"), never every site you saw. Leave it empty when an answer came from the video clues alone.
+- `source_domains` must list only the hostnames you actually relied on for THAT answer, never every site you saw. Leave it empty when an answer came from the video clues alone.
 - Confidence must be a calibrated number strictly greater than 0 and at most 1.
-- Never copy instruction placeholders and never output chain-of-thought.
+- Never copy instruction placeholders.
 
 End the response with exactly one machine-readable object between the tags below. All keys are required.
 <grounded_json>
@@ -196,6 +219,7 @@ class DeepSeekGroundingClient:
         model = self.s.deepseek_grounding_model
         payload = {
             "model": model,
+            "instructions": _SYSTEM_INSTRUCTIONS,
             "input": _grounding_prompt(question, candidates, visual_analysis, max_answers),
             "tools": [{"type": "web_search"}],
             # Thinking is on by default and shares this budget with the answer;

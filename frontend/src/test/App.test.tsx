@@ -56,7 +56,13 @@ const TIMELINE = {
   fps: 25,
   duration: 30,
   video_url: FRAME1.video_url,
-  keyframes: [{ submit_keyframe_id: "K01/K01_V001/001", keyframe_n: 1, frame_idx: 0, pts_time: 0, keyframe_url: FRAME1.keyframe_url }],
+  keyframes: Array.from({ length: 40 }, (_, i) => ({
+    submit_keyframe_id: `K01/K01_V001/${String(i + 1).padStart(3, "0")}`,
+    keyframe_n: i + 1,
+    frame_idx: i * 25,
+    pts_time: i,
+    keyframe_url: `https://media.test/Keyframes/Keyframes_K01/K01_V001/${String(i + 1).padStart(3, "0")}.jpg`,
+  })),
   speech_segments: [],
   ocr_markers: [],
   audio_windows: [],
@@ -564,5 +570,165 @@ describe("AIC26 retrieval console (full)", () => {
     render(<App />);
     await user.click(screen.getByText("Simple ⤴"));
     expect(screen.getByTestId("topk-slider")).toBeInTheDocument();
+  });
+
+  // ---- relevance feedback -------------------------------------------------
+  async function searchAndFeedback(user: any, query = "thoi su") {
+    render(<App />);
+    await user.type(screen.getByTestId("query-input"), query);
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => screen.getByTestId("detail-panel"));
+    return () => vi.mocked(fetch).mock.calls
+      .filter(([u]) => String(u).endsWith("/api/search"))
+      .map(([, i]) => JSON.parse(String(i?.body)));
+  }
+
+  it("re-runs the search when feedback changes instead of silently doing nothing", async () => {
+    const user = userEvent.setup();
+    const bodies = await searchAndFeedback(user);
+    const before = bodies().length;
+
+    await user.click(screen.getAllByTitle(/More like this frame/)[0]);
+
+    await waitFor(() => expect(bodies().length).toBe(before + 1));
+    expect(bodies()[before].feedback.positive_frames).toEqual(["K01/K01_V001/001"]);
+  });
+
+  it("sends 'more like this' as a FRAME seed, not a whole-video boost", async () => {
+    const user = userEvent.setup();
+    const bodies = await searchAndFeedback(user);
+
+    await user.click(screen.getAllByTitle(/More like this frame/)[0]);
+    await waitFor(() => expect(bodies().length).toBeGreaterThan(1));
+    const fb = bodies()[bodies().length - 1].feedback;
+
+    expect(fb.positive_frames).toEqual(["K01/K01_V001/001"]);
+    expect(fb.positive_videos).toEqual([]);
+  });
+
+  it("prioritizes a video from the group header, replacing any deprioritize", async () => {
+    const user = userEvent.setup();
+    const bodies = await searchAndFeedback(user);
+
+    await user.click(screen.getAllByTestId("deprioritize-video")[0]);
+    await waitFor(() => expect(bodies().length).toBeGreaterThan(1));
+    expect(bodies()[bodies().length - 1].feedback.negative_videos).toEqual(["K01_V001"]);
+
+    await user.click(screen.getAllByTestId("prioritize-video")[0]);
+    await waitFor(() =>
+      expect(bodies()[bodies().length - 1].feedback.positive_videos).toEqual(["K01_V001"]));
+    expect(bodies()[bodies().length - 1].feedback.negative_videos).toEqual([]);
+  });
+
+  it("lists every active feedback item and clears them all", async () => {
+    const user = userEvent.setup();
+    const bodies = await searchAndFeedback(user);
+    expect(screen.queryByTestId("feedback-bar")).not.toBeInTheDocument();
+
+    await user.click(screen.getAllByTitle(/More like this frame/)[0]);
+    await user.click(screen.getAllByTitle("Exclude this frame")[1]);
+    await user.click(screen.getAllByTestId("prioritize-video")[0]);
+
+    const chips = await screen.findAllByTestId("feedback-chip");
+    expect(chips.map((c) => c.textContent)).toEqual(expect.arrayContaining([
+      expect.stringContaining("K01/K01_V001/001"),
+      expect.stringContaining("K01/K01_V001/006"),
+      expect.stringContaining("K01_V001"),
+    ]));
+
+    await user.click(screen.getByTestId("feedback-clear"));
+    await waitFor(() => expect(screen.queryByTestId("feedback-bar")).not.toBeInTheDocument());
+    await waitFor(() => {
+      const fb = bodies()[bodies().length - 1].feedback;
+      expect(fb).toEqual({ positive_videos: [], negative_videos: [], positive_frames: [], negative_frames: [] });
+    });
+  });
+
+  it("does not leak feedback into the next question", async () => {
+    const user = userEvent.setup();
+    const bodies = await searchAndFeedback(user, "query one");
+    await user.click(screen.getAllByTitle(/More like this frame/)[0]);
+    await waitFor(() => expect(bodies().length).toBeGreaterThan(1));
+
+    const input = screen.getByTestId("query-input");
+    await user.clear(input);
+    await user.type(input, "cau hoi khac han");
+    await user.click(screen.getByTestId("search-btn"));
+
+    await waitFor(() => {
+      const last = bodies()[bodies().length - 1];
+      expect(last.query).toBe("cau hoi khac han");
+      expect(last.feedback.positive_frames).toEqual([]);
+      expect(last.feedback.positive_videos).toEqual([]);
+    });
+  });
+
+  // ---- neighbour keyframe browser ---------------------------------------
+  async function openResults(user: any) {
+    render(<App />);
+    await user.type(screen.getByTestId("query-input"), "thoi su");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => screen.getByTestId("detail-panel"));
+    (document.activeElement as HTMLElement)?.blur();
+  }
+
+  it("K opens a windowed neighbour strip instead of every keyframe", async () => {
+    const user = userEvent.setup();
+    await openResults(user);
+    expect(screen.queryByTestId("neighbor-strip")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "k" });
+
+    await screen.findByTestId("neighbor-strip");
+    // 40 keyframes exist; only the window around the centre is mounted.
+    const cells = screen.getAllByTestId(/neighbor-(cell|center)/);
+    expect(cells.length).toBeLessThan(40);
+    expect(screen.getByTestId("neighbor-position")).toHaveTextContent("keyframe 1 / 40");
+
+    fireEvent.keyDown(window, { key: "k" });
+    await waitFor(() => expect(screen.queryByTestId("neighbor-strip")).not.toBeInTheDocument());
+  });
+
+  it("arrows page the strip and pull in later keyframes", async () => {
+    const user = userEvent.setup();
+    await openResults(user);
+    fireEvent.keyDown(window, { key: "k" });
+    await screen.findByTestId("neighbor-strip");
+
+    const shown = () => screen.getAllByTestId(/neighbor-(cell|center)/)
+      .map((el) => el.getAttribute("title")?.split(" ")[0]);
+    expect(shown()).not.toContain("K01/K01_V001/020");
+
+    for (let i = 0; i < 15; i += 1) fireEvent.keyDown(window, { key: "ArrowRight" });
+
+    await waitFor(() => expect(screen.getByTestId("neighbor-position")).toHaveTextContent("keyframe 16 / 40"));
+    expect(shown()).toContain("K01/K01_V001/020");
+  });
+
+  it("keeps the video above the strip and seeks it while paging", async () => {
+    const user = userEvent.setup();
+    await openResults(user);
+    fireEvent.keyDown(window, { key: "v" });
+    const video = await screen.findByTestId("video-viewer") as HTMLVideoElement;
+    fireEvent.keyDown(window, { key: "k" });
+    const strip = await screen.findByTestId("neighbor-strip");
+
+    // Order in the DOM: player first, neighbour strip after it.
+    expect(video.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    // pts_time == index, so paging twice from keyframe 1 seeks to t=2.
+    await waitFor(() => expect(video.currentTime).toBe(2));
+  });
+
+  it("arrows still move between result frames when the strip is closed", async () => {
+    const user = userEvent.setup();
+    await openResults(user);
+    expect(screen.getByTestId("submit-id")).toHaveTextContent("K01/K01_V001/001");
+
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+
+    await waitFor(() => expect(screen.getByTestId("submit-id")).toHaveTextContent("K01/K01_V001/006"));
   });
 });

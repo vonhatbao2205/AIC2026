@@ -163,3 +163,43 @@ async def test_fill_falls_back_when_no_feasible_frame(settings):
     ]
     await trake._fill_missing_events(events, ef)
     assert [f.pts_time for f in ef[1]] == [90.0]
+
+
+@pytest.mark.asyncio
+async def test_marked_frames_add_a_similar_channel_seeded_by_their_embeddings(settings):
+    """'More like this frame' is a retrieval channel, not a score bonus: it must
+    appear in the latency breakdown and attribute frames like any other channel."""
+    svc = SearchService(settings)
+    res = await svc.search({
+        "query": "bản tin thời sự",
+        "feedback": {"positive_frames": ["K01/K01_V001/001"]},
+    })
+
+    assert "similar" in res["latency_ms"]["channels"]
+    attributed = {c for g in res["groups"] for f in g["frames"] for c in f["channels"]}
+    assert "similar" in attributed
+
+
+@pytest.mark.asyncio
+async def test_no_similar_channel_without_marked_frames(settings):
+    svc = SearchService(settings)
+    res = await svc.search({"query": "bản tin thời sự"})
+    assert "similar" not in res["latency_ms"]["channels"]
+
+
+@pytest.mark.asyncio
+async def test_video_priority_does_not_alter_frame_scores(settings):
+    """Regression for the old +0.15 per-frame boost, which was ~9x the maximum
+    achievable RRF score and therefore pinned every frame of the marked video."""
+    svc = SearchService(settings)
+    plain = await svc.search({"query": "bản tin thời sự"})
+    target = plain["groups"][0]["video_id"]
+    boosted = await svc.search({
+        "query": "bản tin thời sự",
+        "feedback": {"positive_videos": [target]},
+    })
+
+    def frame_scores(res):
+        return {f["submit_keyframe_id"]: f["score"] for g in res["groups"] for f in g["frames"]}
+
+    assert frame_scores(boosted) == frame_scores(plain)

@@ -71,6 +71,54 @@ class SearchService:
         ]
         return hits, (time.perf_counter() - t0) * 1000
 
+    async def _run_similar(
+        self, seed_ids: list[str], top_k: int
+    ) -> tuple[list[ChannelHit], float]:
+        """Image-to-image kNN seeded by the frames the operator marked.
+
+        The stored PE-G14 embedding is fetched by primary key (no re-encoding),
+        then each seed runs its own Milvus search and the union keeps the best
+        cosine per frame — the same max-fusion the text channel uses for query
+        variants. Emitting this as a normal ranked channel is what keeps positive
+        feedback on the same scale as every other signal under RRF.
+        """
+        t0 = time.perf_counter()
+        if not seed_ids:
+            return [], 0.0
+        vectors = await asyncio.to_thread(self.milvus.get_image_vectors, seed_ids)
+        if not vectors:
+            return [], (time.perf_counter() - t0) * 1000
+        raws = await asyncio.gather(
+            *(
+                asyncio.to_thread(self.milvus.search_image, vector, top_k=top_k)
+                for vector in vectors.values()
+            )
+        )
+        best: dict[str, dict[str, Any]] = {}
+        for raw in raws:
+            for r in raw:
+                kf = r["submit_keyframe_id"]
+                if kf not in best or r["score"] > best[kf]["score"]:
+                    best[kf] = r
+        fused = sorted(best.values(), key=lambda r: -r["score"])[:top_k]
+        hits = [
+            ChannelHit(
+                channel="similar",
+                submit_keyframe_id=r["submit_keyframe_id"],
+                video_id=r["video_id"],
+                keyframe_n=int(r["keyframe_n"]),
+                score=float(r["score"]),
+                rank=i,
+                evidence=Evidence(
+                    type="similar",
+                    score=float(r["score"]),
+                    extra={"seeds": len(vectors)},
+                ),
+            )
+            for i, r in enumerate(fused)
+        ]
+        return hits, (time.perf_counter() - t0) * 1000
+
     async def _run_ocr(self, cfg: dict[str, Any], top_k: int) -> tuple[list[ChannelHit], float]:
         t0 = time.perf_counter()
         tf = cfg.get("time_filters") or {}
@@ -205,11 +253,17 @@ class SearchService:
             "speech": self._run_speech,
             "audio": self._run_audio,
         }
+        feedback = feedback or {}
         tasks: dict[Channel, asyncio.Task] = {}
         for name, runner in runners.items():
             cfg = channels_cfg.get(name, {})
             if cfg.get("enabled"):
                 tasks[name] = asyncio.create_task(runner(cfg, top_k))
+        # Feedback-driven, not parser-driven: it exists only while the operator
+        # keeps frames marked.
+        positive_frames = [str(kf) for kf in (feedback.get("positive_frames") or []) if kf]
+        if positive_frames:
+            tasks["similar"] = asyncio.create_task(self._run_similar(positive_frames, top_k))
 
         latency: dict[str, Any] = {"channels": {}}
         channel_hits: dict[Channel, list[ChannelHit]] = {}
@@ -227,19 +281,20 @@ class SearchService:
         if warnings:
             latency["warnings"] = warnings
 
-        feedback = feedback or {}
         t_fuse = time.perf_counter()
         rrf_k = (parsed.get("rerank_policy") or {}).get("rrf_k", 60)
         fused = reciprocal_rank_fusion(
             channel_hits,
             weights=weights,
             k=rrf_k,
-            positive_videos=set(feedback.get("positive_videos") or []),
             negative_frames=set(feedback.get("negative_frames") or []),
-            negative_videos=set(feedback.get("negative_videos") or []),
         )
         await self._enrich_pts(fused)
-        groups = group_by_video(fused)
+        groups = group_by_video(
+            fused,
+            prioritized_videos=set(feedback.get("positive_videos") or []),
+            deprioritized_videos=set(feedback.get("negative_videos") or []),
+        )
         latency["fusion_ms"] = round((time.perf_counter() - t_fuse) * 1000, 1)
         return groups, latency
 

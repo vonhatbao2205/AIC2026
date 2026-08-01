@@ -15,6 +15,7 @@ interface Props {
   onSelectFrame: (videoIdx: number, frameIdx: number) => void;
   onToggleExpand: (videoId: string) => void;
   onFeedback: (frame: FrameResult, kind: "more" | "exclude") => void;
+  onVideoFeedback: (videoId: string, kind: "prioritize" | "deprioritize") => void;
   loading: boolean;
   // Inline video player, rendered directly under the group it belongs to.
   videoSlot?: ReactNode;
@@ -119,6 +120,19 @@ export function Results(props: Props) {
                 <span className="score">×{g.frame_count}</span>
               )}
               <ChannelBadges channels={g.channels} />
+              {/* Video-level feedback belongs on the video, not on a keyframe. */}
+              <span className="fb video-fb">
+                <button
+                  title="Prioritize this video — soft boost of its aggregate score"
+                  data-testid="prioritize-video"
+                  onClick={(e) => { e.stopPropagation(); props.onVideoFeedback(g.video_id, "prioritize"); }}
+                >⬆</button>
+                <button
+                  title="Deprioritize this video"
+                  data-testid="deprioritize-video"
+                  onClick={(e) => { e.stopPropagation(); props.onVideoFeedback(g.video_id, "deprioritize"); }}
+                >⬇</button>
+              </span>
               {!props.trakeEventCount && g.ambiguous && <span className="ambiguous-tag" title="Top frames split into distant time clusters">⚠ ambiguous</span>}
               {props.trakeEventCount && g.frame_count >= props.trakeEventCount && props.onTrakeQuickSubmit && (
                 <button
@@ -155,8 +169,14 @@ export function Results(props: Props) {
                         )}
                       </div>
                       <div className="fb">
-                        <button title="More like this" onClick={(e) => { e.stopPropagation(); props.onFeedback(f, "more"); }}>＋</button>
-                        <button title="Exclude this" onClick={(e) => { e.stopPropagation(); props.onFeedback(f, "exclude"); }}>✕</button>
+                        <button
+                          title="More like this frame — image-to-image search seeded by it"
+                          onClick={(e) => { e.stopPropagation(); props.onFeedback(f, "more"); }}
+                        >＋</button>
+                        <button
+                          title="Exclude this frame"
+                          onClick={(e) => { e.stopPropagation(); props.onFeedback(f, "exclude"); }}
+                        >✕</button>
                       </div>
                       <img src={f.keyframe_url} alt={f.submit_keyframe_id} loading="lazy" />
                       <div className="meta">
