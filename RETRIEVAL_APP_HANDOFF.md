@@ -45,6 +45,10 @@ files already in the repo root). See `backend/.env.example`.
 | `MEDIA_BASE_URL` | yes | Cloudflare R2 public base (keyframes/videos) |
 | `NVIDIA_API_KEY` | optional | enables Nemotron query parser (else heuristics) |
 | `NVIDIA_BASE_URL`, `NVIDIA_MODEL` | optional | default NIM endpoint + `nvidia/nemotron-3-ultra-550b-a55b` |
+| `NVILA_BASE_URL`, `NVILA_TOKEN` | optional | Colab A100 NVILA-8B QA worker; both are required to enable it |
+| `NVILA_TIMEOUT_SECONDS`, `NVILA_MAX_CANDIDATES` | optional | visual QA timeout and trusted candidate cap (defaults 240s/12) |
+| `GEMINI_API_KEY` | optional | Gemini built-in Google Search grounding for QA; backend-only secret |
+| `GEMINI_GROUNDING_*` | optional | model/base URL/enable flag/timeout/auto-confidence threshold |
 | `DRES_BASE_URL`, `DRES_TOKEN` | optional | DRES submit adapter (else local history only) |
 | `IDX_*`, `MILVUS_IMAGE_COLLECTION` | optional | override index/collection names |
 | `AIC26_MOCK_MODE` | optional | `true` ⇒ deterministic fixtures (no live services) |
@@ -95,6 +99,7 @@ All endpoints are under `/api`. Responses are JSON.
 | POST | `/api/query/parse` | `{query, query_type_hint, previous_hints[], manual_overrides}` → routing JSON |
 | POST | `/api/search` | `{query, query_type_hint, previous_hints[], manual_overrides, parsed?, feedback?, top_k, max_videos}` |
 | POST | `/api/search/trake` | `{query, previous_hints[], manual_overrides}` → ordered sequences |
+| POST | `/api/qa/analyze` | `{question, candidates[{submit_keyframe_id,...}], max_answers}` → grounded answers + hotspots |
 | GET | `/api/keyframes/{submit_keyframe_id:path}` | normalizes shard/padding; returns ids + media URLs + timing |
 | GET | `/api/videos/{video_id}/timeline` | keyframes + speech + ocr + audio + heatmap |
 | POST | `/api/videos/{video_id}/snap` | `{raw_time, fps?}` → nearest BTC keyframe (for TRAKE frame-pick) |
@@ -181,8 +186,22 @@ confirm (modal) / assign chip (TRAKE) · `↑/↓` video group · `←/→` fram
 `submit_keyframe_id`, and Δframes/Δseconds with a far-warning; `Enter` or drag
 assigns it to the active event slot. Slots validate increasing `pts_time`.
 
+**QA copilot** packs a maximum of 12 canonical keyframes. The operator-inspected
+frame is always C01 and counts toward that video's three-frame quota. From C02,
+the remaining candidates are packed in video-score order: fill the diverse-frame
+quota of the highest-ranked video before moving to the next video. NVILA pass 1
+retains 3–5 answer-bearing hypotheses;
+pass 2 asks for 3–5 alternatives when evidence supports them. Zero-confidence,
+placeholder, and unknown-ID outputs are discarded. For entity/world-knowledge
+questions, the backend can call Gemini's built-in Google Search tool and merge
+cited alternatives without granting the web stage authority to create frames.
+Those alternatives are sent back to NVILA for pass-3 visual verification:
+`contradicted` is discarded, while `insufficient/unverified` is confidence-capped
+and visibly labelled. The UI displays all input candidates and waits for the
+operator to click an answer before it fills the draft or opens evidence.
+
 **Submit guard** shows thumbnail, ids, timestamp, OCR/ASR/audio snippets (and an
-editable answer for QA), blocks duplicates, and shows the ordered id list for TRAKE.
+editable NVILA/manual answer for QA), blocks duplicates, and shows the ordered id list for TRAKE.
 
 **Mock mode**: if services are unreachable, `/api/health` surfaces a warning
 banner and the UI can be driven entirely from backend fixtures. Live mode never
@@ -197,9 +216,11 @@ fabricates retrieval results.
   the audio channel. It needs the `/encode-audio-text` endpoint on the Kaggle PE
   server (see `model-setup-backend.ipynb`); if that endpoint is down the audio
   channel falls back to Elastic-only automatically.
-- **QA is locate + text-evidence only** — no image-based VLM CoT. An LLM draft,
-  when enabled, is built strictly from OCR/speech/audio text and labeled as such.
-- **No** Qwen3-VL reranker, structured VLM captions, object/scene/action tag
+- **QA visual assistance is online/candidate-based** — NVILA directly inspects
+  retrieved frames because dense captions are not yet indexed. It does not scan
+  the whole video autonomously; Google grounding resolves external facts but
+  cannot repair a missing visual candidate. Timeline verification remains operator-guided.
+- **No** general Qwen3-VL reranker, structured VLM captions, object/scene/action tag
   filtering, SigLIP/EVA ensemble, or true clip-query V-KIS.
 - Elastic uses built-in `text` analyzers (no custom Vietnamese tokenizer yet).
 
@@ -207,9 +228,9 @@ fabricates retrieval results.
 
 ## 8. Extension points (clean seams left in place)
 
-- **VLM reranker / CoT**: add a `RerankerClient` adapter and a post-fusion
-  rerank step in `search_service.retrieve` (frames already carry evidence). Flip
-  `capabilities.vlm_rerank` / `vlm_cot` in `/api/health`.
+- **General VLM reranker**: QA-specific NVILA hotspot/answer assistance is DONE.
+  A post-fusion reranker for T-KIS/V-KIS/TRAKE still needs a separate adapter and
+  search-service stage; `capabilities.vlm_rerank` deliberately remains false.
 - **Audio vector search**: DONE — `GlapEncoderClient` (/encode-audio-text) +
   `milvus.search_audio` over `aic26_audio_glap_v1`, fused into the audio channel.
 - **Object/scene/action filters**: extend the parser `filters` block + an
@@ -233,12 +254,12 @@ backend/app/
   trake.py             sequence assembly, order validation, keyframe snapping
   query_parser.py      Nemotron + heuristic routing, manual overrides
   types.py / models.py internal dataclasses / pydantic request models
-  adapters/            elastic_client, milvus_client, pe_encoder (+ mock paths)
+  adapters/            elastic_client, milvus_client, pe_encoder, nvila_client (+ mock paths)
   services/            search_service, trake_service, timeline_service, submit_service
   main.py              FastAPI routes
 frontend/src/
   api/                 client.ts, types.ts
-  lib/                 media, identity, snap, constants
+  lib/                 media, identity, snap, qa, constants
   components/          TopBar, QueryPanel, ChannelControls, QueryUnderstanding,
                        Results, DetailPanel, VideoViewer, Timeline, TrakePanel,
                        SubmitGuard, HistorySidebar, Badges

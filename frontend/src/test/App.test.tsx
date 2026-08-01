@@ -94,6 +94,102 @@ const TRAKE_RESPONSE = {
   mode: "mock",
 };
 
+const QA_ANALYSIS_RESPONSE = {
+  question: "Bản tin trên màn hình tên gì?",
+  model: "Efficient-Large-Model/NVILA-8B-hf",
+  mode: "live",
+  answerable: true,
+  best_answer: "Bản tin thời sự HTV7",
+  best_candidate_id: "C01",
+  best_submit_keyframe_id: FRAME1.submit_keyframe_id,
+  candidate_answers: [
+    {
+      answer: "Bản tin thời sự HTV7",
+      confidence: 0.92,
+      supporting_candidate_ids: ["C01"],
+      supporting_frames: [{
+        candidate_id: "C01",
+        submit_keyframe_id: FRAME1.submit_keyframe_id,
+        video_id: FRAME1.video_id,
+        frame_idx: FRAME1.frame_idx,
+        pts_time: FRAME1.pts_time,
+        keyframe_url: FRAME1.keyframe_url,
+      }],
+      reason: "The title is visible in the candidate frame.",
+      source: "hybrid",
+      web_sources: [{ title: "HTV", url: "https://www.htv.com.vn/" }],
+      visual_verification: {
+        answer: "Bản tin thời sự HTV7",
+        status: "supported",
+        visual_confidence: 0.94,
+        supporting_candidate_ids: ["C01"],
+        reason: "The programme title remains visually consistent.",
+      },
+    },
+    {
+      answer: "HTV7",
+      confidence: 0.81,
+      supporting_candidate_ids: ["C02"],
+      supporting_frames: [{
+        candidate_id: "C02",
+        submit_keyframe_id: FRAME2.submit_keyframe_id,
+        video_id: FRAME2.video_id,
+        frame_idx: FRAME2.frame_idx,
+        pts_time: FRAME2.pts_time,
+        keyframe_url: FRAME2.keyframe_url,
+      }],
+      reason: "A shorter grounded alternative.",
+      source: "google",
+      web_sources: [{ title: "HTV", url: "https://www.htv.com.vn/" }],
+      visual_verification: {
+        answer: "HTV7",
+        status: "insufficient",
+        visual_confidence: 0.55,
+        supporting_candidate_ids: ["C02"],
+        reason: "The shorter form is plausible but not fully visible.",
+      },
+    },
+  ],
+  hotspots: [{
+    candidate_id: "C01",
+    submit_keyframe_id: FRAME1.submit_keyframe_id,
+    video_id: FRAME1.video_id,
+    keyframe_n: FRAME1.keyframe_n,
+    frame_idx: FRAME1.frame_idx,
+    pts_time: FRAME1.pts_time,
+    keyframe_url: FRAME1.keyframe_url,
+    relevance: 0.95,
+    answer_support: "Visible program title",
+  }],
+  uncertainty: "Verify the OCR spelling.",
+  candidate_count: 2,
+  latency_ms: 1234,
+  total_latency_ms: 1880,
+  cached: false,
+  warnings: [],
+  web_grounding: {
+    requested: "auto",
+    available: true,
+    attempted: true,
+    used: true,
+    model: "gemini-3.6-flash",
+    queries: ["HTV7 news programme"],
+    sources: [{ title: "HTV", url: "https://www.htv.com.vn/" }],
+    summary: "Google-grounded entity resolution.",
+    latency_ms: 236,
+    search_suggestions_html: "",
+    visual_verification: {
+      attempted: true,
+      used: true,
+      model: "Efficient-Large-Model/NVILA-8B-hf",
+      latency_ms: 410,
+      verdicts: [],
+      rejected_answers: [],
+      uncertainty: "Verify the exact broadcast title manually.",
+    },
+  },
+};
+
 let historyStore: any[] = [];
 
 function mockFetch(historySeed: any[] = []) {
@@ -104,11 +200,12 @@ function mockFetch(historySeed: any[] = []) {
       ({ ok: status < 400, status, json: async () => body } as Response);
 
     if (path.endsWith("/api/health"))
-      return json({ ok: true, mode: "mock", services: {}, capabilities: {}, warnings: [] });
+      return json({ ok: true, mode: "mock", services: {}, capabilities: { qa_nvila: true, qa_google_grounding: true, qa_visual_verification: true }, warnings: [] });
     if (path.includes("/api/submit/history")) return json({ history: historyStore });
     if (path.endsWith("/api/search/trake")) return json(TRAKE_RESPONSE);
     if (path.endsWith("/api/search")) return json(SEARCH_RESPONSE);
     if (path.endsWith("/api/query/parse")) return json(SEARCH_RESPONSE.parsed);
+    if (path.endsWith("/api/qa/analyze")) return json(QA_ANALYSIS_RESPONSE);
     if (path.includes("/timeline")) return json(TIMELINE);
     if (path.endsWith("/api/submit")) {
       const body = JSON.parse((init?.body as string) || "{}");
@@ -161,6 +258,44 @@ describe("AIC26 retrieval console (full)", () => {
     const detail = screen.getByTestId("detail-panel");
     expect(within(detail).getByTestId("submit-id")).toHaveTextContent("K01/K01_V001/001");
     expect(screen.getByText(/Bản tin thời sự HTV7/)).toBeInTheDocument();
+  });
+
+  it("QA: shows the full candidate pack and waits for the operator to choose an answer", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("tab", { name: "QA" }));
+    await user.type(screen.getByTestId("query-input"), "Bản tin trên màn hình tên gì?");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => expect(screen.getByTestId("qa-assist-panel")).toBeInTheDocument());
+    expect(within(screen.getByTestId("qa-input-candidates")).getAllByRole("button")).toHaveLength(2);
+
+    await user.click(screen.getByTestId("qa-analyze"));
+    await waitFor(() => expect(screen.getByTestId("qa-analysis")).toBeInTheDocument());
+    expect(screen.getAllByTestId("qa-answer-option")).toHaveLength(2);
+    expect(screen.getAllByTestId("qa-answer-option")[0]).toHaveTextContent("Bản tin thời sự HTV7");
+    expect(screen.getByTestId("qa-hotspot")).toHaveTextContent("95%");
+    expect(screen.getByTestId("qa-web-grounding")).toHaveTextContent("HTV7 news programme");
+    expect(screen.getByTestId("qa-pass3-verification")).toHaveTextContent("NVILA pass 3 · checked");
+    expect(screen.getAllByTestId("qa-answer-option")[0]).toHaveTextContent("NVILA visually consistent");
+    expect(screen.queryByTestId("video-viewer")).not.toBeInTheDocument();
+
+    const analyzeCall = vi.mocked(fetch).mock.calls.find(
+      ([url]) => String(url).endsWith("/api/qa/analyze"),
+    );
+    const body = JSON.parse(String(analyzeCall?.[1]?.body));
+    expect(body.candidates).toHaveLength(2);
+    expect(body.candidates[0]).toMatchObject({
+      submit_keyframe_id: FRAME1.submit_keyframe_id,
+      retrieval_score: FRAME1.score,
+    });
+    expect(body.web_grounding).toBe("auto");
+
+    await user.click(screen.getAllByTestId("qa-answer-option")[0]);
+    expect(await screen.findByTestId("video-viewer")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("qa-timeline-marker")).toBeInTheDocument());
+
+    await user.click(screen.getByTestId("open-submit"));
+    expect(await screen.findByTestId("qa-answer")).toHaveValue("Bản tin thời sự HTV7");
   });
 
   it("supports keyboard frame selection (ArrowRight)", async () => {

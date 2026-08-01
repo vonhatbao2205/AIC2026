@@ -4,6 +4,8 @@ import type {
   FeedbackState,
   HealthResponse,
   ParsedQuery,
+  QaAnalysisResponse,
+  QaAnalyzeCandidate,
   QueryTypeHint,
   SearchResponse,
   SimpleSearchResponse,
@@ -79,6 +81,17 @@ export const api = {
 
   searchTrake: (body: { query: string; previous_hints: string[]; manual_overrides: ManualOverrides; use_llm?: boolean; expand?: boolean }) =>
     request<TrakeSearchResponse>("/api/search/trake", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  qaAnalyze: (body: {
+    question: string;
+    candidates: QaAnalyzeCandidate[];
+    max_answers?: number;
+    web_grounding?: "auto" | "on" | "off";
+  }) =>
+    request<QaAnalysisResponse>("/api/qa/analyze", {
       method: "POST",
       body: JSON.stringify(body),
     }),

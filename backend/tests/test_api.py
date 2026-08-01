@@ -16,6 +16,9 @@ def test_health_mock_ok():
     # capabilities flag off for unbuilt modules
     assert body["capabilities"]["vlm_rerank"] is False
     assert body["capabilities"]["audio_vector_search"] is False
+    assert body["capabilities"]["qa_nvila"] is True
+    assert body["capabilities"]["qa_visual_verification"] is True
+    assert body["capabilities"]["qa_google_grounding"] is True
 
 
 def test_parse_endpoint():
@@ -31,6 +34,62 @@ def test_search_endpoint_grouped():
     body = r.json()
     assert body["groups"]
     assert body["groups"][0]["frames"][0]["submit_keyframe_id"].count("/") == 2
+
+
+def test_qa_nvila_analysis_is_grounded_to_canonical_candidates():
+    payload = {
+        "question": "Bản tin trên màn hình tên gì?",
+        "candidates": [
+            {
+                "submit_keyframe_id": "K01/K01_V001/1",
+                "frame_idx": 0,
+                "pts_time": 0,
+                "retrieval_score": 0.9,
+                "evidence": [{"type": "ocr", "text": "Bản tin thời sự HTV7"}],
+            }
+        ],
+    }
+    r = client.post("/api/qa/analyze", json=payload)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["model"] == "mock-nvila-8b"
+    assert body["candidate_answers"][0]["answer"] == "Bản tin thời sự"
+    assert body["hotspots"][0]["submit_keyframe_id"] == "K01/K01_V001/001"
+    assert body["hotspots"][0]["keyframe_url"].endswith("/K01_V001/001.jpg")
+    assert body["best_submit_keyframe_id"] == "K01/K01_V001/001"
+
+
+def test_qa_nvila_analysis_rejects_arbitrary_image_identity():
+    r = client.post(
+        "/api/qa/analyze",
+        json={"question": "What?", "candidates": [{"submit_keyframe_id": "https://evil.test/a.jpg"}]},
+    )
+    assert r.status_code == 400
+
+
+def test_qa_google_grounding_merges_answer_but_keeps_canonical_frame():
+    r = client.post(
+        "/api/qa/analyze",
+        json={
+            "question": "Tên cửa hàng nổi tiếng thế giới là gì?",
+            "web_grounding": "on",
+            "candidates": [{
+                "submit_keyframe_id": "K20/K20_V013/229",
+                "frame_idx": 18270,
+                "pts_time": 609.0,
+                "retrieval_score": .9,
+                "evidence": [{"type": "speech", "text": "logo Disney lấy cảm hứng từ lâu đài"}],
+            }],
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["best_answer"] == "WALTDISNEY"
+    assert body["best_submit_keyframe_id"] == "K20/K20_V013/229"
+    assert body["candidate_answers"][0]["source"] == "google"
+    assert body["web_grounding"]["used"] is True
+    assert body["web_grounding"]["sources"]
+    assert body["web_grounding"]["visual_verification"]["used"] is True
 
 
 def test_simple_search_flat_ordered_list():

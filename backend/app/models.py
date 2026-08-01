@@ -67,6 +67,27 @@ class SnapRequest(BaseModel):
     fps: float | None = None
 
 
+class QaCandidate(BaseModel):
+    """A retrieval candidate sent to NVILA.
+
+    The backend rebuilds the image URL from ``submit_keyframe_id``; clients are
+    never allowed to make the Colab worker fetch an arbitrary URL.
+    """
+
+    submit_keyframe_id: str = Field(min_length=3, max_length=160)
+    frame_idx: int | None = None
+    pts_time: float | None = None
+    retrieval_score: float = 0.0
+    evidence: list[dict[str, Any]] = Field(default_factory=list, max_length=12)
+
+
+class QaAnalyzeRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=2000)
+    candidates: list[QaCandidate] = Field(min_length=1, max_length=24)
+    max_answers: int = Field(default=5, ge=1, le=8)
+    web_grounding: Literal["auto", "on", "off"] = "auto"
+
+
 class TrakeEvent(BaseModel):
     event_index: int
     frame_idx: int

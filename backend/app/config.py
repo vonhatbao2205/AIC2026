@@ -68,6 +68,23 @@ class Settings:
     # 3B-active MoE: ~2s, strong multilingual, and reliably outputs ENGLISH for
     # Vietnamese input (llama-3.1-8b echoed Vietnamese; the 550B is ~45s/call).
     nvidia_fast_model: str = "qwen/qwen3-next-80b-a3b-instruct"
+    # NVILA-8B visual QA server (the companion Colab notebook exposes /qa/analyze).
+    # The URL is a volatile Cloudflare quick-tunnel URL unless a named tunnel is used.
+    nvila_base_url: str | None = None
+    nvila_token: str | None = None
+    nvila_timeout_seconds: float = 240.0
+    nvila_max_candidates: int = 12
+    # Gemini text model with the built-in Google Search grounding tool. This
+    # resolves external facts after NVILA has extracted visual/ASR clues.
+    gemini_api_key: str | None = None
+    gemini_grounding_model: str = "gemini-3.6-flash"
+    gemini_grounding_fallback_models: list[str] = field(
+        default_factory=lambda: ["gemini-3.5-flash", "gemini-3.1-flash-lite"]
+    )
+    gemini_grounding_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
+    gemini_grounding_enabled: bool = True
+    gemini_grounding_timeout_seconds: float = 60.0
+    gemini_grounding_auto_threshold: float = 0.55
     # Slim-schema parse: ~2x faster but A/B showed it occasionally misroutes
     # query_type (TKIS→TRAKE) on ambiguous queries — off by default (accuracy).
     slim_parse: bool = False
@@ -116,6 +133,16 @@ class Settings:
         return bool(self.nvidia_api_key)
 
     @property
+    def has_nvila(self) -> bool:
+        # The companion worker always requires Bearer auth. Treat a URL without
+        # its matching token as incomplete rather than attempting live calls.
+        return bool(self.nvila_base_url and self.nvila_token)
+
+    @property
+    def has_google_grounding(self) -> bool:
+        return bool(self.gemini_grounding_enabled and self.gemini_api_key)
+
+    @property
     def has_dres(self) -> bool:
         return bool(self.dres_base_url and self.dres_token)
 
@@ -138,6 +165,32 @@ def get_settings() -> Settings:
     slim_env = (_env("SLIM_PARSE", "false") or "false").lower()
     slim_parse = slim_env in {"1", "true", "yes", "on"}
 
+    try:
+        nvila_timeout_seconds = float(_env("NVILA_TIMEOUT_SECONDS", "240") or "240")
+    except ValueError:
+        nvila_timeout_seconds = 240.0
+    try:
+        nvila_max_candidates = int(_env("NVILA_MAX_CANDIDATES", "12") or "12")
+    except ValueError:
+        nvila_max_candidates = 12
+    grounding_env = (_env("GEMINI_GROUNDING_ENABLED", "true") or "true").lower()
+    gemini_grounding_enabled = grounding_env in {"1", "true", "yes", "on"}
+    try:
+        gemini_grounding_timeout_seconds = float(_env("GEMINI_GROUNDING_TIMEOUT_SECONDS", "60") or "60")
+    except ValueError:
+        gemini_grounding_timeout_seconds = 60.0
+    try:
+        gemini_grounding_auto_threshold = float(_env("GEMINI_GROUNDING_AUTO_THRESHOLD", "0.55") or "0.55")
+    except ValueError:
+        gemini_grounding_auto_threshold = 0.55
+    grounding_fallbacks_raw = _env(
+        "GEMINI_GROUNDING_FALLBACK_MODELS",
+        "gemini-3.5-flash,gemini-3.1-flash-lite",
+    ) or ""
+    gemini_grounding_fallback_models = [
+        model.strip() for model in grounding_fallbacks_raw.split(",") if model.strip()
+    ]
+
     cors = _env("CORS_ORIGINS")
     cors_origins = [o.strip() for o in cors.split(",")] if cors else ["*"]
 
@@ -154,6 +207,17 @@ def get_settings() -> Settings:
         nvidia_base_url=_env("NVIDIA_BASE_URL") or "https://integrate.api.nvidia.com/v1",
         nvidia_model=_env("NVIDIA_MODEL") or "qwen/qwen3-next-80b-a3b-instruct",
         nvidia_fast_model=_env("NVIDIA_FAST_MODEL") or "qwen/qwen3-next-80b-a3b-instruct",
+        nvila_base_url=(_env("NVILA_BASE_URL") or "").rstrip("/") or None,
+        nvila_token=_env("NVILA_TOKEN") or file_default("nvila_token.txt"),
+        nvila_timeout_seconds=max(30.0, nvila_timeout_seconds),
+        nvila_max_candidates=min(24, max(1, nvila_max_candidates)),
+        gemini_api_key=_env("GEMINI_API_KEY") or file_default("gemini_api_key.txt"),
+        gemini_grounding_model=_env("GEMINI_GROUNDING_MODEL") or "gemini-3.6-flash",
+        gemini_grounding_fallback_models=gemini_grounding_fallback_models,
+        gemini_grounding_base_url=(_env("GEMINI_GROUNDING_BASE_URL") or "https://generativelanguage.googleapis.com/v1beta").rstrip("/"),
+        gemini_grounding_enabled=gemini_grounding_enabled,
+        gemini_grounding_timeout_seconds=max(10.0, gemini_grounding_timeout_seconds),
+        gemini_grounding_auto_threshold=min(1.0, max(0.0, gemini_grounding_auto_threshold)),
         dres_base_url=_env("DRES_BASE_URL"),
         dres_token=_env("DRES_TOKEN"),
         idx_keyframe_map=_env("IDX_KEYFRAME_MAP") or "aic26_keyframe_map_v1",

@@ -12,11 +12,12 @@ interface Props {
   playhead: number;
   selectedPts: number | null;
   eventMarkers?: EventMarker[];
+  qaHotspots?: { submit_keyframe_id: string; pts_time: number; relevance: number }[];
   onSeek: (t: number) => void;
 }
 
 // Lean keyframe filmstrip timeline (OCR/speech/audio/heatmap tracks removed for speed).
-export function Timeline({ data, playhead, selectedPts, eventMarkers = [], onSeek }: Props) {
+export function Timeline({ data, playhead, selectedPts, eventMarkers = [], qaHotspots = [], onSeek }: Props) {
   const duration = data.duration || data.keyframes.at(-1)?.pts_time || 1;
   const pct = (t: number) => `${Math.min(100, Math.max(0, (t / duration) * 100))}%`;
   const stride = Math.ceil((data.keyframes.length || 1) / 60) || 1;
@@ -55,6 +56,16 @@ export function Timeline({ data, playhead, selectedPts, eventMarkers = [], onSee
               style={{ left: pct(m.pts_time), background: eventColor(m.eventIndex - 1) }}
               title={`E${m.eventIndex} @ ${formatTime(m.pts_time)}`}
               onClick={() => onSeek(m.pts_time)}
+            />
+          ))}
+          {qaHotspots.map((hotspot, index) => (
+            <div
+              key={hotspot.submit_keyframe_id}
+              className="tl-marker qa"
+              data-testid="qa-timeline-marker"
+              style={{ left: pct(hotspot.pts_time) }}
+              title={`QA hotspot ${index + 1} · ${Math.round(hotspot.relevance * 100)}% · ${formatTime(hotspot.pts_time)}`}
+              onClick={() => onSeek(hotspot.pts_time)}
             />
           ))}
         </div>

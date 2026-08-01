@@ -7,6 +7,7 @@ import type {
   HealthResponse,
   LatencyBreakdown,
   ParsedQuery,
+  QaAnalysisResponse,
   QueryType,
   SubmitEntry,
   Timeline as TimelineData,
@@ -17,6 +18,7 @@ import { DetailPanel } from "./components/DetailPanel";
 import { HistorySidebar } from "./components/HistorySidebar";
 import { QueryPanel } from "./components/QueryPanel";
 import { QueryUnderstanding } from "./components/QueryUnderstanding";
+import { QaAssistPanel } from "./components/QaAssistPanel";
 import { Results } from "./components/Results";
 import { PausedFramePanel, type PausedFrame } from "./components/PausedFramePanel";
 import { ShortcutsModal } from "./components/ShortcutsModal";
@@ -25,6 +27,7 @@ import { Timeline } from "./components/Timeline";
 import { TopBar } from "./components/TopBar";
 import { TrakePanel, type TrakeSlot } from "./components/TrakePanel";
 import { VideoViewer, type VideoViewerHandle } from "./components/VideoViewer";
+import { findQaFrame, selectQaCandidateFrames } from "./lib/qa";
 import { validateIncreasingOrder } from "./lib/snap";
 
 const EMPTY_OVERRIDES: ManualOverrides = { force_channels: [], disable_channels: [] };
@@ -68,6 +71,10 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
   const [guardOpen, setGuardOpen] = useState(false);
   const [taskId, setTaskId] = useState("q001");
   const [answer, setAnswer] = useState("");
+  const [qaAnalysis, setQaAnalysis] = useState<QaAnalysisResponse | null>(null);
+  const [qaAnalyzing, setQaAnalyzing] = useState(false);
+  const [qaAnalysisError, setQaAnalysisError] = useState<string | null>(null);
+  const [qaWebGrounding, setQaWebGrounding] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [duplicateId, setDuplicateId] = useState<string | null>(null);
 
@@ -89,6 +96,21 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     && pausedFrame.video_id === selectedGroup?.video_id
       ? pausedFrame
       : null;
+  const qaCandidateFrames = useMemo(
+    () => (queryType === "QA" ? selectQaCandidateFrames(groups, selectedFrameObj) : []),
+    [queryType, groups, selectedFrameObj],
+  );
+  const qaCandidates = useMemo(() => qaCandidateFrames.map((frame) => ({
+    submit_keyframe_id: frame.submit_keyframe_id,
+    frame_idx: frame.frame_idx,
+    pts_time: frame.pts_time,
+    retrieval_score: frame.score,
+    evidence: frame.evidence,
+  })), [qaCandidateFrames]);
+  const qaHotspotScores = useMemo(
+    () => new Map((qaAnalysis?.hotspots ?? []).map((hotspot) => [hotspot.submit_keyframe_id, hotspot.relevance])),
+    [qaAnalysis],
+  );
 
   // ---- bootstrap: health + history + timer ----
   useEffect(() => {
@@ -142,6 +164,9 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     setDuplicateId(null);
     setPausedFrame(null);
     setUsePausedFrame(false);
+    setQaAnalysis(null);
+    setQaAnalysisError(null);
+    setAnswer("");
     try {
       if (queryType === "TRAKE") {
         const res = await api.searchTrake({ query, previous_hints: hints, manual_overrides: overrides, use_llm: useLLM, expand });
@@ -257,6 +282,54 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
       return { ...fb, negative_frames: Array.from(new Set([...fb.negative_frames, frame.submit_keyframe_id])) };
     });
     setToast({ msg: kind === "more" ? `Boosted ${frame.video_id}` : `Excluded ${frame.submit_keyframe_id}`, kind: "ok" });
+  }
+
+  function focusQaEvidence(submitKeyframeId: string, showVideo = true) {
+    const location = findQaFrame(groups, submitKeyframeId);
+    if (!location) return;
+    const group = groups[location.video];
+    setSelectedVideo(location.video);
+    setSelectedFrame(location.frame);
+    setExpanded((current) => new Set(current).add(group.video_id));
+    // A previous raw pause belongs to a different verification decision. Once
+    // an NVILA hotspot is opened, make its retrieved frame the explicit target.
+    setPausedFrame(null);
+    setUsePausedFrame(false);
+    if (showVideo) {
+      setActiveVideoId(group.video_id);
+      setVideoVisible(true);
+      setShowTimeline(true);
+    }
+  }
+
+  async function runQaAnalysis() {
+    if (queryType !== "QA" || qaCandidates.length === 0 || qaAnalyzing) return;
+    const question = parsed?.qa?.question_vi || query.trim();
+    if (!question) return;
+    setQaAnalyzing(true);
+    setQaAnalysisError(null);
+    try {
+      const result = await api.qaAnalyze({
+        question,
+        candidates: qaCandidates,
+        max_answers: 5,
+        web_grounding: qaWebGrounding ? "auto" : "off",
+      });
+      setQaAnalysis(result);
+    } catch (error) {
+      const message = error instanceof ApiError && typeof error.detail === "string"
+        ? error.detail
+        : "NVILA analysis failed — check the Colab worker and backend configuration.";
+      setQaAnalysisError(message);
+      setToast({ msg: message, kind: "bad" });
+    } finally {
+      setQaAnalyzing(false);
+    }
+  }
+
+  function chooseQaAnswer(value: string, evidenceId?: string) {
+    setAnswer(value);
+    if (evidenceId) focusQaEvidence(evidenceId, true);
   }
 
   // ---- T-KIS append hint ----
@@ -573,6 +646,9 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
           setParsed(null);
           setPausedFrame(null);
           setUsePausedFrame(false);
+          setQaAnalysis(null);
+          setQaAnalysisError(null);
+          setAnswer("");
         }}
         elapsed={elapsed}
         penalties={penalties}
@@ -637,6 +713,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
             viewMode={viewMode}
             trakeEventCount={queryType === "TRAKE" ? parsed?.trake?.events?.length : undefined}
             onTrakeQuickSubmit={queryType === "TRAKE" ? trakeQuickSubmit : undefined}
+            qaHotspotScores={queryType === "QA" ? qaHotspotScores : undefined}
             selectedVideo={selectedVideo}
             selectedFrame={selectedFrame}
             expanded={expanded}
@@ -669,6 +746,13 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
                       playhead={playhead}
                       selectedPts={selectedFrameObj?.pts_time ?? null}
                       eventMarkers={eventMarkers}
+                      qaHotspots={(qaAnalysis?.hotspots ?? [])
+                        .filter((hotspot) => hotspot.video_id === activeVideoId && hotspot.pts_time != null)
+                        .map((hotspot) => ({
+                          submit_keyframe_id: hotspot.submit_keyframe_id,
+                          pts_time: hotspot.pts_time as number,
+                          relevance: hotspot.relevance,
+                        }))}
                       onSeek={seekVideo}
                     />
                   )}
@@ -680,6 +764,24 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
 
         {/* RIGHT */}
         <div className="col col-right" style={focusZone === "detail" ? { boxShadow: "inset 0 2px 0 var(--accent)" } : undefined}>
+          {queryType === "QA" && (
+            <QaAssistPanel
+              analysis={qaAnalysis}
+              loading={qaAnalyzing}
+              error={qaAnalysisError}
+              available={health ? Boolean(health.capabilities.qa_nvila) : null}
+              candidateCount={qaCandidates.length}
+              candidateFrames={qaCandidateFrames}
+              selectedAnswer={answer}
+              webGrounding={qaWebGrounding}
+              googleAvailable={health ? Boolean(health.capabilities.qa_google_grounding) : null}
+              visualVerificationAvailable={health ? Boolean(health.capabilities.qa_visual_verification) : null}
+              onAnalyze={runQaAnalysis}
+              onWebGroundingChange={setQaWebGrounding}
+              onChooseAnswer={chooseQaAnswer}
+              onOpenFrame={(id) => focusQaEvidence(id, true)}
+            />
+          )}
           <PausedFramePanel
             frame={pausedFrame}
             queryType={queryType}

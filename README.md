@@ -28,6 +28,9 @@ The repository contains two parts:
   deterministic heuristic fallback; VI→EN translation of the visual query.
 - **TRAKE** temporal sequences assembled with an exact dynamic-programming
   maximum-weight increasing chain (globally optimal, not greedy).
+- **NVILA-8B QA copilot** — top-video-first candidate blocks, 3–5 visual
+  hypotheses and answer alternatives, Gemini Google Search grounding, then a
+  third NVILA visual-consistency pass before explicit human verification.
 - **Submit guard** — duplicate detection, evidence preview, DRES submission.
 - **Keyboard-first single-screen UI** with a multi-track timeline (keyframes,
   speech, OCR, audio, heatmap) and BTC keyframe snapping for frame-accurate picks.
@@ -51,7 +54,8 @@ OFFLINE INDEXING (scripts + notebooks at repo root)
 ONLINE QUERY              │               │
           ▼               ▼               ▼
   backend/  FastAPI ── parse → retrieve (parallel channels) → RRF fuse
-            → group-by-video / TRAKE DP → submit guard → DRES
+            → group-by-video / TRAKE DP → NVILA QA → Gemini Google grounding
+            → NVILA visual verification → human choice → submit guard → DRES
           │
           ▼
   frontend/ Vite + React + TS operator console (keyboard-first, timeline)
@@ -73,6 +77,7 @@ The broader design/strategy is in **[AIC26_Pipeline.md](AIC26_Pipeline.md)**.
 | `elastic_upload.py` | Index OCR / speech / audio / keyframe-map records into Elastic. |
 | `milvus_upload.py` | Upload PE-Core-G14 image vectors into Milvus. |
 | `aic26_query_factory_qwen3vl8b_t4x2.ipynb` | Kaggle T4×2 workflow dùng Qwen3-VL-8B, PE-G14/Milvus visual hard negatives, critic, review và export benchmark T-KIS/QA/TRAKE/V-KIS. |
+| `aic26_nvila8b_qa_colab_server.ipynb` | Colab A100 worker chạy NVILA-8B BF16: QA hotspot prediction → grounded answer suggestions qua FastAPI/Cloudflare tunnel. |
 | `*.ipynb` | Pipeline notebooks: `audio_pipeline`, `speech_pipeline`, `cloudflareR2`, `model-setup-backend`, `glap-encoder-kaggle`, `ui-streamlit`. |
 | `*_PIPELINE.md`, `*_HANDOFF.md`, `FEATURES.md` | Per-stage documentation (audio, speech, OCR, Elastic, Milvus, R2). |
 | `HUONG_DAN_SU_DUNG_DRES.md`, `dres_readme.md` | DRES submission notes. |
@@ -137,6 +142,8 @@ Key variables (full list in [backend/.env.example](backend/.env.example)):
 | `MEDIA_BASE_URL` | Cloudflare R2 public media base |
 | `NVIDIA_API_KEY` | enables the Nemotron query parser (else heuristics) |
 | `DRES_BASE_URL`, `DRES_TOKEN` | DRES submission (else local-only history) |
+| `NVILA_BASE_URL`, `NVILA_TOKEN` | optional NVILA-8B QA worker chạy từ Colab notebook |
+| `GEMINI_API_KEY` | optional Gemini built-in Google Search grounding for QA; backend only |
 | `AIC26_MOCK_MODE` | `true` ⇒ run with fixtures, no live services |
 
 > ⚠️ **Secrets are never committed and never reach the frontend.** The browser
@@ -165,6 +172,7 @@ cd frontend && npm run test                       # vitest component tests
 | [CLOUDFLARE_R2_MEDIA_HANDOFF.md](CLOUDFLARE_R2_MEDIA_HANDOFF.md) | Media hosting on R2 |
 | [HUONG_DAN_SU_DUNG_DRES.md](HUONG_DAN_SU_DUNG_DRES.md) | DRES usage (Vietnamese) |
 | [aic26_query_factory_qwen3vl8b_t4x2.ipynb](aic26_query_factory_qwen3vl8b_t4x2.ipynb) | Source-first benchmark factory: Qwen3-VL generator/critic, PE-G14/Milvus + TF-IDF hard negatives, human review, private ground truth and evaluator |
+| [NVILA_QA_INTEGRATION.md](NVILA_QA_INTEGRATION.md) | UIT/VBS method adaptation, Colab A100 worker, backend contract, UI workflow and operations |
 
 ---
 
@@ -180,7 +188,7 @@ NVIDIA NIM (Nemotron) · Whisper (voice input).
 ## Status
 
 Implemented: multi-channel retrieval + RRF fusion, group-by-video, TRAKE DP,
-query parser (LLM + heuristic), submit guard, mock mode, audio vector search.
-Planned (clean seams left in place — see RETRIEVAL_APP_HANDOFF.md §8): VLM
-reranker / CoT QA, object–scene–action tag filters, and a custom Vietnamese
-analyzer.
+query parser (LLM + heuristic), NVILA-8B assisted QA, submit guard, mock mode,
+audio vector search. Planned (clean seams left in place — see
+RETRIEVAL_APP_HANDOFF.md §8): general-purpose VLM reranking,
+object–scene–action tag filters, and a custom Vietnamese analyzer.

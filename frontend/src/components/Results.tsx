@@ -23,6 +23,7 @@ interface Props {
   trakeEventCount?: number;
   // TRAKE: fill the event slots from this video's frames and open the submit guard.
   onTrakeQuickSubmit?: (g: VideoGroup) => void;
+  qaHotspotScores?: Map<string, number>;
 }
 
 // A frame whose audio evidence came from the GLAP audio-vector search.
@@ -59,6 +60,9 @@ export function Results(props: Props) {
                   <span key={c} className={`badge ${c}`}>{c[0]}</span>
                 ))}
                 {isGlap(f) && <span className="badge glap" title="Matched by GLAP audio-vector search">GLAP</span>}
+                {props.qaHotspotScores?.has(f.submit_keyframe_id) && (
+                  <span className="badge qa-hit">NV {Math.round((props.qaHotspotScores.get(f.submit_keyframe_id) ?? 0) * 100)}</span>
+                )}
               </div>
               <img src={f.keyframe_url} alt={f.submit_keyframe_id} loading="lazy" />
               <figcaption>
@@ -144,6 +148,11 @@ export function Results(props: Props) {
                           <span key={c} className={`badge ${c}`}>{c[0]}</span>
                         ))}
                         {isGlap(f) && <span className="badge glap" title="Matched by GLAP audio-vector search">G</span>}
+                        {props.qaHotspotScores?.has(f.submit_keyframe_id) && (
+                          <span className="badge qa-hit" title="NVILA answer-bearing hotspot">
+                            NV {Math.round((props.qaHotspotScores.get(f.submit_keyframe_id) ?? 0) * 100)}
+                          </span>
+                        )}
                       </div>
                       <div className="fb">
                         <button title="More like this" onClick={(e) => { e.stopPropagation(); props.onFeedback(f, "more"); }}>＋</button>

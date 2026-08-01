@@ -1,8 +1,16 @@
 """Mocked adapter tests — exercise the mock-mode paths (no live services)."""
+import httpx
 import pytest
 
+import app.adapters.gemini_grounding as gemini_grounding_module
 from app.adapters.elastic_client import ElasticClient
+from app.adapters.gemini_grounding import (
+    GeminiGroundingClient,
+    _model_candidates,
+    _parse_generate_content,
+)
 from app.adapters.milvus_client import MilvusClient, _sanitize_float16_vector
+from app.adapters.nvila_client import NvilaQaClient
 from app.adapters.pe_encoder import GLAP_DIM, PE_DIM, GlapEncoderClient, PeEncoderClient
 
 
@@ -91,3 +99,128 @@ async def test_health_reports_mock(settings):
     assert (await ElasticClient(settings).health())["ok"] is True
     assert (await MilvusClient(settings).health())["ok"] is True
     assert (await PeEncoderClient(settings).health())["ok"] is True
+    nvila_health = await NvilaQaClient(settings).health()
+    assert nvila_health["mode"] == "mock"
+    assert nvila_health["visual_verification_pass"] is True
+    assert (await GeminiGroundingClient(settings).health())["mode"] == "mock"
+
+
+@pytest.mark.asyncio
+async def test_nvila_qa_mock_returns_grounded_ids(settings):
+    client = NvilaQaClient(settings)
+    candidates = [{"candidate_id": "C01", "submit_keyframe_id": "K01/K01_V001/001"}]
+    result = await client.analyze("Đây là bản tin gì?", candidates)
+    assert result["best_candidate_id"] == "C01"
+    assert result["candidate_answers"]
+
+
+@pytest.mark.asyncio
+async def test_nvila_mock_verifies_google_option_against_candidate(settings):
+    client = NvilaQaClient(settings)
+    result = await client.verify_grounded(
+        "Tên là gì?",
+        [{"candidate_id": "C03"}],
+        [{"answer": "WALTDISNEY", "supporting_candidate_ids": ["C03"]}],
+        hotspot_ids=["C03"],
+    )
+    assert result["verdicts"] == [{
+        "answer": "WALTDISNEY",
+        "status": "supported",
+        "visual_confidence": 0.90,
+        "supporting_candidate_ids": ["C03"],
+        "reason": "Mock NVILA confirms consistency with the supplied visual clue.",
+    }]
+
+
+@pytest.mark.asyncio
+async def test_gemini_grounding_mock_keeps_candidate_id(settings):
+    client = GeminiGroundingClient(settings)
+    candidates = [{"candidate_id": "C07", "video_id": "K20_V013", "evidence": []}]
+    result = await client.ground("Tên cửa hàng là gì?", candidates, {"candidate_answers": []})
+    assert result["best_answer"] == "WALTDISNEY"
+    assert result["candidate_answers"][0]["supporting_candidate_ids"] == ["C07"]
+
+
+def test_gemini_response_parser_preserves_grounding_provenance():
+    parsed = _parse_generate_content({
+        "candidates": [{
+            "content": {"parts": [{"text": '<grounded_json>{"answerable": true}</grounded_json>'}]},
+            "groundingMetadata": {
+                "webSearchQueries": ["Disney official full name"],
+                "groundingChunks": [
+                    {"web": {"title": "The Walt Disney Company", "uri": "https://thewaltdisneycompany.com/"}},
+                    {"web": {"title": "Duplicate", "uri": "https://thewaltdisneycompany.com/"}},
+                    {"web": {"title": "Unsafe", "uri": "javascript:alert(1)"}},
+                ],
+                "searchEntryPoint": {"renderedContent": "<div>Google suggestions</div>"},
+            },
+        }],
+    })
+    assert parsed["queries"] == ["Disney official full name"]
+    assert parsed["sources"] == [{
+        "title": "The Walt Disney Company",
+        "url": "https://thewaltdisneycompany.com/",
+    }]
+    assert parsed["search_suggestions_html"] == "<div>Google suggestions</div>"
+
+
+@pytest.mark.asyncio
+async def test_gemini_grounding_falls_back_when_primary_model_is_retired(monkeypatch):
+    calls = []
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def post(self, url, *, json, headers):
+            calls.append((url, json))
+            request = httpx.Request("POST", url)
+            if "gemini-2.5-flash:" in url:
+                return httpx.Response(404, request=request, json={"error": {"message": "retired"}})
+            return httpx.Response(200, request=request, json={
+                "candidates": [{
+                    "content": {"parts": [{"text": (
+                        '<grounded_json>{"answerable":true,"best_answer":"WALTDISNEY",'
+                        '"candidate_answers":[{"answer":"WALTDISNEY","confidence":0.9,'
+                        '"supporting_candidate_ids":["C01"],"reason":"canonical name"}],'
+                        '"uncertainty":""}</grounded_json>'
+                    )}]},
+                    "groundingMetadata": {
+                        "webSearchQueries": ["Disney canonical name"],
+                        "groundingChunks": [{"web": {
+                            "title": "Disney",
+                            "uri": "https://thewaltdisneycompany.com/",
+                        }}],
+                    },
+                }],
+            })
+
+    monkeypatch.setattr(gemini_grounding_module.httpx, "AsyncClient", FakeAsyncClient)
+    settings = gemini_grounding_module.Settings(
+        gemini_api_key="test-key",
+        gemini_grounding_model="models/gemini-2.5-flash",
+        gemini_grounding_fallback_models=["gemini-3.6-flash"],
+    )
+    assert _model_candidates(settings) == ["gemini-2.5-flash", "gemini-3.6-flash"]
+
+    result = await GeminiGroundingClient(settings).ground(
+        "Tên cửa hàng là gì?",
+        [{
+            "candidate_id": "C01",
+            "video_id": "K20_V013",
+            "pts_time": 609,
+            "evidence": [{"type": "speech", "text": "logo Disney"}],
+        }],
+        {"candidate_answers": []},
+    )
+
+    assert result["model"] == "gemini-3.6-flash"
+    assert len(calls) == 2
+    assert calls[1][1]["generationConfig"]["thinkingConfig"]["thinkingLevel"] == "low"
+    assert "temperature" not in calls[1][1]["generationConfig"]

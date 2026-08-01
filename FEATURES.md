@@ -8,7 +8,7 @@ Toàn bộ tính năng hiện có của hệ thống truy hồi video AIC26 (bac
 
 - **Backend** `backend/` — FastAPI, adapter tách module: Elastic, Milvus, PE encoder, GLAP encoder; service: search / trake / timeline / submit; logic thuần (identity, media, fusion, trake, scoring) test được độc lập.
 - **Frontend** `frontend/` — React + Vite + TypeScript. Frontend **chỉ gọi backend**, không giữ secret.
-- **Models/infra** (Kaggle + cloud): PE-Core-G14 (ảnh+text), GLAP (audio↔text), Milvus/Zilliz (vector), Elastic Cloud (OCR/speech/audio/keyframe-map), Cloudflare R2 (media), NVIDIA NIM (LLM parse/expansion), faster-whisper (voice STT).
+- **Models/infra** (Kaggle/Colab + cloud): PE-Core-G14 (ảnh+text), GLAP (audio↔text), NVILA-8B (visual QA), Milvus/Zilliz (vector), Elastic Cloud (OCR/speech/audio/keyframe-map), Cloudflare R2 (media), NVIDIA NIM (LLM parse/expansion), faster-whisper (voice STT).
 - **Mock mode** (`AIC26_MOCK_MODE=true`): mọi adapter trả fixture cố định → chạy UI/test không cần service thật.
 
 ## 2. Quy tắc định danh (bất biến)
@@ -50,7 +50,7 @@ Toàn bộ tính năng hiện có của hệ thống truy hồi video AIC26 (bac
 
 ## 8. 4 dạng tác vụ
 - **T-KIS**: hỗ trợ **Append hint** (gộp hint tích lũy).
-- **QA**: locate frame + evidence OCR/speech/audio; ô **answer** sửa tay (text-evidence-only, không VLM CoT).
+- **QA**: retrieval lấy tối đa 12 frame; frame user đang xem luôn là **C01** và được tính vào quota của video đó. Từ C02, candidate được xếp theo block ưu tiên `video_score`: lấy đủ tối đa 3 frame đa dạng của video đứng đầu trước rồi mới sang video hạng tiếp theo. Sau đó NVILA-8B chạy **3–5 hotspot hypotheses → 3–5 visual answer options** → Gemini Search → **NVILA pass 3**. `contradicted` bị loại; `insufficient/unverified` bị hạ confidence.
 - **V-KIS**: như KIS hình ảnh.
 - **TRAKE** (chi tiết §9).
 
@@ -103,6 +103,7 @@ Toàn bộ tính năng hiện có của hệ thống truy hồi video AIC26 (bac
 | POST | `/api/search` | search đầy đủ (group-by-video) |
 | POST | `/api/search/simple` | vector-only flat top-K |
 | POST | `/api/search/trake` | chuỗi event (two-pass + DP) |
+| POST | `/api/qa/analyze` | NVILA visual QA + optional Gemini Google Search grounding/citations |
 | GET | `/api/keyframes/{submit_keyframe_id:path}` | chuẩn hoá id + URL + timing |
 | GET | `/api/videos/{video_id}/timeline` | keyframes timeline |
 | POST | `/api/videos/{video_id}/snap` | snap raw→keyframe |
@@ -112,7 +113,7 @@ Toàn bộ tính năng hiện có của hệ thống truy hồi video AIC26 (bac
 | POST | `/api/transcribe` | Whisper STT (audio→text+EN) |
 
 ## 16. Cấu hình (env, xem `backend/.env.example`)
-`ELASTIC_ENDPOINT/API_KEY` · `MILVUS_ENDPOINT/TOKEN` · `PE_ENCODER_URL`(+`_TOKEN`) · `GLAP_ENCODER_URL` (mặc định = PE) · `MEDIA_BASE_URL` · `NVIDIA_API_KEY/BASE_URL` · `NVIDIA_MODEL` (parse) · `NVIDIA_FAST_MODEL` (expansion) · `SLIM_PARSE` · `TRANSLATE_TO_EN` · `WHISPER_MODEL` · `DRES_BASE_URL/TOKEN` · `IDX_*` · `MILVUS_IMAGE_COLLECTION` · `MILVUS_AUDIO_COLLECTION` · `AIC26_MOCK_MODE` · `CORS_ORIGINS`.
+`ELASTIC_ENDPOINT/API_KEY` · `MILVUS_ENDPOINT/TOKEN` · `PE_ENCODER_URL`(+`_TOKEN`) · `GLAP_ENCODER_URL` (mặc định = PE) · `NVILA_BASE_URL/TOKEN` · `NVILA_TIMEOUT_SECONDS/MAX_CANDIDATES` · `GEMINI_API_KEY` · `GEMINI_GROUNDING_*` · `MEDIA_BASE_URL` · `NVIDIA_API_KEY/BASE_URL` · `NVIDIA_MODEL` (parse) · `NVIDIA_FAST_MODEL` (expansion) · `SLIM_PARSE` · `TRANSLATE_TO_EN` · `WHISPER_MODEL` · `DRES_BASE_URL/TOKEN` · `IDX_*` · `MILVUS_IMAGE_COLLECTION` · `MILVUS_AUDIO_COLLECTION` · `AIC26_MOCK_MODE` · `CORS_ORIGINS`.
 
 ## 17. Models & dữ liệu
 - **PE-Core-G14-448** (1280-d) — ảnh + text, Kaggle FastAPI + cloudflared (`model-setup-backend.ipynb`).
@@ -120,9 +121,11 @@ Toàn bộ tính năng hiện có của hệ thống truy hồi video AIC26 (bac
 - **Milvus**: `aic26_image_peg14_v1` (382,299), `aic26_audio_glap_v1` (466,996).
 - **Elastic**: `aic26_keyframe_map_v1`, `aic26_ocr_keyframes_v1`, `aic26_speech_segments_v1`, `aic26_audio_windows_v1`.
 - **NVIDIA NIM**: qwen3-next (parse), llama-3.1-8b (expansion). **faster-whisper** (voice).
+- **NVILA-8B**: Colab A100 BF16 worker (`aic26_nvila8b_qa_colab_server.ipynb`), multi-image QA hai pass cộng post-search visual verification, không cần caption keyframe tạo sẵn.
+- **Gemini 3.6 Flash + Google Search**: backend-only knowledge grounding sau NVILA; tự fallback sang 3.5 Flash/3.1 Flash-Lite khi model trả 404. Query/source/search suggestions được trả về UI để operator kiểm chứng.
 
 ## 18. Chưa làm (cố ý) / điểm mở rộng
-- **Chưa có**: Qwen3-VL reranker, VLM CoT, structured VLM caption, object/scene/action tag filter, SigLIP/EVA ensemble, true clip-query V-KIS. QA chỉ locate + text-evidence.
+- **Chưa có**: general Qwen3-VL reranker cho mọi task, structured VLM caption offline, object/scene/action tag filter, SigLIP/EVA ensemble, true clip-query V-KIS. QA đã có NVILA trực tiếp nhìn candidate, nhưng chưa có dense-caption Answer Span Prediction trên toàn corpus.
 - **Điểm mở rộng**: thêm `RerankerClient` + bước rerank sau fusion (flip `capabilities.vlm_rerank`); object filter qua parser `filters` + Elastic; query-vector morphing cho feedback.
 
 ## 19. Chạy & test

@@ -116,6 +116,96 @@ export interface SearchResponse {
   mode: "mock" | "live";
 }
 
+export interface QaAnalyzeCandidate {
+  submit_keyframe_id: string;
+  frame_idx: number | null;
+  pts_time: number | null;
+  retrieval_score: number;
+  evidence: Evidence[];
+}
+
+export interface QaSupportingFrame {
+  candidate_id: string;
+  submit_keyframe_id: string;
+  video_id: string;
+  frame_idx: number | null;
+  pts_time: number | null;
+  keyframe_url: string;
+}
+
+export interface QaCandidateAnswer {
+  answer: string;
+  confidence: number;
+  supporting_candidate_ids: string[];
+  supporting_frames: QaSupportingFrame[];
+  reason: string;
+  source: "nvila" | "google" | "hybrid" | string;
+  web_sources: QaWebSource[];
+  visual_verification?: QaVisualVerificationVerdict;
+}
+
+export interface QaWebSource {
+  title: string;
+  url: string;
+}
+
+export interface QaVisualVerificationVerdict {
+  answer: string;
+  status: "supported" | "contradicted" | "insufficient" | "unverified";
+  visual_confidence: number;
+  supporting_candidate_ids: string[];
+  reason: string;
+}
+
+export interface QaWebVisualVerification {
+  attempted: boolean;
+  used: boolean;
+  model: string | null;
+  latency_ms: number;
+  verdicts: QaVisualVerificationVerdict[];
+  rejected_answers: string[];
+  uncertainty: string;
+}
+
+export interface QaWebGrounding {
+  requested: "auto" | "on" | "off";
+  available: boolean;
+  attempted: boolean;
+  used: boolean;
+  model: string | null;
+  queries: string[];
+  sources: QaWebSource[];
+  summary: string;
+  latency_ms: number;
+  search_suggestions_html: string;
+  visual_verification?: QaWebVisualVerification;
+}
+
+export interface QaHotspot extends QaSupportingFrame {
+  keyframe_n: number;
+  relevance: number;
+  answer_support: string;
+}
+
+export interface QaAnalysisResponse {
+  question: string;
+  model: string;
+  mode: "mock" | "live" | string;
+  answerable: boolean;
+  best_answer: string;
+  best_candidate_id: string | null;
+  best_submit_keyframe_id: string | null;
+  candidate_answers: QaCandidateAnswer[];
+  hotspots: QaHotspot[];
+  uncertainty: string;
+  candidate_count: number;
+  latency_ms: number;
+  total_latency_ms?: number;
+  cached: boolean;
+  warnings: string[];
+  web_grounding?: QaWebGrounding;
+}
+
 export interface TrakeSequenceFrame {
   event_index: number;
   submit_keyframe_id: string;

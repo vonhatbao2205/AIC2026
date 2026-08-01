@@ -123,7 +123,7 @@ export function SubmitGuard(props: Props) {
               {queryType === "QA" && (
                 <div style={{ margin: "8px 0" }}>
                   <div className="k" style={{ color: "var(--fg-faint)", marginBottom: 3 }}>
-                    answer (editable · text-evidence only, no VLM)
+                    answer (editable · NVILA suggestion or manual)
                   </div>
                   <input
                     className="answer-input"

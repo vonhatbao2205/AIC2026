@@ -5,6 +5,7 @@ Endpoints:
   POST /api/query/parse
   POST /api/search
   POST /api/search/trake
+  POST /api/qa/analyze
   GET  /api/keyframes/{submit_keyframe_id:path}
   GET  /api/videos/{video_id}/timeline
   POST /api/videos/{video_id}/snap
@@ -16,15 +17,19 @@ Secrets stay server-side; responses never include Elastic/Milvus/NVIDIA creds.
 from __future__ import annotations
 
 import asyncio
+import re
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+from .adapters.gemini_grounding import GeminiGroundingClient, GeminiGroundingUnavailable
+from .adapters.nvila_client import NvilaQaClient, NvilaUnavailable
 from .config import get_settings
 from .identity import canonical_submit_keyframe_id, parse_submit_keyframe_id
 from .media import MediaUrlBuilder
 from .models import (
     ParseRequest,
+    QaAnalyzeRequest,
     SearchRequest,
     SimpleSearchRequest,
     SnapRequest,
@@ -53,15 +58,34 @@ trake_service = TrakeService(settings, search_service)
 timeline_service = TimelineService(settings)
 submit_service = SubmitService(settings)
 media = MediaUrlBuilder(settings.media_base_url)
+nvila_qa = NvilaQaClient(settings)
+google_grounding = GeminiGroundingClient(settings)
 
 
 @app.get("/api/health")
 async def health():
-    elastic = await search_service.elastic.health()
-    milvus = await search_service.milvus.health()
-    pe = await search_service.pe.health()
-    services = {"elastic": elastic, "milvus": milvus, "pe_encoder": pe}
-    ok = settings.mock_mode or all(s.get("ok") for s in services.values())
+    elastic, milvus, pe, nvila, grounding = await asyncio.gather(
+        search_service.elastic.health(),
+        search_service.milvus.health(),
+        search_service.pe.health(),
+        nvila_qa.health(),
+        google_grounding.health(),
+    )
+    services = {
+        "elastic": elastic,
+        "milvus": milvus,
+        "pe_encoder": pe,
+        "nvila_qa": nvila,
+        "google_grounding": grounding,
+    }
+    # NVILA is an optional QA accelerator: a stopped Colab session must not mark
+    # the core retrieval stack unhealthy.
+    ok = settings.mock_mode or all(s.get("ok") for s in (elastic, milvus, pe))
+    has_live_nvila = settings.has_nvila and not settings.mock_mode and bool(nvila.get("ok"))
+    has_qa_nvila = settings.mock_mode or has_live_nvila
+    has_qa_visual_verification = settings.mock_mode or (
+        has_live_nvila and bool(nvila.get("visual_verification_pass"))
+    )
     return {
         "ok": ok,
         "mode": "mock" if settings.mock_mode else "live",
@@ -70,13 +94,22 @@ async def health():
             "llm_query_parser": settings.has_llm and not settings.mock_mode,
             "dres_submit": settings.has_dres,
             "audio_vector_search": settings.has_glap and not settings.mock_mode,
+            # NVILA currently reranks/grounds only the QA candidate pack; it is
+            # not a general reranker for T-KIS/V-KIS/TRAKE retrieval results.
             "vlm_rerank": False,
+            # The worker returns short verification reasons, never hidden or
+            # free-form chain-of-thought traces.
             "vlm_cot": False,
+            "qa_nvila": has_qa_nvila,
+            "qa_hotspot_prediction": has_qa_nvila,
+            "qa_candidate_answers": has_qa_nvila,
+            "qa_visual_verification": has_qa_visual_verification,
+            "qa_google_grounding": settings.mock_mode or settings.has_google_grounding,
         },
         "warnings": [
             f"{name} unreachable: {s.get('error')}"
             for name, s in services.items()
-            if not s.get("ok")
+            if not s.get("ok") and s.get("mode") != "disabled"
         ],
     }
 
@@ -116,6 +149,142 @@ async def search_trake(req: TrakeSearchRequest):
     payload = req.model_dump()
     payload["manual_overrides"] = req.manual_overrides.model_dump()
     return await trake_service.search_trake(payload)
+
+
+@app.post("/api/qa/analyze")
+async def analyze_qa(req: QaAnalyzeRequest):
+    """Run UIT-style two-stage visual QA over already-retrieved candidates.
+
+    The browser supplies canonical keyframe IDs plus optional OCR/ASR/audio cues.
+    Image URLs are reconstructed here, preventing arbitrary fetch targets from
+    being forwarded to the Colab worker.
+    """
+    candidates: list[dict] = []
+    for index, item in enumerate(req.candidates[: settings.nvila_max_candidates]):
+        try:
+            canonical = canonical_submit_keyframe_id(item.submit_keyframe_id)
+            parsed_id = parse_submit_keyframe_id(canonical)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        cues = []
+        for evidence in item.evidence[:8]:
+            evidence_type = str(evidence.get("type") or "unknown")[:24]
+            text = str(evidence.get("text") or "").strip()[:700]
+            if not text and evidence_type == "audio":
+                text = str(evidence.get("top1_label") or "").strip()[:120]
+            if text:
+                cues.append({
+                    "type": evidence_type,
+                    "text": text,
+                    "start": evidence.get("start"),
+                    "end": evidence.get("end"),
+                })
+        candidates.append({
+            "candidate_id": f"C{index + 1:02d}",
+            "submit_keyframe_id": canonical,
+            "video_id": parsed_id.video_id,
+            "keyframe_n": parsed_id.keyframe_n,
+            "frame_idx": item.frame_idx,
+            "pts_time": item.pts_time,
+            "retrieval_score": item.retrieval_score,
+            "image_url": media.keyframe_url(parsed_id.video_id, parsed_id.keyframe_n),
+            "evidence": cues,
+        })
+
+    try:
+        result = await nvila_qa.analyze(
+            req.question.strip(),
+            candidates,
+            max_answers=req.max_answers,
+        )
+    except NvilaUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    visual = _normalize_qa_analysis(req.question.strip(), result, candidates, source="nvila")
+    grounding_meta = {
+        "requested": req.web_grounding,
+        "available": settings.mock_mode or settings.has_google_grounding,
+        "attempted": False,
+        "used": False,
+        "model": None,
+        "queries": [],
+        "sources": [],
+        "summary": "",
+        "latency_ms": 0.0,
+        "search_suggestions_html": "",
+        "visual_verification": {
+            "attempted": False,
+            "used": False,
+            "model": None,
+            "latency_ms": 0.0,
+            "verdicts": [],
+            "rejected_answers": [],
+            "uncertainty": "",
+        },
+    }
+    if _should_ground_with_google(req.web_grounding, visual, candidates):
+        grounding_meta["attempted"] = True
+        try:
+            grounded_raw = await google_grounding.ground(
+                req.question.strip(), candidates, visual, max_answers=req.max_answers,
+            )
+            grounded = _normalize_qa_analysis(
+                req.question.strip(),
+                grounded_raw,
+                candidates,
+                source="google",
+                sources=grounded_raw.get("sources") or [],
+            )
+            grounding_meta.update({
+                "model": str(grounded_raw.get("model") or settings.gemini_grounding_model),
+                "queries": [str(item)[:500] for item in (grounded_raw.get("queries") or [])[:8]],
+                "sources": grounded_raw.get("sources") or [],
+                "summary": str(grounded_raw.get("summary") or "")[:1600],
+                "latency_ms": _nonnegative_float(grounded_raw.get("latency_ms")),
+                "search_suggestions_html": str(grounded_raw.get("search_suggestions_html") or "")[:30000],
+            })
+            if grounded["candidate_answers"]:
+                grounding_meta["visual_verification"]["attempted"] = True
+                verification_options = [
+                    {
+                        "answer": option["answer"],
+                        "confidence": option["confidence"],
+                        "supporting_candidate_ids": option["supporting_candidate_ids"],
+                        "reason": option["reason"],
+                        "web_sources": option["web_sources"],
+                    }
+                    for option in grounded["candidate_answers"]
+                ]
+                try:
+                    verification_raw = await nvila_qa.verify_grounded(
+                        req.question.strip(),
+                        candidates,
+                        verification_options,
+                        hotspot_ids=[item["candidate_id"] for item in visual["hotspots"]],
+                    )
+                    grounded, verification_meta = _apply_visual_verification(
+                        grounded, verification_raw, candidates,
+                    )
+                except NvilaUnavailable as exc:
+                    grounded, verification_meta = _apply_visual_verification(
+                        grounded, None, candidates,
+                    )
+                    visual["warnings"].append(f"NVILA pass-3 verification failed: {exc}"[:500])
+                grounding_meta["visual_verification"].update(verification_meta)
+            grounding_meta["used"] = bool(grounded["candidate_answers"])
+            visual = _merge_qa_analyses(visual, grounded, req.max_answers)
+        except GeminiGroundingUnavailable as exc:
+            visual["warnings"].append(str(exc)[:500])
+    elif req.web_grounding == "on" and not grounding_meta["available"]:
+        visual["warnings"].append("Google grounding requested but GEMINI_API_KEY is not configured")
+    visual["web_grounding"] = grounding_meta
+    visual["total_latency_ms"] = round(
+        visual["latency_ms"]
+        + grounding_meta["latency_ms"]
+        + grounding_meta["visual_verification"]["latency_ms"],
+        1,
+    )
+    return visual
 
 
 @app.get("/api/keyframes/{submit_keyframe_id:path}")
@@ -199,6 +368,326 @@ async def submit_history(task_id: str | None = None):
 async def translate_endpoint(req: TranslateRequest):
     en = await translate_vi_to_en(req.text)
     return {"text": req.text, "text_en": en}
+
+
+def _score01(value, default: float = 0.0) -> float:
+    try:
+        return round(min(1.0, max(0.0, float(value))), 4)
+    except (TypeError, ValueError):
+        return default
+
+
+def _nonnegative_float(value, default: float = 0.0) -> float:
+    try:
+        return round(max(0.0, float(value)), 1)
+    except (TypeError, ValueError):
+        return default
+
+
+_QA_PLACEHOLDERS = {
+    "...",
+    "short caveat",
+    "short verification reason",
+    "short visible cue",
+    "visual candidate answer",
+}
+
+
+def _is_placeholder(value: object) -> bool:
+    normalized = re.sub(r"\s+", " ", str(value or "")).strip(" `\t\r\n.,:;!?\"'").casefold()
+    return normalized in _QA_PLACEHOLDERS
+
+
+def _normalize_qa_analysis(
+    question: str,
+    result: dict,
+    candidates: list[dict],
+    *,
+    source: str = "nvila",
+    sources: list[dict] | None = None,
+) -> dict:
+    """Keep only grounded IDs and attach canonical frame metadata to NVILA output."""
+    by_id = {candidate["candidate_id"]: candidate for candidate in candidates}
+    hotspots = []
+    for raw in result.get("hotspots") or []:
+        candidate = by_id.get(str(raw.get("candidate_id") or "").upper())
+        if not candidate:
+            continue
+        relevance = _score01(raw.get("relevance"))
+        support_text = str(raw.get("answer_support") or "")[:500]
+        if relevance <= 0 or _is_placeholder(support_text):
+            continue
+        hotspots.append({
+            "candidate_id": candidate["candidate_id"],
+            "submit_keyframe_id": candidate["submit_keyframe_id"],
+            "video_id": candidate["video_id"],
+            "keyframe_n": candidate["keyframe_n"],
+            "frame_idx": candidate["frame_idx"],
+            "pts_time": candidate["pts_time"],
+            "keyframe_url": candidate["image_url"],
+            "relevance": relevance,
+            "answer_support": support_text,
+        })
+    hotspots.sort(key=lambda item: -item["relevance"])
+
+    answers = []
+    for raw in result.get("candidate_answers") or []:
+        answer = str(raw.get("answer") or "").strip()[:500]
+        confidence = _score01(raw.get("confidence"))
+        if not answer or _is_placeholder(answer) or confidence <= 0:
+            continue
+        supporting_ids = []
+        supporting_frames = []
+        for raw_id in raw.get("supporting_candidate_ids") or []:
+            candidate = by_id.get(str(raw_id).upper())
+            if candidate and candidate["candidate_id"] not in supporting_ids:
+                supporting_ids.append(candidate["candidate_id"])
+                supporting_frames.append({
+                    "candidate_id": candidate["candidate_id"],
+                    "submit_keyframe_id": candidate["submit_keyframe_id"],
+                    "video_id": candidate["video_id"],
+                    "frame_idx": candidate["frame_idx"],
+                    "pts_time": candidate["pts_time"],
+                    "keyframe_url": candidate["image_url"],
+                })
+        # Candidate answers without a known supporting frame are ungrounded and
+        # must never reach the operator as selectable answers.
+        if not supporting_frames:
+            continue
+        reason = str(raw.get("reason") or "")[:700]
+        answers.append({
+            "answer": answer,
+            "confidence": confidence,
+            "supporting_candidate_ids": supporting_ids,
+            "supporting_frames": supporting_frames,
+            "reason": "" if _is_placeholder(reason) else reason,
+            "source": source,
+            "web_sources": [
+                {"title": str(item.get("title") or "")[:300], "url": str(item.get("url") or "")[:2000]}
+                for item in (sources or [])[:12]
+                if isinstance(item, dict) and str(item.get("url") or "").startswith(("https://", "http://"))
+            ],
+        })
+    answers.sort(key=lambda item: -item["confidence"])
+
+    best_id = str(result.get("best_candidate_id") or "").upper()
+    best_candidate = by_id.get(best_id)
+    proposed_best = str(result.get("best_answer") or "").strip()[:500]
+    grounded_best = next((item for item in answers if item["answer"] == proposed_best), None)
+    if grounded_best is None and answers:
+        grounded_best = answers[0]
+    best_answer = grounded_best["answer"] if grounded_best else ""
+    if grounded_best and (best_candidate is None or best_id not in grounded_best["supporting_candidate_ids"]):
+        best_id = grounded_best["supporting_candidate_ids"][0]
+        best_candidate = by_id[best_id]
+    if best_candidate is None and hotspots:
+        best_id = hotspots[0]["candidate_id"]
+        best_candidate = by_id.get(best_id)
+
+    return {
+        "question": question,
+        "model": str(result.get("model") or "NVILA-8B"),
+        "mode": str(result.get("mode") or ("mock" if settings.mock_mode else "live")),
+        "answerable": bool(result.get("answerable", bool(answers))) and bool(answers),
+        "best_answer": best_answer,
+        "best_candidate_id": best_id if best_candidate else None,
+        "best_submit_keyframe_id": best_candidate["submit_keyframe_id"] if best_candidate else None,
+        "candidate_answers": answers,
+        "hotspots": hotspots,
+        "uncertainty": "" if _is_placeholder(result.get("uncertainty")) else str(result.get("uncertainty") or "")[:700],
+        "candidate_count": len(candidates),
+        "latency_ms": _nonnegative_float(result.get("latency_ms")),
+        "cached": bool(result.get("cached", False)),
+        "warnings": [str(w)[:300] for w in (result.get("warnings") or [])[:8]],
+    }
+
+
+def _answer_key(answer: str) -> str:
+    return "".join(char for char in answer.casefold() if char.isalnum())
+
+
+def _apply_visual_verification(
+    grounded: dict,
+    verification_raw: dict | None,
+    candidates: list[dict],
+) -> tuple[dict, dict]:
+    """Apply NVILA pass-3 verdicts to web answers.
+
+    Contradicted answers are removed. Insufficient/unverified answers remain
+    available to the operator but cannot outrank strongly supported visual
+    answers solely on Gemini confidence.
+    """
+    by_id = {candidate["candidate_id"]: candidate for candidate in candidates}
+    option_keys = {
+        _answer_key(option["answer"]): option
+        for option in grounded.get("candidate_answers") or []
+    }
+    verdict_by_key: dict[str, dict] = {}
+    normalized_verdicts = []
+    for raw in (verification_raw or {}).get("verdicts") or []:
+        key = _answer_key(str(raw.get("answer") or ""))
+        if not key or key not in option_keys or key in verdict_by_key:
+            continue
+        status = str(raw.get("status") or "insufficient").strip().casefold()
+        if status not in {"supported", "contradicted", "insufficient"}:
+            status = "insufficient"
+        confidence = _score01(raw.get("visual_confidence"))
+        supporting_ids = []
+        for raw_id in raw.get("supporting_candidate_ids") or []:
+            candidate_id = str(raw_id).upper()
+            if candidate_id in by_id and candidate_id not in supporting_ids:
+                supporting_ids.append(candidate_id)
+        if status in {"supported", "contradicted"} and (confidence <= 0 or not supporting_ids):
+            status = "insufficient"
+        reason = str(raw.get("reason") or "").strip()[:700]
+        verdict = {
+            "answer": option_keys[key]["answer"],
+            "status": status,
+            "visual_confidence": confidence,
+            "supporting_candidate_ids": supporting_ids,
+            "reason": "" if _is_placeholder(reason) else reason,
+        }
+        verdict_by_key[key] = verdict
+        normalized_verdicts.append(verdict)
+
+    kept = []
+    rejected = []
+    verifier_returned = verification_raw is not None
+    for option in grounded.get("candidate_answers") or []:
+        key = _answer_key(option["answer"])
+        verdict = verdict_by_key.get(key)
+        if verdict is None:
+            verdict = {
+                "answer": option["answer"],
+                "status": "insufficient" if verifier_returned else "unverified",
+                "visual_confidence": 0.0,
+                "supporting_candidate_ids": [],
+                "reason": (
+                    "NVILA did not return a verdict for this option."
+                    if verifier_returned else "NVILA pass-3 verification was unavailable."
+                ),
+            }
+            normalized_verdicts.append(verdict)
+        option["visual_verification"] = verdict
+        if verdict["status"] == "contradicted":
+            rejected.append(option["answer"])
+            continue
+        if verdict["status"] == "supported":
+            option["confidence"] = round(
+                0.70 * option["confidence"] + 0.30 * verdict["visual_confidence"], 4,
+            )
+            verified_ids = verdict["supporting_candidate_ids"]
+            if verified_ids:
+                option["supporting_candidate_ids"] = verified_ids
+                option["supporting_frames"] = [
+                    {
+                        "candidate_id": candidate_id,
+                        "submit_keyframe_id": by_id[candidate_id]["submit_keyframe_id"],
+                        "video_id": by_id[candidate_id]["video_id"],
+                        "frame_idx": by_id[candidate_id]["frame_idx"],
+                        "pts_time": by_id[candidate_id]["pts_time"],
+                        "keyframe_url": by_id[candidate_id]["image_url"],
+                    }
+                    for candidate_id in verified_ids
+                ]
+        else:
+            option["confidence"] = min(option["confidence"], 0.49 if verifier_returned else 0.40)
+        kept.append(option)
+
+    kept.sort(key=lambda item: -item["confidence"])
+    grounded["candidate_answers"] = kept
+    grounded["_rejected_answer_keys"] = [_answer_key(answer) for answer in rejected]
+    grounded["answerable"] = bool(kept)
+    grounded["best_answer"] = kept[0]["answer"] if kept else ""
+    if kept:
+        first_frame = kept[0]["supporting_frames"][0]
+        grounded["best_candidate_id"] = first_frame["candidate_id"]
+        grounded["best_submit_keyframe_id"] = first_frame["submit_keyframe_id"]
+    else:
+        grounded["best_candidate_id"] = None
+        grounded["best_submit_keyframe_id"] = None
+
+    return grounded, {
+        "used": bool(verdict_by_key),
+        "model": str((verification_raw or {}).get("model") or "") or None,
+        "latency_ms": _nonnegative_float((verification_raw or {}).get("latency_ms")),
+        "verdicts": normalized_verdicts[:8],
+        "rejected_answers": rejected[:8],
+        "uncertainty": str((verification_raw or {}).get("uncertainty") or "")[:700],
+    }
+
+
+def _merge_qa_analyses(visual: dict, grounded: dict, max_answers: int) -> dict:
+    """Merge visual and web alternatives without allowing web to alter frame IDs."""
+    merged: dict[str, dict] = {}
+    rejected_keys = set(grounded.get("_rejected_answer_keys") or [])
+    for option in [*(visual.get("candidate_answers") or []), *(grounded.get("candidate_answers") or [])]:
+        key = _answer_key(option["answer"])
+        if not key or key in rejected_keys:
+            continue
+        current = merged.get(key)
+        if current is None:
+            merged[key] = {
+                **option,
+                "supporting_candidate_ids": list(option.get("supporting_candidate_ids") or []),
+                "supporting_frames": list(option.get("supporting_frames") or []),
+                "web_sources": list(option.get("web_sources") or []),
+            }
+            continue
+        current["confidence"] = max(current["confidence"], option["confidence"])
+        if current.get("source") != option.get("source"):
+            current["source"] = "hybrid"
+        if option.get("visual_verification"):
+            current["visual_verification"] = option["visual_verification"]
+        for candidate_id in option.get("supporting_candidate_ids") or []:
+            if candidate_id not in current["supporting_candidate_ids"]:
+                current["supporting_candidate_ids"].append(candidate_id)
+        known_frames = {frame["candidate_id"] for frame in current["supporting_frames"]}
+        current["supporting_frames"].extend(
+            frame for frame in (option.get("supporting_frames") or [])
+            if frame["candidate_id"] not in known_frames
+        )
+        known_urls = {item["url"] for item in current["web_sources"]}
+        current["web_sources"].extend(
+            item for item in (option.get("web_sources") or []) if item["url"] not in known_urls
+        )
+        if option.get("reason") and option["reason"] not in current.get("reason", ""):
+            current["reason"] = " · ".join(filter(None, [current.get("reason"), option["reason"]]))[:700]
+
+    answers = sorted(merged.values(), key=lambda item: -item["confidence"])[:max_answers]
+    best = answers[0] if answers else None
+    best_frame = best["supporting_frames"][0] if best and best["supporting_frames"] else None
+    visual["candidate_answers"] = answers
+    visual["answerable"] = bool(answers)
+    visual["best_answer"] = best["answer"] if best else ""
+    visual["best_candidate_id"] = best_frame["candidate_id"] if best_frame else None
+    visual["best_submit_keyframe_id"] = best_frame["submit_keyframe_id"] if best_frame else None
+    if grounded.get("uncertainty"):
+        visual["uncertainty"] = " · ".join(filter(None, [visual.get("uncertainty"), grounded["uncertainty"]]))[:700]
+    return visual
+
+
+def _should_ground_with_google(mode: str, visual: dict, candidates: list[dict]) -> bool:
+    if mode == "off" or not (settings.mock_mode or settings.has_google_grounding):
+        return False
+    if mode == "on":
+        return True
+    # Keep the existing deterministic visual fixture stable; explicit `on`
+    # exercises the mock Google branch in dedicated tests.
+    if settings.mock_mode:
+        return False
+    answers = visual.get("candidate_answers") or []
+    top_confidence = max((answer.get("confidence", 0.0) for answer in answers), default=0.0)
+    if not visual.get("answerable") or top_confidence < settings.gemini_grounding_auto_threshold:
+        return True
+    question = str(visual.get("question") or "").casefold()
+    entity_terms = (
+        "tên", "ai ", "người nào", "thương hiệu", "nhãn hiệu", "cửa hàng",
+        "công ty", "tổ chức", "địa danh", "quốc gia", "thành phố", "name",
+        "who", "which brand", "which company", "which city", "which country",
+    )
+    has_text_clue = any(candidate.get("evidence") for candidate in candidates)
+    return has_text_clue and any(term in question for term in entity_terms)
 
 
 @app.post("/api/transcribe")
