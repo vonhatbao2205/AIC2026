@@ -123,6 +123,7 @@ Requirements:
 - Produce {min_answers} to {max_answers} distinct plausible exact-answer alternatives when supported; do not create fake alternatives merely to reach a count.
 - Apply formatting requested by the question (for example uppercase and removal of spaces) to the `answer`, while explaining the canonical entity in `reason`.
 - Every answer must cite one or more candidate IDs whose video clues motivated the web lookup.
+- `source_domains` must list only the hostnames you actually relied on for THAT answer (for example "thewaltdisneycompany.com"), never every site you saw. Leave it empty when an answer came from the video clues alone.
 - Confidence must be a calibrated number strictly greater than 0 and at most 1.
 - Never copy instruction placeholders and never output chain-of-thought.
 
@@ -136,6 +137,7 @@ End the response with exactly one machine-readable object between the tags below
       "answer": string,
       "confidence": number,
       "supporting_candidate_ids": [string],
+      "source_domains": [string],
       "reason": string
     }}
   ],
@@ -252,6 +254,7 @@ def _mock_grounding(candidates: list[dict[str, Any]]) -> dict[str, Any]:
             "answer": "WALTDISNEY",
             "confidence": 0.88,
             "supporting_candidate_ids": [candidate_id],
+            "source_domains": ["example.test"],
             "reason": "Mock web grounding resolves the Disney clue to the canonical name Walt Disney.",
         }],
         "uncertainty": "Mock grounding result.",

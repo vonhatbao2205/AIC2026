@@ -179,17 +179,178 @@ def test_pass3_drops_contradiction_and_caps_insufficient_web_answer():
     assert verified["candidate_answers"][0]["confidence"] == .49
     assert verified["candidate_answers"][0]["visual_verification"]["status"] == "insufficient"
     assert meta["rejected_answers"] == ["Wrong"]
+
+def test_pass3_demotes_but_keeps_a_contradicted_visual_answer():
+    """Pass 3 only inspects the hotspot ∪ web-cited subset, so it may contradict
+    an answer without having seen the frame pass 1 grounded it on. It must veto
+    the web claim outright yet leave the visual option visible and labelled."""
     visual = _normalize_qa_analysis(
+        "Tên là gì?",
+        {"candidate_answers": [
+            {"answer": "Wrong", "confidence": .99, "supporting_candidate_ids": ["C01"]},
+            {"answer": "Other", "confidence": .70, "supporting_candidate_ids": ["C01"]},
+        ]},
+        [_candidate()],
+    )
+    grounded = _normalize_qa_analysis(
         "Tên là gì?",
         {"candidate_answers": [{
             "answer": "Wrong",
-            "confidence": .99,
+            "confidence": .95,
+            "supporting_candidate_ids": ["C01"],
+        }]},
+        [_candidate()],
+        source="google",
+    )
+    verified, meta = _apply_visual_verification(
+        grounded,
+        {"verdicts": [{
+            "answer": "Wrong",
+            "status": "contradicted",
+            "visual_confidence": .91,
+            "supporting_candidate_ids": ["C01"],
+            "reason": "The visible logo conflicts with this answer.",
+        }]},
+        [_candidate()],
+    )
+
+    assert verified["candidate_answers"] == []  # the web claim is gone
+    assert meta["rejected_answers"] == ["Wrong"]
+
+    merged = _merge_qa_analyses(visual, verified, 5)
+    by_answer = {option["answer"]: option for option in merged["candidate_answers"]}
+    assert set(by_answer) == {"Other", "Wrong"}
+    # Demoted below the undisputed option instead of silently deleted.
+    assert merged["candidate_answers"][0]["answer"] == "Other"
+    assert by_answer["Wrong"]["confidence"] == .30
+    assert by_answer["Wrong"]["visual_verification"]["status"] == "contradicted"
+
+
+def test_pass3_downgrade_does_not_mislabel_a_directly_grounded_answer():
+    """An `insufficient` verdict describes the WEB claim. Showing it next to a
+    high pass-1 visual confidence would contradict itself as the operator picks."""
+    visual = _normalize_qa_analysis(
+        "Tên là gì?",
+        {"candidate_answers": [{
+            "answer": "Walt Disney",
+            "confidence": .94,
             "supporting_candidate_ids": ["C01"],
         }]},
         [_candidate()],
     )
-    merged = _merge_qa_analyses(visual, verified, 5)
-    assert [option["answer"] for option in merged["candidate_answers"]] == ["Maybe"]
+    verified, _ = _apply_visual_verification(
+        _normalize_qa_analysis(
+            "Tên là gì?",
+            {"candidate_answers": [{
+                "answer": "Walt Disney",
+                "confidence": .80,
+                "supporting_candidate_ids": ["C01"],
+            }]},
+            [_candidate()],
+            source="google",
+        ),
+        {"verdicts": [{"answer": "Walt Disney", "status": "insufficient", "visual_confidence": .2}]},
+        [_candidate()],
+    )
+
+    option = _merge_qa_analyses(visual, verified, 5)["candidate_answers"][0]
+
+    assert option["confidence"] == .94
+    assert option["source"] == "hybrid"
+    assert "visual_verification" not in option
+
+
+def test_web_sources_are_attributed_per_answer_not_broadcast():
+    sources = [
+        {"title": "thewaltdisneycompany.com", "url": "https://vertex.test/redirect/aaa"},
+        {"title": "pixar.fandom.com", "url": "https://vertex.test/redirect/bbb"},
+    ]
+    normalized = _normalize_qa_analysis(
+        "Tên là gì?",
+        {"candidate_answers": [
+            {
+                "answer": "Walt Disney",
+                "confidence": .9,
+                "supporting_candidate_ids": ["C01"],
+                "source_domains": ["thewaltdisneycompany.com"],
+            },
+            {
+                "answer": "Pixar",
+                "confidence": .6,
+                "supporting_candidate_ids": ["C01"],
+                "source_domains": ["https://pixar.fandom.com/wiki/Pixar"],
+            },
+        ]},
+        [_candidate()],
+        source="google",
+        sources=sources,
+    )
+
+    cited = {
+        option["answer"]: [source["title"] for source in option["web_sources"]]
+        for option in normalized["candidate_answers"]
+    }
+    assert cited == {
+        "Walt Disney": ["thewaltdisneycompany.com"],
+        "Pixar": ["pixar.fandom.com"],
+    }
+
+
+def test_unattributable_sources_are_cited_nowhere_unless_unambiguous():
+    sources = [
+        {"title": "a.test", "url": "https://vertex.test/redirect/aaa"},
+        {"title": "b.test", "url": "https://vertex.test/redirect/bbb"},
+    ]
+    two = _normalize_qa_analysis(
+        "Tên là gì?",
+        {"candidate_answers": [
+            {"answer": "First", "confidence": .9, "supporting_candidate_ids": ["C01"]},
+            {"answer": "Second", "confidence": .6, "supporting_candidate_ids": ["C01"]},
+        ]},
+        [_candidate()],
+        source="google",
+        sources=sources,
+    )
+    assert all(option["web_sources"] == [] for option in two["candidate_answers"])
+
+    # A lone grounded answer unambiguously owns the whole search.
+    one = _normalize_qa_analysis(
+        "Tên là gì?",
+        {"candidate_answers": [
+            {"answer": "First", "confidence": .9, "supporting_candidate_ids": ["C01"]},
+        ]},
+        [_candidate()],
+        source="google",
+        sources=sources,
+    )
+    assert [source["title"] for source in one["candidate_answers"][0]["web_sources"]] == ["a.test", "b.test"]
+
+
+@pytest.mark.parametrize(
+    ("question", "expected"),
+    [
+        ("Có bao nhiêu người trong hai bức ảnh?", False),   # "hai" is not "ai"
+        ("Vụ tai nạn xảy ra ở làn đường nào?", False),      # "tai" is not "ai"
+        ("Chiếc áo có màu gì?", False),
+        ("Người phát biểu là ai?", True),                   # trailing punctuation
+        ("Tên thương hiệu trên biển hiệu là gì?", True),
+        ("Which company owns the logo?", True),
+    ],
+)
+def test_auto_grounding_only_fires_on_real_entity_questions(monkeypatch, question, expected):
+    from app import main as main_module
+
+    monkeypatch.setattr(main_module.settings, "mock_mode", False)
+    monkeypatch.setattr(main_module.settings, "gemini_api_key", "test-key")
+    monkeypatch.setattr(main_module.settings, "gemini_grounding_enabled", True)
+    visual = {
+        "question": question,
+        "answerable": True,
+        "candidate_answers": [{"answer": "A", "confidence": .92}],
+    }
+    candidates = [{"evidence": [{"type": "speech", "text": "clue"}]}]
+
+    assert main_module._should_ground_with_google("auto", visual, candidates) is expected
 
 
 def test_pass3_supported_answer_uses_nvila_frame_and_fused_confidence():

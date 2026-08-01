@@ -398,6 +398,53 @@ def _is_placeholder(value: object) -> bool:
     return normalized in _QA_PLACEHOLDERS
 
 
+def _source_host(value: object) -> str:
+    """Bare hostname of a URL (or of a title that already is a domain)."""
+    host = re.sub(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", "", str(value or "").strip().casefold())
+    host = host.split("/")[0].split("?")[0].split("@")[-1].split(":")[0]
+    return host[4:] if host.startswith("www.") else host
+
+
+def _trusted_web_sources(sources: list[dict] | None) -> list[dict]:
+    """Citations Gemini actually returned in groundingChunks, de-duplicated."""
+    trusted: list[dict] = []
+    seen: set[str] = set()
+    for item in (sources or [])[:12]:
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get("url") or "")
+        if not url.startswith(("https://", "http://")) or url in seen:
+            continue
+        seen.add(url)
+        trusted.append({"title": str(item.get("title") or "")[:300], "url": url[:2000]})
+    return trusted
+
+
+def _answer_web_sources(raw: dict, trusted: list[dict]) -> list[dict]:
+    """Cite only the sources the model attributed to THIS answer.
+
+    Gemini reports groundingChunks for the whole response, so attaching all of
+    them to every answer would show answer B's citation next to answer A — an
+    operator verifying by clicking the link would be misled. The model declares
+    the domains behind each answer; anything that cannot be matched back to a
+    returned chunk is cited nowhere rather than everywhere.
+    """
+    if not trusted:
+        return []
+    declared = {
+        _source_host(item)
+        for item in (raw.get("source_domains") or raw.get("source_urls") or [])[:12]
+    }
+    declared.discard("")
+    if not declared:
+        return []
+    return [
+        source
+        for source in trusted
+        if _source_host(source["url"]) in declared or _source_host(source["title"]) in declared
+    ]
+
+
 def _normalize_qa_analysis(
     question: str,
     result: dict,
@@ -408,6 +455,7 @@ def _normalize_qa_analysis(
 ) -> dict:
     """Keep only grounded IDs and attach canonical frame metadata to NVILA output."""
     by_id = {candidate["candidate_id"]: candidate for candidate in candidates}
+    trusted_sources = _trusted_web_sources(sources)
     hotspots = []
     for raw in result.get("hotspots") or []:
         candidate = by_id.get(str(raw.get("candidate_id") or "").upper())
@@ -462,13 +510,13 @@ def _normalize_qa_analysis(
             "supporting_frames": supporting_frames,
             "reason": "" if _is_placeholder(reason) else reason,
             "source": source,
-            "web_sources": [
-                {"title": str(item.get("title") or "")[:300], "url": str(item.get("url") or "")[:2000]}
-                for item in (sources or [])[:12]
-                if isinstance(item, dict) and str(item.get("url") or "").startswith(("https://", "http://"))
-            ],
+            "web_sources": _answer_web_sources(raw, trusted_sources),
         })
     answers.sort(key=lambda item: -item["confidence"])
+    if trusted_sources and len(answers) == 1 and not answers[0]["web_sources"]:
+        # A single grounded answer is the unambiguous owner of the whole search,
+        # so the response-level citations can be attributed to it safely.
+        answers[0]["web_sources"] = list(trusted_sources)
 
     best_id = str(result.get("best_candidate_id") or "").upper()
     best_candidate = by_id.get(best_id)
@@ -504,6 +552,11 @@ def _normalize_qa_analysis(
 
 def _answer_key(answer: str) -> str:
     return "".join(char for char in answer.casefold() if char.isalnum())
+
+
+# A pass-1 answer that pass 3 contradicts stays selectable but must sink below
+# every option that is not under dispute.
+_CONTRADICTED_VISUAL_CAP = 0.30
 
 
 def _apply_visual_verification(
@@ -552,6 +605,7 @@ def _apply_visual_verification(
 
     kept = []
     rejected = []
+    rejected_verdicts: dict[str, dict] = {}
     verifier_returned = verification_raw is not None
     for option in grounded.get("candidate_answers") or []:
         key = _answer_key(option["answer"])
@@ -571,6 +625,7 @@ def _apply_visual_verification(
         option["visual_verification"] = verdict
         if verdict["status"] == "contradicted":
             rejected.append(option["answer"])
+            rejected_verdicts[key] = verdict
             continue
         if verdict["status"] == "supported":
             option["confidence"] = round(
@@ -596,7 +651,7 @@ def _apply_visual_verification(
 
     kept.sort(key=lambda item: -item["confidence"])
     grounded["candidate_answers"] = kept
-    grounded["_rejected_answer_keys"] = [_answer_key(answer) for answer in rejected]
+    grounded["_rejected_verdicts"] = rejected_verdicts
     grounded["answerable"] = bool(kept)
     grounded["best_answer"] = kept[0]["answer"] if kept else ""
     if kept:
@@ -620,11 +675,26 @@ def _apply_visual_verification(
 def _merge_qa_analyses(visual: dict, grounded: dict, max_answers: int) -> dict:
     """Merge visual and web alternatives without allowing web to alter frame IDs."""
     merged: dict[str, dict] = {}
-    rejected_keys = set(grounded.get("_rejected_answer_keys") or [])
+    rejected_verdicts = grounded.get("_rejected_verdicts") or {}
     for option in [*(visual.get("candidate_answers") or []), *(grounded.get("candidate_answers") or [])]:
         key = _answer_key(option["answer"])
-        if not key or key in rejected_keys:
+        if not key:
             continue
+        contradiction = rejected_verdicts.get(key)
+        if contradiction is not None:
+            if option.get("source") != "nvila":
+                # A web claim NVILA contradicted carries no visual grounding of
+                # its own, so it is dropped outright.
+                continue
+            # Pass 1 inspected every candidate; pass 3 only sees the hotspot ∪
+            # web-cited subset. A verdict from the narrower view may therefore
+            # never have looked at the frame this answer was grounded on, so it
+            # demotes and labels the option instead of deleting it silently.
+            option = {
+                **option,
+                "confidence": min(option["confidence"], _CONTRADICTED_VISUAL_CAP),
+                "visual_verification": contradiction,
+            }
         current = merged.get(key)
         if current is None:
             merged[key] = {
@@ -634,11 +704,18 @@ def _merge_qa_analyses(visual: dict, grounded: dict, max_answers: int) -> dict:
                 "web_sources": list(option.get("web_sources") or []),
             }
             continue
+        directly_grounded = current.get("source") in {"nvila", "hybrid"}
         current["confidence"] = max(current["confidence"], option["confidence"])
         if current.get("source") != option.get("source"):
             current["source"] = "hybrid"
-        if option.get("visual_verification"):
-            current["visual_verification"] = option["visual_verification"]
+        verdict = option.get("visual_verification")
+        # A pass-3 downgrade describes the WEB claim. When pass 1 independently
+        # grounded the same answer on the frames, surfacing "insufficient visual
+        # evidence" next to a high visual confidence contradicts itself at the
+        # exact moment the operator picks an answer — so only a reinforcing or
+        # contradicting verdict is shown for a directly-grounded option.
+        if verdict and (verdict["status"] in {"supported", "contradicted"} or not directly_grounded):
+            current["visual_verification"] = verdict
         for candidate_id in option.get("supporting_candidate_ids") or []:
             if candidate_id not in current["supporting_candidate_ids"]:
                 current["supporting_candidate_ids"].append(candidate_id)
@@ -667,6 +744,17 @@ def _merge_qa_analyses(visual: dict, grounded: dict, max_answers: int) -> dict:
     return visual
 
 
+# Word-bounded so short terms cannot fire on unrelated syllables: a plain
+# substring test made "ai" match "hai"/"tai"/"vai" and spend a Google search plus
+# an NVILA pass-3 round trip on questions that resolve no named entity at all.
+_ENTITY_QUESTION_RE = re.compile(
+    r"\b(?:ai|tên|người nào|thương hiệu|nhãn hiệu|cửa hàng|công ty|tổ chức"
+    r"|địa danh|quốc gia|thành phố|name|who|which brand|which company"
+    r"|which city|which country)\b",
+    re.IGNORECASE,
+)
+
+
 def _should_ground_with_google(mode: str, visual: dict, candidates: list[dict]) -> bool:
     if mode == "off" or not (settings.mock_mode or settings.has_google_grounding):
         return False
@@ -680,14 +768,9 @@ def _should_ground_with_google(mode: str, visual: dict, candidates: list[dict]) 
     top_confidence = max((answer.get("confidence", 0.0) for answer in answers), default=0.0)
     if not visual.get("answerable") or top_confidence < settings.gemini_grounding_auto_threshold:
         return True
-    question = str(visual.get("question") or "").casefold()
-    entity_terms = (
-        "tên", "ai ", "người nào", "thương hiệu", "nhãn hiệu", "cửa hàng",
-        "công ty", "tổ chức", "địa danh", "quốc gia", "thành phố", "name",
-        "who", "which brand", "which company", "which city", "which country",
-    )
+    question = str(visual.get("question") or "")
     has_text_clue = any(candidate.get("evidence") for candidate in candidates)
-    return has_text_clue and any(term in question for term in entity_terms)
+    return has_text_clue and bool(_ENTITY_QUESTION_RE.search(question))
 
 
 @app.post("/api/transcribe")
