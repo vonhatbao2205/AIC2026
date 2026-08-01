@@ -37,7 +37,7 @@ QA query
          ├─ backend dựng lại trusted R2 image URLs
          ├─ Colab NVILA pass 1: 3–5 answer-bearing hypotheses
          ├─ Colab NVILA pass 2: 3–5 grounded answer alternatives
-         ├─ backend Gemini + Google Search khi cần tri thức ngoài
+         ├─ backend DeepSeek web_search khi cần tri thức ngoài
          ├─ Colab NVILA pass 3: kiểm tra visual consistency của đáp án web
          └─ UI: toàn bộ input + đáp án/citation + frame/timeline dẫn chứng
                                       │
@@ -47,9 +47,9 @@ QA query
 Các pass dùng greedy decoding để kết quả ổn định. Output JSON được lọc ở worker
 và backend:
 worker chỉ giữ candidate ID hợp lệ; backend tiếp tục canonicalize, bỏ output
-confidence 0, placeholder và mọi ID model tự bịa. Google chỉ nhận question,
+confidence 0, placeholder và mọi ID model tự bịa. Stage web chỉ nhận question,
 OCR/ASR/audio cue và các hypothesis của NVILA; nó không nhận quyền tạo frame.
-Sau Google, đáp án và citation được gửi ngược về NVILA cùng tối đa 8 hotspot
+Sau stage web, đáp án và citation được gửi ngược về NVILA cùng tối đa 8 hotspot
 images. NVILA chỉ kết luận `supported`, `contradicted` hoặc `insufficient` về
 tính nhất quán thị giác; nó không thay thế việc đánh giá độ uy tín của website.
 
@@ -88,24 +88,30 @@ NVILA_TIMEOUT_SECONDS=240
 NVILA_MAX_CANDIDATES=12
 
 # Optional: world-knowledge completion after NVILA
-GEMINI_API_KEY=<key tạo trong Google AI Studio>
-GEMINI_GROUNDING_MODEL=gemini-3.6-flash
-GEMINI_GROUNDING_FALLBACK_MODELS=gemini-3.5-flash,gemini-3.1-flash-lite
-GEMINI_GROUNDING_ENABLED=true
-GEMINI_GROUNDING_AUTO_THRESHOLD=0.55
+DEEPSEEK_API_KEY=<key tạo tại platform.deepseek.com>
+DEEPSEEK_GROUNDING_MODEL=deepseek-v4-flash
+DEEPSEEK_GROUNDING_ENABLED=true
+DEEPSEEK_GROUNDING_MAX_OUTPUT_TOKENS=8000
+DEEPSEEK_GROUNDING_REASONING_EFFORT=high
+DEEPSEEK_GROUNDING_AUTO_THRESHOLD=0.55
 ```
 
-Không đưa `NVILA_TOKEN`, `HF_TOKEN`, `GEMINI_API_KEY` hay bất kỳ secret nào vào
-frontend. `GEMINI_API_KEY` cũng không cần đặt trong Colab. Browser chỉ gọi
-backend `/api/qa/analyze`; backend mới gọi Colab và Gemini.
+Không đưa `NVILA_TOKEN`, `HF_TOKEN`, `DEEPSEEK_API_KEY` hay bất kỳ secret nào vào
+frontend. `DEEPSEEK_API_KEY` cũng không cần đặt trong Colab. Browser chỉ gọi
+backend `/api/qa/analyze`; backend mới gọi Colab và DeepSeek.
 
 Worker Colab có hai route nội bộ dùng cùng Bearer token: `POST /qa/analyze` cho
 pass 1–2 và `POST /qa/verify-grounded` cho pass 3. Backend gọi cả hai; frontend
 không gọi worker trực tiếp.
 
-Gemini dùng built-in `google_search`, không dùng Custom Search JSON API và không
-cần Search Engine ID/CX. Tài liệu chính thức:
-[Google Search grounding](https://ai.google.dev/gemini-api/docs/google-search).
+DeepSeek dùng built-in `web_search` chạy phía server, không cần search engine
+riêng. Tool này **chỉ có trên Responses API** (`POST /responses`) và **chỉ chạy
+với `deepseek-v4-flash`**; `/chat/completions` trả lỗi `unknown variant` cho mọi
+tool khác `function`. Tài liệu chính thức:
+[DeepSeek Responses API](https://api-docs.deepseek.com/api/create-response/).
+
+Thinking bật mặc định và dùng chung `max_output_tokens` với câu trả lời — đặt
+budget quá thấp sẽ nhận về `status: "incomplete"` với message rỗng.
 
 Kiểm tra kết nối:
 
@@ -147,7 +153,7 @@ verdict pass 3, rejected answers và latency.
 
 `auto` gọi search khi đáp án visual không có/độ tin cậy thấp, hoặc question cần
 resolve tên người, thương hiệu, cửa hàng, công ty hay địa danh và ASR/OCR có clue.
-`on` buộc thử search; `off` tắt. Ví dụ ASR chỉ nói “logo Disney”, Google stage có
+`on` buộc thử search; `off` tắt. Ví dụ ASR chỉ nói “logo Disney”, stage web có
 thể resolve canonical form “Walt Disney” rồi áp dụng format mà question yêu cầu.
 Backend sau đó gửi “Walt Disney” về NVILA: nếu clue Disney phù hợp thì giữ/rank;
 nếu hình hoặc ASR mâu thuẫn thì loại; nếu không đủ chứng cứ thì cap confidence.
@@ -174,7 +180,7 @@ candidate pack; nếu chưa đủ, mở rộng query hoặc tìm trong video the
 - Worker giới hạn số candidate, kích thước ảnh, timeout download và yêu cầu
   Bearer token.
 - Không log hoặc trả secret về frontend.
-- Search suggestions HTML của Google được hiển thị trong sandboxed iframe;
+- DeepSeek không trả widget search suggestions; trường này luôn rỗng.
   citation mở sang tab mới. Web result không bao giờ được dùng như frame submit.
 - Quick tunnel phù hợp cho phiên thi/thử nghiệm. Muốn URL ổn định cần named
   Cloudflare Tunnel hoặc GPU host cố định.

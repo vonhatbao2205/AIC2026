@@ -139,7 +139,7 @@ const QA_ANALYSIS_RESPONSE = {
         keyframe_url: FRAME2.keyframe_url,
       }],
       reason: "A shorter grounded alternative.",
-      source: "google",
+      source: "web",
       web_sources: [{ title: "HTV", url: "https://www.htv.com.vn/" }],
       visual_verification: {
         answer: "HTV7",
@@ -172,10 +172,10 @@ const QA_ANALYSIS_RESPONSE = {
     available: true,
     attempted: true,
     used: true,
-    model: "gemini-3.6-flash",
+    model: "deepseek-v4-flash",
     queries: ["HTV7 news programme"],
     sources: [{ title: "HTV", url: "https://www.htv.com.vn/" }],
-    summary: "Google-grounded entity resolution.",
+    summary: "Web-grounded entity resolution.",
     latency_ms: 236,
     search_suggestions_html: "",
     visual_verification: {
@@ -200,7 +200,7 @@ function mockFetch(historySeed: any[] = []) {
       ({ ok: status < 400, status, json: async () => body } as Response);
 
     if (path.endsWith("/api/health"))
-      return json({ ok: true, mode: "mock", services: {}, capabilities: { qa_nvila: true, qa_google_grounding: true, qa_visual_verification: true }, warnings: [] });
+      return json({ ok: true, mode: "mock", services: {}, capabilities: { qa_nvila: true, qa_web_grounding: true, qa_visual_verification: true }, warnings: [] });
     if (path.includes("/api/submit/history")) return json({ history: historyStore });
     if (path.endsWith("/api/search/trake")) return json(TRAKE_RESPONSE);
     if (path.endsWith("/api/search")) return json(SEARCH_RESPONSE);

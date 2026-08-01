@@ -10,7 +10,7 @@ interface Props {
   candidateFrames: FrameResult[];
   selectedAnswer: string;
   webGrounding: boolean;
-  googleAvailable: boolean | null;
+  webSearchAvailable: boolean | null;
   visualVerificationAvailable: boolean | null;
   onAnalyze: () => void;
   onWebGroundingChange: (enabled: boolean) => void;
@@ -41,8 +41,8 @@ export function QaAssistPanel(props: Props) {
           checked={props.webGrounding}
           onChange={(event) => props.onWebGroundingChange(event.target.checked)}
         />
-        <span>Google Search grounding · auto when knowledge is missing</span>
-        {props.googleAvailable === false && <span className="qa-grounding-off">no API key</span>}
+        <span>DeepSeek web search · auto when knowledge is missing</span>
+        {props.webSearchAvailable === false && <span className="qa-grounding-off">no API key</span>}
         {props.webGrounding && props.visualVerificationAvailable === false && (
           <span className="qa-grounding-off">pass 3 offline</span>
         )}
@@ -106,7 +106,7 @@ export function QaAssistPanel(props: Props) {
                     <b>{candidate.answer}</b>
                     <span>{candidate.reason || "Model không cung cấp lý do xác minh."}</span>
                     <span className={`qa-answer-source ${candidate.source}`}>
-                      {candidate.source === "google" ? "Google grounded" : candidate.source === "hybrid" ? "NVILA + Google" : "NVILA visual"}
+                      {candidate.source === "web" ? "Web grounded" : candidate.source === "hybrid" ? "NVILA + web" : "NVILA visual"}
                     </span>
                     {candidate.visual_verification && (
                       <span className={`qa-verify-status ${candidate.visual_verification.status}`}>
@@ -161,7 +161,7 @@ export function QaAssistPanel(props: Props) {
           {props.analysis.web_grounding?.attempted && (
             <div className="qa-web-grounding" data-testid="qa-web-grounding">
               <div className="qa-section-label">
-                Google Search · {props.analysis.web_grounding.used ? "grounded" : "no usable answer"}
+                Web search · {props.analysis.web_grounding.used ? "grounded" : "no usable answer"}
                 {props.analysis.web_grounding.model ? ` · ${props.analysis.web_grounding.model}` : ""}
               </div>
               {props.analysis.web_grounding.queries.length > 0 && (
@@ -193,7 +193,7 @@ export function QaAssistPanel(props: Props) {
               {props.analysis.web_grounding.search_suggestions_html && (
                 <iframe
                   className="qa-search-suggestions"
-                  title="Google Search suggestions"
+                  title="Web search suggestions"
                   sandbox="allow-popups allow-popups-to-escape-sandbox"
                   srcDoc={props.analysis.web_grounding.search_suggestions_html}
                 />

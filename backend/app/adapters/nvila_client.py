@@ -76,7 +76,7 @@ class NvilaQaClient:
         *,
         hotspot_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Ask NVILA to check Gemini alternatives against visual evidence."""
+        """Ask NVILA to check web-search alternatives against visual evidence."""
         if self.mock:
             return _mock_verification(proposed_answers)
         if not self.s.has_nvila:

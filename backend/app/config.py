@@ -74,17 +74,18 @@ class Settings:
     nvila_token: str | None = None
     nvila_timeout_seconds: float = 240.0
     nvila_max_candidates: int = 12
-    # Gemini text model with the built-in Google Search grounding tool. This
-    # resolves external facts after NVILA has extracted visual/ASR clues.
-    gemini_api_key: str | None = None
-    gemini_grounding_model: str = "gemini-3.6-flash"
-    gemini_grounding_fallback_models: list[str] = field(
-        default_factory=lambda: ["gemini-3.5-flash", "gemini-3.1-flash-lite"]
-    )
-    gemini_grounding_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
-    gemini_grounding_enabled: bool = True
-    gemini_grounding_timeout_seconds: float = 60.0
-    gemini_grounding_auto_threshold: float = 0.55
+    # DeepSeek model with the server-side web_search tool, used to resolve
+    # external facts after NVILA has extracted visual/ASR clues. The tool is only
+    # available on the Responses API and only for deepseek-v4-flash.
+    deepseek_api_key: str | None = None
+    deepseek_grounding_model: str = "deepseek-v4-flash"
+    deepseek_grounding_base_url: str = "https://api.deepseek.com"
+    deepseek_grounding_enabled: bool = True
+    deepseek_grounding_timeout_seconds: float = 90.0
+    deepseek_grounding_auto_threshold: float = 0.55
+    # Thinking is enabled by default and draws from the same budget as the answer.
+    deepseek_grounding_max_output_tokens: int = 8000
+    deepseek_grounding_reasoning_effort: str = "high"
     # Slim-schema parse: ~2x faster but A/B showed it occasionally misroutes
     # query_type (TKIS→TRAKE) on ambiguous queries — off by default (accuracy).
     slim_parse: bool = False
@@ -139,8 +140,8 @@ class Settings:
         return bool(self.nvila_base_url and self.nvila_token)
 
     @property
-    def has_google_grounding(self) -> bool:
-        return bool(self.gemini_grounding_enabled and self.gemini_api_key)
+    def has_web_grounding(self) -> bool:
+        return bool(self.deepseek_grounding_enabled and self.deepseek_api_key)
 
     @property
     def has_dres(self) -> bool:
@@ -173,23 +174,25 @@ def get_settings() -> Settings:
         nvila_max_candidates = int(_env("NVILA_MAX_CANDIDATES", "12") or "12")
     except ValueError:
         nvila_max_candidates = 12
-    grounding_env = (_env("GEMINI_GROUNDING_ENABLED", "true") or "true").lower()
-    gemini_grounding_enabled = grounding_env in {"1", "true", "yes", "on"}
+    grounding_env = (_env("DEEPSEEK_GROUNDING_ENABLED", "true") or "true").lower()
+    deepseek_grounding_enabled = grounding_env in {"1", "true", "yes", "on"}
     try:
-        gemini_grounding_timeout_seconds = float(_env("GEMINI_GROUNDING_TIMEOUT_SECONDS", "60") or "60")
+        deepseek_grounding_timeout_seconds = float(_env("DEEPSEEK_GROUNDING_TIMEOUT_SECONDS", "90") or "90")
     except ValueError:
-        gemini_grounding_timeout_seconds = 60.0
+        deepseek_grounding_timeout_seconds = 90.0
     try:
-        gemini_grounding_auto_threshold = float(_env("GEMINI_GROUNDING_AUTO_THRESHOLD", "0.55") or "0.55")
+        deepseek_grounding_auto_threshold = float(_env("DEEPSEEK_GROUNDING_AUTO_THRESHOLD", "0.55") or "0.55")
     except ValueError:
-        gemini_grounding_auto_threshold = 0.55
-    grounding_fallbacks_raw = _env(
-        "GEMINI_GROUNDING_FALLBACK_MODELS",
-        "gemini-3.5-flash,gemini-3.1-flash-lite",
-    ) or ""
-    gemini_grounding_fallback_models = [
-        model.strip() for model in grounding_fallbacks_raw.split(",") if model.strip()
-    ]
+        deepseek_grounding_auto_threshold = 0.55
+    try:
+        deepseek_grounding_max_output_tokens = int(
+            _env("DEEPSEEK_GROUNDING_MAX_OUTPUT_TOKENS", "8000") or "8000"
+        )
+    except ValueError:
+        deepseek_grounding_max_output_tokens = 8000
+    reasoning_effort = (_env("DEEPSEEK_GROUNDING_REASONING_EFFORT", "high") or "high").lower()
+    if reasoning_effort not in {"low", "high", "max"}:
+        reasoning_effort = "high"
 
     cors = _env("CORS_ORIGINS")
     cors_origins = [o.strip() for o in cors.split(",")] if cors else ["*"]
@@ -211,13 +214,14 @@ def get_settings() -> Settings:
         nvila_token=_env("NVILA_TOKEN") or file_default("nvila_token.txt"),
         nvila_timeout_seconds=max(30.0, nvila_timeout_seconds),
         nvila_max_candidates=min(24, max(1, nvila_max_candidates)),
-        gemini_api_key=_env("GEMINI_API_KEY") or file_default("gemini_api_key.txt"),
-        gemini_grounding_model=_env("GEMINI_GROUNDING_MODEL") or "gemini-3.6-flash",
-        gemini_grounding_fallback_models=gemini_grounding_fallback_models,
-        gemini_grounding_base_url=(_env("GEMINI_GROUNDING_BASE_URL") or "https://generativelanguage.googleapis.com/v1beta").rstrip("/"),
-        gemini_grounding_enabled=gemini_grounding_enabled,
-        gemini_grounding_timeout_seconds=max(10.0, gemini_grounding_timeout_seconds),
-        gemini_grounding_auto_threshold=min(1.0, max(0.0, gemini_grounding_auto_threshold)),
+        deepseek_api_key=_env("DEEPSEEK_API_KEY") or file_default("deepseek_apikey.txt"),
+        deepseek_grounding_model=_env("DEEPSEEK_GROUNDING_MODEL") or "deepseek-v4-flash",
+        deepseek_grounding_base_url=(_env("DEEPSEEK_GROUNDING_BASE_URL") or "https://api.deepseek.com").rstrip("/"),
+        deepseek_grounding_enabled=deepseek_grounding_enabled,
+        deepseek_grounding_timeout_seconds=max(10.0, deepseek_grounding_timeout_seconds),
+        deepseek_grounding_auto_threshold=min(1.0, max(0.0, deepseek_grounding_auto_threshold)),
+        deepseek_grounding_max_output_tokens=min(64000, max(1000, deepseek_grounding_max_output_tokens)),
+        deepseek_grounding_reasoning_effort=reasoning_effort,
         dres_base_url=_env("DRES_BASE_URL"),
         dres_token=_env("DRES_TOKEN"),
         idx_keyframe_map=_env("IDX_KEYFRAME_MAP") or "aic26_keyframe_map_v1",

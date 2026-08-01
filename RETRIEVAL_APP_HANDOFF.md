@@ -47,8 +47,8 @@ files already in the repo root). See `backend/.env.example`.
 | `NVIDIA_BASE_URL`, `NVIDIA_MODEL` | optional | default NIM endpoint + `nvidia/nemotron-3-ultra-550b-a55b` |
 | `NVILA_BASE_URL`, `NVILA_TOKEN` | optional | Colab A100 NVILA-8B QA worker; both are required to enable it |
 | `NVILA_TIMEOUT_SECONDS`, `NVILA_MAX_CANDIDATES` | optional | visual QA timeout and trusted candidate cap (defaults 240s/12) |
-| `GEMINI_API_KEY` | optional | Gemini built-in Google Search grounding for QA; backend-only secret |
-| `GEMINI_GROUNDING_*` | optional | model/base URL/enable flag/timeout/auto-confidence threshold |
+| `DEEPSEEK_API_KEY` | optional | DeepSeek built-in `web_search` grounding for QA; backend-only secret |
+| `DEEPSEEK_GROUNDING_*` | optional | model/base URL/enable flag/timeout/max output tokens/reasoning effort/auto-confidence threshold |
 | `DRES_BASE_URL`, `DRES_TOKEN` | optional | DRES submit adapter (else local history only) |
 | `IDX_*`, `MILVUS_IMAGE_COLLECTION` | optional | override index/collection names |
 | `AIC26_MOCK_MODE` | optional | `true` ⇒ deterministic fixtures (no live services) |
@@ -193,7 +193,7 @@ quota of the highest-ranked video before moving to the next video. NVILA pass 1
 retains 3–5 answer-bearing hypotheses;
 pass 2 asks for 3–5 alternatives when evidence supports them. Zero-confidence,
 placeholder, and unknown-ID outputs are discarded. For entity/world-knowledge
-questions, the backend can call Gemini's built-in Google Search tool and merge
+questions, the backend can call DeepSeek's built-in web_search tool and merge
 cited alternatives without granting the web stage authority to create frames.
 Those alternatives are sent back to NVILA for pass-3 visual verification:
 `contradicted` is discarded, while `insufficient/unverified` is confidence-capped
@@ -218,7 +218,7 @@ fabricates retrieval results.
   channel falls back to Elastic-only automatically.
 - **QA visual assistance is online/candidate-based** — NVILA directly inspects
   retrieved frames because dense captions are not yet indexed. It does not scan
-  the whole video autonomously; Google grounding resolves external facts but
+  the whole video autonomously; web grounding resolves external facts but
   cannot repair a missing visual candidate. Timeline verification remains operator-guided.
 - **No** general Qwen3-VL reranker, structured VLM captions, object/scene/action tag
   filtering, SigLIP/EVA ensemble, or true clip-query V-KIS.

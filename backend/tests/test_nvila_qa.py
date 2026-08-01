@@ -1,4 +1,4 @@
-"""Pure NVILA/Google QA tests; no TestClient or network required."""
+"""Pure NVILA/web-grounding QA tests; no TestClient or network required."""
 
 import pytest
 
@@ -98,7 +98,7 @@ def test_normalizer_drops_zero_confidence_and_prompt_placeholders():
     assert normalized["uncertainty"] == ""
 
 
-def test_merge_combines_visual_and_google_answers_without_changing_frames():
+def test_merge_combines_visual_and_web_answers_without_changing_frames():
     visual = _normalize_qa_analysis(
         "Tên là gì?",
         {
@@ -122,7 +122,7 @@ def test_merge_combines_visual_and_google_answers_without_changing_frames():
             }],
         },
         [_candidate()],
-        source="google",
+        source="web",
         sources=[{"title": "Disney", "url": "https://thewaltdisneycompany.com/"}],
     )
 
@@ -148,7 +148,7 @@ def test_pass3_drops_contradiction_and_caps_insufficient_web_answer():
             ],
         },
         [_candidate()],
-        source="google",
+        source="web",
     )
     verified, meta = _apply_visual_verification(
         grounded,
@@ -200,7 +200,7 @@ def test_pass3_demotes_but_keeps_a_contradicted_visual_answer():
             "supporting_candidate_ids": ["C01"],
         }]},
         [_candidate()],
-        source="google",
+        source="web",
     )
     verified, meta = _apply_visual_verification(
         grounded,
@@ -247,7 +247,7 @@ def test_pass3_downgrade_does_not_mislabel_a_directly_grounded_answer():
                 "supporting_candidate_ids": ["C01"],
             }]},
             [_candidate()],
-            source="google",
+            source="web",
         ),
         {"verdicts": [{"answer": "Walt Disney", "status": "insufficient", "visual_confidence": .2}]},
         [_candidate()],
@@ -282,7 +282,7 @@ def test_web_sources_are_attributed_per_answer_not_broadcast():
             },
         ]},
         [_candidate()],
-        source="google",
+        source="web",
         sources=sources,
     )
 
@@ -308,7 +308,7 @@ def test_unattributable_sources_are_cited_nowhere_unless_unambiguous():
             {"answer": "Second", "confidence": .6, "supporting_candidate_ids": ["C01"]},
         ]},
         [_candidate()],
-        source="google",
+        source="web",
         sources=sources,
     )
     assert all(option["web_sources"] == [] for option in two["candidate_answers"])
@@ -320,7 +320,7 @@ def test_unattributable_sources_are_cited_nowhere_unless_unambiguous():
             {"answer": "First", "confidence": .9, "supporting_candidate_ids": ["C01"]},
         ]},
         [_candidate()],
-        source="google",
+        source="web",
         sources=sources,
     )
     assert [source["title"] for source in one["candidate_answers"][0]["web_sources"]] == ["a.test", "b.test"]
@@ -341,8 +341,8 @@ def test_auto_grounding_only_fires_on_real_entity_questions(monkeypatch, questio
     from app import main as main_module
 
     monkeypatch.setattr(main_module.settings, "mock_mode", False)
-    monkeypatch.setattr(main_module.settings, "gemini_api_key", "test-key")
-    monkeypatch.setattr(main_module.settings, "gemini_grounding_enabled", True)
+    monkeypatch.setattr(main_module.settings, "deepseek_api_key", "test-key")
+    monkeypatch.setattr(main_module.settings, "deepseek_grounding_enabled", True)
     visual = {
         "question": question,
         "answerable": True,
@@ -350,7 +350,7 @@ def test_auto_grounding_only_fires_on_real_entity_questions(monkeypatch, questio
     }
     candidates = [{"evidence": [{"type": "speech", "text": "clue"}]}]
 
-    assert main_module._should_ground_with_google("auto", visual, candidates) is expected
+    assert main_module._should_ground_with_web("auto", visual, candidates) is expected
 
 
 def test_pass3_supported_answer_uses_nvila_frame_and_fused_confidence():
@@ -362,7 +362,7 @@ def test_pass3_supported_answer_uses_nvila_frame_and_fused_confidence():
             "supporting_candidate_ids": ["C01"],
         }]},
         [_candidate()],
-        source="google",
+        source="web",
     )
     verified, meta = _apply_visual_verification(
         grounded,
@@ -384,7 +384,7 @@ def test_pass3_supported_answer_uses_nvila_frame_and_fused_confidence():
 
 
 @pytest.mark.asyncio
-async def test_endpoint_pipeline_can_force_mock_google_grounding():
+async def test_endpoint_pipeline_can_force_mock_web_grounding():
     result = await analyze_qa(QaAnalyzeRequest.model_validate({
         "question": "Tên cửa hàng nổi tiếng thế giới là gì?",
         "web_grounding": "on",
@@ -399,7 +399,7 @@ async def test_endpoint_pipeline_can_force_mock_google_grounding():
 
     assert result["best_answer"] == "WALTDISNEY"
     assert result["best_submit_keyframe_id"] == "K20/K20_V013/229"
-    assert result["candidate_answers"][0]["source"] == "google"
+    assert result["candidate_answers"][0]["source"] == "web"
     assert result["web_grounding"]["used"] is True
     assert result["candidate_answers"][0]["visual_verification"]["status"] == "supported"
     assert result["web_grounding"]["visual_verification"]["used"] is True

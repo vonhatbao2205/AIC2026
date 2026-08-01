@@ -18,7 +18,7 @@ def test_health_mock_ok():
     assert body["capabilities"]["audio_vector_search"] is False
     assert body["capabilities"]["qa_nvila"] is True
     assert body["capabilities"]["qa_visual_verification"] is True
-    assert body["capabilities"]["qa_google_grounding"] is True
+    assert body["capabilities"]["qa_web_grounding"] is True
 
 
 def test_parse_endpoint():
@@ -67,7 +67,7 @@ def test_qa_nvila_analysis_rejects_arbitrary_image_identity():
     assert r.status_code == 400
 
 
-def test_qa_google_grounding_merges_answer_but_keeps_canonical_frame():
+def test_qa_web_grounding_merges_answer_but_keeps_canonical_frame():
     r = client.post(
         "/api/qa/analyze",
         json={
@@ -86,7 +86,7 @@ def test_qa_google_grounding_merges_answer_but_keeps_canonical_frame():
     body = r.json()
     assert body["best_answer"] == "WALTDISNEY"
     assert body["best_submit_keyframe_id"] == "K20/K20_V013/229"
-    assert body["candidate_answers"][0]["source"] == "google"
+    assert body["candidate_answers"][0]["source"] == "web"
     assert body["web_grounding"]["used"] is True
     assert body["web_grounding"]["sources"]
     assert body["web_grounding"]["visual_verification"]["used"] is True

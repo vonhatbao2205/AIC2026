@@ -2,13 +2,13 @@
 import httpx
 import pytest
 
-import app.adapters.gemini_grounding as gemini_grounding_module
-from app.adapters.elastic_client import ElasticClient
-from app.adapters.gemini_grounding import (
-    GeminiGroundingClient,
-    _model_candidates,
-    _parse_generate_content,
+import app.adapters.deepseek_grounding as deepseek_grounding_module
+from app.adapters.deepseek_grounding import (
+    DeepSeekGroundingClient,
+    WebGroundingUnavailable,
+    _parse_response,
 )
+from app.adapters.elastic_client import ElasticClient
 from app.adapters.milvus_client import MilvusClient, _sanitize_float16_vector
 from app.adapters.nvila_client import NvilaQaClient
 from app.adapters.pe_encoder import GLAP_DIM, PE_DIM, GlapEncoderClient, PeEncoderClient
@@ -102,7 +102,7 @@ async def test_health_reports_mock(settings):
     nvila_health = await NvilaQaClient(settings).health()
     assert nvila_health["mode"] == "mock"
     assert nvila_health["visual_verification_pass"] is True
-    assert (await GeminiGroundingClient(settings).health())["mode"] == "mock"
+    assert (await DeepSeekGroundingClient(settings).health())["mode"] == "mock"
 
 
 @pytest.mark.asyncio
@@ -115,7 +115,7 @@ async def test_nvila_qa_mock_returns_grounded_ids(settings):
 
 
 @pytest.mark.asyncio
-async def test_nvila_mock_verifies_google_option_against_candidate(settings):
+async def test_nvila_mock_verifies_web_option_against_candidate(settings):
     client = NvilaQaClient(settings)
     result = await client.verify_grounded(
         "Tên là gì?",
@@ -133,41 +133,47 @@ async def test_nvila_mock_verifies_google_option_against_candidate(settings):
 
 
 @pytest.mark.asyncio
-async def test_gemini_grounding_mock_keeps_candidate_id(settings):
-    client = GeminiGroundingClient(settings)
+async def test_deepseek_grounding_mock_keeps_candidate_id(settings):
+    client = DeepSeekGroundingClient(settings)
     candidates = [{"candidate_id": "C07", "video_id": "K20_V013", "evidence": []}]
     result = await client.ground("Tên cửa hàng là gì?", candidates, {"candidate_answers": []})
     assert result["best_answer"] == "WALTDISNEY"
     assert result["candidate_answers"][0]["supporting_candidate_ids"] == ["C07"]
 
 
-def test_gemini_response_parser_preserves_grounding_provenance():
-    parsed = _parse_generate_content({
-        "candidates": [{
-            "content": {"parts": [{"text": '<grounded_json>{"answerable": true}</grounded_json>'}]},
-            "groundingMetadata": {
-                "webSearchQueries": ["Disney official full name"],
-                "groundingChunks": [
-                    {"web": {"title": "The Walt Disney Company", "uri": "https://thewaltdisneycompany.com/"}},
-                    {"web": {"title": "Duplicate", "uri": "https://thewaltdisneycompany.com/"}},
-                    {"web": {"title": "Unsafe", "uri": "javascript:alert(1)"}},
-                ],
-                "searchEntryPoint": {"renderedContent": "<div>Google suggestions</div>"},
-            },
-        }],
+def test_response_parser_preserves_grounding_provenance():
+    """Only pages the server actually opened are citable, and the internal
+    `ws_call_id` marker must never leak into a query or a link the operator clicks."""
+    parsed = _parse_response({
+        "output": [
+            {"type": "reasoning", "content": [{"type": "reasoning_text", "text": "private trace"}]},
+            {"type": "web_search_call", "action": {
+                "type": "search",
+                "queries": ["Disney official full name", "ws_call_id=call_00_abc"],
+            }},
+            {"type": "web_search_call", "action": {
+                "type": "open_page",
+                "url": "https://thewaltdisneycompany.com/about#ws_call_id=call_01_xyz",
+            }},
+            {"type": "web_search_call", "action": {
+                "type": "open_page",
+                "url": "https://thewaltdisneycompany.com/about#ws_call_id=call_02_dup",
+            }},
+            {"type": "message", "content": [
+                {"type": "output_text", "text": '<grounded_json>{"answerable": true}</grounded_json>'},
+            ]},
+        ],
     })
     assert parsed["queries"] == ["Disney official full name"]
     assert parsed["sources"] == [{
-        "title": "The Walt Disney Company",
-        "url": "https://thewaltdisneycompany.com/",
+        "title": "thewaltdisneycompany.com",
+        "url": "https://thewaltdisneycompany.com/about",
     }]
-    assert parsed["search_suggestions_html"] == "<div>Google suggestions</div>"
+    assert "private trace" not in parsed["text"]
+    assert parsed["search_suggestions_html"] == ""
 
 
-@pytest.mark.asyncio
-async def test_gemini_grounding_falls_back_when_primary_model_is_retired(monkeypatch):
-    calls = []
-
+def _fake_responses_client(payload):
     class FakeAsyncClient:
         def __init__(self, *args, **kwargs):
             pass
@@ -179,48 +185,68 @@ async def test_gemini_grounding_falls_back_when_primary_model_is_retired(monkeyp
             return False
 
         async def post(self, url, *, json, headers):
-            calls.append((url, json))
-            request = httpx.Request("POST", url)
-            if "gemini-2.5-flash:" in url:
-                return httpx.Response(404, request=request, json={"error": {"message": "retired"}})
-            return httpx.Response(200, request=request, json={
-                "candidates": [{
-                    "content": {"parts": [{"text": (
-                        '<grounded_json>{"answerable":true,"best_answer":"WALTDISNEY",'
-                        '"candidate_answers":[{"answer":"WALTDISNEY","confidence":0.9,'
-                        '"supporting_candidate_ids":["C01"],"reason":"canonical name"}],'
-                        '"uncertainty":""}</grounded_json>'
-                    )}]},
-                    "groundingMetadata": {
-                        "webSearchQueries": ["Disney canonical name"],
-                        "groundingChunks": [{"web": {
-                            "title": "Disney",
-                            "uri": "https://thewaltdisneycompany.com/",
-                        }}],
-                    },
-                }],
-            })
+            calls.append((url, json, headers))
+            return httpx.Response(200, request=httpx.Request("POST", url), json=payload)
 
-    monkeypatch.setattr(gemini_grounding_module.httpx, "AsyncClient", FakeAsyncClient)
-    settings = gemini_grounding_module.Settings(
-        gemini_api_key="test-key",
-        gemini_grounding_model="models/gemini-2.5-flash",
-        gemini_grounding_fallback_models=["gemini-3.6-flash"],
-    )
-    assert _model_candidates(settings) == ["gemini-2.5-flash", "gemini-3.6-flash"]
+    calls: list = []
+    FakeAsyncClient.calls = calls
+    return FakeAsyncClient, calls
 
-    result = await GeminiGroundingClient(settings).ground(
-        "Tên cửa hàng là gì?",
-        [{
-            "candidate_id": "C01",
-            "video_id": "K20_V013",
-            "pts_time": 609,
-            "evidence": [{"type": "speech", "text": "logo Disney"}],
-        }],
+
+@pytest.mark.asyncio
+async def test_deepseek_grounding_requests_web_search_and_cites_opened_pages(monkeypatch):
+    fake, calls = _fake_responses_client({
+        "status": "completed",
+        "output": [
+            {"type": "web_search_call", "action": {"type": "search", "queries": ["Neuschwanstein Disney logo"]}},
+            {"type": "web_search_call", "action": {
+                "type": "open_page",
+                "url": "https://en.wikipedia.org/wiki/Neuschwanstein_Castle#ws_call_id=call_01",
+            }},
+            {"type": "message", "content": [{"type": "output_text", "text": (
+                '<grounded_json>{"answerable":true,"best_answer":"WALTDISNEY",'
+                '"candidate_answers":[{"answer":"WALTDISNEY","confidence":0.9,'
+                '"supporting_candidate_ids":["C01"],"source_domains":["en.wikipedia.org"],'
+                '"reason":"canonical name"}],"uncertainty":""}</grounded_json>'
+            )}]},
+        ],
+    })
+    monkeypatch.setattr(deepseek_grounding_module.httpx, "AsyncClient", fake)
+    settings = deepseek_grounding_module.Settings(deepseek_api_key="test-key")
+
+    result = await DeepSeekGroundingClient(settings).ground(
+        "Tên hãng là gì?",
+        [{"candidate_id": "C01", "video_id": "K20_V013", "pts_time": 609,
+          "evidence": [{"type": "speech", "text": "lâu đài Bavaria"}]}],
         {"candidate_answers": []},
     )
 
-    assert result["model"] == "gemini-3.6-flash"
-    assert len(calls) == 2
-    assert calls[1][1]["generationConfig"]["thinkingConfig"]["thinkingLevel"] == "low"
-    assert "temperature" not in calls[1][1]["generationConfig"]
+    url, body, headers = calls[0]
+    # web_search only exists on the Responses API; /chat/completions rejects it.
+    assert url.endswith("/responses")
+    assert body["tools"] == [{"type": "web_search"}]
+    assert body["model"] == "deepseek-v4-flash"
+    assert headers["Authorization"] == "Bearer test-key"
+    assert result["model"] == "deepseek-v4-flash"
+    assert result["queries"] == ["Neuschwanstein Disney logo"]
+    assert result["sources"][0]["url"] == "https://en.wikipedia.org/wiki/Neuschwanstein_Castle"
+
+
+@pytest.mark.asyncio
+async def test_deepseek_grounding_reports_a_thinking_only_truncation(monkeypatch):
+    """Thinking shares max_output_tokens with the answer: too small a budget
+    returns reasoning and an empty message, which must not surface as a parse bug."""
+    fake, _ = _fake_responses_client({
+        "status": "incomplete",
+        "incomplete_details": {"reason": "max_output_tokens"},
+        "output": [{"type": "reasoning", "content": [{"type": "reasoning_text", "text": "thinking…"}]}],
+    })
+    monkeypatch.setattr(deepseek_grounding_module.httpx, "AsyncClient", fake)
+    settings = deepseek_grounding_module.Settings(deepseek_api_key="test-key")
+
+    with pytest.raises(WebGroundingUnavailable, match="max_output_tokens"):
+        await DeepSeekGroundingClient(settings).ground(
+            "Tên hãng là gì?",
+            [{"candidate_id": "C01", "video_id": "K20_V013", "evidence": []}],
+            {"candidate_answers": []},
+        )

@@ -29,7 +29,7 @@ The repository contains two parts:
 - **TRAKE** temporal sequences assembled with an exact dynamic-programming
   maximum-weight increasing chain (globally optimal, not greedy).
 - **NVILA-8B QA copilot** — top-video-first candidate blocks, 3–5 visual
-  hypotheses and answer alternatives, Gemini Google Search grounding, then a
+  hypotheses and answer alternatives, DeepSeek web-search grounding, then a
   third NVILA visual-consistency pass before explicit human verification.
 - **Submit guard** — duplicate detection, evidence preview, DRES submission.
 - **Keyboard-first single-screen UI** with a multi-track timeline (keyframes,
@@ -54,7 +54,7 @@ OFFLINE INDEXING (scripts + notebooks at repo root)
 ONLINE QUERY              │               │
           ▼               ▼               ▼
   backend/  FastAPI ── parse → retrieve (parallel channels) → RRF fuse
-            → group-by-video / TRAKE DP → NVILA QA → Gemini Google grounding
+            → group-by-video / TRAKE DP → NVILA QA → DeepSeek web grounding
             → NVILA visual verification → human choice → submit guard → DRES
           │
           ▼
@@ -143,7 +143,7 @@ Key variables (full list in [backend/.env.example](backend/.env.example)):
 | `NVIDIA_API_KEY` | enables the Nemotron query parser (else heuristics) |
 | `DRES_BASE_URL`, `DRES_TOKEN` | DRES submission (else local-only history) |
 | `NVILA_BASE_URL`, `NVILA_TOKEN` | optional NVILA-8B QA worker chạy từ Colab notebook |
-| `GEMINI_API_KEY` | optional Gemini built-in Google Search grounding for QA; backend only |
+| `DEEPSEEK_API_KEY` | optional DeepSeek built-in `web_search` grounding for QA; backend only |
 | `AIC26_MOCK_MODE` | `true` ⇒ run with fixtures, no live services |
 
 > ⚠️ **Secrets are never committed and never reach the frontend.** The browser

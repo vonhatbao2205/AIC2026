@@ -139,7 +139,7 @@ export interface QaCandidateAnswer {
   supporting_candidate_ids: string[];
   supporting_frames: QaSupportingFrame[];
   reason: string;
-  source: "nvila" | "google" | "hybrid" | string;
+  source: "nvila" | "web" | "hybrid" | string;
   web_sources: QaWebSource[];
   visual_verification?: QaVisualVerificationVerdict;
 }

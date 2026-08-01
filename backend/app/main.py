@@ -22,7 +22,7 @@ import re
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from .adapters.gemini_grounding import GeminiGroundingClient, GeminiGroundingUnavailable
+from .adapters.deepseek_grounding import DeepSeekGroundingClient, WebGroundingUnavailable
 from .adapters.nvila_client import NvilaQaClient, NvilaUnavailable
 from .config import get_settings
 from .identity import canonical_submit_keyframe_id, parse_submit_keyframe_id
@@ -59,7 +59,7 @@ timeline_service = TimelineService(settings)
 submit_service = SubmitService(settings)
 media = MediaUrlBuilder(settings.media_base_url)
 nvila_qa = NvilaQaClient(settings)
-google_grounding = GeminiGroundingClient(settings)
+web_grounding_client = DeepSeekGroundingClient(settings)
 
 
 @app.get("/api/health")
@@ -69,14 +69,14 @@ async def health():
         search_service.milvus.health(),
         search_service.pe.health(),
         nvila_qa.health(),
-        google_grounding.health(),
+        web_grounding_client.health(),
     )
     services = {
         "elastic": elastic,
         "milvus": milvus,
         "pe_encoder": pe,
         "nvila_qa": nvila,
-        "google_grounding": grounding,
+        "web_grounding": grounding,
     }
     # NVILA is an optional QA accelerator: a stopped Colab session must not mark
     # the core retrieval stack unhealthy.
@@ -104,7 +104,7 @@ async def health():
             "qa_hotspot_prediction": has_qa_nvila,
             "qa_candidate_answers": has_qa_nvila,
             "qa_visual_verification": has_qa_visual_verification,
-            "qa_google_grounding": settings.mock_mode or settings.has_google_grounding,
+            "qa_web_grounding": settings.mock_mode or settings.has_web_grounding,
         },
         "warnings": [
             f"{name} unreachable: {s.get('error')}"
@@ -203,7 +203,7 @@ async def analyze_qa(req: QaAnalyzeRequest):
     visual = _normalize_qa_analysis(req.question.strip(), result, candidates, source="nvila")
     grounding_meta = {
         "requested": req.web_grounding,
-        "available": settings.mock_mode or settings.has_google_grounding,
+        "available": settings.mock_mode or settings.has_web_grounding,
         "attempted": False,
         "used": False,
         "model": None,
@@ -222,21 +222,21 @@ async def analyze_qa(req: QaAnalyzeRequest):
             "uncertainty": "",
         },
     }
-    if _should_ground_with_google(req.web_grounding, visual, candidates):
+    if _should_ground_with_web(req.web_grounding, visual, candidates):
         grounding_meta["attempted"] = True
         try:
-            grounded_raw = await google_grounding.ground(
+            grounded_raw = await web_grounding_client.ground(
                 req.question.strip(), candidates, visual, max_answers=req.max_answers,
             )
             grounded = _normalize_qa_analysis(
                 req.question.strip(),
                 grounded_raw,
                 candidates,
-                source="google",
+                source="web",
                 sources=grounded_raw.get("sources") or [],
             )
             grounding_meta.update({
-                "model": str(grounded_raw.get("model") or settings.gemini_grounding_model),
+                "model": str(grounded_raw.get("model") or settings.deepseek_grounding_model),
                 "queries": [str(item)[:500] for item in (grounded_raw.get("queries") or [])[:8]],
                 "sources": grounded_raw.get("sources") or [],
                 "summary": str(grounded_raw.get("summary") or "")[:1600],
@@ -273,10 +273,10 @@ async def analyze_qa(req: QaAnalyzeRequest):
                 grounding_meta["visual_verification"].update(verification_meta)
             grounding_meta["used"] = bool(grounded["candidate_answers"])
             visual = _merge_qa_analyses(visual, grounded, req.max_answers)
-        except GeminiGroundingUnavailable as exc:
+        except WebGroundingUnavailable as exc:
             visual["warnings"].append(str(exc)[:500])
     elif req.web_grounding == "on" and not grounding_meta["available"]:
-        visual["warnings"].append("Google grounding requested but GEMINI_API_KEY is not configured")
+        visual["warnings"].append("Web grounding requested but DEEPSEEK_API_KEY is not configured")
     visual["web_grounding"] = grounding_meta
     visual["total_latency_ms"] = round(
         visual["latency_ms"]
@@ -406,7 +406,7 @@ def _source_host(value: object) -> str:
 
 
 def _trusted_web_sources(sources: list[dict] | None) -> list[dict]:
-    """Citations Gemini actually returned in groundingChunks, de-duplicated."""
+    """Citations the web stage actually opened, de-duplicated."""
     trusted: list[dict] = []
     seen: set[str] = set()
     for item in (sources or [])[:12]:
@@ -423,11 +423,11 @@ def _trusted_web_sources(sources: list[dict] | None) -> list[dict]:
 def _answer_web_sources(raw: dict, trusted: list[dict]) -> list[dict]:
     """Cite only the sources the model attributed to THIS answer.
 
-    Gemini reports groundingChunks for the whole response, so attaching all of
-    them to every answer would show answer B's citation next to answer A — an
-    operator verifying by clicking the link would be misled. The model declares
-    the domains behind each answer; anything that cannot be matched back to a
-    returned chunk is cited nowhere rather than everywhere.
+    The web stage reports one source list for the whole response, so attaching
+    all of it to every answer would show answer B's citation next to answer A —
+    an operator verifying by clicking the link would be misled. The model
+    declares the domains behind each answer; anything that cannot be matched
+    back to a visited source is cited nowhere rather than everywhere.
     """
     if not trusted:
         return []
@@ -568,7 +568,7 @@ def _apply_visual_verification(
 
     Contradicted answers are removed. Insufficient/unverified answers remain
     available to the operator but cannot outrank strongly supported visual
-    answers solely on Gemini confidence.
+    answers solely on web-search confidence.
     """
     by_id = {candidate["candidate_id"]: candidate for candidate in candidates}
     option_keys = {
@@ -745,7 +745,7 @@ def _merge_qa_analyses(visual: dict, grounded: dict, max_answers: int) -> dict:
 
 
 # Word-bounded so short terms cannot fire on unrelated syllables: a plain
-# substring test made "ai" match "hai"/"tai"/"vai" and spend a Google search plus
+# substring test made "ai" match "hai"/"tai"/"vai" and spend a web search plus
 # an NVILA pass-3 round trip on questions that resolve no named entity at all.
 _ENTITY_QUESTION_RE = re.compile(
     r"\b(?:ai|tên|người nào|thương hiệu|nhãn hiệu|cửa hàng|công ty|tổ chức"
@@ -755,18 +755,18 @@ _ENTITY_QUESTION_RE = re.compile(
 )
 
 
-def _should_ground_with_google(mode: str, visual: dict, candidates: list[dict]) -> bool:
-    if mode == "off" or not (settings.mock_mode or settings.has_google_grounding):
+def _should_ground_with_web(mode: str, visual: dict, candidates: list[dict]) -> bool:
+    if mode == "off" or not (settings.mock_mode or settings.has_web_grounding):
         return False
     if mode == "on":
         return True
     # Keep the existing deterministic visual fixture stable; explicit `on`
-    # exercises the mock Google branch in dedicated tests.
+    # exercises the mock web-search branch in dedicated tests.
     if settings.mock_mode:
         return False
     answers = visual.get("candidate_answers") or []
     top_confidence = max((answer.get("confidence", 0.0) for answer in answers), default=0.0)
-    if not visual.get("answerable") or top_confidence < settings.gemini_grounding_auto_threshold:
+    if not visual.get("answerable") or top_confidence < settings.deepseek_grounding_auto_threshold:
         return True
     question = str(visual.get("question") or "")
     has_text_clue = any(candidate.get("evidence") for candidate in candidates)
