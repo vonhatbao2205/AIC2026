@@ -424,6 +424,39 @@ describe("AIC26 retrieval console (full)", () => {
     },
   );
 
+  it("runs the duplicate pre-check against the frame the guard was opened for", async () => {
+    // Only the PAUSED frame (130) was submitted before; the result keyframe was not.
+    vi.stubGlobal(
+      "fetch",
+      mockFetch([
+        { id: "old", ts: Date.now() / 1000, task_id: "q001", query_type: "T-KIS", payload: { video_id: "K01_V001", frame_idx: 130 }, dedup_keys: ["K01_V001:130"], status: "local", was_duplicate: false },
+      ]),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByTestId("query-input"), "thời sự");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => screen.getByTestId("detail-panel"));
+
+    (document.activeElement as HTMLElement)?.blur();
+    fireEvent.keyDown(window, { key: "v" });
+    const video = await screen.findByTestId("video-viewer") as HTMLVideoElement;
+    Object.defineProperty(video, "currentTime", { configurable: true, writable: true, value: 5.2 });
+    fireEvent.pause(video);
+    await screen.findByTestId("paused-frame-chip");
+
+    // Result target: not a duplicate, even though a paused frame is captured.
+    fireEvent.keyDown(window, { key: "Enter" });
+    await waitFor(() => expect(screen.getByTestId("submit-guard")).toBeInTheDocument());
+    expect(screen.queryByTestId("dup-warn")).not.toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    // Paused target: the warning must fire on the very first open, not one late.
+    fireEvent.keyDown(window, { key: "Enter", shiftKey: true });
+    await waitFor(() => expect(screen.getByTestId("submit-guard")).toBeInTheDocument());
+    expect(screen.getByTestId("dup-warn")).toHaveTextContent("K01_V001:130");
+  });
+
   it("keeps Detail on the result keyframe while a paused frame is captured", async () => {
     const user = userEvent.setup();
     render(<App />);
