@@ -30,6 +30,9 @@ import { VideoViewer, type VideoViewerHandle } from "./components/VideoViewer";
 import { findQaFrame, selectQaCandidateFrames } from "./lib/qa";
 import { validateIncreasingOrder } from "./lib/snap";
 
+/** The submit guard acts on exactly one of these; they never shadow each other. */
+type GuardTarget = "result" | "paused";
+
 const EMPTY_OVERRIDES: ManualOverrides = { force_channels: [], disable_channels: [] };
 const EMPTY_FEEDBACK: FeedbackState = { positive_videos: [], negative_videos: [], negative_frames: [] };
 
@@ -64,7 +67,10 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
   const [trakeSlots, setTrakeSlots] = useState<(TrakeSlot | null)[]>([null, null]);
   const [activeSlot, setActiveSlot] = useState(0);
   const [pausedFrame, setPausedFrame] = useState<PausedFrame | null>(null);
-  const [usePausedFrame, setUsePausedFrame] = useState(false);
+  // Which frame the OPEN guard is about to submit. Capturing a paused frame no
+  // longer re-points the detail panel: the two submit paths stay independent and
+  // the target is decided by which button (or shortcut) opened the guard.
+  const [guardTarget, setGuardTarget] = useState<GuardTarget>("result");
   const [eventMarkers, setEventMarkers] = useState<{ eventIndex: number; pts_time: number }[]>([]);
 
   const [keymapOpen, setKeymapOpen] = useState(false);
@@ -89,13 +95,10 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
 
   const selectedGroup = groups[selectedVideo] ?? null;
   const selectedFrameObj: FrameResult | null = selectedGroup?.frames[selectedFrame] ?? null;
-  const pausedSubmitFrame =
-    queryType !== "TRAKE"
-    && usePausedFrame
-    && pausedFrame
-    && pausedFrame.video_id === selectedGroup?.video_id
-      ? pausedFrame
-      : null;
+  // Only the guard reads this. The detail panel always describes the selected
+  // result keyframe, whether or not a raw frame is currently captured.
+  const guardPausedFrame =
+    queryType !== "TRAKE" && guardTarget === "paused" ? pausedFrame : null;
   const qaCandidateFrames = useMemo(
     () => (queryType === "QA" ? selectQaCandidateFrames(groups, selectedFrameObj) : []),
     [queryType, groups, selectedFrameObj],
@@ -163,7 +166,6 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     setLoading(true);
     setDuplicateId(null);
     setPausedFrame(null);
-    setUsePausedFrame(false);
     setQaAnalysis(null);
     setQaAnalysisError(null);
     setAnswer("");
@@ -243,7 +245,6 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     }
     if (pausedFrame && selectedVideoId && pausedFrame.video_id !== selectedVideoId) {
       setPausedFrame(null);
-      setUsePausedFrame(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedVideoId]);
@@ -291,10 +292,9 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     setSelectedVideo(location.video);
     setSelectedFrame(location.frame);
     setExpanded((current) => new Set(current).add(group.video_id));
-    // A previous raw pause belongs to a different verification decision. Once
-    // an NVILA hotspot is opened, make its retrieved frame the explicit target.
+    // A previous raw pause belongs to a different verification decision, so it
+    // is discarded when an NVILA hotspot moves the operator to another frame.
     setPausedFrame(null);
-    setUsePausedFrame(false);
     if (showVideo) {
       setActiveVideoId(group.video_id);
       setVideoVisible(true);
@@ -353,9 +353,8 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
         fps,
         thumbnail,
       });
-      // For single-frame tasks, pausing explicitly arms this exact raw frame as
-      // the submit target. TRAKE still requires assigning it to an event slot.
-      setUsePausedFrame(queryType !== "TRAKE");
+      // Capturing a frame never arms it for submit on its own — T-KIS/QA/V-KIS
+      // submit it from the paused panel's own button, TRAKE from an event slot.
     },
     [queryType, activeVideoId, timeline, selectedFrameObj?.fps],
   );
@@ -375,7 +374,6 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
       });
       setActiveSlot(Math.min(slotIdx + 1, trakeSlots.length - 1));
       setPausedFrame(null);
-      setUsePausedFrame(false);
     },
     [pausedFrame, trakeSlots.length],
   );
@@ -388,8 +386,9 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     const fps = f.fps ?? timeline?.fps ?? 25;
     return Math.round(f.pts_time * fps);
   }
-  const selectedFrameIdx = pausedSubmitFrame
-    ? pausedSubmitFrame.frame_idx
+  // frame_idx the guard will actually submit, for the target it was opened with.
+  const guardFrameIdx = guardPausedFrame
+    ? guardPausedFrame.frame_idx
     : selectedFrameObj
       ? frameIdxOf(selectedFrameObj)
       : null;
@@ -452,20 +451,22 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
   }
 
   // ---- duplicate pre-check (mirrors backend dedup keys: video_id:frame_idx) ----
-  function currentDedupKey(): string | null {
+  // The target is passed in rather than read from state: openGuard sets it in the
+  // same tick, so the dedup pre-check would otherwise run against the old value.
+  function dedupKeyFor(target: GuardTarget): string | null {
     if (queryType === "TRAKE") {
       const filled = trakeSlots.filter((s): s is TrakeSlot => s !== null);
       if (!filled.length) return null;
       return `${filled[0].video_id}|${filled.map((s) => s.frame_idx).join(",")}`;
     }
-    if (pausedSubmitFrame) {
-      return `${pausedSubmitFrame.video_id}:${pausedSubmitFrame.frame_idx}`;
+    if (target === "paused") {
+      return pausedFrame ? `${pausedFrame.video_id}:${pausedFrame.frame_idx}` : null;
     }
     if (selectedFrameObj) return `${selectedFrameObj.video_id}:${frameIdxOf(selectedFrameObj)}`;
     return null;
   }
-  function computeDuplicate(): string | null {
-    const key = currentDedupKey();
+  function computeDuplicate(target: GuardTarget): string | null {
+    const key = dedupKeyFor(target);
     if (!key) return null;
     for (const h of history) {
       if (h.task_id !== taskId) continue;
@@ -474,16 +475,19 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     return null;
   }
 
-  function openGuard() {
+  function openGuard(target: GuardTarget = "result") {
     if (queryType === "TRAKE") {
       if (trakeSlots.every((s) => s === null)) {
         setToast({ msg: "No TRAKE frames selected", kind: "bad" });
         return;
       }
-    } else if (!pausedSubmitFrame && !selectedFrameObj) {
+    } else if (target === "paused") {
+      if (!pausedFrame) return;
+    } else if (!selectedFrameObj) {
       return;
     }
-    setDuplicateId(computeDuplicate());
+    setGuardTarget(target);
+    setDuplicateId(computeDuplicate(target));
     setGuardOpen(true);
   }
 
@@ -498,20 +502,20 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
         payload.events = trakeSlots
           .map((s, i) => (s ? { event_index: i + 1, frame_idx: s.frame_idx, pts_time: s.pts_time, submit_keyframe_id: s.submit_keyframe_id } : null))
           .filter((e): e is NonNullable<typeof e> => e !== null);
-      } else if (pausedSubmitFrame || selectedFrameObj) {
-        const fi = pausedSubmitFrame?.frame_idx
+      } else if (guardPausedFrame || selectedFrameObj) {
+        const fi = guardPausedFrame?.frame_idx
           ?? (selectedFrameObj ? frameIdxOf(selectedFrameObj) : null);
         if (fi == null) {
           setToast({ msg: "Không xác định được frame_idx cho frame này — không thể nộp.", kind: "bad" });
           setSubmitting(false);
           return;
         }
-        payload.video_id = pausedSubmitFrame?.video_id ?? selectedFrameObj?.video_id;
+        payload.video_id = guardPausedFrame?.video_id ?? selectedFrameObj?.video_id;
         payload.frame_idx = fi;
-        payload.timestamp = pausedSubmitFrame?.pts_time
+        payload.timestamp = guardPausedFrame?.pts_time
           ?? selectedFrameObj?.pts_time
           ?? undefined;
-        if (!pausedSubmitFrame && selectedFrameObj) {
+        if (!guardPausedFrame && selectedFrameObj) {
           payload.submit_keyframe_id = selectedFrameObj.submit_keyframe_id;
         }
         if (queryType === "QA") payload.answer = answer;
@@ -556,10 +560,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
       if (e.key === "Escape") {
         if (keymapOpen) setKeymapOpen(false);
         else if (guardOpen) setGuardOpen(false);
-        else if (pausedFrame) {
-          setPausedFrame(null);
-          setUsePausedFrame(false);
-        }
+        else if (pausedFrame) setPausedFrame(null);
         return;
       }
       if (e.key === "Enter" && guardOpen) {
@@ -577,8 +578,16 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
       switch (e.key) {
         case "Enter":
           e.preventDefault();
-          if (queryType === "TRAKE" && pausedFrame) assignPausedFrameToSlot(activeSlot);
-          else openGuard();
+          if (queryType === "TRAKE") {
+            if (pausedFrame) assignPausedFrameToSlot(activeSlot);
+            else openGuard("result");
+          } else if (e.shiftKey) {
+            // Submitting the exact raw frame is a deliberate, separate action —
+            // plain Enter always stays on the result keyframe shown in Detail.
+            if (pausedFrame) openGuard("paused");
+          } else {
+            openGuard("result");
+          }
           break;
         case "ArrowDown":
           e.preventDefault();
@@ -626,7 +635,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guardOpen, keymapOpen, pausedFrame, queryType, activeSlot, groups.length, selectedGroup, selectedFrameObj, selectedVideoId, videoVisible, activeVideoId, submitting, assignPausedFrameToSlot]);
+  }, [guardOpen, guardTarget, keymapOpen, pausedFrame, queryType, activeSlot, groups.length, selectedGroup, selectedFrameObj, selectedVideoId, videoVisible, activeVideoId, submitting, assignPausedFrameToSlot]);
 
   function seekVideo(t: number) {
     viewerRef.current?.seek(t);
@@ -645,7 +654,6 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
           setQueryType(t);
           setParsed(null);
           setPausedFrame(null);
-          setUsePausedFrame(false);
           setQaAnalysis(null);
           setQaAnalysisError(null);
           setAnswer("");
@@ -785,15 +793,10 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
           <PausedFramePanel
             frame={pausedFrame}
             queryType={queryType}
-            activeForSubmit={pausedSubmitFrame !== null}
             activeTrakeSlot={activeSlot}
-            onUseForSubmit={() => setUsePausedFrame(true)}
-            onUseResultFrame={() => setUsePausedFrame(false)}
+            onSubmitPaused={() => openGuard("paused")}
             onAssignToTrake={() => assignPausedFrameToSlot(activeSlot)}
-            onClear={() => {
-              setPausedFrame(null);
-              setUsePausedFrame(false);
-            }}
+            onClear={() => setPausedFrame(null)}
           />
           {queryType === "TRAKE" && (
             <>
@@ -819,8 +822,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
           <DetailPanel
             frame={selectedFrameObj}
             queryType={queryType}
-            usingPausedFrame={pausedSubmitFrame !== null}
-            onSubmit={openGuard}
+            onSubmit={() => openGuard("result")}
             onCopyId={copyId}
           />
           <HistorySidebar history={history} />
@@ -831,8 +833,8 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
         open={guardOpen}
         queryType={queryType}
         frame={selectedFrameObj}
-        pausedFrame={pausedSubmitFrame}
-        frameIdx={selectedFrameIdx}
+        pausedFrame={guardPausedFrame}
+        frameIdx={guardFrameIdx}
         trakeSlots={trakeSlots}
         taskId={taskId}
         setTaskId={setTaskId}

@@ -14,10 +14,8 @@ export interface PausedFrame {
 interface Props {
   frame: PausedFrame | null;
   queryType: QueryType;
-  activeForSubmit: boolean;
   activeTrakeSlot: number;
-  onUseForSubmit: () => void;
-  onUseResultFrame: () => void;
+  onSubmitPaused: () => void;
   onAssignToTrake: () => void;
   onClear: () => void;
 }
@@ -30,9 +28,7 @@ export function PausedFramePanel(props: Props) {
     <div className="panel" data-testid="paused-frame-panel">
       <div className="paused-frame-head">
         <h3>Paused frame · global</h3>
-        {frame && !isTrake && props.activeForSubmit && (
-          <span className="badge paused-active">submit target</span>
-        )}
+        {frame && !isTrake && <span className="badge paused-active">raw frame</span>}
       </div>
 
       {!frame ? (
@@ -84,21 +80,13 @@ export function PausedFramePanel(props: Props) {
               >
                 Assign to E{props.activeTrakeSlot + 1} <span className="kbd">↵</span>
               </button>
-            ) : props.activeForSubmit ? (
-              <button
-                className="btn sm"
-                data-testid="use-result-frame"
-                onClick={props.onUseResultFrame}
-              >
-                Use result keyframe instead
-              </button>
             ) : (
               <button
                 className="btn sm primary"
-                data-testid="use-paused-frame"
-                onClick={props.onUseForSubmit}
+                data-testid="submit-paused-frame"
+                onClick={props.onSubmitPaused}
               >
-                Use paused frame for submit
+                Submit paused frame <span className="kbd">⇧↵</span>
               </button>
             )}
             <button className="btn sm ghost" onClick={props.onClear}>

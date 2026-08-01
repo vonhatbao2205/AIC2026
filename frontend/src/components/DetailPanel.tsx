@@ -5,7 +5,6 @@ import { ChannelBadge } from "./Badges";
 interface Props {
   frame: FrameResult | null;
   queryType: QueryType;
-  usingPausedFrame: boolean;
   onSubmit: () => void;
   onCopyId: (id: string) => void;
 }
@@ -34,7 +33,10 @@ function EvidenceCard({ e }: { e: Evidence }) {
   );
 }
 
-export function DetailPanel({ frame, queryType, usingPausedFrame, onSubmit, onCopyId }: Props) {
+// Always describes the selected result keyframe. A captured raw frame lives in
+// PausedFramePanel and is submitted from there, so this panel never changes
+// identity underneath the operator.
+export function DetailPanel({ frame, queryType, onSubmit, onCopyId }: Props) {
   if (!frame) {
     return (
       <div className="panel">
@@ -67,11 +69,7 @@ export function DetailPanel({ frame, queryType, usingPausedFrame, onSubmit, onCo
       </div>
       <div className="row" style={{ marginBottom: 8 }}>
         <button className="btn primary" data-testid="open-submit" onClick={onSubmit}>
-          {queryType === "TRAKE"
-            ? "Submit sequence"
-            : usingPausedFrame
-              ? "Submit paused frame"
-              : "Submit result frame"}{" "}
+          {queryType === "TRAKE" ? "Submit sequence" : "Submit result frame"}{" "}
           <span className="kbd">↵</span>
         </button>
       </div>

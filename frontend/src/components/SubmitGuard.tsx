@@ -42,7 +42,12 @@ export function SubmitGuard(props: Props) {
     <div className="modal-backdrop" onClick={props.onCancel} data-testid="submit-guard">
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>Confirm submission · {queryType}</h2>
+          {/* Both submit paths are now equally reachable, so the guard states
+              which frame it holds instead of leaving it to the rows below. */}
+          <h2 data-testid="guard-target">
+            Confirm submission · {queryType}
+            {!isTrake && ` · ${pausedFrame ? "paused raw frame" : "result keyframe"}`}
+          </h2>
           <button className="btn sm ghost" onClick={props.onCancel}>esc</button>
         </div>
         <div className="modal-body">

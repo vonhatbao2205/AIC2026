@@ -36,7 +36,8 @@ const GROUPS: Group[] = [
   {
     title: "Submit",
     rows: [
-      { keys: ["Enter"], desc: "Open submit guard (uses paused frame when active)" },
+      { keys: ["Enter"], desc: "Submit the selected result keyframe (shown in Detail)" },
+      { keys: ["Shift", "Enter"], desc: "Submit the captured paused raw frame" },
       { keys: ["Enter"], desc: "Confirm submit (inside the guard)" },
       { keys: ["Enter"], desc: "TRAKE: assign paused frame to active slot" },
     ],

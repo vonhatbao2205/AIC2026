@@ -371,7 +371,7 @@ describe("AIC26 retrieval console (full)", () => {
   });
 
   it.each(["T-KIS", "QA", "V-KIS"] as const)(
-    "%s: pausing video makes the exact raw frame the submit target",
+    "%s: the paused panel submits the exact raw frame from its own button",
     async (queryType) => {
       const user = userEvent.setup();
       render(<App />);
@@ -394,10 +394,13 @@ describe("AIC26 retrieval console (full)", () => {
 
       const chip = await screen.findByTestId("paused-frame-chip");
       expect(chip).toHaveTextContent("frame 130");
-      expect(screen.getByText("submit target")).toBeInTheDocument();
+      // Capturing a raw frame must not re-point the detail panel.
+      expect(screen.getByTestId("submit-id")).toHaveTextContent("K01/K01_V001/001");
+      expect(screen.getByTestId("open-submit")).toHaveTextContent("Submit result frame");
 
-      await user.click(screen.getByTestId("open-submit"));
+      await user.click(screen.getByTestId("submit-paused-frame"));
       expect(await screen.findByTestId("guard-frame-idx")).toHaveTextContent("130");
+      expect(screen.getByTestId("guard-target")).toHaveTextContent("paused raw frame");
       expect(screen.getByText(/exact paused/)).toBeInTheDocument();
       if (queryType === "QA") {
         await user.type(screen.getByTestId("qa-answer"), "HTV7");
@@ -420,6 +423,54 @@ describe("AIC26 retrieval console (full)", () => {
       });
     },
   );
+
+  it("keeps Detail on the result keyframe while a paused frame is captured", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByTestId("query-input"), "thời sự");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => screen.getByTestId("detail-panel"));
+
+    (document.activeElement as HTMLElement)?.blur();
+    fireEvent.keyDown(window, { key: "v" });
+    const video = await screen.findByTestId("video-viewer") as HTMLVideoElement;
+    Object.defineProperty(video, "currentTime", { configurable: true, writable: true, value: 5.2 });
+    fireEvent.pause(video);
+    await screen.findByTestId("paused-frame-chip");
+
+    // Plain Enter stays on the result keyframe even though a raw frame exists.
+    fireEvent.keyDown(window, { key: "Enter" });
+    expect(await screen.findByTestId("guard-target")).toHaveTextContent("result keyframe");
+    expect(screen.getByTestId("guard-frame-idx")).not.toHaveTextContent("130");
+    await user.click(screen.getByTestId("confirm-submit"));
+
+    await waitFor(() => {
+      const call = vi.mocked(fetch).mock.calls.find(([url]) => String(url).endsWith("/api/submit"));
+      expect(call).toBeDefined();
+      const body = JSON.parse(String(call?.[1]?.body));
+      expect(body.payload.submit_keyframe_id).toBe("K01/K01_V001/001");
+      expect(body.payload.frame_idx).not.toBe(130);
+    });
+  });
+
+  it("Shift+Enter submits the paused raw frame instead of the result keyframe", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByTestId("query-input"), "thời sự");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => screen.getByTestId("detail-panel"));
+
+    (document.activeElement as HTMLElement)?.blur();
+    fireEvent.keyDown(window, { key: "v" });
+    const video = await screen.findByTestId("video-viewer") as HTMLVideoElement;
+    Object.defineProperty(video, "currentTime", { configurable: true, writable: true, value: 5.2 });
+    fireEvent.pause(video);
+    await screen.findByTestId("paused-frame-chip");
+
+    fireEvent.keyDown(window, { key: "Enter", shiftKey: true });
+    expect(await screen.findByTestId("guard-target")).toHaveTextContent("paused raw frame");
+    expect(screen.getByTestId("guard-frame-idx")).toHaveTextContent("130");
+  });
 
   it("TRAKE: a paused raw frame can be assigned to the active event slot", async () => {
     const user = userEvent.setup();
