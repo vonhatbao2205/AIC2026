@@ -10,12 +10,16 @@ import hashlib
 import math
 from typing import Any
 
-import httpx
 
 from ..config import Settings
+from .http_pool import PooledHttpClient
 
 PE_DIM = 1280
 GLAP_DIM = 1024
+
+
+class PeImageEncoderMissing(RuntimeError):
+    """The PE server is up but predates the /encode-image route."""
 
 
 class PeEncoderClient:
@@ -23,6 +27,7 @@ class PeEncoderClient:
         self.s = settings
         self.mock = settings.mock_mode or not settings.has_pe_encoder
         self._base = (settings.pe_encoder_url or "").rstrip("/")
+        self._http = PooledHttpClient()
 
     def _headers(self) -> dict[str, str]:
         h = {"Content-Type": "application/json"}
@@ -34,25 +39,41 @@ class PeEncoderClient:
         if self.mock:
             return {"ok": True, "mode": "mock"}
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(f"{self._base}/health", headers=self._headers())
-                resp.raise_for_status()
-                return {"ok": True, **resp.json()}
+            resp = await self._http.get().get(f"{self._base}/health", headers=self._headers(), timeout=10.0)
+            resp.raise_for_status()
+            return {"ok": True, **resp.json()}
         except Exception as exc:  # noqa: BLE001
             return {"ok": False, "error": str(exc)}
 
     async def encode_text(self, texts: list[str]) -> list[list[float]]:
         if self.mock:
             return [_pseudo_vector(t) for t in texts]
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                f"{self._base}/encode-text",
-                json={"texts": texts},
-                headers=self._headers(),
+        resp = await self._http.get().post(
+            f"{self._base}/encode-text", json={"texts": texts}, headers=self._headers(), timeout=30.0
+        )
+        resp.raise_for_status()
+        return resp.json()["vectors"]
+
+    async def encode_image(self, images: list[str]) -> list[list[float]]:
+        """Encode base64 PNG/JPEG images into the same 1280-d PE space as text.
+
+        Used by the V-KIS canvas raster channel. `/encode-image` is a newer route
+        on the Kaggle PE server (see model-setup-backend.ipynb); a server started
+        from an older copy of the notebook answers 404, which is reported as a
+        clear instruction rather than a bare HTTP error.
+        """
+        if self.mock:
+            return [_pseudo_vector(image[:512]) for image in images]
+        resp = await self._http.get().post(
+            f"{self._base}/encode-image", json={"images": images}, headers=self._headers(), timeout=60.0
+        )
+        if resp.status_code == 404:
+            raise PeImageEncoderMissing(
+                "PE server chưa có /encode-image — chạy lại cell FastAPI trong "
+                "model-setup-backend.ipynb rồi cập nhật PE_ENCODER_URL."
             )
-            resp.raise_for_status()
-            data = resp.json()
-        return data["vectors"]
+        resp.raise_for_status()
+        return resp.json()["vectors"]
 
 
 class GlapEncoderClient:
@@ -66,6 +87,7 @@ class GlapEncoderClient:
         self.s = settings
         self.mock = settings.mock_mode or not settings.has_glap
         self._base = (settings.glap_url or "").rstrip("/")
+        self._http = PooledHttpClient()
 
     def _headers(self) -> dict[str, str]:
         h = {"Content-Type": "application/json"}
@@ -77,25 +99,21 @@ class GlapEncoderClient:
         if self.mock:
             return {"ok": True, "mode": "mock"}
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                # Cheap check: the shared server exposes /health.
-                resp = await client.get(f"{self._base}/health", headers=self._headers())
-                resp.raise_for_status()
-                return {"ok": True}
+            # Cheap check: the shared server exposes /health.
+            resp = await self._http.get().get(f"{self._base}/health", headers=self._headers(), timeout=10.0)
+            resp.raise_for_status()
+            return {"ok": True}
         except Exception as exc:  # noqa: BLE001
             return {"ok": False, "error": str(exc)}
 
     async def encode_text(self, texts: list[str]) -> list[list[float]]:
         if self.mock:
             return [_pseudo_vector(t, GLAP_DIM) for t in texts]
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                f"{self._base}/encode-audio-text",
-                json={"texts": texts},
-                headers=self._headers(),
-            )
-            resp.raise_for_status()
-            return resp.json()["vectors"]
+        resp = await self._http.get().post(
+            f"{self._base}/encode-audio-text", json={"texts": texts}, headers=self._headers(), timeout=30.0
+        )
+        resp.raise_for_status()
+        return resp.json()["vectors"]
 
 
 def _pseudo_vector(text: str, dim: int = PE_DIM) -> list[float]:

@@ -10,8 +10,17 @@ from typing import Any, Literal
 # `similar` is the relevance-feedback channel: image-to-image kNN seeded by the
 # frames the operator marked "more like this". It is fused by RRF like any other
 # channel, which keeps feedback on the same scale instead of a hard-coded boost.
-Channel = Literal["image_pe", "ocr", "speech", "audio", "similar"]
-ALL_CHANNELS: tuple[Channel, ...] = ("image_pe", "ocr", "speech", "audio", "similar")
+# `object_layout` is the V-KIS canvas channel: object/colour/position matched
+# against the OD index, scored by one-to-one assignment (see canvas.py).
+# `canvas_image` is the rendered drawing encoded by PE image — the escape hatch
+# for things the detector has no label for (a rice field, a sky), deliberately
+# fused at a low weight because a sketch is far outside PE's photo distribution.
+Channel = Literal[
+    "image_pe", "ocr", "speech", "audio", "similar", "object_layout", "canvas_image",
+]
+ALL_CHANNELS: tuple[Channel, ...] = (
+    "image_pe", "ocr", "speech", "audio", "similar", "object_layout", "canvas_image",
+)
 
 
 @dataclass

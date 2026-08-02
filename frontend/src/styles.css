@@ -502,3 +502,82 @@ button { font-family: inherit; }
   flex: 0 0 auto; padding: 0 6px; font-size: 10px;
   color: var(--fg-faint); white-space: nowrap;
 }
+
+/* ---- V-KIS canvas ------------------------------------------------------- */
+.badge.object_layout { background: color-mix(in srgb, var(--e2) 18%, transparent); color: var(--e2); }
+.badge.canvas_image { background: color-mix(in srgb, var(--e4) 18%, transparent); color: var(--e4); }
+.canvas-panel { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.canvas-panel h3 { display: flex; align-items: center; gap: 4px; }
+.canvas-collapse {
+  border: 0; background: transparent; color: var(--fg-dim);
+  cursor: pointer; font-size: 11px; padding: 0 2px;
+}
+.canvas-warn {
+  font-size: 11px; color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border-radius: var(--radius-sm); padding: 5px 7px;
+}
+.canvas-toolrow { display: flex; gap: 8px; align-items: flex-start; }
+.canvas-toolrow .input { max-width: 190px; flex: 0 0 auto; }
+.canvas-palette {
+  display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 auto;
+  max-height: 58px; overflow-y: auto;
+}
+.canvas-palette .chip.draggable { cursor: grab; user-select: none; }
+.canvas-palette .chip.draggable:active { cursor: grabbing; }
+/* The drawing surface is the point of the panel, so it takes the width of the
+   centre column and caps by viewport height rather than a fixed pixel size. */
+.canvas-stage { position: relative; width: 100%; }
+.canvas-surface {
+  display: block; width: 100%; height: auto; max-height: 46vh;
+  aspect-ratio: 16 / 9; object-fit: contain;
+  background: #fff; border-radius: var(--radius);
+  box-shadow: var(--shadow-1); touch-action: none;
+}
+.canvas-surface.tool-select { cursor: default; }
+.canvas-surface.tool-brush { cursor: crosshair; }
+.canvas-surface.tool-erase { cursor: cell; }
+.canvas-empty {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: 11.5px; color: #98a2b3; text-align: center; padding: 0 16px;
+  pointer-events: none;
+}
+.canvas-editor {
+  display: flex; flex-direction: column; gap: 6px;
+  background: var(--bg-3); border-radius: var(--radius-sm); padding: 7px;
+}
+.canvas-required { font-size: 11px; color: var(--fg-dim); display: inline-flex; gap: 4px; align-items: center; }
+.canvas-required input[type="range"] { width: 90px; }
+.canvas-colors { display: flex; flex-wrap: wrap; gap: 4px; }
+.swatch {
+  width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--line-2);
+  cursor: pointer; padding: 0;
+}
+.swatch.on { outline: 2px solid var(--accent); outline-offset: 1px; }
+.swatch.none { background: transparent; color: var(--fg-faint); font-size: 11px; line-height: 16px; }
+.canvas-queries { border-top: 1px solid var(--border); padding-top: 6px; }
+.canvas-query { font-size: 10px; color: var(--fg-dim); margin-top: 3px; }
+
+/* Detection overlay on the selected result frame. */
+.detail-preview { position: relative; }
+.overlay-box { position: absolute; border: 2px solid var(--accent); border-radius: 3px; pointer-events: none; }
+.overlay-tag {
+  position: absolute; top: -14px; left: -2px; font-size: 9px; line-height: 13px;
+  padding: 0 4px; border-radius: 3px; color: #08111c; white-space: nowrap;
+}
+/* The panel introduces the first plain text inputs and chips in the console, so
+   they are styled here rather than assuming a shared class exists. */
+.canvas-panel .input {
+  width: 100%; background: var(--bg-3); color: var(--fg);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 6px 8px; font: inherit; font-size: 12px;
+}
+.canvas-panel .input:focus { outline: none; border-color: var(--accent); }
+.canvas-panel .chip {
+  border: 1px solid var(--line-2); background: var(--bg-3); color: var(--fg-dim);
+  border-radius: 999px; padding: 3px 8px; font-size: 11px; cursor: pointer;
+}
+.canvas-panel .chip:hover { color: var(--fg); border-color: var(--accent); }
+.canvas-panel .row.between { justify-content: space-between; width: 100%; }
+.canvas-panel .hint { font-size: 11px; color: var(--fg-faint); }
+.canvas-panel .k { font-size: 10px; color: var(--fg-faint); letter-spacing: 0.03em; }

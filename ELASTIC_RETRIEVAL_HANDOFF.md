@@ -118,6 +118,31 @@ Index prefix: `aic26`
 | `aic26_speech_segments_v1` | `elastic_staging/speech_segments_mapped.jsonl` | `48,819` |
 | `aic26_audio_windows_v1` | `elastic_staging/audio_windows_mapped.jsonl` | `466,996` |
 | `aic26_ocr_keyframes_v1` | `ocr_clean.jsonl` qua transform | `382,299` |
+| `aic26_od_frames_v1` | shard `od-frame-v5` đã commit trên R2 | `382,299` |
+
+### Object detection (OD v5) — upload thẳng từ R2
+
+Không cần staging local: uploader đọc shard `part-XXXXXX.jsonl.gz` đã có completion
+marker, verify SHA-256 + document_count + config/manifest/runtime hash rồi bulk index.
+
+```bash
+python elastic_upload.py \
+  --only od_frames \
+  --od-run-summary OD/od_run_summary.json \
+  --resume-existing \
+  --batch-size 2000
+```
+
+- `--od-prefix` dùng thay `--od-run-summary` nếu chỉ có prefix.
+- R2 credentials: env `R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`/`R2_ACCOUNT_ID`,
+  hoặc `--r2-credentials-file` (mặc định `CloudflareR2/cloudflareR2_api.txt`).
+- `_id = document_id` (`<video_id>:<frame_name>`) nên chạy lại là idempotent;
+  `--resume-existing` bỏ qua **nguyên shard** đã index (đọc marker, không tải file).
+- Uploader thêm `submit_keyframe_id`/`submit_category`/`keyframe_n` vào mỗi document
+  để join được với các index còn lại; mapping `dynamic: strict` nên nếu index đã do
+  notebook tạo, uploader tự PUT thêm 3 field này.
+- Không set `number_of_shards/replicas/refresh_interval`: cluster đang là Elastic
+  **serverless**, các setting đó bị từ chối.
 
 Verification cuối:
 

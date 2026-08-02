@@ -1,0 +1,16 @@
+{
+  "status": "finished",
+  "attempted_shards": 62,
+  "committed_new_shards": 62,
+  "new_frames": 62811,
+  "retry_shards": [],
+  "retry_frame_ids": [],
+  "status_counts": {
+    "ok": 62811
+  },
+  "elapsed_seconds": 2521.89,
+  "config_hash": "7af657b02cb0",
+  "manifest_hash": "6bbfa222abe6",
+  "runtime_hash": "cf50c70a8c3b6e43",
+  "output_prefix": "Derived/ObjectDetection/aic26-od-v5/7af657b02cb0/input-6bbfa222abe6/runtime-cf50c70a8c3b6e43"
+}

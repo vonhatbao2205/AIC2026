@@ -99,6 +99,8 @@ All endpoints are under `/api`. Responses are JSON.
 | POST | `/api/query/parse` | `{query, query_type_hint, previous_hints[], manual_overrides}` → routing JSON |
 | POST | `/api/search` | `{query, query_type_hint, previous_hints[], manual_overrides, parsed?, feedback?, top_k, max_videos}` |
 | POST | `/api/search/trake` | `{query, previous_hints[], manual_overrides}` → ordered sequences |
+| GET | `/api/canvas/palette` | V-KIS canvas vocabulary: 16 OD colours + canonical labels (+ `colorable`) |
+| POST | `/api/search/canvas` | `{canvas{objects[{label,bbox,color,required}], action_text, mode}}` → same group shape, plus `object_layout` evidence |
 | POST | `/api/qa/analyze` | `{question, candidates[{submit_keyframe_id,...}], max_answers}` → grounded answers + hotspots |
 | GET | `/api/keyframes/{submit_keyframe_id:path}` | normalizes shard/padding; returns ids + media URLs + timing |
 | GET | `/api/videos/{video_id}/timeline` | keyframes + speech + ocr + audio + heatmap |
@@ -161,6 +163,36 @@ when the same frame was already submitted for the task (unless `allow_duplicate`
    dispersion`, and an **ambiguous** flag when top frames split into distant
    time clusters.
 
+**V-KIS canvas** (`/api/search/canvas`) is a separate entry point. The operator
+draws on a real `<canvas>`: object silhouettes with a label/colour/bbox, plus
+freehand strokes for what has no label at all (sky, a rice field). Three channels
+come out of that one drawing:
+
+- `object_layout`: OD candidates from Elastic (`aic26_od_frames_v1`, frame-level
+  `canonical_labels` gate with a ratio `minimum_should_match`), then a per-frame
+  **Hungarian one-to-one assignment** between drawn objects and real detections
+  (`backend/app/canvas.py`). Elastic's nested clauses score independently, so two
+  drawn people would otherwise both match one detected person; the assignment is
+  what forbids that. Label mismatch scores 0; colour is scored (only when OD
+  marked it reliable), never filtered; a missing *required* object and a present
+  *excluded* object are penalties, because the detector's vocabulary is finite.
+  `rough` weights label/centre/relative-relation, `precise` weights IoU/size/colour.
+- `image_pe`: 2–3 short English sentences generated from the same JSON by rule
+  (0 ms, no hallucination) through the existing PE → Milvus path.
+- `canvas_image` (optional, weight 0.2): the rendered PNG through
+  `{PE_ENCODER_URL}/encode-image` → the same Milvus keyframe collection. Editor
+  chrome (thirds guide, handles, label chips) is excluded from that render. The
+  weight stays low on purpose — a sketch is far outside PE's photo distribution,
+  so this channel exists to reach objects with no OD label, not to rank.
+  The route is hot-added by §7 of `model-setup-backend.ipynb`; on an older server
+  the backend reports it as a warning and the other two channels still answer.
+  Only inline `data:image/png|jpeg;base64` is accepted — never a URL, which would
+  make the encoder fetch arbitrary hosts.
+
+All three are fused with the same RRF/group-by-video as the main search, and the
+matched detections travel back as `object_layout` evidence so the UI can draw
+each detection over the keyframe in the colour of the box that matched it.
+
 TRAKE runs the pipeline per event (each event's visual query translated VI→EN),
 then assembles the best per-video sequence with an **exact DP** — a maximum-weight
 strictly-increasing chain over (event index, `pts_time`) that picks ≤1 frame per
@@ -209,6 +241,15 @@ fabricates retrieval results.
 
 ---
 
+### HTTP connection pooling
+
+Adapters share one pooled `httpx.AsyncClient` each (`adapters/http_pool.py`).
+Creating a client per request re-ran the TLS handshake every time: measured at
+765 ms vs 249 ms per Elastic call, paid by every channel of every search. After
+pooling, a warm process answers a 2-object canvas search in ~1.7 s (layout 0.94 s,
+PE text 0.73 s, fusion/enrich 0.75 s) and a two-channel T-KIS search in ~0.87 s.
+The first request of a process still pays the handshake once.
+
 ## 7. Current limitations (by design)
 
 - **Audio vector search** uses GLAP (`mispeech/GLAP`, 1024-d) over Milvus
@@ -252,16 +293,19 @@ backend/app/
   scoring.py           speech/audio demotion multipliers
   fusion.py            RRF + group-by-video + ambiguous detection
   trake.py             sequence assembly, order validation, keyframe snapping
+  canvas.py            V-KIS canvas: palette, zones, PE text, Hungarian matching
   query_parser.py      Nemotron + heuristic routing, manual overrides
   types.py / models.py internal dataclasses / pydantic request models
-  adapters/            elastic_client, milvus_client, pe_encoder, nvila_client (+ mock paths)
-  services/            search_service, trake_service, timeline_service, submit_service
+  adapters/            elastic_client, milvus_client, pe_encoder, nvila_client,
+                       object_elastic (OD frames), http_pool (+ mock paths)
+  services/            search_service, trake_service, canvas_service,
+                       timeline_service, submit_service
   main.py              FastAPI routes
 frontend/src/
   api/                 client.ts, types.ts
-  lib/                 media, identity, snap, qa, constants
+  lib/                 media, identity, snap, qa, canvas, constants
   components/          TopBar, QueryPanel, ChannelControls, QueryUnderstanding,
                        Results, DetailPanel, VideoViewer, Timeline, TrakePanel,
-                       SubmitGuard, HistorySidebar, Badges
+                       CanvasPanel, SubmitGuard, HistorySidebar, Badges
   App.tsx              state, keyboard, orchestration
 ```

@@ -196,7 +196,66 @@ const QA_ANALYSIS_RESPONSE = {
   },
 };
 
+const CANVAS_PALETTE = {
+  colors: [
+    { name: "red", hex: "#dc1414" },
+    { name: "blue", hex: "#1e50dc" },
+  ],
+  labels: [
+    { label: "car", label_vi: "ô tô", colorable: true },
+    { label: "person", label_vi: "người", colorable: true },
+    { label: "crowd", label_vi: "đám đông", colorable: false },
+  ],
+  modes: ["rough", "precise"],
+  color_palette_version: "aic16-lab-v1",
+};
+
+const CANVAS_FRAME = {
+  ...FRAME1,
+  channels: ["object_layout", "image_pe"],
+  per_channel_score: { object_layout: 0.82, image_pe: 0.6 },
+  evidence: [
+    {
+      type: "object_layout",
+      score: 0.82,
+      text: "car · red @bottom_left",
+      matches: [
+        {
+          object_id: "q1",
+          label: "car",
+          score: 0.86,
+          detection_label: "car",
+          conf: 0.91,
+          bbox_norm: { x1: 0.05, y1: 0.5, x2: 0.35, y2: 0.86 },
+          position: "bottom_left",
+          dominant_color: "red",
+          color_reliable: true,
+          color_ok: true,
+        },
+      ],
+      missing: ["q2"],
+      coverage: 0.5,
+      excluded_hits: [],
+    },
+  ],
+};
+
+const CANVAS_RESPONSE = {
+  canvas: {
+    mode: "rough",
+    objects: [{ id: "q1", label: "car", bbox: [0.05, 0.52, 0.35, 0.86], color: "red", required: true }],
+    exclude_labels: [],
+    action_text: "",
+    queries_en: ["A video frame showing a red car in the lower left."],
+  },
+  groups: [{ ...SEARCH_RESPONSE.groups[0], channels: ["object_layout"], frames: [CANVAS_FRAME] }],
+  latency_ms: { fusion_ms: 0.3, total_ms: 12 },
+  warnings: [],
+  mode: "mock",
+};
+
 let historyStore: any[] = [];
+let canvasRequests: any[] = [];
 
 function mockFetch(historySeed: any[] = []) {
   historyStore = historySeed;
@@ -206,7 +265,12 @@ function mockFetch(historySeed: any[] = []) {
       ({ ok: status < 400, status, json: async () => body } as Response);
 
     if (path.endsWith("/api/health"))
-      return json({ ok: true, mode: "mock", services: {}, capabilities: { qa_nvila: true, qa_web_grounding: true, qa_visual_verification: true }, warnings: [] });
+      return json({ ok: true, mode: "mock", services: {}, capabilities: { qa_nvila: true, qa_web_grounding: true, qa_visual_verification: true, canvas_object_search: true }, warnings: [] });
+    if (path.endsWith("/api/canvas/palette")) return json(CANVAS_PALETTE);
+    if (path.endsWith("/api/search/canvas")) {
+      canvasRequests.push(JSON.parse((init?.body as string) || "{}"));
+      return json(CANVAS_RESPONSE);
+    }
     if (path.includes("/api/submit/history")) return json({ history: historyStore });
     if (path.endsWith("/api/search/trake")) return json(TRAKE_RESPONSE);
     if (path.endsWith("/api/search")) return json(SEARCH_RESPONSE);
@@ -235,6 +299,90 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   historyStore = [];
+  canvasRequests = [];
+});
+
+describe("V-KIS canvas", () => {
+  async function openCanvas(user: ReturnType<typeof userEvent.setup>) {
+    render(<App />);
+    await user.click(screen.getByRole("tab", { name: "V-KIS" }));
+    return screen.findByTestId("canvas-panel");
+  }
+
+  it("is offered for V-KIS only", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    expect(screen.queryByTestId("canvas-panel")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "V-KIS" }));
+
+    expect(await screen.findByTestId("canvas-panel")).toBeInTheDocument();
+  });
+
+  it("sends the drawn objects as structured JSON, not only a picture", async () => {
+    const user = userEvent.setup();
+    await openCanvas(user);
+
+    await user.click(await screen.findByTestId("canvas-add-car"));
+    await user.click(screen.getByTestId("canvas-search"));
+
+    await waitFor(() => expect(canvasRequests).toHaveLength(1));
+    const [object] = canvasRequests[0].canvas.objects;
+    expect(object.label).toBe("car");
+    expect(object.bbox).toHaveLength(4);
+    expect(object.required).toBe(true);
+    expect(canvasRequests[0].canvas.mode).toBe("rough");
+  });
+
+  it("omits the raster entirely when the PE image channel is switched off", async () => {
+    const user = userEvent.setup();
+    await openCanvas(user);
+
+    await user.click(await screen.findByTestId("canvas-add-car"));
+    await user.click(screen.getByTestId("canvas-use-raster"));
+    await user.click(screen.getByTestId("canvas-search"));
+
+    await waitFor(() => expect(canvasRequests).toHaveLength(1));
+    expect(canvasRequests[0].canvas.image).toBeNull();
+    expect(canvasRequests[0].canvas.objects).toHaveLength(1);
+  });
+
+  it("switches the matching mode sent to the backend", async () => {
+    const user = userEvent.setup();
+    await openCanvas(user);
+
+    await user.click(await screen.findByTestId("canvas-add-person"));
+    await user.click(screen.getByTestId("canvas-mode-precise"));
+    await user.click(screen.getByTestId("canvas-search"));
+
+    await waitFor(() => expect(canvasRequests).toHaveLength(1));
+    expect(canvasRequests[0].canvas.mode).toBe("precise");
+  });
+
+  it("hides the colour picker for a class OD extracts no colour for", async () => {
+    const user = userEvent.setup();
+    await openCanvas(user);
+
+    await user.click(await screen.findByTestId("canvas-add-crowd"));
+    expect(await screen.findByTestId("canvas-editor")).toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-color-red")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("canvas-add-car"));
+    expect(await screen.findByTestId("canvas-color-red")).toBeInTheDocument();
+  });
+
+  it("shows the generated PE text and draws matched detections over the frame", async () => {
+    const user = userEvent.setup();
+    await openCanvas(user);
+
+    await user.click(await screen.findByTestId("canvas-add-car"));
+    await user.click(screen.getByTestId("canvas-search"));
+
+    expect(await screen.findByTestId("canvas-queries")).toHaveTextContent("red car in the lower left");
+    await waitFor(() => expect(screen.getByTestId("detail-panel")).toBeInTheDocument());
+    expect(screen.getByTestId("overlay-q1")).toBeInTheDocument();
+    expect(screen.getByTestId("canvas-match-summary")).toHaveTextContent("q1 · car");
+  });
 });
 
 describe("AIC26 retrieval console (full)", () => {

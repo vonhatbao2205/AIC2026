@@ -159,3 +159,47 @@ def test_submit_and_duplicate_guard(tmp_path, monkeypatch):
     r2 = client.post("/api/submit", json=payload)
     assert r2.status_code == 409
     assert r2.json()["detail"]["error"] == "duplicate_submit"
+
+
+def test_canvas_palette_only_offers_what_od_can_answer():
+    r = client.get("/api/canvas/palette")
+    assert r.status_code == 200
+    palette = r.json()
+
+    assert len(palette["colors"]) == 16  # aic16-lab-v1
+    labels = {item["label"]: item for item in palette["labels"]}
+    assert labels["person"]["colorable"] is True
+    # OD extracts no colour for crowd, so the picker must not offer one.
+    assert labels["crowd"]["colorable"] is False
+
+
+def test_canvas_search_returns_groups_with_layout_evidence():
+    r = client.post(
+        "/api/search/canvas",
+        json={
+            "canvas": {
+                "objects": [
+                    {"id": "q1", "label": "car", "bbox": [0.05, 0.52, 0.35, 0.86], "color": "red"},
+                    {"id": "q2", "label": "person", "bbox": [0.66, 0.35, 0.82, 0.86], "color": "blue"},
+                ],
+                "mode": "rough",
+            }
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+
+    assert body["canvas"]["queries_en"], "canvas must produce PE text"
+    frames = [frame for group in body["groups"] for frame in group["frames"]]
+    target = next(f for f in frames if f["submit_keyframe_id"] == "K01/K01_V001/002")
+    layout = next(e for e in target["evidence"] if e["type"] == "object_layout")
+    assert layout["coverage"] == 1.0
+    assert {m["label"] for m in layout["matches"]} == {"car", "person"}
+
+
+def test_canvas_search_rejects_an_oversized_canvas():
+    r = client.post(
+        "/api/search/canvas",
+        json={"canvas": {"objects": [{"label": "person", "bbox": [0, 0, 0.1, 0.1]}] * 13}},
+    )
+    assert r.status_code == 422

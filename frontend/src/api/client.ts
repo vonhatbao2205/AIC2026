@@ -1,6 +1,9 @@
 // Thin fetch wrapper around the backend. The frontend only ever talks to the
 // backend — it never holds Elastic/Milvus/NVIDIA credentials.
 import type {
+  CanvasPalette,
+  CanvasSearchResponse,
+  CanvasSpec,
   FeedbackState,
   HealthResponse,
   ParsedQuery,
@@ -81,6 +84,14 @@ export const api = {
 
   searchTrake: (body: { query: string; previous_hints: string[]; manual_overrides: ManualOverrides; use_llm?: boolean; expand?: boolean }) =>
     request<TrakeSearchResponse>("/api/search/trake", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  canvasPalette: () => request<CanvasPalette>("/api/canvas/palette"),
+
+  searchCanvas: (body: { canvas: CanvasSpec; top_k?: number; candidate_pool?: number }) =>
+    request<CanvasSearchResponse>("/api/search/canvas", {
       method: "POST",
       body: JSON.stringify(body),
     }),

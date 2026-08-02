@@ -36,6 +36,9 @@ với nested mapping. Thiết kế ưu tiên bốn thuộc tính:
 YOLOE là detector bắt buộc. Grounding DINO được thiết kế như fallback/audit theo policy, nhưng run
 A100 được ghi nhận hiện tại đã chấp nhận chế độ suy giảm YOLOE-only vì Grounding DINO FP16 lỗi dtype.
 Metadata vẫn ghi `fallback_status=error/disabled_after_errors`, nên trạng thái này có thể audit được.
+Notebook hiện có thêm posthoc cell v5.1: sau khi YOLOE đủ toàn bộ completion marker, cell chạy
+Grounding DINO FP32 chỉ trên frame thỏa fallback policy và ghi một namespace hoàn chỉnh mới, không
+chạy lại YOLOE hoặc sửa namespace nguồn.
 
 ## 3. Phạm vi và yêu cầu hệ thống
 
@@ -237,6 +240,26 @@ breaker mở sau chuỗi lỗi và giữ kết quả YOLOE.
 Quan trọng: fallback failure hiện không làm `status` của frame thành error. Document vẫn `ok` nếu
 YOLOE/metadata thành công, nhưng ghi `fallback_status`, `fallback_reasons` và `fallback_error`.
 
+### 7.5. Grounding DINO posthoc v5.1
+
+Cell 9 là augmentation pass độc lập dành cho run YOLOE-only đã hoàn tất:
+
+1. xác minh tất cả shard nguồn có completion marker hợp lệ;
+2. scan document YOLOE và tính lại policy từ detection đã lưu, không chọn mù theo
+   `fallback_status=disabled_after_errors` vì circuit breaker có thể gắn trạng thái này cho gần như
+   toàn bộ frame;
+3. load/checksum Grounding DINO pinned revision hoàn toàn ở FP32 và chạy warm-up thật;
+4. chỉ tải keyframe của target frame, infer theo genre và prompt chunk;
+5. canonical-dedup với detection YOLOE, giữ metadata màu mask YOLOE khi hai nguồn match;
+6. ghi lại đầy đủ mọi document sang namespace `aic26-od-v5.1-gdino-augment`, rồi commit marker cuối;
+7. resume theo marker v5.1 nếu Colab hoặc R2 bị ngắt.
+
+Frame không cần fallback được copy sang namespace mới với runtime/config provenance mới. Detection
+GDINO-only không có segmentation mask nên màu chỉ dùng inner-box Lab và luôn
+`color_reliable=false`. Policy posthoc dựa trên detection đã dedup/lọc được lưu; raw YOLO candidate
+không được lưu nên đây là phép tái dựng bảo thủ, không thể giống tuyệt đối quyết định online trước
+dedup.
+
 ## 8. Cấu hình A100 và throughput
 
 Notebook source hiện mặc định:
@@ -390,6 +413,12 @@ vận hành quyết định cho active run tiếp tục thay vì tạo namespace
 Nếu yêu cầu một run YOLOE-only sạch về semantic config, đặt `GDINO_MODE="off"` **trước** khi tạo config;
 việc này tạo namespace mới và chạy lại từ shard 0. Nếu muốn giữ fallback, cần sửa Grounding DINO
 precision/input dtype và thêm warm-up thật trước runtime binding.
+
+Cell posthoc giữ nguyên source YOLOE v5, chạy Grounding DINO hoàn toàn FP32 trên target subset, rồi
+tạo dataset v5.1 self-contained. Runtime v5.1 khóa source config/runtime hash, GDINO
+revision/weight checksum, precision, policy và augmentation code version. Cách này vẫn phải scan
+toàn bộ shard nguồn và ghi đủ shard đích, nhưng GPU không chạy lại YOLOE và GDINO chỉ xử lý target
+frame.
 
 ## 11. Frame document và detection schema
 
@@ -610,9 +639,16 @@ git history. Notebook không được đọc file này.
 Khi Colab ngắt, chạy lại đúng notebook/config sẽ load cùng namespace và resume completion marker.
 Không sửa `cfg` thủ công sau khi hash đã được tạo. Không đổi batch/shard size giữa một run đang chạy.
 
+Với posthoc, chỉ chạy cell 9 sau khi cell 8 đã báo đủ toàn bộ shard. Kết quả trả về trong
+`gdino_aug_cfg` và `gdino_aug_summary`; cell validation kế tiếp tự chọn `gdino_aug_cfg`. Nếu posthoc
+bị ngắt, chạy lại chính cell 9: target plan và runtime identity deterministic nên marker v5.1 đã
+commit được bỏ qua. Nếu Colab đã restart, chạy lại các cell setup/module/manifest nhưng không cần
+load YOLOE; gán exact `Final R2 output` cũ vào `GDINO_SOURCE_PREFIX` để cell restore source
+`config.json` từ R2.
+
 ## 19. Kiểm thử và bằng chứng còn thiếu
 
-Regression/static suite hiện có 9 test cho:
+Regression/static suite hiện có 10 test cho:
 
 - canonical dedup và source/class-specific count threshold;
 - GDINO policy trigger;
@@ -621,6 +657,7 @@ Regression/static suite hiện có 9 test cho:
 - ranked spatial/count queries;
 - item-level bulk retry;
 - completion-marker resume và runtime mismatch rejection.
+- posthoc cell FP32, source-completion gate, v5.1 resume và không gọi lại YOLOE.
 
 Test tĩnh không thay thế các bước cần chạy thật:
 
@@ -655,8 +692,8 @@ count MAE, spatial Recall@K và latency chỉ được báo như kết quả sau
 ## 21. Hướng cải tiến ưu tiên
 
 1. Đặt `SHARD_SIZE` vào namespace/config hash hoặc tạo explicit storage-layout hash.
-2. Nếu giữ Grounding DINO, sửa precision path và warm-up inference trước runtime binding; nếu không,
-   đặt hẳn `GDINO_MODE="off"` cho run YOLOE-only có semantic config sạch.
+2. Đánh giá chất lượng/chi phí của Grounding DINO FP32 posthoc v5.1 trên target subset; nếu không có
+   cải thiện recall đáng kể, đặt hẳn `GDINO_MODE="off"` cho run YOLOE-only có semantic config sạch.
 3. Thu thập GT stratified theo genre, class, size, occlusion và color.
 4. Calibrate confidence/count/color thresholds theo dữ liệu thật.
 5. Benchmark batch 32/64/128/256 có kiểm soát trên cùng shard và tách GPU/I/O/postprocess time.

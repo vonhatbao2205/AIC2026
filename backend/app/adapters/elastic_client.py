@@ -10,11 +10,11 @@ from __future__ import annotations
 
 from typing import Any
 
-import httpx
 
 from .. import mock_data
 from ..config import Settings
 from ..scoring import audio_score_multiplier, speech_score_multiplier
+from .http_pool import PooledHttpClient
 
 
 class ElasticClient:
@@ -22,6 +22,7 @@ class ElasticClient:
         self.s = settings
         self.mock = settings.mock_mode or not settings.has_elastic
         self._base = (settings.elastic_endpoint or "").rstrip("/")
+        self._http = PooledHttpClient()
 
     # ---- HTTP plumbing -------------------------------------------------
     def _headers(self) -> dict[str, str]:
@@ -32,19 +33,17 @@ class ElasticClient:
 
     async def _search(self, index: str, body: dict[str, Any]) -> dict[str, Any]:
         url = f"{self._base}/{index}/_search"
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.post(url, json=body, headers=self._headers())
-            resp.raise_for_status()
-            return resp.json()
+        resp = await self._http.get().post(url, json=body, headers=self._headers(), timeout=20.0)
+        resp.raise_for_status()
+        return resp.json()
 
     async def health(self) -> dict[str, Any]:
         if self.mock:
             return {"ok": True, "mode": "mock"}
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(f"{self._base}/", headers=self._headers())
-                resp.raise_for_status()
-                info = resp.json()
+            resp = await self._http.get().get(f"{self._base}/", headers=self._headers(), timeout=10.0)
+            resp.raise_for_status()
+            info = resp.json()
             return {"ok": True, "cluster": info.get("cluster_name")}
         except Exception as exc:  # noqa: BLE001 - surfaced as health warning
             return {"ok": False, "error": str(exc)}
@@ -232,10 +231,9 @@ class ElasticClient:
                     out[i] = rec
             return out
         url = f"{self._base}/{self.s.idx_keyframe_map}/_mget"
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.post(url, json={"ids": ids}, headers=self._headers())
-            resp.raise_for_status()
-            data = resp.json()
+        resp = await self._http.get().post(url, json={"ids": ids}, headers=self._headers(), timeout=20.0)
+        resp.raise_for_status()
+        data = resp.json()
         out2: dict[str, dict[str, Any]] = {}
         for doc in data.get("docs", []):
             if doc.get("found"):

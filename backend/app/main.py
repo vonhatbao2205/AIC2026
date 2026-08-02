@@ -24,10 +24,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .adapters.deepseek_grounding import DeepSeekGroundingClient, WebGroundingUnavailable
 from .adapters.nvila_client import NvilaQaClient, NvilaUnavailable
+from .canvas import palette_manifest
 from .config import get_settings
 from .identity import canonical_submit_keyframe_id, parse_submit_keyframe_id
 from .media import MediaUrlBuilder
 from .models import (
+    CanvasSearchRequest,
     ParseRequest,
     QaAnalyzeRequest,
     SearchRequest,
@@ -38,6 +40,7 @@ from .models import (
     TrakeSearchRequest,
 )
 from .translate import translate_vi_to_en
+from .services.canvas_service import CanvasService
 from .services.search_service import SearchService, ServiceUnavailable
 from .services.submit_service import DuplicateSubmitError, SubmitService
 from .services.timeline_service import TimelineService
@@ -55,6 +58,7 @@ app.add_middleware(
 
 search_service = SearchService(settings)
 trake_service = TrakeService(settings, search_service)
+canvas_service = CanvasService(settings, search_service)
 timeline_service = TimelineService(settings)
 submit_service = SubmitService(settings)
 media = MediaUrlBuilder(settings.media_base_url)
@@ -64,12 +68,13 @@ web_grounding_client = DeepSeekGroundingClient(settings)
 
 @app.get("/api/health")
 async def health():
-    elastic, milvus, pe, nvila, grounding = await asyncio.gather(
+    elastic, milvus, pe, nvila, grounding, objects = await asyncio.gather(
         search_service.elastic.health(),
         search_service.milvus.health(),
         search_service.pe.health(),
         nvila_qa.health(),
         web_grounding_client.health(),
+        canvas_service.objects.health(),
     )
     services = {
         "elastic": elastic,
@@ -77,6 +82,7 @@ async def health():
         "pe_encoder": pe,
         "nvila_qa": nvila,
         "web_grounding": grounding,
+        "object_index": objects,
     }
     # NVILA is an optional QA accelerator: a stopped Colab session must not mark
     # the core retrieval stack unhealthy.
@@ -105,6 +111,8 @@ async def health():
             "qa_candidate_answers": has_qa_nvila,
             "qa_visual_verification": has_qa_visual_verification,
             "qa_web_grounding": settings.mock_mode or settings.has_web_grounding,
+            # V-KIS canvas: OD spatial match needs the object index to answer.
+            "canvas_object_search": settings.mock_mode or bool(objects.get("ok")),
         },
         "warnings": [
             f"{name} unreachable: {s.get('error')}"
@@ -149,6 +157,23 @@ async def search_trake(req: TrakeSearchRequest):
     payload = req.model_dump()
     payload["manual_overrides"] = req.manual_overrides.model_dump()
     return await trake_service.search_trake(payload)
+
+
+@app.get("/api/canvas/palette")
+async def canvas_palette():
+    """Labels and colours the V-KIS canvas may use.
+
+    Served from the backend so the picker can only offer what the OD run was
+    actually prompted with — an icon for a class outside that vocabulary would
+    always return zero frames.
+    """
+    return palette_manifest()
+
+
+@app.post("/api/search/canvas")
+async def search_canvas(req: CanvasSearchRequest):
+    """V-KIS canvas search: canvas JSON → OD spatial match + PE text, RRF-fused."""
+    return await canvas_service.search(req.model_dump())
 
 
 @app.post("/api/qa/analyze")

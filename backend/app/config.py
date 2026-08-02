@@ -97,6 +97,8 @@ class Settings:
     idx_ocr: str = "aic26_ocr_keyframes_v1"
     idx_speech: str = "aic26_speech_segments_v1"
     idx_audio: str = "aic26_audio_windows_v1"
+    # OD frame documents (`od-frame-v5`) behind the V-KIS canvas channel.
+    idx_objects: str = "aic26_od_frames_v1"
     milvus_image_collection: str = "aic26_image_peg14_v1"
     milvus_audio_collection: str = "aic26_audio_glap_v1"
 
@@ -154,8 +156,17 @@ def get_settings() -> Settings:
     repo_root = Path(__file__).resolve().parents[2]
     _load_dotenv(backend_root / ".env")
 
+    # Dev-convenience secret files. They were moved into API_KEY/ when the repo
+    # layout was flattened; the repo root stays as a fallback for older checkouts
+    # and for anyone who still keeps the loose files there.
+    secret_dirs = (repo_root / "API_KEY", repo_root)
+
     def file_default(name: str) -> str | None:
-        return _read_file_secret(str(repo_root / name))
+        for directory in secret_dirs:
+            value = _read_file_secret(str(directory / name))
+            if value:
+                return value
+        return None
 
     mock_env = (_env("AIC26_MOCK_MODE", "false") or "false").lower()
     mock_mode = mock_env in {"1", "true", "yes", "on"}
@@ -228,6 +239,7 @@ def get_settings() -> Settings:
         idx_ocr=_env("IDX_OCR") or "aic26_ocr_keyframes_v1",
         idx_speech=_env("IDX_SPEECH") or "aic26_speech_segments_v1",
         idx_audio=_env("IDX_AUDIO") or "aic26_audio_windows_v1",
+        idx_objects=_env("IDX_OBJECTS") or "aic26_od_frames_v1",
         milvus_image_collection=_env("MILVUS_IMAGE_COLLECTION") or "aic26_image_peg14_v1",
         milvus_audio_collection=_env("MILVUS_AUDIO_COLLECTION") or "aic26_audio_glap_v1",
         mock_mode=mock_mode,

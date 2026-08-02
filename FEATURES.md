@@ -51,8 +51,23 @@ Toàn bộ tính năng hiện có của hệ thống truy hồi video AIC26 (bac
 ## 8. 4 dạng tác vụ
 - **T-KIS**: hỗ trợ **Append hint** (gộp hint tích lũy).
 - **QA**: retrieval lấy tối đa 12 frame; frame user đang xem luôn là **C01** và được tính vào quota của video đó. Từ C02, candidate được xếp theo block ưu tiên `video_score`: lấy đủ tối đa 3 frame đa dạng của video đứng đầu trước rồi mới sang video hạng tiếp theo. Sau đó NVILA-8B chạy **3–5 hotspot hypotheses → 3–5 visual answer options** → DeepSeek web search → **NVILA pass 3**. `contradicted` bị loại; `insufficient/unverified` bị hạ confidence.
-- **V-KIS**: như KIS hình ảnh.
+- **V-KIS**: như KIS hình ảnh, **cộng canvas vẽ bố cục** (chi tiết §8b).
 - **TRAKE** (chi tiết §9).
+
+## 8b. Canvas V-KIS (vẽ bố cục → tìm frame)
+- **Bảng vẽ 16:9 nằm ở cột giữa** (cột rộng nhất) khi chọn task V-KIS, cao tối đa 46vh, thu gọn được bằng nút ▾. Toàn bộ mặt vẽ là một `<canvas>` thật.
+- **3 công cụ**: `✥` chọn/kéo/resize object · `✎` **vẽ tự do** (bầu trời, cánh đồng, mặt nước…) với 16 màu + độ dày nét + hoàn tác từng nét · `⌫` tẩy nét.
+- **Object vẽ bằng hình cụ thể**, không phải ô chữ: người/đám đông/xe/xe hai bánh/thuyền/máy bay/tòa nhà/màn hình/micro/cờ/biển-giấy tờ/cây/phong cảnh/lửa/bàn ghế/bát đĩa + fallback. Silhouette là thứ làm ảnh render có nghĩa với PE image encoder.
+- Palette object lấy từ `GET /api/canvas/palette` = **đúng vocabulary OD đã prompt**; màu đúng 16 màu `aic16-lab-v1`; class OD không trích màu (vd `crowd`) thì picker tự ẩn.
+- **required/optional** mỗi object; `Rough` (mặc định, ưu tiên nhãn + vị trí tương đối) ⇄ `Precise` (tăng IoU/size/màu).
+- **3 kênh, cùng một canvas**:
+  1. **OD spatial** trên `aic26_od_frames_v1` + **Hungarian one-to-one** giữa object vẽ và detection thật (2 người vẽ không thể cùng khớp 1 detection);
+  2. **PE text** sinh bằng rule từ canvas JSON (0 ms, không hallucinate) → Milvus;
+  3. **PE image** (bật/tắt bằng ô `PE image`): render canvas thành PNG **không có lưới/handle/nhãn**, gửi `{PE_ENCODER_URL}/encode-image` → Milvus cùng collection keyframe. Weight thấp (0.2) — cứu những thứ OD không có nhãn (cánh đồng, bầu trời) chứ không dẫn dắt xếp hạng.
+  Ba kênh fuse RRF như search thường. Không gọi VLM.
+- **Overlay giải thích**: detection khớp được vẽ đè lên keyframe trong Detail đúng màu với box đã vẽ, kèm coverage %, conf, vị trí, cờ lệch màu và danh sách object không tìm thấy.
+- **PE text hiển thị lại** cho operator kiểm chứng câu truy vấn được sinh.
+- PE server cần route `/encode-image` (cell mục 7 trong `model-setup-backend.ipynb`, hot-add không phải restart). Thiếu route → backend chỉ cảnh báo, 2 kênh kia vẫn chạy.
 
 ## 9. TRAKE (chuỗi sự kiện)
 - **Tách event**: nhận `E1:/E2:`, `sự kiện 1:`, đánh số, từ nối ("sau đó/rồi/…").
@@ -103,6 +118,8 @@ Toàn bộ tính năng hiện có của hệ thống truy hồi video AIC26 (bac
 | POST | `/api/search` | search đầy đủ (group-by-video) |
 | POST | `/api/search/simple` | vector-only flat top-K |
 | POST | `/api/search/trake` | chuỗi event (two-pass + DP) |
+| GET | `/api/canvas/palette` | vocabulary + 16 màu cho canvas V-KIS |
+| POST | `/api/search/canvas` | canvas JSON → OD spatial + PE text (RRF) |
 | POST | `/api/qa/analyze` | NVILA visual QA + optional DeepSeek web-search grounding/citations |
 | GET | `/api/keyframes/{submit_keyframe_id:path}` | chuẩn hoá id + URL + timing |
 | GET | `/api/videos/{video_id}/timeline` | keyframes timeline |

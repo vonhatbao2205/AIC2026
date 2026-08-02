@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, type ManualOverrides } from "./api/client";
 import type {
+  CanvasSpec,
   Channel,
   FeedbackState,
   FrameResult,
@@ -13,6 +14,7 @@ import type {
   Timeline as TimelineData,
   VideoGroup,
 } from "./api/types";
+import { CanvasPanel } from "./components/CanvasPanel";
 import { ChannelControls } from "./components/ChannelControls";
 import { DetailPanel } from "./components/DetailPanel";
 import { FeedbackBar } from "./components/FeedbackBar";
@@ -92,6 +94,10 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
   const [qaWebGrounding, setQaWebGrounding] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [duplicateId, setDuplicateId] = useState<string | null>(null);
+
+  // V-KIS canvas: the English sentences the backend generated from the drawing,
+  // shown back to the operator so the PE side of the search is not a black box.
+  const [canvasQueries, setCanvasQueries] = useState<string[]>([]);
 
   const [history, setHistory] = useState<SubmitEntry[]>([]);
   const [penalties, setPenalties] = useState(0);
@@ -233,6 +239,8 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     setQaAnalysis(null);
     setQaAnalysisError(null);
     setAnswer("");
+    // The canvas explanation belongs to the canvas query that produced it.
+    setCanvasQueries([]);
     try {
       if (queryType === "TRAKE") {
         const res = await api.searchTrake({ query, previous_hints: hints, manual_overrides: overrides, use_llm: useLLM, expand });
@@ -299,6 +307,35 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
       setLoading(false);
     }
   }, [query, hints, overrides, queryType, feedback, useLLM, expand]);
+
+  // ---- V-KIS canvas search ----
+  // A separate entry point from the text query: the canvas is its own query, so
+  // it never silently re-runs when the operator edits the text box (and vice
+  // versa). Results land in the same `groups` state, so timeline, detail panel
+  // and submit guard behave exactly as they do for any other search.
+  const runCanvasSearch = useCallback(async (canvas: CanvasSpec) => {
+    setLoading(true);
+    setDuplicateId(null);
+    setPausedFrame(null);
+    try {
+      const res = await api.searchCanvas({ canvas });
+      setParsed(null);
+      setGroups(res.groups);
+      setLatency(res.latency_ms);
+      setCanvasQueries(res.canvas.queries_en ?? []);
+      setSelectedVideo(0);
+      setSelectedFrame(0);
+      if (res.warnings?.length) setToast({ msg: res.warnings.join(" · "), kind: "bad" });
+      else if (!res.groups.length) setToast({ msg: "Không có frame nào khớp bố cục này", kind: "bad" });
+    } catch (e) {
+      const msg = e instanceof ApiError
+        ? (typeof e.detail === "string" ? e.detail : `Canvas search failed (${e.status})`)
+        : "Canvas search failed — check backend / /api/health";
+      setToast({ msg, kind: "bad" });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Moving the selection to a different video auto-hides the old inline video
   // (it will reload only when the operator presses 'v' on the new video).
@@ -789,6 +826,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
           setQaAnalysis(null);
           setQaAnalysisError(null);
           setAnswer("");
+          setCanvasQueries([]);
         }}
         elapsed={elapsed}
         penalties={penalties}
@@ -826,6 +864,16 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
 
         {/* CENTER */}
         <div className="col col-center" style={focusZone === "results" ? { boxShadow: "inset 0 2px 0 var(--accent)" } : undefined}>
+          {/* The canvas lives in the widest column: V-KIS drawing accuracy is
+              limited by how much room the operator has to draw. */}
+          {queryType === "V-KIS" && (
+            <CanvasPanel
+              onSearch={runCanvasSearch}
+              loading={loading}
+              generatedQueries={canvasQueries}
+              objectSearchAvailable={health ? Boolean(health.capabilities.canvas_object_search) : null}
+            />
+          )}
           <div className="results-toolbar">
             <span className="results-count">
               {groups.length} video{groups.length === 1 ? "" : "s"} ·{" "}
