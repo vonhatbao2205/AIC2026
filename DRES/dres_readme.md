@@ -21,11 +21,11 @@ gradient — so the simulator faithfully rewards **minimizing wrong submits**.
 
 ## 1. Overview
 
-| Piece | Stack | Deploy target |
-|------|-------|---------------|
-| **backend/** | Python 3.11 · FastAPI · SQLAlchemy 2.0 · Alembic · JWT · pytest | Long‑running container (Docker on VPS / Render / Railway / Fly) |
-| **frontend/** | React · Vite · TypeScript · Tailwind · Zustand · TanStack Query · React Hook Form + Zod · dnd‑kit | **Static SPA on Vercel** |
-| **db** | PostgreSQL (prod) · SQLite (quick local/dev/tests) | docker‑compose / managed Postgres |
+| Piece               | Stack                                                                                                     | Deploy target                                                    |
+| ------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| **backend/**  | Python 3.11 · FastAPI · SQLAlchemy 2.0 · Alembic · JWT · pytest                                      | Long‑running container (Docker on VPS / Render / Railway / Fly) |
+| **frontend/** | React · Vite · TypeScript · Tailwind · Zustand · TanStack Query · React Hook Form + Zod · dnd‑kit | **Static SPA on Vercel**                                   |
+| **db**        | PostgreSQL (prod) · SQLite (quick local/dev/tests)                                                       | docker‑compose / managed Postgres                               |
 
 **Task types:** `TKIS` (textual KIS), `VKIS` (visual KIS), `QA` (KIS + answer), `TRAKE`
 (ordered multi‑event). **Submission adapter** is pluggable: `local` (this simulator) or
@@ -67,6 +67,7 @@ require running session + active task, dedup, get/create per‑team state) → `
 → structured `SubmissionResult`.
 
 ### Repo layout
+
 ```
 DRES/
   backend/   app/{models,schemas,judging,scoring,adapters,services,routers,scripts}, alembic/, tests/
@@ -80,9 +81,11 @@ DRES/
 ## 3. Local development
 
 ### Prerequisites
+
 Python 3.11+ (works on 3.14), Node 18+, and optionally Docker + Postgres.
 
 ### Backend (SQLite — zero config)
+
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
@@ -96,6 +99,7 @@ uvicorn app.main:app --reload
 ```
 
 ### Backend (Postgres)
+
 ```bash
 export DATABASE_URL=postgresql://dres:dres@localhost:5432/dres
 alembic upgrade head          # create schema
@@ -104,6 +108,7 @@ uvicorn app.main:app --reload
 ```
 
 ### Frontend
+
 ```bash
 cd frontend
 npm install
@@ -112,6 +117,7 @@ npm run dev                   # http://localhost:5173
 ```
 
 ### Tests
+
 ```bash
 cd backend && pytest          # 53 tests: judging, scoring, dedup, penalties, full API flow
 ```
@@ -188,14 +194,14 @@ docker run -p 8000:8000 \
 
 Key environment variables:
 
-| Var | Purpose |
-|-----|---------|
-| `DATABASE_URL` | Postgres connection string, e.g. `postgresql://user:pass@host:5432/dres` |
-| `JWT_SECRET` | HMAC secret for JWTs (use 32+ bytes) |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Token lifetime (default 720) |
-| `CORS_ORIGINS` | Comma‑separated allowed origins; include your Vercel URL (`*` for dev only) |
-| `SUBMISSION_MODE` | `local` (default) or `official` |
-| `RUN_SEED_ON_START` | `1` to seed on container start |
+| Var                             | Purpose                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------ |
+| `DATABASE_URL`                | Postgres connection string, e.g.`postgresql://user:pass@host:5432/dres`      |
+| `JWT_SECRET`                  | HMAC secret for JWTs (use 32+ bytes)                                           |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Token lifetime (default 720)                                                   |
+| `CORS_ORIGINS`                | Comma‑separated allowed origins; include your Vercel URL (`*` for dev only) |
+| `SUBMISSION_MODE`             | `local` (default) or `official`                                            |
+| `RUN_SEED_ON_START`           | `1` to seed on container start                                               |
 
 The backend is a normal ASGI service — **not** serverless — so run it on a host that keeps it
 alive (VPS / Render / Railway / Fly.io). On Render/Railway, point the start command at the image
@@ -241,6 +247,7 @@ curl -s "$BASE/api/submissions/history?task_id=q001" -H "Authorization: Bearer $
 ```
 
 A submission responds with:
+
 ```json
 {"submission_id":"…","status":"correct","accuracy":1.0,"score_delta":832.5,
  "penalty_count_after":0,"time_bonus":332.5,"message":"Correct within epsilon.","detail":{…}}
@@ -274,6 +281,7 @@ console.log(res.status, res.score_delta);   // "correct", 832.5
 ```
 
 Or call the endpoint directly:
+
 ```ts
 await fetch(`${BASE}/api/submissions`, {
   method: "POST",
@@ -316,6 +324,7 @@ to judge.
   and TRAKE keeps the best partial score.
 
 Session config defaults (editable per session):
+
 ```json
 {"default_task_duration_seconds":180,"score_max_base":500,"score_time_bonus":500,
  "penalty_per_wrong":100,"invalid_counts_as_wrong":true,"partial_counts_as_finished":false,
