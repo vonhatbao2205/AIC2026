@@ -15,11 +15,12 @@ tài liệu vận hành hiện tại. Tài liệu phục vụ:
 Source of truth thực thi là `build_nb.py`; file này sinh `OD_Kaggle_Notebook.ipynb`. Khi tài liệu và
 notebook khác nhau, phải ưu tiên code rồi cập nhật lại tài liệu này.
 
-Pipeline hiện mang version/schema:
+Dataset production cuối cùng mang version/schema:
 
 ```text
-pipeline_version = aic26-od-v5
+pipeline_version = aic26-od-v5.1-gdino-augment
 schema_version   = od-frame-v5
+source_pipeline  = aic26-od-v5
 ```
 
 ## 2. Tóm tắt điều hành
@@ -33,12 +34,10 @@ với nested mapping. Thiết kế ưu tiên bốn thuộc tính:
 3. **Khả năng phục hồi:** manifest, namespace hash, shard checksum và completion marker.
 4. **Khả năng phát hành:** validation artifact, exact document-ID comparison và atomic alias switch.
 
-YOLOE là detector bắt buộc. Grounding DINO được thiết kế như fallback/audit theo policy, nhưng run
-A100 được ghi nhận hiện tại đã chấp nhận chế độ suy giảm YOLOE-only vì Grounding DINO FP16 lỗi dtype.
-Metadata vẫn ghi `fallback_status=error/disabled_after_errors`, nên trạng thái này có thể audit được.
-Notebook hiện có thêm posthoc cell v5.1: sau khi YOLOE đủ toàn bộ completion marker, cell chạy
-Grounding DINO FP32 chỉ trên frame thỏa fallback policy và ghi một namespace hoàn chỉnh mới, không
-chạy lại YOLOE hoặc sửa namespace nguồn.
+Pipeline production đã chạy thành công theo hai tầng. YOLOE-26L segmentation xử lý toàn bộ keyframe;
+sau đó Grounding DINO posthoc chạy trên các frame thỏa fallback/audit policy. Kết quả hai nguồn được
+canonical-dedup, làm giàu lại metadata và ghi thành dataset v5.1 self-contained. Namespace YOLOE v5
+được giữ bất biến làm nguồn, còn Elasticsearch sử dụng namespace v5.1 sau validation.
 
 ## 3. Phạm vi và yêu cầu hệ thống
 
@@ -156,7 +155,7 @@ Cloudflare R2 / Keyframes/
   │       ├─ bbox + score + class
   │       └─ instance mask
   │
-  ├─ optional Grounding DINO policy fallback/audit
+  ├─ Grounding DINO posthoc theo fallback/audit policy
   │
   ├─ canonicalize → cross-label/source dedup
   │
@@ -234,20 +233,16 @@ Thiết kế mặc định `GDINO_MODE="policy"` gọi fallback khi:
 - thiếu anchor class của genre chuyên biệt;
 - frame thuộc deterministic audit sample (news 2%, genre khác 1%).
 
-Prompt được chunk 20 label, inference batch mặc định 4. Batch lỗi được retry theo từng frame; circuit
-breaker mở sau chuỗi lỗi và giữ kết quả YOLOE.
-
-Quan trọng: fallback failure hiện không làm `status` của frame thành error. Document vẫn `ok` nếu
-YOLOE/metadata thành công, nhưng ghi `fallback_status`, `fallback_reasons` và `fallback_error`.
+Prompt được chunk 20 label và inference batch mặc định 4. Production sử dụng policy này trong pass
+posthoc: toàn bộ source shard được scan để lập target plan, nhưng chỉ target keyframe mới được tải và
+đưa qua Grounding DINO.
 
 ### 7.5. Grounding DINO posthoc v5.1
 
-Cell 9 là augmentation pass độc lập dành cho run YOLOE-only đã hoàn tất:
+Cell 9 là augmentation pass độc lập chạy sau khi tầng YOLOE đã hoàn tất:
 
 1. xác minh tất cả shard nguồn có completion marker hợp lệ;
-2. scan document YOLOE và tính lại policy từ detection đã lưu, không chọn mù theo
-   `fallback_status=disabled_after_errors` vì circuit breaker có thể gắn trạng thái này cho gần như
-   toàn bộ frame;
+2. scan document YOLOE và tính lại policy từ detection đã lưu;
 3. load/checksum Grounding DINO pinned revision hoàn toàn ở FP32 và chạy warm-up thật;
 4. chỉ tải keyframe của target frame, infer theo genre và prompt chunk;
 5. canonical-dedup với detection YOLOE, giữ metadata màu mask YOLOE khi hai nguồn match;
@@ -259,6 +254,16 @@ GDINO-only không có segmentation mask nên màu chỉ dùng inner-box Lab và 
 `color_reliable=false`. Policy posthoc dựa trên detection đã dedup/lọc được lưu; raw YOLO candidate
 không được lưu nên đây là phép tái dựng bảo thủ, không thể giống tuyệt đối quyết định online trước
 dedup.
+
+Anchor check phải đọc `label`, `canonical_label` **và `aliases`**. Policy online chạy trên raw
+detection trước dedup nên thấy đủ mọi label YOLOE phát ra; posthoc đọc detection đã dedup, nơi
+`canonical_dedup` ghi đè `label` bằng raw label có confidence cao nhất và đẩy label còn lại xuống
+`aliases`. Vì `chef`, `student`, `teacher`, `performer`, `farmer` đều canonical hóa về `person`,
+bản `-v1` chỉ đọc `label`/`canonical_label` đã sinh `missing_genre_anchor_class` giả cho 49.580
+frame — tập trung ở L26 cooking (79.590 frame) và L25 exam (37.445 frame), hai batch lớn nhất và
+đúng là hai genre có anchor bị canonical hóa. `aliases` chỉ chứa label thật đã merge cộng VI alias
+(không trùng tên anchor tiếng Anh) nên không tạo match giả. Đã sửa ở
+`GDINO_POSTHOC_CODE_VERSION = aic26-gdino-posthoc-fp32-v2`.
 
 ## 8. Cấu hình A100 và throughput
 
@@ -291,13 +296,17 @@ throughput nếu GPU đã bão hòa hoặc postprocess/color/R2 trở thành bot
 Các log thực tế được ghi nhận trong quá trình vận hành:
 
 - GPU: NVIDIA A100-SXM4 40 GB; YOLOE FP16;
-- active run prefix:
+- YOLOE source prefix:
   `Derived/ObjectDetection/aic26-od-v5/7af657b02cb0/input-6bbfa222abe6/runtime-cf50c70a8c3b6e43`;
 - batch được người vận hành tăng lên 256;
 - throughput ổn định quan sát được khoảng 17,9–18,4 frame/s;
 - mỗi shard 1.024 frame mất khoảng 53–57 giây;
 - các shard quan sát được đều `status={'ok': 1024}` và `committed=True`;
-- một run batch nhỏ hơn trước đó đạt xấp xỉ 19,3–19,5 frame/s.
+- một run batch nhỏ hơn trước đó đạt xấp xỉ 19,3–19,5 frame/s;
+- Grounding DINO posthoc v2 đã pass checksum, warm-up, inference và hoàn tất các completion marker
+  của namespace v5.1;
+- dataset dùng để validate/index là output v5.1 trong `gdino_aug_summary["output_prefix"]`, không
+  phải YOLOE source prefix ở trên.
 
 Đây là quan sát vận hành, chưa phải benchmark kiểm soát: input mix, warm-up, R2 và metadata workload
 có thể khác. Nó cho thấy batch 256 không tự động nhanh hơn batch nhỏ hơn.
@@ -380,45 +389,47 @@ YOLOE có thể tự cài CLIP và tải `mobileclip2_b.ts` ở lần `set_class
 và làm thay đổi dependency sau khi job bắt đầu. V5 pin CLIP commit trong dependency cell, tạo prompt
 và checksum text encoder trước runtime binding.
 
-### 10.3. YOLOE text embedding FP16/FP32
+### 10.3. YOLOE text embedding precision binding
 
-MobileCLIP trả embedding FP32 trong khi predictor chuyển YOLOE sang FP16. Đổi genre động sau thời
-điểm đó từng gây `expected mat1 and mat2 ... Half != float`. V5 cache embedding khi model còn FP32,
-cast khi bind và warm-up model/prompt trước runtime hash.
+V5 tạo và cache toàn bộ MobileCLIP genre embedding trước khi predictor được bind vào runtime. Khi
+đổi genre, embedding cache được chuyển sang đúng device/precision của detector; warm-up xác nhận
+model và prompt đồng nhất trước khi khóa runtime hash.
 
 ### 10.4. Ultralytics segmentation mask dtype
 
-Ultralytics 8.4.67 gọi `protos.float()` nhưng từng giữ mask coefficients FP16 trong
-`process_mask/process_mask_native`, gây `Half @ Float` chỉ khi frame thật có detection. Ảnh warm-up
-trơn không đi qua nhánh mask nên không phát hiện. Pipeline cài guard idempotent và self-test đúng
-kernel: chỉ cast coefficient matrix nhỏ sang FP32; YOLOE backbone vẫn FP16.
+Pipeline cài guard idempotent cho `process_mask/process_mask_native`: coefficient matrix nhỏ được
+đưa về cùng precision FP32 với mask prototypes trước phép nhân, trong khi YOLOE backbone vẫn dùng
+precision tối ưu trên CUDA. Self-test đi trực tiếp qua mask reconstruction kernel trước khi runtime
+được bind.
 
-### 10.5. Grounding DINO dtype và quyết định vận hành hiện tại
+### 10.5. Grounding DINO precision contract và production run
 
-Grounding DINO đã load/checksum thành công nhưng inference FP16 báo:
+Grounding DINO posthoc chạy hoàn toàn ở FP32: model parameters, `pixel_values` và forward pass cùng
+một dtype; autocast không được bật. Trước khi tạo namespace, cell bắt buộc kiểm revision, SHA-256 của
+weight và chạy warm-up thật qua cả model lẫn postprocessor.
 
-```text
-RuntimeError: expected scalar type Half but found Float
-```
+Run production đã hoàn tất thành công trên target subset. Cell giữ nguyên source YOLOE v5, merge
+Grounding DINO rồi tạo dataset v5.1 self-contained. Runtime v5.1 khóa source config/runtime hash,
+Grounding DINO revision/weight checksum, precision, policy và augmentation code version. Toàn bộ
+source shard được scan và toàn bộ shard đích được ghi lại để dataset có thể index độc lập; GPU không
+chạy lại YOLOE và Grounding DINO chỉ xử lý target frame.
 
-Circuit breaker sau đó giữ YOLOE-only. Vì use case chính đã được YOLOE segmentation đáp ứng, người
-vận hành quyết định cho active run tiếp tục thay vì tạo namespace mới. Hệ quả:
+### 10.6. Grounding DINO warm-up và `-inf` hợp lệ trong logits
 
-- detection source thực tế là `yoloe`;
-- mask/color vẫn có từ YOLOE;
-- recall bổ sung và deterministic audit từ Grounding DINO không có;
-- document ghi rõ fallback error/disabled;
-- validation hiện thống kê fallback status nhưng không fail release chỉ vì fallback lỗi.
+`GroundingDinoContrastiveEmbedding` chủ động `masked_fill(-inf)` các text token không dùng rồi pad
+tới `max_text_len=256`; `post_process_grounded_object_detection` biến các vị trí đó thành score 0
+qua `sigmoid`. Vì vậy health check không yêu cầu mọi raw logit phải hữu hạn.
 
-Nếu yêu cầu một run YOLOE-only sạch về semantic config, đặt `GDINO_MODE="off"` **trước** khi tạo config;
-việc này tạo namespace mới và chạy lại từ shard 0. Nếu muốn giữ fallback, cần sửa Grounding DINO
-precision/input dtype và thêm warm-up thật trước runtime binding.
+Warm-up hiện kiểm:
 
-Cell posthoc giữ nguyên source YOLOE v5, chạy Grounding DINO hoàn toàn FP32 trên target subset, rồi
-tạo dataset v5.1 self-contained. Runtime v5.1 khóa source config/runtime hash, GDINO
-revision/weight checksum, precision, policy và augmentation code version. Cách này vẫn phải scan
-toàn bộ shard nguồn và ghi đủ shard đích, nhưng GPU không chạy lại YOLOE và GDINO chỉ xử lý target
-frame.
+- `isnan(logits)` — NaN mới là lỗi thật;
+- `isfinite(logits.sigmoid())` và tồn tại score dương — bắt trường hợp text branch chết hẳn;
+- `isfinite(pred_boxes)` — box phải hữu hạn toàn bộ;
+- chạy thật `post_process_grounded_object_detection` để chốt chữ ký API trước khi tạo namespace.
+
+Từ transformers 5.x, `post_process_grounded_object_detection` cần `input_ids` để decode text label;
+gọi thiếu sẽ raise `TypeError` giữa vòng lặp. Variant chữ ký được resolve một lần trong warm-up và
+cache lại, thay vì nuốt `TypeError` ở mỗi vocab chunk của mỗi batch.
 
 ## 11. Frame document và detection schema
 
@@ -615,7 +626,6 @@ Chỉ `_count` bằng nhau là chưa đủ vì hai tập ID khác nhau vẫn có
 - detector không bỏ sót vật thể bị che hoặc quá nhỏ;
 - count không phải ground-truth trong crowd;
 - palette color không mô tả hoàn hảo vật thể đa màu/ánh sáng phức tạp;
-- fallback luôn hoạt động chỉ vì model load/checksum được;
 - prompt list hiện tại bao phủ mọi query tương lai;
 - threshold/geometry weights đã tối ưu nếu chưa calibrate bằng GT.
 
@@ -648,7 +658,7 @@ load YOLOE; gán exact `Final R2 output` cũ vào `GDINO_SOURCE_PREFIX` để ce
 
 ## 19. Kiểm thử và bằng chứng còn thiếu
 
-Regression/static suite hiện có 10 test cho:
+Regression/static suite hiện có 11 test cho:
 
 - canonical dedup và source/class-specific count threshold;
 - GDINO policy trigger;
@@ -657,7 +667,8 @@ Regression/static suite hiện có 10 test cho:
 - ranked spatial/count queries;
 - item-level bulk retry;
 - completion-marker resume và runtime mismatch rejection.
-- posthoc cell FP32, source-completion gate, v5.1 resume và không gọi lại YOLOE.
+- posthoc cell FP32, source-completion gate, v5.1 resume và không gọi lại YOLOE;
+- posthoc anchor policy đọc `aliases` sau dedup và không đụng các trigger còn lại.
 
 Test tĩnh không thay thế các bước cần chạy thật:
 
@@ -665,7 +676,7 @@ Test tĩnh không thay thế các bước cần chạy thật:
 - contact-sheet review stratified theo genre/class;
 - GT calibration cho count/color/geometry;
 - Elasticsearch latency benchmark trên full index;
-- kiểm tra distribution `fallback_status`, đặc biệt với active YOLOE-only run;
+- kiểm tra distribution `fallback_status` và tỷ lệ detection bổ sung của Grounding DINO v5.1;
 - đo batch size bằng benchmark kiểm soát thay vì suy từ một run duy nhất.
 
 ## 20. Gợi ý cấu trúc technical report
@@ -674,7 +685,7 @@ Một báo cáo module OD có thể dùng trực tiếp bố cục:
 
 1. Problem statement và retrieval/count requirements.
 2. Legacy baseline và gap analysis.
-3. Model selection: YOLOE segmentation, optional Grounding DINO.
+3. Model selection: YOLOE segmentation và policy-targeted Grounding DINO posthoc.
 4. Genre vocabulary và canonical entity design.
 5. R2/Colab/A100 execution architecture.
 6. Geometry, color và count metadata algorithms.
@@ -682,7 +693,7 @@ Một báo cáo module OD có thể dùng trực tiếp bố cục:
 8. Reproducibility, resume và release integrity.
 9. Experimental setup: GPU, batch, image size, dataset/shard count.
 10. Results: throughput, detection/count/spatial metrics và query latency.
-11. Failure analysis: Pillow, CLIP, FP16 prompt/mask/GDINO.
+11. Runtime compatibility lessons: Pillow, CLIP, prompt/mask dtype và Grounding DINO health check.
 12. Limitations, security và future work.
 
 Các số liệu throughput trong mục 8.1 chỉ nên ghi là operational observation. Precision/recall/F1,
@@ -692,8 +703,8 @@ count MAE, spatial Recall@K và latency chỉ được báo như kết quả sau
 ## 21. Hướng cải tiến ưu tiên
 
 1. Đặt `SHARD_SIZE` vào namespace/config hash hoặc tạo explicit storage-layout hash.
-2. Đánh giá chất lượng/chi phí của Grounding DINO FP32 posthoc v5.1 trên target subset; nếu không có
-   cải thiện recall đáng kể, đặt hẳn `GDINO_MODE="off"` cho run YOLOE-only có semantic config sạch.
+2. Định lượng recall gain và chi phí của Grounding DINO posthoc v5.1 theo genre, class và trigger
+   reason để tối ưu target policy.
 3. Thu thập GT stratified theo genre, class, size, occlusion và color.
 4. Calibrate confidence/count/color thresholds theo dữ liệu thật.
 5. Benchmark batch 32/64/128/256 có kiểm soát trên cùng shard và tách GPU/I/O/postprocess time.
