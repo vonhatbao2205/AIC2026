@@ -48,8 +48,10 @@ export function TopBar({ queryType, onQueryType, elapsed, penalties, latency, he
         <span className="k">Timer</span>
         <span className="v mono">{formatTime(elapsed)}</span>
       </div>
-      <div className="metric">
-        <span className="k">Penalty</span>
+      {/* Counts the WRONG verdicts DRES returned this session — the number the
+          penalty gradient is actually charged on. */}
+      <div className="metric" title="Wrong verdicts returned by DRES this session">
+        <span className="k">Wrong</span>
         <span className={`v mono ${penalties > 0 ? "bad" : ""}`}>{penalties}</span>
       </div>
       <span

@@ -9,8 +9,15 @@ Endpoints:
   GET  /api/keyframes/{submit_keyframe_id:path}
   GET  /api/videos/{video_id}/timeline
   POST /api/videos/{video_id}/snap
+  GET  /api/dres/status
+  POST /api/dres/login
+  GET  /api/dres/evaluations
+  GET  /api/dres/current-task
+  GET  /api/dres/task-hint
+  POST /api/submit/preview
   POST /api/submit
   GET  /api/submit/history
+  DEL  /api/submit/history
 
 Secrets stay server-side; responses never include Elastic/Milvus/NVIDIA creds.
 """
@@ -23,6 +30,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .adapters.deepseek_grounding import DeepSeekGroundingClient, WebGroundingUnavailable
+from .adapters.dres_client import DresClient, DresError, DresNotConfigured
 from .adapters.nvila_client import NvilaQaClient, NvilaUnavailable
 from .canvas import palette_manifest
 from .config import get_settings
@@ -42,7 +50,7 @@ from .models import (
 from .translate import translate_vi_to_en
 from .services.canvas_service import CanvasService
 from .services.search_service import SearchService, ServiceUnavailable
-from .services.submit_service import DuplicateSubmitError, SubmitService
+from .services.submit_service import DuplicateSubmitError, SubmitFormatError, SubmitService
 from .services.timeline_service import TimelineService
 from .services.trake_service import TrakeService
 from .trake import snap_to_keyframe
@@ -60,7 +68,8 @@ search_service = SearchService(settings)
 trake_service = TrakeService(settings, search_service)
 canvas_service = CanvasService(settings, search_service)
 timeline_service = TimelineService(settings)
-submit_service = SubmitService(settings)
+dres_client = DresClient(settings)
+submit_service = SubmitService(settings, dres_client)
 media = MediaUrlBuilder(settings.media_base_url)
 nvila_qa = NvilaQaClient(settings)
 web_grounding_client = DeepSeekGroundingClient(settings)
@@ -68,13 +77,14 @@ web_grounding_client = DeepSeekGroundingClient(settings)
 
 @app.get("/api/health")
 async def health():
-    elastic, milvus, pe, nvila, grounding, objects = await asyncio.gather(
+    elastic, milvus, pe, nvila, grounding, objects, dres = await asyncio.gather(
         search_service.elastic.health(),
         search_service.milvus.health(),
         search_service.pe.health(),
         nvila_qa.health(),
         web_grounding_client.health(),
         canvas_service.objects.health(),
+        dres_client.health(),
     )
     services = {
         "elastic": elastic,
@@ -83,6 +93,7 @@ async def health():
         "nvila_qa": nvila,
         "web_grounding": grounding,
         "object_index": objects,
+        "dres": dres,
     }
     # NVILA is an optional QA accelerator: a stopped Colab session must not mark
     # the core retrieval stack unhealthy.
@@ -99,6 +110,7 @@ async def health():
         "capabilities": {
             "llm_query_parser": settings.has_llm and not settings.mock_mode,
             "dres_submit": settings.has_dres,
+            "dres_connected": bool(dres.get("ok")),
             "audio_vector_search": settings.has_glap and not settings.mock_mode,
             # NVILA currently reranks/grounds only the QA candidate pack; it is
             # not a general reranker for T-KIS/V-KIS/TRAKE retrieval results.
@@ -363,13 +375,104 @@ async def snap_frame(video_id: str, req: SnapRequest):
     }
 
 
+@app.get("/api/dres/status")
+async def dres_status():
+    """Connection state of the DRES adapter (never returns the credentials)."""
+    health = await dres_client.health()
+    return {
+        "configured": settings.has_dres,
+        "base_url": dres_client.base_url,
+        "logged_in": bool(health.get("logged_in")),
+        "username": health.get("username") or settings.dres_username,
+        "user": dres_client.user,
+        "pinned_evaluation_id": settings.dres_evaluation_id,
+        "segment_pad_ms": settings.dres_segment_pad_ms,
+        "error": health.get("error"),
+    }
+
+
+@app.post("/api/dres/login")
+async def dres_login():
+    """Force a fresh login (use after the session expired or the host changed)."""
+    try:
+        user = await dres_client.login(force=True)
+    except DresNotConfigured as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except DresError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return {"ok": True, "user": user, "base_url": dres_client.base_url}
+
+
+@app.get("/api/dres/evaluations")
+async def dres_evaluations(force: bool = False):
+    """Every visible run with its currently open task and remaining time."""
+    try:
+        evaluations = await submit_service.overview(force=force)
+    except DresNotConfigured as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except DresError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return {
+        "evaluations": evaluations,
+        "server_time": await dres_client.server_time(),
+        "pinned_evaluation_id": settings.dres_evaluation_id,
+    }
+
+
+@app.get("/api/dres/current-task")
+async def dres_current_task(evaluation_id: str | None = None, query_type: str = "T-KIS"):
+    """The open task of one run (auto-picked from the query type when omitted)."""
+    try:
+        resolved = await submit_service.resolve_evaluation(query_type, evaluation_id)
+        task, state = await asyncio.gather(
+            dres_client.current_task(resolved), dres_client.evaluation_state(resolved)
+        )
+    except (SubmitFormatError, DresNotConfigured) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except DresError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return {"evaluation_id": resolved, "task": task, "state": state}
+
+
+@app.get("/api/dres/task-hint")
+async def dres_task_hint(evaluation_id: str | None = None, query_type: str = "T-KIS", force: bool = False):
+    """The statement of the open task (what the DRES viewer shows the team)."""
+    try:
+        return await submit_service.task_hint(query_type, evaluation_id, force=force)
+    except (SubmitFormatError, DresNotConfigured) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except DresError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.post("/api/submit/preview")
+async def submit_preview(req: SubmitRequest):
+    """The exact DRES body this submit would send — shown in the submit guard."""
+    try:
+        return await submit_service.prepare(
+            query_type=req.query_type,
+            payload=req.payload.model_dump(),
+            evaluation_id=req.evaluation_id,
+            task_name=req.task_name,
+            task_id=req.task_id,
+            answer_mode=req.answer_mode,
+            pad_ms=req.segment_pad_ms,
+        )
+    except SubmitFormatError as exc:
+        raise HTTPException(status_code=400, detail={"error": "invalid_format", "message": str(exc)}) from exc
+
+
 @app.post("/api/submit")
 async def submit(req: SubmitRequest):
     try:
         entry = await submit_service.submit(
-            task_id=req.task_id,
             query_type=req.query_type,
             payload=req.payload.model_dump(),
+            evaluation_id=req.evaluation_id,
+            task_name=req.task_name,
+            task_id=req.task_id,
+            answer_mode=req.answer_mode,
+            pad_ms=req.segment_pad_ms,
             allow_duplicate=req.allow_duplicate,
         )
     except DuplicateSubmitError as exc:
@@ -381,12 +484,28 @@ async def submit(req: SubmitRequest):
                 "task_id": exc.task_id,
             },
         ) from exc
+    except SubmitFormatError as exc:
+        # Wrong format is caught before anything reaches DRES.
+        raise HTTPException(
+            status_code=400, detail={"error": "invalid_format", "message": str(exc)}
+        ) from exc
     return entry
 
 
 @app.get("/api/submit/history")
 async def submit_history(task_id: str | None = None):
     return {"history": submit_service.history(task_id)}
+
+
+@app.delete("/api/submit/history")
+async def clear_submit_history(task_id: str | None = None, ids: str | None = None):
+    """Delete local history entries: `?ids=` (comma-separated), `?task_id=`, or all.
+
+    Only the operator's local log: submissions already sent to DRES stand.
+    Whatever is removed is backed up next to the history file first.
+    """
+    id_list = [i for i in (ids or "").split(",") if i.strip()] if ids is not None else None
+    return submit_service.clear_history(task_id, id_list)
 
 
 @app.post("/api/translate")

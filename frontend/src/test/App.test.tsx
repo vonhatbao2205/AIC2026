@@ -254,6 +254,107 @@ const CANVAS_RESPONSE = {
   mode: "mock",
 };
 
+// ---- DRES (official evaluation server) ------------------------------------
+// One run per task type, exactly like the BTC server exposes them.
+const DRES_STATUS = {
+  configured: true,
+  base_url: "http://dres.test",
+  logged_in: true,
+  username: "fourier1",
+  user: { id: "u1", username: "fourier1", role: "PARTICIPANT" },
+  pinned_evaluation_id: null,
+  segment_pad_ms: 500,
+  error: null,
+};
+
+const DRES_EVALUATIONS = [
+  {
+    id: "e-tkis", name: "tkis", status: "ACTIVE", type: "SYNCHRONOUS", teams: ["Fourier"],
+    task_templates: [{ name: "tkis-00", taskGroup: "T-KIS Group", taskType: "Textual KIS", duration: null }],
+    current_task: { name: "tkis-00", taskGroup: "T-KIS Group", taskType: "Textual KIS", duration: null },
+    state: { evaluationStatus: "ACTIVE", taskStatus: "RUNNING", taskTemplateId: "t-tkis", timeLeft: 300, timeElapsed: 42 },
+  },
+  {
+    id: "e-qa", name: "qa", status: "ACTIVE", type: "SYNCHRONOUS", teams: ["Fourier"],
+    task_templates: [{ name: "qa-00", taskGroup: "QA Group", taskType: "Question Answering", duration: null }],
+    current_task: { name: "qa-00", taskGroup: "QA Group", taskType: "Question Answering", duration: null },
+    state: { evaluationStatus: "ACTIVE", taskStatus: "RUNNING", taskTemplateId: "t-qa", timeLeft: 240, timeElapsed: 60 },
+  },
+];
+
+const TKIS_SCOPE = "e-tkis/tkis-00";
+
+const TKIS_STATEMENT = "Đoạn phim bắt đầu bằng hình ảnh một chiếc máy ảnh đặt trên quyển sách.";
+const QA_STATEMENT = "Người phụ nữ áo tím lấy một cuốn sách tranh. Hỏi tác giả cuốn sách đó là ai?";
+
+function taskHintFor(path: string) {
+  const isQa = path.includes("query_type=QA");
+  const text = isQa ? QA_STATEMENT : TKIS_STATEMENT;
+  return {
+    evaluation_id: isQa ? "e-qa" : "e-tkis",
+    task_template_id: isQa ? "t-qa" : "t-tkis",
+    task_name: isQa ? "qa-00" : "tkis-00",
+    task_type: isQa ? "Question Answering" : "Textual KIS",
+    task_status: "RUNNING",
+    text,
+    elements: [{ content_type: "TEXT", content: text, offset: 0 }],
+    loop: false,
+    warnings: [],
+  };
+}
+
+/** Mirrors the backend's answer building, so the tests assert the real shape. */
+function dresAnswers(body: any) {
+  const p = body.payload ?? {};
+  const mode = !body.answer_mode || body.answer_mode === "auto"
+    ? (body.query_type === "QA" ? "temporal_text" : "temporal")
+    : body.answer_mode;
+  if (mode === "text") return [{ text: p.answer ?? "" }];
+  if (mode === "item") return [{ mediaItemName: p.video_id }];
+  const pad = body.segment_pad_ms ?? 0;
+  const ms = (pts?: number | null, frameIdx?: number | null) =>
+    Math.round((pts != null ? pts : (frameIdx ?? 0) / (p.fps || 25)) * 1000);
+  const window = (center: number) => ({ start: Math.max(0, center - pad), end: center + pad });
+  if (p.events?.length) {
+    return p.events.map((e: any) => ({ mediaItemName: p.video_id, ...window(ms(e.pts_time, e.frame_idx)) }));
+  }
+  const segment = { mediaItemName: p.video_id, ...window(ms(p.timestamp, p.frame_idx)) };
+  // QA: the segment AND the answer travel in one answer object.
+  return [mode === "temporal_text" ? { ...segment, text: p.answer ?? "" } : segment];
+}
+
+/** The backend refuses a body DRES could not judge; the mock does the same. */
+function formatError(body: any): string | null {
+  const p = body.payload ?? {};
+  const mode = !body.answer_mode || body.answer_mode === "auto"
+    ? (body.query_type === "QA" ? "temporal_text" : "temporal")
+    : body.answer_mode;
+  if (mode === "text" || mode === "temporal_text") {
+    if (!(p.answer ?? "").trim()) return "Task QA cần `text` (đáp án) — ô answer đang trống.";
+  }
+  if (mode !== "text" && !p.video_id) return "Thiếu `mediaItemName` (video_id) cho task KIS/QA/TRAKE.";
+  return null;
+}
+
+function dedupKey(body: any) {
+  const p = body.payload ?? {};
+  if (p.events?.length) return `${p.video_id}|${p.events.map((e: any) => e.frame_idx).join(",")}`;
+  const frameKey = `${p.video_id}:${p.frame_idx}`;
+  if (body.query_type === "QA") return `${frameKey}|text:${(p.answer ?? "").trim().toLowerCase()}`;
+  return frameKey;
+}
+
+/** QA sent as a bare segment drops the answer — the backend flags it. */
+function mismatched(body: any) {
+  return body.query_type === "QA" && (body.answer_mode === "temporal" || body.answer_mode === "item");
+}
+
+function taskScope(body: any) {
+  const evaluation = DRES_EVALUATIONS.find((e) => e.id === body.evaluation_id);
+  const name = body.task_name || evaluation?.current_task?.name;
+  return name ? `${body.evaluation_id}/${name}` : "unknown-task";
+}
+
 let historyStore: any[] = [];
 let canvasRequests: any[] = [];
 
@@ -266,12 +367,56 @@ function mockFetch(historySeed: any[] = []) {
 
     if (path.endsWith("/api/health"))
       return json({ ok: true, mode: "mock", services: {}, capabilities: { qa_nvila: true, qa_web_grounding: true, qa_visual_verification: true, canvas_object_search: true }, warnings: [] });
+    if (path.endsWith("/api/dres/status")) return json(DRES_STATUS);
+    if (path.includes("/api/dres/task-hint")) return json(taskHintFor(path));
+    if (path.includes("/api/dres/evaluations"))
+      return json({ evaluations: DRES_EVALUATIONS, server_time: 1, pinned_evaluation_id: null });
+    if (path.endsWith("/api/submit/preview")) {
+      const body = JSON.parse((init?.body as string) || "{}");
+      const invalid = formatError(body);
+      if (invalid) return json({ detail: { error: "invalid_format", message: invalid } }, 400);
+      const scope = taskScope(body);
+      const key = dedupKey(body);
+      const evaluation = DRES_EVALUATIONS.find((e) => e.id === body.evaluation_id);
+      const taskName = body.task_name || evaluation?.current_task?.name || null;
+      return json({
+        evaluation_id: body.evaluation_id ?? null,
+        task_name: taskName,
+        task_id: scope,
+        answer_mode: body.query_type === "QA" ? "temporal_text" : "temporal",
+        answer_mode_mismatch: mismatched(body),
+        task_type: body.query_type === "QA" ? "Question Answering" : "Textual KIS",
+        segment_pad_ms: body.segment_pad_ms ?? 500,
+        body: { answerSets: [{ ...(taskName ? { taskName } : {}), answers: dresAnswers(body) }] },
+        duplicate_key: historyStore.some((h) => h.task_id === scope && (h.dedup_keys || []).includes(key))
+          ? key
+          : null,
+        url: `http://dres.test/api/v2/submit/${body.evaluation_id}`,
+        warnings: mismatched(body)
+          ? ["Task DRES là “Question Answering” (cần `text`) nhưng payload đang gửi “temporal” — đáp án bạn gõ SẼ BỊ BỎ."]
+          : [],
+      });
+    }
     if (path.endsWith("/api/canvas/palette")) return json(CANVAS_PALETTE);
     if (path.endsWith("/api/search/canvas")) {
       canvasRequests.push(JSON.parse((init?.body as string) || "{}"));
       return json(CANVAS_RESPONSE);
     }
-    if (path.includes("/api/submit/history")) return json({ history: historyStore });
+    if (path.includes("/api/submit/history")) {
+      if (init?.method === "DELETE") {
+        const params = new URL(path, "http://x").searchParams;
+        const taskId = params.get("task_id");
+        const ids = params.get("ids")?.split(",").filter(Boolean);
+        const before = historyStore.length;
+        historyStore = ids
+          ? historyStore.filter((h) => !ids.includes(h.id))
+          : taskId
+          ? historyStore.filter((h) => h.task_id !== taskId)
+          : [];
+        return json({ deleted: before - historyStore.length, remaining: historyStore.length, backup: "h.1.bak.json" });
+      }
+      return json({ history: historyStore });
+    }
     if (path.endsWith("/api/search/trake")) return json(TRAKE_RESPONSE);
     if (path.endsWith("/api/search")) return json(SEARCH_RESPONSE);
     if (path.endsWith("/api/query/parse")) return json(SEARCH_RESPONSE.parsed);
@@ -279,11 +424,19 @@ function mockFetch(historySeed: any[] = []) {
     if (path.includes("/timeline")) return json(TIMELINE);
     if (path.endsWith("/api/submit")) {
       const body = JSON.parse((init?.body as string) || "{}");
-      const key = `${body.payload.video_id}:${body.payload.frame_idx}`;
-      if (historyStore.some((h) => h.task_id === body.task_id && (h.dedup_keys || []).includes(key)) && !body.allow_duplicate) {
+      const invalid = formatError(body);
+      if (invalid) return json({ detail: { error: "invalid_format", message: invalid } }, 400);
+      const key = dedupKey(body);
+      const scope = taskScope(body);
+      if (historyStore.some((h) => h.task_id === scope && (h.dedup_keys || []).includes(key)) && !body.allow_duplicate) {
         return json({ detail: { error: "duplicate_submit", submit_keyframe_id: key } }, 409);
       }
-      const entry = { id: "x", ts: Date.now() / 1000, task_id: body.task_id, query_type: body.query_type, payload: body.payload, dedup_keys: [key], status: "local", was_duplicate: false };
+      const entry = {
+        id: "x", ts: Date.now() / 1000, task_id: scope, evaluation_id: body.evaluation_id,
+        task_name: taskScope(body).split("/").pop(), query_type: body.query_type, payload: body.payload,
+        answer_sets: [{ answers: dresAnswers(body) }], dedup_keys: [key],
+        status: "dres_ok", verdict: "CORRECT", was_duplicate: false,
+      };
       historyStore.push(entry);
       return json(entry);
     }
@@ -472,7 +625,7 @@ describe("AIC26 retrieval console (full)", () => {
     vi.stubGlobal(
       "fetch",
       mockFetch([
-        { id: "old", ts: Date.now() / 1000, task_id: "q001", query_type: "T-KIS", payload: { video_id: "K01_V001", frame_idx: 0 }, dedup_keys: ["K01_V001:0"], status: "local", was_duplicate: false },
+        { id: "old", ts: Date.now() / 1000, task_id: TKIS_SCOPE, query_type: "T-KIS", payload: { video_id: "K01_V001", frame_idx: 0 }, dedup_keys: ["K01_V001:0"], status: "dres_ok", verdict: "WRONG", was_duplicate: false },
       ]),
     );
     const user = userEvent.setup();
@@ -583,7 +736,7 @@ describe("AIC26 retrieval console (full)", () => {
     vi.stubGlobal(
       "fetch",
       mockFetch([
-        { id: "old", ts: Date.now() / 1000, task_id: "q001", query_type: "T-KIS", payload: { video_id: "K01_V001", frame_idx: 130 }, dedup_keys: ["K01_V001:130"], status: "local", was_duplicate: false },
+        { id: "old", ts: Date.now() / 1000, task_id: TKIS_SCOPE, query_type: "T-KIS", payload: { video_id: "K01_V001", frame_idx: 130 }, dedup_keys: ["K01_V001:130"], status: "dres_ok", verdict: "WRONG", was_duplicate: false },
       ]),
     );
     const user = userEvent.setup();
@@ -878,5 +1031,258 @@ describe("AIC26 retrieval console (full)", () => {
     fireEvent.keyDown(window, { key: "ArrowRight" });
 
     await waitFor(() => expect(screen.getByTestId("submit-id")).toHaveTextContent("K01/K01_V001/006"));
+  });
+});
+
+describe("DRES submission", () => {
+  async function search(user: ReturnType<typeof userEvent.setup>, queryType?: "QA") {
+    render(<App />);
+    if (queryType) await user.click(screen.getByRole("tab", { name: queryType }));
+    await user.type(screen.getByTestId("query-input"), "thời sự");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => screen.getByTestId("detail-panel"));
+  }
+
+  const lastSubmit = () => {
+    const call = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("/api/submit")).pop();
+    return JSON.parse(String(call?.[1]?.body));
+  };
+
+  it("fetches the task statement and prefills the empty query box", async () => {
+    render(<App />);
+
+    expect(await screen.findByTestId("task-hint-text")).toHaveTextContent(TKIS_STATEMENT);
+    await waitFor(() => expect(screen.getByTestId("query-input")).toHaveValue(TKIS_STATEMENT));
+  });
+
+  it("never overwrites a query the operator wrote, but offers the statement", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    // Written before the statement lands (fireEvent is synchronous, so this
+    // deterministically wins the race the operator would otherwise lose).
+    fireEvent.change(screen.getByTestId("query-input"), { target: { value: "máy ảnh trên quyển sách" } });
+    await screen.findByTestId("task-hint-text");
+
+    expect(screen.getByTestId("query-input")).toHaveValue("máy ảnh trên quyển sách");
+
+    await user.click(screen.getByTestId("task-hint-use"));
+    expect(screen.getByTestId("query-input")).toHaveValue(TKIS_STATEMENT);
+  });
+
+  it("loads the statement of the run the query type routes to", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByTestId("task-hint-text");
+
+    await user.click(screen.getByRole("tab", { name: "QA" }));
+
+    await waitFor(() => expect(screen.getByTestId("task-hint-text")).toHaveTextContent(QA_STATEMENT));
+  });
+
+  it("clears the submit log only after confirming, and can scope it to the task", async () => {
+    const other = {
+      id: "old2", ts: Date.now() / 1000, task_id: "e-qa/qa-00", query_type: "QA",
+      payload: { video_id: "K01_V001", frame_idx: 0, answer: "HTV7" },
+      dedup_keys: ["K01_V001:0|text:htv7"], status: "dres_ok", verdict: "CORRECT", was_duplicate: false,
+    };
+    vi.stubGlobal("fetch", mockFetch([
+      {
+        id: "old1", ts: Date.now() / 1000, task_id: TKIS_SCOPE, query_type: "T-KIS",
+        payload: { video_id: "K01_V001", frame_idx: 0 }, dedup_keys: ["K01_V001:0"],
+        status: "dres_ok", verdict: "WRONG", was_duplicate: false,
+      },
+      other,
+    ]));
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByTestId("history-sidebar");
+    expect(await screen.findByText(/Submit history \(2\)/)).toBeInTheDocument();
+
+    // One click only arms the action — nothing is deleted yet.
+    await user.click(screen.getByTestId("history-clear"));
+    expect(screen.getByTestId("history-clear-confirm")).toBeInTheDocument();
+    expect(screen.getByText(/Submit history \(2\)/)).toBeInTheDocument();
+
+    // Scoped clear keeps the other task's entries.
+    await user.click(screen.getByTestId("history-clear-task"));
+    await waitFor(() => expect(screen.getByText(/Submit history \(1\)/)).toBeInTheDocument());
+    expect(historyStore).toEqual([other]);
+
+    await user.click(screen.getByTestId("history-clear"));
+    await user.click(screen.getByTestId("history-clear-all"));
+    await waitFor(() => expect(screen.getByText(/Submit history \(0\)/)).toBeInTheDocument());
+    expect(historyStore).toEqual([]);
+  });
+
+  it("deletes only the submissions the operator picked", async () => {
+    const entry = (id: string, frame: number) => ({
+      id, ts: Date.now() / 1000, task_id: TKIS_SCOPE, query_type: "T-KIS",
+      payload: { video_id: "K01_V001", frame_idx: frame },
+      dedup_keys: [`K01_V001:${frame}`], status: "dres_ok", verdict: "WRONG", was_duplicate: false,
+    });
+    vi.stubGlobal("fetch", mockFetch([entry("h1", 100), entry("h2", 200), entry("h3", 300)]));
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByTestId("history-sidebar");
+
+    // Multi-select two of the three, then delete just those.
+    await user.click(screen.getByTestId("history-pick-h1"));
+    await user.click(screen.getByTestId("history-pick-h3"));
+    expect(screen.getByTestId("history-selection")).toHaveTextContent("2 mục đã chọn");
+    await user.click(screen.getByTestId("history-delete-selected"));
+
+    await waitFor(() => expect(historyStore.map((h) => h.id)).toEqual(["h2"]));
+    expect(screen.getByText(/Submit history \(1\)/)).toBeInTheDocument();
+
+    // The per-row ✕ deletes a single entry.
+    await user.click(screen.getByTestId("history-delete-h2"));
+    await waitFor(() => expect(historyStore).toEqual([]));
+  });
+
+  it("shows the open task, its type and the countdown", async () => {
+    render(<App />);
+    expect(await screen.findByTestId("dres-task")).toHaveTextContent("tkis-00");
+    expect(screen.getByTestId("dres-task-status")).toHaveTextContent("RUNNING");
+    expect(screen.getByTestId("dres-clock")).toHaveTextContent("5:00 left");
+  });
+
+  it("routes the submit to the evaluation run that matches the query type", async () => {
+    const user = userEvent.setup();
+    await search(user);
+
+    await user.click(screen.getByTestId("open-submit"));
+    expect(await screen.findByTestId("guard-evaluation")).toHaveTextContent("tkis");
+    await waitFor(() => expect(screen.getByTestId("guard-task-auto")).toHaveTextContent("tkis-00"));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await user.click(screen.getByRole("tab", { name: "QA" }));
+    await waitFor(() => expect(screen.getByTestId("dres-task")).toHaveTextContent("qa-00"));
+  });
+
+  it("KIS submits a media item with a millisecond window, never text", async () => {
+    const user = userEvent.setup();
+    await search(user);
+
+    await user.click(screen.getByTestId("open-submit"));
+    // The guard shows the exact body before it is sent.
+    await waitFor(() =>
+      expect(screen.getByTestId("guard-json")).toHaveTextContent(/"mediaItemName": "K01_V001"/),
+    );
+    expect(screen.getByTestId("guard-answer-summary")).toHaveTextContent("0–500 ms");
+
+    await user.click(screen.getByTestId("confirm-submit"));
+
+    await waitFor(() => {
+      const body = lastSubmit();
+      expect(body.evaluation_id).toBe("e-tkis");
+      expect(body.query_type).toBe("T-KIS");
+      expect(body.answer_mode).toBe("auto");
+      expect(body.segment_pad_ms).toBe(500);
+      // pts_time + fps let the backend build start/end in ms.
+      expect(body.payload).toMatchObject({ video_id: "K01_V001", timestamp: 0, fps: 25 });
+      expect(body.payload.answer).toBeUndefined();
+    });
+  });
+
+  it("a manual answer shape never survives a query-type switch", async () => {
+    // Regression: `temporal` picked on a KIS task used to stick, so the next QA
+    // submit silently sent a media segment and dropped the typed answer.
+    const user = userEvent.setup();
+    await search(user);
+
+    await user.click(screen.getByTestId("open-submit"));
+    await user.selectOptions(await screen.findByTestId("guard-answer-mode"), "temporal");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await user.click(screen.getByRole("tab", { name: "QA" }));
+    await user.type(screen.getByTestId("query-input"), "tác giả");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => screen.getByTestId("detail-panel"));
+    await user.click(screen.getByTestId("open-submit"));
+
+    expect(await screen.findByTestId("guard-answer-mode")).toHaveValue("auto");
+    await user.type(screen.getByTestId("qa-answer"), "Nguyễn Thắm");
+    await waitFor(() =>
+      expect(screen.getByTestId("guard-json")).toHaveTextContent(/"text": "Nguyễn Thắm"/),
+    );
+  });
+
+  it("warns when the answer shape contradicts the DRES task type", async () => {
+    const user = userEvent.setup();
+    await search(user, "QA");
+
+    await user.click(screen.getByTestId("open-submit"));
+    await user.type(await screen.findByTestId("qa-answer"), "Nguyễn Thắm");
+    await user.selectOptions(screen.getByTestId("guard-answer-mode"), "temporal");
+
+    await waitFor(() =>
+      expect(screen.getByTestId("submit-guard")).toHaveTextContent(/SẼ BỊ BỎ/),
+    );
+  });
+
+  it("QA submits the answer as text", async () => {
+    const user = userEvent.setup();
+    await search(user, "QA");
+
+    await user.click(screen.getByTestId("open-submit"));
+    await user.type(await screen.findByTestId("qa-answer"), "HTV7");
+
+    await waitFor(() => expect(screen.getByTestId("guard-json")).toHaveTextContent(/"text": "HTV7"/));
+    await user.click(screen.getByTestId("confirm-submit"));
+
+    await waitFor(() => {
+      const body = lastSubmit();
+      expect(body.evaluation_id).toBe("e-qa");
+      expect(body.payload.answer).toBe("HTV7");
+    });
+  });
+
+  it("QA duplicate check covers the segment and the answer text", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetch([
+        {
+          id: "old", ts: Date.now() / 1000, task_id: "e-qa/qa-00", query_type: "QA",
+          payload: { video_id: "K01_V001", frame_idx: 0, answer: "HTV7" },
+          dedup_keys: ["K01_V001:0|text:htv7"], status: "dres_ok", verdict: "WRONG", was_duplicate: false,
+        },
+      ]),
+    );
+    const user = userEvent.setup();
+    await search(user, "QA");
+
+    await user.click(screen.getByTestId("open-submit"));
+    await user.type(await screen.findByTestId("qa-answer"), "HTV7");
+    expect(await screen.findByTestId("dup-warn")).toHaveTextContent("K01_V001:0|text:htv7");
+
+    // A different answer from the same frame is a new attempt, not a duplicate.
+    await user.clear(screen.getByTestId("qa-answer"));
+    await user.type(screen.getByTestId("qa-answer"), "HTV9");
+    await waitFor(() => expect(screen.queryByTestId("dup-warn")).not.toBeInTheDocument());
+  });
+
+  it("blocks the submit when the payload cannot be built", async () => {
+    const user = userEvent.setup();
+    await search(user, "QA");
+
+    // QA with an empty answer has no `text` — DRES would reject it.
+    await user.click(screen.getByTestId("open-submit"));
+    await waitFor(() => expect(screen.getByTestId("confirm-submit")).toBeDisabled());
+  });
+
+  it("keeps working with DRES offline: the bar says so and the guard still submits", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      const path = String(url);
+      if (path.endsWith("/api/dres/status") || path.includes("/api/dres/evaluations")) {
+        return { ok: false, status: 502, json: async () => ({ detail: "DRES unreachable" }) } as Response;
+      }
+      return mockFetch()(url, init);
+    }));
+    const user = userEvent.setup();
+    await search(user);
+
+    expect(await screen.findByTestId("dres-offline")).toBeInTheDocument();
+    await user.click(screen.getByTestId("open-submit"));
+    await waitFor(() => expect(screen.getByTestId("confirm-submit")).toBeEnabled());
   });
 });

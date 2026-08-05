@@ -125,14 +125,24 @@ class TrakeEvent(BaseModel):
     event_index: int
     frame_idx: int
     pts_time: float | None = None
+    # Explicit DRES window for this event; derived from pts_time/fps when absent.
+    start_ms: int | None = None
+    end_ms: int | None = None
+    video_id: str | None = None  # defaults to the payload video
     submit_keyframe_id: str | None = None  # display only
 
 
 class SubmitPayload(BaseModel):
-    # DRES submits by video_id + frame_idx (frame_idx = round(pts_time * fps)).
+    """One picked answer. DRES v2 needs `mediaItemName` + `start`/`end` in ms for
+    KIS/TRAKE and `text` for QA; the ms window is derived from `timestamp`
+    (pts_time) or `frame_idx`+`fps` unless start_ms/end_ms are given."""
+
     video_id: str | None = None
     frame_idx: int | None = None
-    timestamp: float | None = None  # pts_time, optional secondary localization
+    timestamp: float | None = None  # pts_time in seconds
+    fps: float | None = None  # only needed when timestamp is unknown
+    start_ms: int | None = Field(default=None, ge=0)
+    end_ms: int | None = Field(default=None, ge=0)
     events: list[TrakeEvent] = Field(default_factory=list)  # TRAKE ordered events
     answer: str | None = None
     # Kept for human-readable history / dedup display; NOT used for DRES routing.
@@ -141,7 +151,15 @@ class SubmitPayload(BaseModel):
 
 
 class SubmitRequest(BaseModel):
-    task_id: str
+    # Free-text label used only when DRES has no open task (offline practice).
+    task_id: str = ""
+    # DRES run to submit to, and the exact open task name. Both are resolved
+    # from the live server when omitted.
+    evaluation_id: str | None = None
+    task_name: str | None = None
     query_type: Literal["T-KIS", "QA", "V-KIS", "TRAKE"]
     payload: SubmitPayload
+    # auto → temporal for KIS/TRAKE, temporal_text (segment + answer) for QA.
+    answer_mode: Literal["auto", "temporal", "temporal_text", "text", "item"] = "auto"
+    segment_pad_ms: int | None = Field(default=None, ge=0, le=60_000)
     allow_duplicate: bool = False

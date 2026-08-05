@@ -49,7 +49,10 @@ files already in the repo root). See `backend/.env.example`.
 | `NVILA_TIMEOUT_SECONDS`, `NVILA_MAX_CANDIDATES` | optional | visual QA timeout and trusted candidate cap (defaults 240s/12) |
 | `DEEPSEEK_API_KEY` | optional | DeepSeek built-in `web_search` grounding for QA; backend-only secret |
 | `DEEPSEEK_GROUNDING_*` | optional | model/base URL/enable flag/timeout/max output tokens/reasoning effort/auto-confidence threshold |
-| `DRES_BASE_URL`, `DRES_TOKEN` | optional | DRES submit adapter (else local history only) |
+| `DRES_BASE_URL` | yes for submit | official DRES host (default `http://if-wan4.selab.edu.vn:20740`; SELab: `http://10.0.1.21:20740`) |
+| `DRES_USERNAME`, `DRES_PASSWORD` | yes for submit | participant account; backend logs in and keeps the `sessionId` |
+| `DRES_SESSION`, `DRES_EVALUATION_ID` | optional | reuse an issued session / pin one run (else auto-routed by query type) |
+| `DRES_SEGMENT_PAD_MS` | optional | ± ms around the picked instant for KIS/TRAKE temporal answers (default 500) |
 | `IDX_*`, `MILVUS_IMAGE_COLLECTION` | optional | override index/collection names |
 | `AIC26_MOCK_MODE` | optional | `true` ⇒ deterministic fixtures (no live services) |
 | `CORS_ORIGINS` | optional | comma-separated; default `*` |
@@ -105,8 +108,15 @@ All endpoints are under `/api`. Responses are JSON.
 | GET | `/api/keyframes/{submit_keyframe_id:path}` | normalizes shard/padding; returns ids + media URLs + timing |
 | GET | `/api/videos/{video_id}/timeline` | keyframes + speech + ocr + audio + heatmap |
 | POST | `/api/videos/{video_id}/snap` | `{raw_time, fps?}` → nearest BTC keyframe (for TRAKE frame-pick) |
-| POST | `/api/submit` | DRES format: `{task_id, query_type, payload{video_id, frame_idx?, timestamp?, answer?, events?[{event_index,frame_idx}]}, allow_duplicate}` |
-| GET | `/api/submit/history` | `?task_id=` optional |
+| GET | `/api/dres/status` | connection + logged-in user + configured pad (no credentials) |
+| POST | `/api/dres/login` | force a fresh login after the session expired |
+| GET | `/api/dres/evaluations` | every visible run + its open task + `taskStatus`/`timeLeft` |
+| GET | `/api/dres/current-task` | `?evaluation_id=&query_type=` → open task of one run |
+| GET | `/api/dres/task-hint` | the task statement: `{text, elements[{content_type,content,offset}], task_name, task_status}` |
+| POST | `/api/submit/preview` | same body as submit → the exact DRES `answerSets` + duplicate key, sends nothing |
+| POST | `/api/submit` | `{evaluation_id?, task_name?, query_type, payload{video_id, frame_idx?, timestamp?, fps?, start_ms?, end_ms?, answer?, events?[]}, answer_mode?, segment_pad_ms?, allow_duplicate}` |
+| GET | `/api/submit/history` | `?task_id=` optional (task id = `{evaluationId}/{taskName}`) |
+| DELETE | `/api/submit/history` | deletes log entries: `?ids=a,b`, `?task_id=`, or all; writes a `.bak.json` first |
 
 ### Search result shape
 
@@ -276,8 +286,9 @@ The first request of a process still pays the handshake once.
   `milvus.search_audio` over `aic26_audio_glap_v1`, fused into the audio channel.
 - **Object/scene/action filters**: extend the parser `filters` block + an
   Elastic adapter method; apply in `_apply_filters`.
-- **Official DRES**: set `DRES_BASE_URL`/`DRES_TOKEN`; `submit_service._submit_dres`
-  already speaks `POST /api/submissions` — adjust the body to the live schema.
+- **Official DRES**: DONE — `adapters/dres_client.py` speaks Client API v2
+  (login → session, `client/evaluation/list`, `currentTask`, `POST /api/v2/submit/{id}`)
+  and `submit_service` builds the `answerSets` body; see §11.
 - **Query-vector morphing** for relevance feedback: today it is deterministic
   (boost/drop sets); swap in centroid-shifted PE vectors in `reciprocal_rank_fusion`.
 
@@ -297,15 +308,85 @@ backend/app/
   query_parser.py      Nemotron + heuristic routing, manual overrides
   types.py / models.py internal dataclasses / pydantic request models
   adapters/            elastic_client, milvus_client, pe_encoder, nvila_client,
-                       object_elastic (OD frames), http_pool (+ mock paths)
+                       object_elastic (OD frames), dres_client (DRES v2 session),
+                       http_pool (+ mock paths)
   services/            search_service, trake_service, canvas_service,
                        timeline_service, submit_service
   main.py              FastAPI routes
 frontend/src/
   api/                 client.ts, types.ts
-  lib/                 media, identity, snap, qa, canvas, constants
-  components/          TopBar, QueryPanel, ChannelControls, QueryUnderstanding,
+  lib/                 media, identity, snap, qa, canvas, dres, constants
+  components/          TopBar, DresBar, QueryPanel, ChannelControls, QueryUnderstanding,
                        Results, DetailPanel, VideoViewer, Timeline, TrakePanel,
                        CanvasPanel, SubmitGuard, HistorySidebar, Badges
   App.tsx              state, keyboard, orchestration
 ```
+
+---
+
+## 11. DRES submission (official server, Client API v2)
+
+Reference: `instruction.md` and `http://if-wan4.selab.edu.vn:20740/clientapi.json`
+(spec 2.0.5). Inside SELab (I87) replace the host with `10.0.1.21`.
+
+**Session.** `POST /api/v2/login {username,password}` → `sessionId`; every other
+call carries it as `?session=…`. `dres_client.py` caches it, and a 401/403
+triggers exactly one re-login + retry, so an expired session never costs a
+submit. Credentials live only in `backend/.env`.
+
+**Which run, which task.** The BTC opens one evaluation run per task type
+(`tkis`, `qa`, …), each with its own open task. The backend picks the run from
+the query type (`resolve_evaluation`, mirrored in `frontend/src/lib/dres.ts` for
+display) and reads the exact task name from
+`GET /api/v2/client/evaluation/currentTask/{evaluationId}` at submit time. The
+operator can pin a run in the DRES bar or type a task name in the guard.
+
+**Body.** `POST /api/v2/submit/{evaluationId}?session=…`
+
+```jsonc
+{"answerSets": [{"taskName": "tkis-00", "answers": [
+  {"mediaItemName": "L30_V095", "start": 373900, "end": 374900}   // KIS/TRAKE, ms
+]}]}
+```
+
+- KIS (T-KIS / V-KIS): one answer, `mediaItemName` + `start`/`end` **in ms**.
+  `mediaItemName` never carries `.mp4` or a directory.
+- TRAKE: one temporal answer **per event**, in event order, in the same answer set.
+- QA: ONE answer carrying all four — `{mediaItemName, start, end, text}` — the
+  form the BTC payload example documents (identify the segment *and* answer).
+  `answer_mode` overrides it to `text` / `temporal` / `item` per submit.
+- The shape resets to `auto` on every query-type and task change, and `prepare()`
+  compares it with the DRES `taskType`: a QA task built as a bare segment (the
+  answer text silently dropped) raises a red warning in the guard.
+- The window is the picked instant ± `DRES_SEGMENT_PAD_MS` (default 500 ms): a
+  zero-length range is rejected by strict overlap checks, and ±0.5 s stays well
+  inside a KIS target segment. Override per submit in the guard, or send explicit
+  `start_ms`/`end_ms`.
+
+**Đề bài (task statement).** `GET /api/v2/evaluation/{evaluationId}/template/task/{taskTemplateId}/hint`
+is **not** in `clientapi.json` — it lives in the full `/openapi.json` — but a
+PARTICIPANT session may read it, and it returns exactly what the DRES viewer
+shows the team: the TEXT query for T-KIS/QA, image/video hints for V-KIS. The
+backend resolves `taskTemplateId` from the run state, normalises the sequence
+(TEXT joined by `offset`, media over 12 MB dropped with a warning) and caches it
+per task template. The console shows it above the query box and prefills the
+query with it — never over words the operator already typed.
+
+**Guard.** `POST /api/submit/preview` returns the exact body, the resolved
+run/task and the duplicate key without sending anything; the submit guard renders
+it, so the operator confirms the real JSON. A format error (QA with no text, a
+frame with no resolvable time) blocks the submit locally instead of spending a
+wrong submit on it.
+
+**Dedup & history.** Scope is `{evaluationId}/{taskName}`. KIS dedups on
+`video_id:frame_idx`, TRAKE on the ordered frame sequence, QA on
+`video_id:frame_idx|text:<answer>` — a new answer for the same segment, or the
+same answer on another segment, is a genuinely different guess. Every
+attempt is stored in `backend/data/submit_history.json` with the DRES verdict
+(`CORRECT` / `WRONG` / `INDETERMINATE` / `UNDECIDABLE`). The console can delete
+individual entries (checkbox multi-select or a per-row ✕), one task's, or all of
+it behind a two-step confirm; whatever is removed is backed up beside the log,
+and deleting also erases that entry's dedup memory.
+
+**Mock mode never talks to DRES** (`Settings.has_dres` is false when
+`AIC26_MOCK_MODE=true`), so the test suite cannot submit to the live server.

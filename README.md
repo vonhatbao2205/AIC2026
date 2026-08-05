@@ -31,7 +31,9 @@ The repository contains two parts:
 - **NVILA-8B QA copilot** — top-video-first candidate blocks, 3–5 visual
   hypotheses and answer alternatives, DeepSeek web-search grounding, then a
   third NVILA visual-consistency pass before explicit human verification.
-- **Submit guard** — duplicate detection, evidence preview, DRES submission.
+- **Submit guard** — duplicate detection, evidence preview, and the exact DRES v2
+  `answerSets` body previewed before it is sent (media item + ms window for KIS/TRAKE,
+  text for QA); the open task name and evaluation run come live from DRES.
 - **Keyboard-first single-screen UI** with a multi-track timeline (keyframes,
   speech, OCR, audio, heatmap) and BTC keyframe snapping for frame-accurate picks.
 - **Mock mode** — deterministic fixtures so the UI and tests run with zero live services.
@@ -80,7 +82,8 @@ The broader design/strategy is in **[AIC26_Pipeline.md](AIC26_Pipeline.md)**.
 | `aic26_nvila8b_qa_colab_server.ipynb` | Colab A100 worker chạy NVILA-8B BF16: QA hotspot prediction → grounded answer suggestions qua FastAPI/Cloudflare tunnel. |
 | `*.ipynb` | Pipeline notebooks: `audio_pipeline`, `speech_pipeline`, `cloudflareR2`, `model-setup-backend`, `glap-encoder-kaggle`, `ui-streamlit`. |
 | `*_PIPELINE.md`, `*_HANDOFF.md`, `FEATURES.md` | Per-stage documentation (audio, speech, OCR, Elastic, Milvus, R2). |
-| `HUONG_DAN_SU_DUNG_DRES.md`, `dres_readme.md` | DRES submission notes. |
+| `instruction.md` | Official DRES v2 submission protocol (BTC). |
+| `DRES/HUONG_DAN_SU_DUNG_DRES.md`, `DRES/dres_readme.md` | Local DRES simulator notes (practice only). |
 
 **Not tracked in git** (see `.gitignore`): secrets (`*.txt` keys, `.env`),
 large data/model artifacts (`peG14.pkl`, `*.jsonl`, `speech_out/`,
@@ -141,7 +144,9 @@ Key variables (full list in [backend/.env.example](backend/.env.example)):
 | `PE_ENCODER_URL` / `GLAP_ENCODER_URL` | text/audio encoder endpoints |
 | `MEDIA_BASE_URL` | Cloudflare R2 public media base |
 | `NVIDIA_API_KEY` | enables the Nemotron query parser (else heuristics) |
-| `DRES_BASE_URL`, `DRES_TOKEN` | DRES submission (else local-only history) |
+| `DRES_BASE_URL` | official DRES host (SELab: `http://10.0.1.21:20740`) |
+| `DRES_USERNAME`, `DRES_PASSWORD` | participant account — the backend logs in (Client API v2) and keeps the session |
+| `DRES_EVALUATION_ID`, `DRES_SEGMENT_PAD_MS` | optional: pin one run / ± ms around the picked instant (default 500) |
 | `NVILA_BASE_URL`, `NVILA_TOKEN` | optional NVILA-8B QA worker chạy từ Colab notebook |
 | `DEEPSEEK_API_KEY` | optional DeepSeek built-in `web_search` grounding for QA; backend only |
 | `AIC26_MOCK_MODE` | `true` ⇒ run with fixtures, no live services |

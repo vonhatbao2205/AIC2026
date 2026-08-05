@@ -133,6 +133,29 @@ button { font-family: inherit; }
 .health-dot.ok { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
 .health-dot.warn { background: var(--warn); }
 .health-dot.bad { background: var(--bad); }
+
+/* ---- DRES bar (open task + where the next submit goes) ---- */
+.dres-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 18px; height: 34px;
+  background: var(--bg-1); border-bottom: 1px solid var(--line);
+  font-size: 12px; color: var(--fg-dim);
+}
+.dres-label { font-weight: 700; letter-spacing: .4px; font-size: 10px; color: var(--fg-faint); text-transform: uppercase; }
+.dres-user { font-family: var(--mono); font-size: 11.5px; color: var(--fg-dim); }
+.dres-task { font-family: var(--mono); font-weight: 700; color: var(--fg); }
+.dres-dim { color: var(--fg-faint); }
+.dres-clock { font-size: 11.5px; color: var(--fg-dim); }
+.dres-status { font-size: 9px; padding: 2px 7px; border-radius: 20px; font-weight: 700; letter-spacing: .3px; }
+.dres-status.ok { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+.dres-status.warn { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.dres-warn { color: var(--warn); font-size: 11.5px; }
+.dres-select {
+  background: var(--bg-3); color: var(--fg); border: 1px solid var(--line);
+  border-radius: 7px; padding: 3px 8px; font-size: 11.5px; max-width: 240px;
+}
+/* The answer shape contradicts what the open DRES task expects. */
+.dres-select.bad { border-color: var(--bad); color: var(--bad); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 18%, transparent); }
 .mode-pill {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600;
@@ -395,14 +418,44 @@ button { font-family: inherit; }
 .dup-warn { background: color-mix(in srgb, var(--bad) 14%, transparent); border: 1px solid color-mix(in srgb, var(--bad) 45%, transparent); color: var(--bad); padding: 9px 12px; border-radius: var(--radius-sm); margin: 10px 0; font-weight: 600; font-size: 12.5px; }
 .answer-input { width: 100%; background: var(--bg-3); color: var(--fg); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 9px 11px; font-size: 13.5px; }
 .answer-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+/* ---- Task statement (đề bài) from DRES ---- */
+.task-hint { border-left: 2px solid var(--accent); }
+.task-hint-text {
+  font-size: 13px; line-height: 1.5; color: var(--fg);
+  background: var(--bg-2); border-radius: var(--radius-sm); padding: 9px 11px;
+  white-space: pre-wrap; max-height: 220px; overflow-y: auto;
+}
+.task-hint-media { margin-top: 8px; }
+.task-hint-media img,
+.task-hint-media video { width: 100%; border-radius: var(--radius-sm); background: #000; }
+
+/* Where the submit goes + the exact body DRES will receive. */
+.guard-dres { background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: var(--radius-sm); padding: 9px 11px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 7px; }
+.guard-dres .row { gap: 9px; align-items: center; }
+.guard-payload { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
+.guard-json {
+  font-family: var(--mono); font-size: 10.5px; line-height: 1.45;
+  background: var(--bg-3); color: var(--fg-dim); border-radius: var(--radius-sm);
+  padding: 9px 11px; margin: 0 0 5px; max-height: 190px; overflow: auto; white-space: pre;
+}
 
 /* ---- History ---- */
 .hist-item { border: 1px solid var(--line-soft); border-radius: var(--radius-sm); padding: 9px 11px; margin-bottom: 8px; background: var(--bg-2); font-size: 11.5px; }
 .hist-item .row { justify-content: space-between; }
+.hist-item.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--bg-2)); }
+.hist-pick { accent-color: var(--accent); width: 13px; height: 13px; cursor: pointer; flex: 0 0 auto; }
+.hist-del { padding: 0 5px; font-size: 11px; line-height: 1; color: var(--fg-faint); }
+.hist-del:hover { color: var(--bad); }
+.hist-selection { gap: 8px; align-items: center; font-size: 11.5px; color: var(--fg-dim); margin-bottom: 8px; }
 .status-pill { font-size: 9px; padding: 2px 7px; border-radius: 20px; font-weight: 700; text-transform: uppercase; }
 .status-pill.local { background: var(--bg-3); color: var(--fg-dim); }
 .status-pill.dres_ok { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
 .status-pill.dres_error { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
+/* DRES verdicts */
+.status-pill.correct { background: color-mix(in srgb, var(--ok) 22%, transparent); color: var(--ok); }
+.status-pill.wrong { background: color-mix(in srgb, var(--bad) 22%, transparent); color: var(--bad); }
+.status-pill.indeterminate,
+.status-pill.undecidable { background: color-mix(in srgb, var(--warn) 20%, transparent); color: var(--warn); }
 
 .empty { color: var(--fg-faint); font-size: 13px; padding: 36px 16px; text-align: center; }
 .warn-banner { background: color-mix(in srgb, var(--warn) 12%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); color: var(--warn); padding: 9px 18px; font-size: 12.5px; }

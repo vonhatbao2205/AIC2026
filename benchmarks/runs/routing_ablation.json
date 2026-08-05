@@ -1,0 +1,270 @@
+{
+  "timestamp": "2026-08-03T16:35:12",
+  "n": 31,
+  "auto_routing": {
+    "n": 31,
+    "H@1": 0.3870967741935484,
+    "H@5": 0.6774193548387096,
+    "H@10": 0.7741935483870968,
+    "H@100": 0.9032258064516129,
+    "MRR": 0.518591423197264
+  },
+  "forced_tkis": {
+    "n": 31,
+    "H@1": 0.3870967741935484,
+    "H@5": 0.6774193548387096,
+    "H@10": 0.7741935483870968,
+    "H@100": 0.9032258064516129,
+    "MRR": 0.518591423197264
+  },
+  "records": [
+    {
+      "query_id": "query-p1-5-kis",
+      "auto_type": "QA",
+      "rank_auto": 1,
+      "rank_forced_tkis": 1,
+      "forced_type": "T-KIS",
+      "wall_ms": 2128.647830999398
+    },
+    {
+      "query_id": "query-p1-10-kis",
+      "auto_type": "QA",
+      "rank_auto": 1,
+      "rank_forced_tkis": 1,
+      "forced_type": "T-KIS",
+      "wall_ms": 2106.3453940005274
+    },
+    {
+      "query_id": "query-p1-11-kis",
+      "auto_type": "QA",
+      "rank_auto": 1,
+      "rank_forced_tkis": 1,
+      "forced_type": "T-KIS",
+      "wall_ms": 1828.090217000863
+    },
+    {
+      "query_id": "TRAKE",
+      "auto_type": "TRAKE",
+      "rank_auto": 9,
+      "rank_forced_tkis": 9,
+      "forced_type": "T-KIS",
+      "wall_ms": 1158.9044509983069
+    },
+    {
+      "query_id": "query-p1-13-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": null,
+      "rank_forced_tkis": null,
+      "forced_type": "T-KIS",
+      "wall_ms": 1366.1412759993254
+    },
+    {
+      "query_id": "query-p1-14-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 1,
+      "rank_forced_tkis": 1,
+      "forced_type": "T-KIS",
+      "wall_ms": 1413.4648560011556
+    },
+    {
+      "query_id": "query-p1-17-kis",
+      "auto_type": "QA",
+      "rank_auto": 1,
+      "rank_forced_tkis": 1,
+      "forced_type": "T-KIS",
+      "wall_ms": 1023.9216160007345
+    },
+    {
+      "query_id": "query-p1-20-kis",
+      "auto_type": "QA",
+      "rank_auto": 1,
+      "rank_forced_tkis": 1,
+      "forced_type": "T-KIS",
+      "wall_ms": 886.8944499990903
+    },
+    {
+      "query_id": "query-p1-24-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 2,
+      "rank_forced_tkis": 2,
+      "forced_type": "T-KIS",
+      "wall_ms": 888.5914429993136
+    },
+    {
+      "query_id": "query-p1-25-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": null,
+      "rank_forced_tkis": null,
+      "forced_type": "T-KIS",
+      "wall_ms": 855.5976740008191
+    },
+    {
+      "query_id": "query-p2-2-kis",
+      "auto_type": "QA",
+      "rank_auto": 1,
+      "rank_forced_tkis": 1,
+      "forced_type": "T-KIS",
+      "wall_ms": 894.5104930007801
+    },
+    {
+      "query_id": "query-p2-5-kis",
+      "auto_type": "QA",
+      "rank_auto": 1,
+      "rank_forced_tkis": 1,
+      "forced_type": "T-KIS",
+      "wall_ms": 1250.4377770001156
+    },
+    {
+      "query_id": "query-p2-6-kis",
+      "auto_type": "QA",
+      "rank_auto": 1,
+      "rank_forced_tkis": 1,
+      "forced_type": "T-KIS",
+      "wall_ms": 840.5778409996856
+    },
+    {
+      "query_id": "query-p2-11-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 3,
+      "rank_forced_tkis": 3,
+      "forced_type": "T-KIS",
+      "wall_ms": 1808.125569999902
+    },
+    {
+      "query_id": "query-p2-12-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 1,
+      "rank_forced_tkis": 1,
+      "forced_type": "T-KIS",
+      "wall_ms": 1219.6382710008038
+    },
+    {
+      "query_id": "query-p2-13-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": null,
+      "rank_forced_tkis": null,
+      "forced_type": "T-KIS",
+      "wall_ms": 2558.509258000413
+    },
+    {
+      "query_id": "query-p2-15-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 1,
+      "rank_forced_tkis": 1,
+      "forced_type": "T-KIS",
+      "wall_ms": 9717.410248998931
+    },
+    {
+      "query_id": "query-p2-20-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 3,
+      "rank_forced_tkis": 3,
+      "forced_type": "T-KIS",
+      "wall_ms": 1400.8985860000394
+    },
+    {
+      "query_id": "query-p2-26-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 46,
+      "rank_forced_tkis": 46,
+      "forced_type": "T-KIS",
+      "wall_ms": 6796.339483000338
+    },
+    {
+      "query_id": "query-p2-27-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 2,
+      "rank_forced_tkis": 2,
+      "forced_type": "T-KIS",
+      "wall_ms": 1753.4360869994998
+    },
+    {
+      "query_id": "query-p2-29-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 2,
+      "rank_forced_tkis": 2,
+      "forced_type": "T-KIS",
+      "wall_ms": 922.4793029989087
+    },
+    {
+      "query_id": "query-p3-4-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 45,
+      "rank_forced_tkis": 45,
+      "forced_type": "T-KIS",
+      "wall_ms": 879.5974570002727
+    },
+    {
+      "query_id": "query-p3-6-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 68,
+      "rank_forced_tkis": 68,
+      "forced_type": "T-KIS",
+      "wall_ms": 1586.1820940008329
+    },
+    {
+      "query_id": "query-p3-7-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 2,
+      "rank_forced_tkis": 2,
+      "forced_type": "T-KIS",
+      "wall_ms": 876.5131380005187
+    },
+    {
+      "query_id": "query-p3-11-kis",
+      "auto_type": "QA",
+      "rank_auto": 3,
+      "rank_forced_tkis": 3,
+      "forced_type": "T-KIS",
+      "wall_ms": 869.590051999694
+    },
+    {
+      "query_id": "query-p3-15-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 7,
+      "rank_forced_tkis": 7,
+      "forced_type": "T-KIS",
+      "wall_ms": 894.0308790006384
+    },
+    {
+      "query_id": "query-p3-17-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 73,
+      "rank_forced_tkis": 73,
+      "forced_type": "T-KIS",
+      "wall_ms": 940.4923889997008
+    },
+    {
+      "query_id": "query-p3-19-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 6,
+      "rank_forced_tkis": 6,
+      "forced_type": "T-KIS",
+      "wall_ms": 900.7532640007412
+    },
+    {
+      "query_id": "query-p3-22-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 1,
+      "rank_forced_tkis": 1,
+      "forced_type": "T-KIS",
+      "wall_ms": 891.4356889999908
+    },
+    {
+      "query_id": "query-p3-29-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 3,
+      "rank_forced_tkis": 3,
+      "forced_type": "T-KIS",
+      "wall_ms": 892.6694000001589
+    },
+    {
+      "query_id": "query-p3-31-kis",
+      "auto_type": "TRAKE",
+      "rank_auto": 4,
+      "rank_forced_tkis": 4,
+      "forced_type": "T-KIS",
+      "wall_ms": 1772.720364999259
+    }
+  ]
+}

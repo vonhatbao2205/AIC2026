@@ -1,0 +1,129 @@
+{
+  "timestamp": "2026-08-03T16:50:45",
+  "n_per_config": 25,
+  "query": "Phóng viên đứng trước một tòa nhà lớn, có dòng chữ trên màn hình và tiếng nhạc nền, sau đó máy quay lia sang đám đông",
+  "order": [
+    "pe_only",
+    "pe_ocr",
+    "pe_speech",
+    "pe_audio",
+    "full_hybrid"
+  ],
+  "interleaved": true,
+  "note": "Bỏ một request warm-up cho mỗi cấu hình. Đã gồm enrichment/RRF/grouping, không gồm LLM parse. Cấu hình chạy đầu tiên vẫn chịu chi phí khởi động kết nối/cache nên cần đọc kèm thứ tự chạy.",
+  "results": {
+    "pe_only": {
+      "n": 25,
+      "disabled": [
+        "ocr",
+        "speech",
+        "audio"
+      ],
+      "backend_total_ms": {
+        "median": 863.7,
+        "mean": 871.612,
+        "p95": 929.9,
+        "min": 822.0,
+        "max": 1015.4
+      },
+      "wall_ms": {
+        "median": 871.3557589999255,
+        "p95": 940.9056559998135,
+        "min": 832.8950420000183,
+        "max": 1020.923269999912
+      },
+      "fusion_ms": {
+        "median": 253.7
+      }
+    },
+    "pe_ocr": {
+      "n": 25,
+      "disabled": [
+        "speech",
+        "audio"
+      ],
+      "backend_total_ms": {
+        "median": 1083.1,
+        "mean": 1049.38,
+        "p95": 1110.8,
+        "min": 850.5,
+        "max": 1270.4
+      },
+      "wall_ms": {
+        "median": 1097.4012940005196,
+        "p95": 1147.166124999785,
+        "min": 864.2315960005362,
+        "max": 1281.2973279997095
+      },
+      "fusion_ms": {
+        "median": 258.9
+      }
+    },
+    "pe_speech": {
+      "n": 25,
+      "disabled": [
+        "ocr",
+        "audio"
+      ],
+      "backend_total_ms": {
+        "median": 867.8,
+        "mean": 875.656,
+        "p95": 922.9,
+        "min": 834.0,
+        "max": 987.3
+      },
+      "wall_ms": {
+        "median": 876.4596459986933,
+        "p95": 931.1109339996619,
+        "min": 841.1299370000052,
+        "max": 998.8198559985904
+      },
+      "fusion_ms": {
+        "median": 259.2
+      }
+    },
+    "pe_audio": {
+      "n": 25,
+      "disabled": [
+        "ocr",
+        "speech"
+      ],
+      "backend_total_ms": {
+        "median": 1093.5,
+        "mean": 1093.648,
+        "p95": 1114.2,
+        "min": 1070.6,
+        "max": 1115.2
+      },
+      "wall_ms": {
+        "median": 1102.8421529990737,
+        "p95": 1126.803008999559,
+        "min": 1079.4150220008305,
+        "max": 1128.0969370000093
+      },
+      "fusion_ms": {
+        "median": 265.1
+      }
+    },
+    "full_hybrid": {
+      "n": 25,
+      "disabled": [],
+      "backend_total_ms": {
+        "median": 1589.5,
+        "mean": 1698.152,
+        "p95": 2327.5,
+        "min": 1520.0,
+        "max": 2468.5
+      },
+      "wall_ms": {
+        "median": 1599.783744000888,
+        "p95": 2338.672552999924,
+        "min": 1529.6617180010799,
+        "max": 2479.765733998647
+      },
+      "fusion_ms": {
+        "median": 275.4
+      }
+    }
+  }
+}

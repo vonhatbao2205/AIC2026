@@ -89,8 +89,21 @@ class Settings:
     # Slim-schema parse: ~2x faster but A/B showed it occasionally misroutes
     # query_type (TKIS→TRAKE) on ambiguous queries — off by default (accuracy).
     slim_parse: bool = False
+    # --- DRES (official BTC evaluation server, Client API v2) ---
+    # Auth is a session: POST /api/v2/login returns a sessionId that every other
+    # call carries as ?session=…. Credentials stay backend-side.
     dres_base_url: str | None = None
-    dres_token: str | None = None
+    dres_username: str | None = None
+    dres_password: str | None = None
+    # Pre-issued session id (skips login; cannot be renewed when it expires).
+    dres_session: str | None = None
+    # Pin one evaluation run; empty means "auto-pick by the current task type".
+    dres_evaluation_id: str | None = None
+    # KIS/TRAKE answers are temporal ranges. The operator submits one instant, so
+    # the range is padded symmetrically: a zero-length range is rejected by strict
+    # overlap checks, and ±0.5 s stays far inside a typical KIS target segment.
+    dres_segment_pad_ms: int = 500
+    dres_timeout_seconds: float = 20.0
 
     # Index / collection names (override only if you re-uploaded with a new prefix).
     idx_keyframe_map: str = "aic26_keyframe_map_v1"
@@ -147,7 +160,16 @@ class Settings:
 
     @property
     def has_dres(self) -> bool:
-        return bool(self.dres_base_url and self.dres_token)
+        """Enough to reach DRES: a host plus either credentials or a live session.
+
+        Mock mode never talks to the real evaluation server — fixtures are not
+        answers, and the whole test suite runs with mock mode on.
+        """
+        if self.mock_mode:
+            return False
+        return bool(
+            self.dres_base_url and (self.dres_session or (self.dres_username and self.dres_password))
+        )
 
 
 @lru_cache
@@ -205,6 +227,15 @@ def get_settings() -> Settings:
     if reasoning_effort not in {"low", "high", "max"}:
         reasoning_effort = "high"
 
+    try:
+        dres_segment_pad_ms = int(_env("DRES_SEGMENT_PAD_MS", "500") or "500")
+    except ValueError:
+        dres_segment_pad_ms = 500
+    try:
+        dres_timeout_seconds = float(_env("DRES_TIMEOUT_SECONDS", "20") or "20")
+    except ValueError:
+        dres_timeout_seconds = 20.0
+
     cors = _env("CORS_ORIGINS")
     cors_origins = [o.strip() for o in cors.split(",")] if cors else ["*"]
 
@@ -233,8 +264,14 @@ def get_settings() -> Settings:
         deepseek_grounding_auto_threshold=min(1.0, max(0.0, deepseek_grounding_auto_threshold)),
         deepseek_grounding_max_output_tokens=min(64000, max(1000, deepseek_grounding_max_output_tokens)),
         deepseek_grounding_reasoning_effort=reasoning_effort,
-        dres_base_url=_env("DRES_BASE_URL"),
-        dres_token=_env("DRES_TOKEN"),
+        # The public BTC host; inside SELab (I87) override with http://10.0.1.21:20740.
+        dres_base_url=(_env("DRES_BASE_URL") or "http://if-wan4.selab.edu.vn:20740").rstrip("/"),
+        dres_username=_env("DRES_USERNAME"),
+        dres_password=_env("DRES_PASSWORD"),
+        dres_session=_env("DRES_SESSION"),
+        dres_evaluation_id=_env("DRES_EVALUATION_ID"),
+        dres_segment_pad_ms=max(0, dres_segment_pad_ms),
+        dres_timeout_seconds=max(5.0, dres_timeout_seconds),
         idx_keyframe_map=_env("IDX_KEYFRAME_MAP") or "aic26_keyframe_map_v1",
         idx_ocr=_env("IDX_OCR") or "aic26_ocr_keyframes_v1",
         idx_speech=_env("IDX_SPEECH") or "aic26_speech_segments_v1",

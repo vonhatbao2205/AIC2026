@@ -1,0 +1,4154 @@
+{
+  "config": "full",
+  "config_detail": {
+    "disable_channels": []
+  },
+  "tolerance_frames": 150,
+  "timestamp": "2026-08-03T16:12:21",
+  "n_queries": 67,
+  "failures": [],
+  "video_level": {
+    "n": 67,
+    "hits": {
+      "H@1": 31,
+      "H@5": 46,
+      "H@10": 49,
+      "H@20": 52,
+      "H@50": 56,
+      "H@100": 58
+    },
+    "hit_rate": {
+      "H@1": 0.4626865671641791,
+      "H@5": 0.6865671641791045,
+      "H@10": 0.7313432835820896,
+      "H@20": 0.7761194029850746,
+      "H@50": 0.835820895522388,
+      "H@100": 0.8656716417910447
+    },
+    "mrr": 0.5630959296067721,
+    "found": 58,
+    "mean_rank_found": 7.568965517241379,
+    "median_rank_found": 1.0
+  },
+  "frame_level": {
+    "n": 67,
+    "hits": {
+      "H@1": 23,
+      "H@5": 29,
+      "H@10": 35,
+      "H@20": 42,
+      "H@50": 48,
+      "H@100": 50
+    },
+    "hit_rate": {
+      "H@1": 0.34328358208955223,
+      "H@5": 0.43283582089552236,
+      "H@10": 0.5223880597014925,
+      "H@20": 0.6268656716417911,
+      "H@50": 0.7164179104477612,
+      "H@100": 0.746268656716418
+    },
+    "mrr": 0.4045231484686189,
+    "found": 53,
+    "mean_rank_found": 18.660377358490567,
+    "median_rank_found": 2
+  },
+  "latency": {
+    "total_ms": [
+      882.1,
+      892.3,
+      1364.3,
+      1395.5,
+      1568.7,
+      1592.1,
+      1634.2,
+      1799.3,
+      1838.4,
+      2002.8,
+      2013.4,
+      2045.6,
+      2138.4,
+      2153.1,
+      2188.3,
+      2216.0,
+      2276.3,
+      2293.8,
+      2300.2,
+      2302.2,
+      2331.0,
+      2356.6,
+      2390.2,
+      2410.4,
+      2427.5,
+      2437.5,
+      2488.7,
+      2554.0,
+      2611.6,
+      2648.0,
+      2729.7,
+      2770.7,
+      2778.1,
+      2782.1,
+      2941.1,
+      3029.6,
+      3062.9,
+      3118.7,
+      3250.7,
+      3284.0,
+      3288.4,
+      3593.0,
+      3596.1,
+      3718.0,
+      3752.2,
+      3787.1,
+      3916.2,
+      3995.5,
+      4004.8,
+      4010.1,
+      4054.7,
+      4167.5,
+      4261.4,
+      4462.0,
+      4525.4,
+      4630.1,
+      4669.2,
+      4683.8,
+      4780.5,
+      4925.7,
+      5397.0,
+      5481.2,
+      5558.1,
+      5715.5,
+      5941.9,
+      5988.8,
+      6286.9
+    ],
+    "parse_ms": [
+      0.0,
+      0.0,
+      0.1,
+      0.1,
+      0.1,
+      453.7,
+      533.2,
+      600.2,
+      652.6,
+      728.9,
+      736.5,
+      747.0,
+      767.9,
+      790.9,
+      852.6,
+      860.0,
+      878.4,
+      936.2,
+      942.7,
+      951.7,
+      1010.8,
+      1094.8,
+      1102.4,
+      1143.5,
+      1185.0,
+      1206.0,
+      1209.4,
+      1217.7,
+      1297.5,
+      1316.3,
+      1331.3,
+      1348.8,
+      1399.0,
+      1441.3,
+      1443.3,
+      1463.9,
+      1464.4,
+      1475.8,
+      1501.4,
+      1506.1,
+      1546.3,
+      1573.9,
+      1592.1,
+      1642.0,
+      1800.2,
+      1866.0,
+      2101.2,
+      2436.4,
+      2565.0,
+      2579.5,
+      2622.3,
+      2759.9,
+      2783.1,
+      2785.6,
+      2892.2,
+      2912.7,
+      2952.4,
+      2959.0,
+      2959.4,
+      2993.4,
+      3076.3,
+      3432.2,
+      3593.9,
+      3873.3,
+      3991.4,
+      4154.4,
+      4298.4
+    ],
+    "fusion_ms": [
+      245.1,
+      245.9,
+      247.5,
+      250.1,
+      250.4,
+      251.4,
+      251.4,
+      251.5,
+      251.5,
+      251.9,
+      252.2,
+      252.3,
+      252.4,
+      252.5,
+      252.6,
+      253.1,
+      253.5,
+      254.8,
+      254.9,
+      255.2,
+      255.9,
+      256.1,
+      256.4,
+      256.7,
+      256.8,
+      256.9,
+      257.1,
+      259.6,
+      259.7,
+      260.1,
+      260.1,
+      260.7,
+      261.3,
+      261.8,
+      262.1,
+      262.7,
+      263.2,
+      263.3,
+      264.5,
+      264.6,
+      265.9,
+      266.2,
+      269.8,
+      271.3,
+      271.4,
+      271.7,
+      298.4,
+      477.9,
+      477.9,
+      478.0,
+      479.2,
+      479.4,
+      480.4,
+      480.5,
+      481.5,
+      481.6,
+      481.6,
+      483.3,
+      483.9,
+      485.6,
+      487.4,
+      489.5,
+      493.3,
+      497.2,
+      498.9,
+      719.3,
+      956.2
+    ],
+    "wall_ms": [
+      893.1293090008694,
+      901.2098359999072,
+      1377.0700370005216,
+      1407.4498620011582,
+      1577.4568850010837,
+      1606.7394699985016,
+      1652.0637960002205,
+      1809.6807500005525,
+      1847.5348299998586,
+      2011.3709209999797,
+      2024.5389379997505,
+      2057.290873000966,
+      2155.757802000153,
+      2165.9179580001364,
+      2198.5478659989894,
+      2226.772936999623,
+      2289.3332340008783,
+      2303.9859420005087,
+      2313.149138000881,
+      2316.9791649997933,
+      2341.8368169986934,
+      2369.0428150002845,
+      2401.685347000239,
+      2422.2271149992594,
+      2439.765428998726,
+      2448.105064999254,
+      2506.348961000185,
+      2563.4790919993975,
+      2622.1001940011774,
+      2657.089182999698,
+      2740.3720210004394,
+      2782.997232001435,
+      2793.37904500062,
+      2796.038946000408,
+      2949.4482090012752,
+      3042.7553770005034,
+      3077.7157719985553,
+      3131.2802840002405,
+      3267.733382001097,
+      3297.3594839986617,
+      3301.390126000115,
+      3604.5960829997057,
+      3610.8766159995866,
+      3731.324794998727,
+      3766.3478140002553,
+      3802.8572570001415,
+      3928.2898329984164,
+      4007.0220769994194,
+      4014.809730999332,
+      4020.620264000172,
+      4068.1151959997806,
+      4182.312167000418,
+      4275.498429999061,
+      4481.719052999324,
+      4540.320348000023,
+      4642.730431000018,
+      4679.924757001572,
+      4695.0243400006,
+      4793.803443999423,
+      4939.172453001447,
+      5410.540048000257,
+      5492.980602999523,
+      5570.961450999675,
+      5729.2446320007,
+      5952.8987249996135,
+      6001.771277000444,
+      6302.295137000328
+    ]
+  },
+  "records": [
+    {
+      "query_id": "query-p1-1-kis",
+      "phase": "P1",
+      "text": "Đây là phần giới thiệu việc phóng tàu vũ trụ tư nhân. Đoạn clip bắt đầu với hình ảnh 4 phi hành gia mặc áo đen. Một trong những nhiệm vụ dự kiến của tàu vũ trụ là nghiên cứu ánh sáng cực quang ở vùng cực",
+      "gt_videos": [
+        "L21_V015"
+      ],
+      "gt_frames": [
+        [
+          "L21_V015",
+          25605
+        ],
+        [
+          "L21_V015",
+          26151
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 2,
+      "n_groups": 68,
+      "top_videos": [
+        "L21_V015",
+        "L21_V024",
+        "K12_V015",
+        "K11_V019",
+        "K06_V024",
+        "K19_V016",
+        "K02_V009",
+        "K02_V011",
+        "K01_V024",
+        "K05_V005"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 723.6,
+          "ocr": 1892.7
+        },
+        "fusion_ms": 259.6,
+        "parse_ms": 0.1,
+        "total_ms": 2153.1
+      },
+      "wall_ms": 2165.9179580001364,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p1-2-kis",
+      "phase": "P1",
+      "text": "Mẩu tin giới thiệu về đàn hổ tại một địa phương ở miền Nam vừa có thêm khoảng 3-6 con hổ con. Đây là một giống hổ quý hiếm",
+      "gt_videos": [
+        "L21_V029"
+      ],
+      "gt_frames": [
+        [
+          "L21_V029",
+          10908
+        ],
+        [
+          "L21_V029",
+          11232
+        ],
+        [
+          "L21_V029",
+          11555
+        ],
+        [
+          "L21_V029",
+          11762
+        ]
+      ],
+      "video_rank": 2,
+      "frame_rank": 6,
+      "n_groups": 51,
+      "top_videos": [
+        "K17_V021",
+        "L21_V029",
+        "K01_V002",
+        "K11_V019",
+        "K02_V003",
+        "K02_V008",
+        "K15_V010",
+        "K01_V003",
+        "K02_V004",
+        "K16_V032"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 1065.7,
+          "ocr": 335.8
+        },
+        "fusion_ms": 298.4,
+        "parse_ms": 0.0,
+        "total_ms": 1364.3
+      },
+      "wall_ms": 1377.0700370005216,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p1-5-kis",
+      "phase": "P1",
+      "text": "Đoạn clip cần tìm là cảnh hai người phụ nữ đang cho dê ăn: một người mặc áo thun trắng quàng áo đỏ trên vai, người kia mặc áo dài tay kẻ sọc tím truyền thống. Cả hai đều mỉm cười, tỏ vẻ thích thú.\nKhông gian trại rộng rãi, có mái che bằng tôn và hàng rào gỗ chia thành nhiều dãy chuồng, trong đó có hàng dài dê được nuôi nhốt.",
+      "gt_videos": [
+        "L27_V014"
+      ],
+      "gt_frames": [
+        [
+          "L27_V014",
+          634
+        ],
+        [
+          "L27_V014",
+          675
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 5,
+      "top_videos": [
+        "L27_V014",
+        "L27_V015",
+        "L27_V016",
+        "K11_V008",
+        "K03_V008"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "QA",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 636.8
+        },
+        "fusion_ms": 245.1,
+        "parse_ms": 0.0,
+        "total_ms": 882.1
+      },
+      "wall_ms": 893.1293090008694,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p1-6-kis",
+      "phase": "P1",
+      "text": "Đoạn clip cần tìm bắt đầu bằng cảnh 1 người đầu bếp đặt đang đặt món gỏi cuốn chay bày trên đĩa, nhân gồm rau xanh cuộn tròn và đậu hũ, gói trong bánh tráng màu vàng và tím. Đĩa được trang trí thêm lá xanh và hoa pansy tím-vàng, tạo cảm giác thanh mát và tinh tế.",
+      "gt_videos": [
+        "L26_V056"
+      ],
+      "gt_frames": [
+        [
+          "L26_V056",
+          6300
+        ],
+        [
+          "L26_V056",
+          6362
+        ],
+        [
+          "L26_V056",
+          6400
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 67,
+      "top_videos": [
+        "L26_V056",
+        "L26_V133",
+        "L26_V157",
+        "L26_V385",
+        "L26_V023",
+        "L26_V069",
+        "L26_V015",
+        "L26_V119",
+        "L26_V051",
+        "L26_V136"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 631.3,
+          "ocr": 1134.0
+        },
+        "fusion_ms": 260.1,
+        "parse_ms": 0.1,
+        "total_ms": 1395.5
+      },
+      "wall_ms": 1407.4498620011582,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p1-7-kis",
+      "phase": "P1",
+      "text": "Đoạn clip cần tìm là cảnh quay trong một khu rừng, dưới gốc cây to với nhiều lá khô phủ đầy mặt đất. Nổi bật ở cận cảnh là một chú chim có bộ lông đen ánh xanh ở đầu và thân trên, còn cánh và lưng màu nâu đỏ. Đôi mắt chim đỏ rực, tạo điểm nhấn rõ ràng. Đây là loài chim thường thấy ở vùng Nam Bộ Việt Nam.",
+      "gt_videos": [
+        "L29_V023"
+      ],
+      "gt_frames": [
+        [
+          "L29_V023",
+          24920
+        ],
+        [
+          "L29_V023",
+          24975
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 3,
+      "n_groups": 100,
+      "top_videos": [
+        "L29_V023",
+        "K03_V017",
+        "K16_V017",
+        "K11_V013",
+        "K06_V030",
+        "K19_V025",
+        "K12_V029",
+        "K14_V025",
+        "K08_V011",
+        "K14_V009"
+      ],
+      "channels_used": [
+        "audio",
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 620.3,
+          "audio": 593.2
+        },
+        "fusion_ms": 271.7,
+        "parse_ms": 0.1,
+        "total_ms": 892.3
+      },
+      "wall_ms": 901.2098359999072,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p1-8-kis",
+      "phase": "P1",
+      "text": "Đoạn video về một lễ hội ẩm thực Nhật Bản lớn nhất thế giới. Hãy tìm chính xác phân cảnh một cô bé đeo một con bạch tuộc / con mực màu đỏ phía trước ngực. Trên tay cô bé có cầm một chiếc túi giấy.",
+      "gt_videos": [
+        "L22_V030"
+      ],
+      "gt_frames": [
+        [
+          "L22_V030",
+          18327
+        ],
+        [
+          "L22_V030",
+          18375
+        ]
+      ],
+      "video_rank": 2,
+      "frame_rank": 11,
+      "n_groups": 50,
+      "top_videos": [
+        "K13_V008",
+        "L22_V030",
+        "L22_V027",
+        "K19_V013",
+        "K12_V002",
+        "K12_V009",
+        "K11_V010",
+        "K16_V025",
+        "K08_V003",
+        "L30_V021"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 746.3
+        },
+        "fusion_ms": 481.6,
+        "parse_ms": 1209.4,
+        "total_ms": 2437.5
+      },
+      "wall_ms": 2448.105064999254,
+      "workbook_recall_note": "R11"
+    },
+    {
+      "query_id": "query-p1-9-kis",
+      "phase": "P1",
+      "text": "Đoạn clip là cảnh thu hoạch dứa ở miền Tây: một bà cụ ngồi bên giỏ dứa trò chuyện với cô gái mặc áo hồng quàng khăn rằn; xung quanh chất đầy dứa, phía sau có người phụ nữ đội nón lá cầm trái dứa và một chiếc ghe xanh đậu cạnh bờ, tạo không khí nông thôn mộc mạc, yên bình.",
+      "gt_videos": [
+        "L27_V013"
+      ],
+      "gt_frames": [
+        [
+          "L27_V013",
+          5050
+        ],
+        [
+          "L27_V013",
+          5130
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 9,
+      "top_videos": [
+        "L27_V013",
+        "L28_V014",
+        "L27_V014",
+        "L28_V024",
+        "L28_V022",
+        "L29_V017",
+        "L28_V013",
+        "L29_V018",
+        "L28_V006"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 774.6
+        },
+        "fusion_ms": 478.0,
+        "parse_ms": 1866.0,
+        "total_ms": 3118.7
+      },
+      "wall_ms": 3131.2802840002405,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p1-10-kis",
+      "phase": "P1",
+      "text": "Tìm chính xác đoạn clip ngắn có ba người (hai phụ nữ và một nam giới) đang ngồi cạnh nhau, tập trung chơi nhạc cụ kim loại có dạng tròn, rỗng, với các vết lõm để tạo ra âm thanh khi gõ tay. Có 1 người mặc áo trắng ngồi giữa 2 người mặc áo đen. Bối cảnh phía sau là một kệ sách nhiều ngăn, xếp đầy sách với nhiều màu sắc",
+      "gt_videos": [
+        "L30_V017"
+      ],
+      "gt_frames": [
+        [
+          "L30_V017",
+          3010
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 100,
+      "top_videos": [
+        "L30_V017",
+        "L25_V036",
+        "L25_V010",
+        "K19_V030",
+        "L25_V081",
+        "L26_V033",
+        "L25_V064",
+        "L25_V019",
+        "L26_V387",
+        "K11_V009"
+      ],
+      "channels_used": [
+        "audio",
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "QA",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 689.5,
+          "ocr": 1629.2,
+          "audio": 4676.6
+        },
+        "fusion_ms": 956.2,
+        "parse_ms": 652.6,
+        "total_ms": 6286.9
+      },
+      "wall_ms": 6302.295137000328,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p1-11-kis",
+      "phase": "P1",
+      "text": "Trong đoạn clip có là một chàng trai đội mũ lưỡi trai đen, mặc áo thun trắng có dòng chữ tiếng Anh, đang ngồi cạnh một chiếc hộp. Trên hộp, anh sắp xếp nhiều mảnh bìa cắt rời với hình thù ngẫu nhiên.\nNhờ ánh sáng chiếu từ một phía, các mảnh bìa đó đổ bóng lên tường, tạo thành hình chân dung một người đàn ông với khuôn mặt rõ nét, tóc vuốt gọn và mặc vest.",
+      "gt_videos": [
+        "L30_V057"
+      ],
+      "gt_frames": [
+        [
+          "L30_V057",
+          3082
+        ],
+        [
+          "L30_V057",
+          4464
+        ],
+        [
+          "L30_V057",
+          4664
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": null,
+      "n_groups": 100,
+      "top_videos": [
+        "L30_V057",
+        "L25_V036",
+        "L25_V061",
+        "K20_V003",
+        "K10_V016",
+        "K15_V009",
+        "K03_V020",
+        "K10_V027",
+        "K15_V019",
+        "L22_V010"
+      ],
+      "channels_used": [
+        "audio",
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "QA",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 793.9,
+          "ocr": 1650.5,
+          "audio": 2150.9
+        },
+        "fusion_ms": 256.9,
+        "parse_ms": 1506.1,
+        "total_ms": 3916.2
+      },
+      "wall_ms": 3928.2898329984164,
+      "workbook_recall_note": "No"
+    },
+    {
+      "query_id": "TRAKE",
+      "phase": "P1",
+      "text": "Đoạn video mô tả cảnh trang trí bánh rán. \nE1: Phân cảnh bắt đầu là một chiếc đĩa sứ màu trắng nằm trên một khay gỗ hình chữ nhật. \nE2: Phân cảnh tiếp theo cho thấy đầu bếp đặt 2 chiếc bánh rán lên đĩa sứ và bắt đầu trang trí. \nE3: Bước đầu tiên là việc rưới chocolate lên trên mặt bánh. \nE4: Sau đó, đầu bếp đặt các lát chuối lên trên một chiếc bánh rán, chiếc còn lại được đặt các lát dâu tây lên.",
+      "gt_videos": [
+        "L26_V200"
+      ],
+      "gt_frames": [
+        [
+          "L26_V200",
+          4501
+        ],
+        [
+          "L26_V200",
+          4579
+        ],
+        [
+          "L26_V200",
+          4700
+        ],
+        [
+          "L26_V200",
+          5027
+        ]
+      ],
+      "video_rank": 9,
+      "frame_rank": 33,
+      "n_groups": 81,
+      "top_videos": [
+        "L26_V079",
+        "L26_V460",
+        "L26_V472",
+        "K09_V004",
+        "L26_V492",
+        "L26_V254",
+        "L26_V070",
+        "K11_V022",
+        "L26_V200",
+        "L25_V001"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 792.0,
+          "ocr": 1398.0
+        },
+        "fusion_ms": 271.4,
+        "parse_ms": 2959.4,
+        "total_ms": 4630.1
+      },
+      "wall_ms": 4642.730431000018,
+      "workbook_recall_note": "No"
+    },
+    {
+      "query_id": "query-p1-13-kis",
+      "phase": "P1",
+      "text": "Đoạn video mô tả một người ngồi vệ sinh máy ảnh. Công đoạn này bắt đầu bằng việc tháo rời máy ảnh. Tiếp theo, chiếc ống kính đã được tháo rời và được đặt ngay ngắn trên một chiếc khăn màu tím hồng. Phân cảnh cuối cùng là vệ sinh ống kính (lens) bằng một chiếc tăm bông.",
+      "gt_videos": [
+        "L30_V095"
+      ],
+      "gt_frames": [
+        [
+          "L30_V095",
+          2672
+        ],
+        [
+          "L30_V095",
+          2695
+        ],
+        [
+          "L30_V095",
+          2749
+        ],
+        [
+          "L30_V095",
+          2820
+        ]
+      ],
+      "video_rank": null,
+      "frame_rank": null,
+      "n_groups": 80,
+      "top_videos": [
+        "L30_V096",
+        "K02_V025",
+        "K04_V020",
+        "K04_V006",
+        "L22_V011",
+        "K13_V010",
+        "K18_V024",
+        "L24_V040",
+        "K16_V016",
+        "L24_V012"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 607.2
+        },
+        "fusion_ms": 483.9,
+        "parse_ms": 3076.3,
+        "total_ms": 4167.5
+      },
+      "wall_ms": 4182.312167000418,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p1-14-kis",
+      "phase": "P1",
+      "text": "Đoạn clip bắt đầu với cảnh một tác phẩm điêu khắc cát hoành tráng tại Lễ hội điêu khắc trên cát. Tác phẩm mô tả cảnh những thanh niên chơi thể thao đường phố: một người trượt patin, hai người trượt ván\nNền phía sau là họa tiết vòm cong lớn và có khắc chữ.\nTiếp theo có cảnh nhiều tác phẩm khác bằng cát, và có 2 cột khói màu hồng",
+      "gt_videos": [
+        "L21_V027"
+      ],
+      "gt_frames": [
+        [
+          "L21_V027",
+          20226
+        ],
+        [
+          "L21_V027",
+          20355
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 51,
+      "top_videos": [
+        "L21_V027",
+        "K15_V020",
+        "K16_V013",
+        "L25_V081",
+        "K13_V001",
+        "K05_V005",
+        "K08_V021",
+        "K20_V004",
+        "L25_V080",
+        "L28_V001"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 693.3,
+          "ocr": 1640.6
+        },
+        "fusion_ms": 251.5,
+        "parse_ms": 2101.2,
+        "total_ms": 3995.5
+      },
+      "wall_ms": 4007.0220769994194,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p1-17-kis",
+      "phase": "P1",
+      "text": "Đoạn video trong buổi trao quà từ thiện diễn ra tại 1 bệnh viện trong dịp Xuân 2024. Trong cảnh có hai người đàn ông (mặc áo sơ mi hồng và sơ mi trắng) đứng hai bên, đại diện ban tổ chức. Ở giữa là bốn em nhỏ và thiếu niên, trong đó có em mặc áo đỏ, em mặc áo trắng, em mặc váy hồng và em mặc áo xanh. Các em được trao bảng tượng trưng với nội dung “Chương trình: Trao kinh phí hỗ trợ cho trẻ em mồ côi do dịch COVID-19”. Trước mặt mỗi em là túi quà lớn mang logo y tế. Phía sau là phông nền màu đỏ với khẩu hiệu đón xuân và thông tin sự kiện.",
+      "gt_videos": [
+        "L30_V092"
+      ],
+      "gt_frames": [
+        [
+          "L30_V092",
+          2491
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 2,
+      "n_groups": 83,
+      "top_videos": [
+        "L30_V092",
+        "L30_V034",
+        "K16_V004",
+        "K13_V010",
+        "K12_V004",
+        "K09_V021",
+        "K18_V023",
+        "K10_V027",
+        "K16_V020",
+        "L21_V023"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "QA",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 681.9,
+          "ocr": 1011.1
+        },
+        "fusion_ms": 253.1,
+        "parse_ms": 1143.5,
+        "total_ms": 2410.4
+      },
+      "wall_ms": 2422.2271149992594,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p1-20-kis",
+      "phase": "P1",
+      "text": "Trên đĩa tròn màu trắng có 1 ly panna cotta. Có một bàn tay lần lượt đặt thêm 2 ly panna cotta nữa vào đĩa.\nMỗi ly panna cotta có lớp kem mịn màu trắng ngà, bên trên trang trí vài lát nho đỏ, thêm lá bạc hà xanh tạo điểm nhấn tươi mát.\nBên cạnh trên đĩa còn có hai bông hoa ăn được (màu đỏ và vàng) để tăng phần đẹp mắt.",
+      "gt_videos": [
+        "L26_V004"
+      ],
+      "gt_frames": [
+        [
+          "L26_V004",
+          5400
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 10,
+      "n_groups": 54,
+      "top_videos": [
+        "L26_V004",
+        "L26_V102",
+        "L25_V048",
+        "L26_V150",
+        "L26_V252",
+        "L25_V045",
+        "L25_V018",
+        "L26_V206",
+        "L26_V296",
+        "L25_V008"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "QA",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 604.4,
+          "ocr": 907.4
+        },
+        "fusion_ms": 251.5,
+        "parse_ms": 852.6,
+        "total_ms": 2013.4
+      },
+      "wall_ms": 2024.5389379997505,
+      "workbook_recall_note": "R10"
+    },
+    {
+      "query_id": "query-p1-23-kis",
+      "phase": "P1",
+      "text": "Đoạn clip về 1 thị trấn ven biển thu hút du khách hiếu kỳ nhờ 1 loài động vật biển nguy hiểm. Loài động vật này nổi tiếng trong 1 bộ phim của đạo diễn Steven Spielberg được sản xuất vào năm 1975",
+      "gt_videos": [
+        "L22_V022"
+      ],
+      "gt_frames": [
+        [
+          "L22_V022",
+          16956
+        ],
+        [
+          "L22_V022",
+          18240
+        ],
+        [
+          "L22_V022",
+          18290
+        ],
+        [
+          "L22_V022",
+          18396
+        ]
+      ],
+      "video_rank": null,
+      "frame_rank": null,
+      "n_groups": 100,
+      "top_videos": [
+        "K07_V016",
+        "K17_V001",
+        "K19_V019",
+        "K14_V028",
+        "K19_V001",
+        "K02_V011",
+        "K19_V020",
+        "K13_V020",
+        "K12_V017",
+        "K17_V026"
+      ],
+      "channels_used": [
+        "audio",
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 612.0,
+          "ocr": 854.1,
+          "audio": 1309.5
+        },
+        "fusion_ms": 264.5,
+        "parse_ms": 1206.0,
+        "total_ms": 2782.1
+      },
+      "wall_ms": 2793.37904500062,
+      "workbook_recall_note": "No"
+    },
+    {
+      "query_id": "query-p1-24-kis",
+      "phase": "P1",
+      "text": "Đoạn video về tường thuật một cuộc đua xe đạp. Tìm phân cảnh với góc quay trực diện từ trên cao xuống dõi theo các tay đua. Trong khung hình gồm có 3 tay đua đang đạp thành một đường thẳng. Cả 3 tay đua đều đến từ cùng một đội, với đồng phục áo trắng quần vàng xanh. Tay đua đầu tiên đội nón trắng, tay đua thứ hai đội nón đỏ và tay đua cuối cùng đội nón đen.",
+      "gt_videos": [
+        "L23_V007"
+      ],
+      "gt_frames": [
+        [
+          "L23_V007",
+          3246
+        ]
+      ],
+      "video_rank": 2,
+      "frame_rank": 6,
+      "n_groups": 79,
+      "top_videos": [
+        "K13_V008",
+        "L23_V007",
+        "L23_V021",
+        "L23_V012",
+        "L23_V025",
+        "L23_V005",
+        "L23_V014",
+        "K19_V008",
+        "K16_V027",
+        "K13_V023"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 795.1,
+          "ocr": 1384.5
+        },
+        "fusion_ms": 257.1,
+        "parse_ms": 4298.4,
+        "total_ms": 5941.9
+      },
+      "wall_ms": 5952.8987249996135,
+      "workbook_recall_note": "R4"
+    },
+    {
+      "query_id": "query-p1-25-kis",
+      "phase": "P1",
+      "text": "Tìm một đoạn video đua xe đạp, góc quay từ flycam trên cao, một vận động viên mặc áo xanh dương, trắng đang vượt ba vận động viên khác và lên vị trí dẫn đầu. Biết sau đó vận động viên này dẫn đầu suốt đoạn đường còn lại đến đích.",
+      "gt_videos": [
+        "L23_V017"
+      ],
+      "gt_frames": [
+        [
+          "L23_V017",
+          1108
+        ]
+      ],
+      "video_rank": null,
+      "frame_rank": null,
+      "n_groups": 28,
+      "top_videos": [
+        "L23_V015",
+        "L23_V011",
+        "K13_V019",
+        "K14_V027",
+        "L23_V005",
+        "K13_V028",
+        "L23_V025",
+        "L23_V009",
+        "L23_V010",
+        "K14_V012"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 612.5
+        },
+        "fusion_ms": 479.4,
+        "parse_ms": 2912.7,
+        "total_ms": 4004.8
+      },
+      "wall_ms": 4014.809730999332,
+      "workbook_recall_note": "No"
+    },
+    {
+      "query_id": "query-p2-1-kis",
+      "phase": "P2",
+      "text": "Nhiều người mặt áo cờ đỏ sao vàng đứng trước biểu tượng một con cua khổng lồ. Những người này đều đội nón, một số người quấn khăn rằn trên cổ.",
+      "gt_videos": [
+        "K03_V019"
+      ],
+      "gt_frames": [
+        [
+          "K03_V019",
+          11700
+        ],
+        [
+          "K03_V019",
+          11822
+        ],
+        [
+          "K03_V019",
+          11979
+        ]
+      ],
+      "video_rank": null,
+      "frame_rank": null,
+      "n_groups": 55,
+      "top_videos": [
+        "L23_V025",
+        "K17_V002",
+        "L23_V004",
+        "K16_V014",
+        "K13_V009",
+        "K14_V030",
+        "K07_V026",
+        "K13_V019",
+        "K14_V007",
+        "K16_V031"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 657.0
+        },
+        "fusion_ms": 485.6,
+        "parse_ms": 860.0,
+        "total_ms": 2002.8
+      },
+      "wall_ms": 2011.3709209999797,
+      "workbook_recall_note": "No (không có frame)"
+    },
+    {
+      "query_id": "query-p2-2-kis",
+      "phase": "P2",
+      "text": "Đoạn clip ghi lại một lễ hội đèn lồng. Trên phố, nhiều người mặc hanbok diễu hành, mang theo đủ loại đèn lồng rực rỡ. Nổi bật ở giữa là một phụ nữ cầm hai đèn lồng tròn lớn màu cam, xung quanh có đèn lồng hình cá, tôm và nhiều kiểu dáng khác. Tiếp đó, xuất hiện một chiếc đèn lồng khổng lồ hình người trong trang phục truyền thống Hàn Quốc: áo tím viền vàng, váy xanh, hai tay nâng một đèn lồng nhỏ màu cam – xanh phát sáng rực rỡ.",
+      "gt_videos": [
+        "K14_V027"
+      ],
+      "gt_frames": [
+        [
+          "K14_V027",
+          13600
+        ],
+        [
+          "K14_V027",
+          13630
+        ],
+        [
+          "K14_V027",
+          13660
+        ],
+        [
+          "K14_V027",
+          13690
+        ],
+        [
+          "K14_V027",
+          13720
+        ],
+        [
+          "K14_V027",
+          13740
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 100,
+      "top_videos": [
+        "K14_V027",
+        "K07_V006",
+        "K10_V016",
+        "K03_V009",
+        "K07_V017",
+        "K17_V030",
+        "K15_V003",
+        "K08_V013",
+        "K04_V019",
+        "K08_V007"
+      ],
+      "channels_used": [
+        "audio",
+        "image_pe"
+      ],
+      "query_type": "QA",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 612.9,
+          "audio": 1285.1
+        },
+        "fusion_ms": 260.7,
+        "parse_ms": 747.0,
+        "total_ms": 2293.8
+      },
+      "wall_ms": 2303.9859420005087,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p2-4-kis",
+      "phase": "P2",
+      "text": "Đoạn clip trích trong cảnh cứu hộ người dân trong lũ lụt. Có cảnh ở giữa là một cụ bà đội nón lá, ngồi trên một chiếc xuồng cứu hộ màu cam, trên xuồng có áo mưa màu xanh da trời. \nBên phải là một thanh niên mặc áo mưa tím, đang ra sức đẩy xuồng, gương mặt lộ rõ sự căng thẳng, quyết tâm.\nPhía sau có người mặc áo phao màu cam hỗ trợ.\nXung quanh là dòng nước ngập, cho thấy khu vực đang chịu ảnh hưởng nặng nề bởi mưa lũ.",
+      "gt_videos": [
+        "K01_V009"
+      ],
+      "gt_frames": [
+        [
+          "K01_V009",
+          11560
+        ],
+        [
+          "K01_V009",
+          11590
+        ],
+        [
+          "K01_V009",
+          11612
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 100,
+      "top_videos": [
+        "K01_V009",
+        "K04_V001",
+        "K17_V014",
+        "K01_V031",
+        "K04_V025",
+        "K04_V005",
+        "K01_V028",
+        "K16_V023",
+        "K02_V028",
+        "K19_V024"
+      ],
+      "channels_used": [
+        "audio",
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 694.7,
+          "audio": 1518.0
+        },
+        "fusion_ms": 263.3,
+        "parse_ms": 1501.4,
+        "total_ms": 3284.0
+      },
+      "wall_ms": 3297.3594839986617,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p2-5-kis",
+      "phase": "P2",
+      "text": "Đoạn clip có cảnh quay không gian triển lãm nghệ thuật hiện đại. Ở giữa là một hệ thống robot vẽ tranh: hai cánh tay robot được lắp đặt đối xứng, gắn trên khung kim loại, cùng thực hiện thao tác vẽ trên một khung vẽ hình vuông ở giữa. Bức tranh xuất hiện nhiều mảng màu đen – xám - trắng, tạo nên bố cục trừu tượng. Xung quanh là phòng trưng bày với nhiều tác phẩm nghệ thuật khác treo trên tường, gồm tranh, ảnh và màn hình kỹ thuật số trình chiếu hình ảnh. Cuối đoạn clip có 1 quyển sách bìa màu xanh đậm có chữ MILK",
+      "gt_videos": [
+        "K02_V005"
+      ],
+      "gt_frames": [
+        [
+          "K02_V005",
+          23270
+        ],
+        [
+          "K02_V005",
+          23358
+        ],
+        [
+          "K02_V005",
+          23542
+        ],
+        [
+          "K02_V005",
+          24144
+        ],
+        [
+          "K02_V005",
+          24180
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 57,
+      "top_videos": [
+        "K02_V005",
+        "K02_V018",
+        "K01_V005",
+        "K05_V005",
+        "K03_V009",
+        "L25_V022",
+        "K16_V024",
+        "L25_V001",
+        "K01_V022",
+        "K11_V007"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "QA",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 642.8,
+          "ocr": 1718.3
+        },
+        "fusion_ms": 252.3,
+        "parse_ms": 1316.3,
+        "total_ms": 3288.4
+      },
+      "wall_ms": 3301.390126000115,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p2-6-kis",
+      "phase": "P2",
+      "text": "Đoạn clip mở đầu với cảnh đài phun nước được bao quanh bởi hàng trăm ngọn nến xếp ngay ngắn, tạo nên khung cảnh lung linh giữa đám đông và tòa nhà cổ sáng đèn phía sau. Tiếp đó, một người phụ nữ ngồi bên thành một công trình tròn, hai tay nâng ngọn nến trong ly thủy tinh, xung quanh đặt nhiều ly nến khác tỏa sáng huyền ảo.",
+      "gt_videos": [
+        "K09_V018"
+      ],
+      "gt_frames": [
+        [
+          "K09_V018",
+          20120
+        ],
+        [
+          "K09_V018",
+          20210
+        ],
+        [
+          "K09_V018",
+          20277
+        ],
+        [
+          "K09_V018",
+          20349
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 2,
+      "n_groups": 49,
+      "top_videos": [
+        "K09_V018",
+        "K16_V020",
+        "K18_V007",
+        "K08_V015",
+        "K16_V023",
+        "K03_V017",
+        "K15_V009",
+        "K01_V026",
+        "L21_V019",
+        "K03_V014"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "QA",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 606.2
+        },
+        "fusion_ms": 483.3,
+        "parse_ms": 1399.0,
+        "total_ms": 2488.7
+      },
+      "wall_ms": 2506.348961000185,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p2-7-kis",
+      "phase": "P2",
+      "text": "Đoạn clip mở đầu với hình ảnh tác phẩm điêu khắc người tuyết khổng lồ màu trắng, đội mũ, quàng khăn đỏ và gương mặt tươi cười sinh động. Kết thúc clip là cảnh tái hiện chiếc bình gốm sứ khổng lồ với hoa văn xanh trắng cùng chi tiết cây tùng, thể hiện sự kết hợp hài hòa giữa nghệ thuật băng tuyết và văn hóa truyền thống",
+      "gt_videos": [
+        "K05_V025"
+      ],
+      "gt_frames": [
+        [
+          "K05_V025",
+          25631
+        ],
+        [
+          "K05_V025",
+          25866
+        ],
+        [
+          "K05_V025",
+          26931
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 36,
+      "top_videos": [
+        "K05_V025",
+        "K08_V028",
+        "K06_V011",
+        "K04_V004",
+        "K06_V022",
+        "K07_V029",
+        "K19_V013",
+        "K06_V031",
+        "K05_V009",
+        "K10_V008"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 622.3
+        },
+        "fusion_ms": 480.4,
+        "parse_ms": 942.7,
+        "total_ms": 2045.6
+      },
+      "wall_ms": 2057.290873000966,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p2-8-kis",
+      "phase": "P2",
+      "text": "Đoạn clip mở đầu với hình ảnh cây cầu có hệ thống vòm thép đỏ uốn cong đối xứng như những đợt sóng lượn. Khoảng 30 giây sau, clip kết thúc bằng cảnh một chiếc ca nô tạo vệt sóng tròn lớn trên mặt nước, để lại những vòng xoáy đồng tâm rõ nét.",
+      "gt_videos": [
+        "K03_V023"
+      ],
+      "gt_frames": [
+        [
+          "K03_V023",
+          7450
+        ],
+        [
+          "K03_V023",
+          7470
+        ],
+        [
+          "K03_V023",
+          7490
+        ],
+        [
+          "K03_V023",
+          8102
+        ],
+        [
+          "K03_V023",
+          8130
+        ],
+        [
+          "K03_V023",
+          8170
+        ]
+      ],
+      "video_rank": 5,
+      "frame_rank": 18,
+      "n_groups": 80,
+      "top_videos": [
+        "K02_V007",
+        "K14_V006",
+        "K12_V029",
+        "K13_V009",
+        "K03_V023",
+        "K02_V022",
+        "K19_V031",
+        "L25_V058",
+        "K02_V027",
+        "K17_V008"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 611.4,
+          "ocr": 1583.9
+        },
+        "fusion_ms": 256.4,
+        "parse_ms": 936.2,
+        "total_ms": 2778.1
+      },
+      "wall_ms": 2796.038946000408,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p2-9-kis",
+      "phase": "P2",
+      "text": "Đoạn video đưa tin về việc ngư dân vừa câu được một con cá nhám với kích thước hiếm gặp, nặng đến 211kg. Đoạn tin đưa hình ảnh của con cá rất lớn treo trên một chiếc xe cẩu.",
+      "gt_videos": [
+        "K12_V001"
+      ],
+      "gt_frames": [
+        [
+          "K12_V001",
+          8912
+        ],
+        [
+          "K12_V001",
+          8990
+        ]
+      ],
+      "video_rank": 49,
+      "frame_rank": 148,
+      "n_groups": 84,
+      "top_videos": [
+        "K11_V028",
+        "K09_V005",
+        "L22_V022",
+        "K02_V010",
+        "K16_V005",
+        "K05_V013",
+        "K15_V021",
+        "K09_V009",
+        "L28_V005",
+        "K14_V008"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 707.9,
+          "ocr": 617.8
+        },
+        "fusion_ms": 251.9,
+        "parse_ms": 878.4,
+        "total_ms": 1838.4
+      },
+      "wall_ms": 1847.5348299998586,
+      "workbook_recall_note": "R1 (nếu xài only speech, còn hybrid vector thì cook)"
+    },
+    {
+      "query_id": "query-p2-11-kis",
+      "phase": "P2",
+      "text": "Cảnh quay một người phụ nữ lớn tuổi đang đọc sách, tay đeo một xâu hạt. Sau đó là cảnh quay người phụ này đang mở một quyển sách có bìa là ảnh chân dung của một cụ lão in trắng đen có dòng chữ màu trắng ở trên. Bìa quyển sách có màu vàng đất làm chủ đạo",
+      "gt_videos": [
+        "L30_V014"
+      ],
+      "gt_frames": [
+        [
+          "L30_V014",
+          1242
+        ],
+        [
+          "L30_V014",
+          1275
+        ],
+        [
+          "L30_V014",
+          1839
+        ],
+        [
+          "L30_V014",
+          1900
+        ],
+        [
+          "L30_V014",
+          1940
+        ]
+      ],
+      "video_rank": 3,
+      "frame_rank": 94,
+      "n_groups": 100,
+      "top_videos": [
+        "L30_V027",
+        "L25_V018",
+        "L30_V014",
+        "L30_V002",
+        "L25_V010",
+        "K18_V027",
+        "L22_V015",
+        "K06_V004",
+        "L30_V052",
+        "L22_V001"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr",
+        "speech"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 614.8,
+          "ocr": 1587.8,
+          "speech": 1524.3
+        },
+        "fusion_ms": 253.5,
+        "parse_ms": 3873.3,
+        "total_ms": 5715.5
+      },
+      "wall_ms": 5729.2446320007,
+      "workbook_recall_note": "No"
+    },
+    {
+      "query_id": "query-p2-12-kis",
+      "phase": "P2",
+      "text": "Trong một lễ hội trình diễn, các người mẫu lần lượt bước trên sàn. Mở màn là những bộ cổ phục \"Nhật Bình\" với đủ màu sắc. Trong đó, có cảnh người phụ nữ cầm những bông sen đứng đối diện nam người mẫu và cả 2 mặc áo màu xanh lá. Sau đó là các trang phục hiện đại hơn. Kết thúc bằng cảnh các người mẫu đồng loạt ra đứng sân khấu chào khán giả.",
+      "gt_videos": [
+        "K17_V007",
+        "K18_V006"
+      ],
+      "gt_frames": [
+        [
+          "K17_V007",
+          3840
+        ],
+        [
+          "K17_V007",
+          3900
+        ],
+        [
+          "K17_V007",
+          3925
+        ],
+        [
+          "K18_V006",
+          8190
+        ],
+        [
+          "K18_V006",
+          8200
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 52,
+      "top_videos": [
+        "K17_V007",
+        "K18_V006",
+        "K14_V007",
+        "K07_V020",
+        "L21_V006",
+        "K15_V015",
+        "L25_V010",
+        "K07_V019",
+        "K12_V007",
+        "K19_V020"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 608.4,
+          "ocr": 1628.9
+        },
+        "fusion_ms": 252.2,
+        "parse_ms": 2579.5,
+        "total_ms": 4462.0
+      },
+      "wall_ms": 4481.719052999324,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p2-13-kis",
+      "phase": "P2",
+      "text": "Hình ảnh những chiếc bánh có 2 mức giá được viết mẫu giấy đen nhỏ lần lượt là 9.00€ và 4€.80. Sau đó là cảnh các chiến bánh này trong giai đoạn sản xuất, được xếp thành từng tầng, mỗi tầng gồm 12 cái bánh.",
+      "gt_videos": [
+        "K09_V015"
+      ],
+      "gt_frames": [
+        [
+          "K09_V015",
+          22725
+        ],
+        [
+          "K09_V015",
+          23100
+        ],
+        [
+          "K09_V015",
+          23200
+        ],
+        [
+          "K09_V015",
+          23300
+        ],
+        [
+          "K09_V015",
+          23525
+        ]
+      ],
+      "video_rank": null,
+      "frame_rank": null,
+      "n_groups": 65,
+      "top_videos": [
+        "K07_V011",
+        "K04_V010",
+        "K13_V025",
+        "K07_V019",
+        "K13_V020",
+        "K18_V021",
+        "K15_V003",
+        "L25_V022",
+        "K06_V011",
+        "L30_V078"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 1319.2,
+          "ocr": 1546.4
+        },
+        "fusion_ms": 255.2,
+        "parse_ms": 3593.9,
+        "total_ms": 5397.0
+      },
+      "wall_ms": 5410.540048000257,
+      "workbook_recall_note": "không có trong keyframe được trích nên không ra được kết quả, không thể kết luận là No hay không"
+    },
+    {
+      "query_id": "query-p2-14-kis",
+      "phase": "P2",
+      "text": "Đoạn video minh họa thống kê cho tác dụng phụ khi dùng thuốc điều trị bệnh. Để trực quan hóa số liệu cho việc số ca có triệu chứng, các icon hình não được xếp vào hình chữ nhật 5 x 10 và trừ dòng dưới cùng sẽ có thêm 2 icon dư ra. Sấp xỉ 5,8% số người có triệu chứng này đã tử vong.",
+      "gt_videos": [
+        "K16_V010"
+      ],
+      "gt_frames": [
+        [
+          "K16_V010",
+          15047
+        ]
+      ],
+      "video_rank": null,
+      "frame_rank": null,
+      "n_groups": 62,
+      "top_videos": [
+        "K19_V016",
+        "K14_V021",
+        "K15_V027",
+        "K20_V016",
+        "K17_V014",
+        "K19_V012",
+        "K19_V001",
+        "L25_V078",
+        "K16_V019",
+        "K06_V001"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 616.4,
+          "ocr": 1119.9
+        },
+        "fusion_ms": 245.9,
+        "parse_ms": 1573.9,
+        "total_ms": 2941.1
+      },
+      "wall_ms": 2949.4482090012752,
+      "workbook_recall_note": "no"
+    },
+    {
+      "query_id": "query-p2-15-kis",
+      "phase": "P2",
+      "text": "Một người đang chụp hình những chiếc ván trượt. Sau đó cảnh quay một cô gái đang phỏng vấn và sau lưng cô là một người mặc trang phục Deadpool và kết thúc bằng cảnh cô gái này múa vài đường kiếm/đao.",
+      "gt_videos": [
+        "K01_V018"
+      ],
+      "gt_frames": [
+        [
+          "K01_V018",
+          12850
+        ],
+        [
+          "K01_V018",
+          13025
+        ],
+        [
+          "K01_V018",
+          13075
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 100,
+      "top_videos": [
+        "K01_V018",
+        "K12_V002",
+        "K14_V015",
+        "K01_V019",
+        "K07_V026",
+        "K20_V007",
+        "L21_V002",
+        "K17_V006",
+        "K18_V025",
+        "K07_V008"
+      ],
+      "channels_used": [
+        "image_pe",
+        "speech"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 611.7,
+          "speech": 964.7
+        },
+        "fusion_ms": 271.3,
+        "parse_ms": 3432.2,
+        "total_ms": 4669.2
+      },
+      "wall_ms": 4679.924757001572,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p2-17-kis",
+      "phase": "P2",
+      "text": "Một người phụ nữ đang trả lời phỏng vấn, người phụ nữ này đội nón len, đeo kính. Trên kính có chữ Happy New Year.",
+      "gt_videos": [
+        "K07_V030"
+      ],
+      "gt_frames": [
+        [
+          "K07_V030",
+          22236
+        ],
+        [
+          "K07_V030",
+          22422
+        ]
+      ],
+      "video_rank": 11,
+      "frame_rank": 26,
+      "n_groups": 100,
+      "top_videos": [
+        "K10_V009",
+        "K06_V029",
+        "K08_V004",
+        "K05_V026",
+        "K08_V005",
+        "K09_V002",
+        "K03_V028",
+        "K08_V015",
+        "K05_V031",
+        "K04_V015"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr",
+        "speech"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 740.6,
+          "ocr": 1015.2,
+          "speech": 1505.3
+        },
+        "fusion_ms": 493.3,
+        "parse_ms": 1592.1,
+        "total_ms": 3593.0
+      },
+      "wall_ms": 3604.5960829997057,
+      "workbook_recall_note": "R14"
+    },
+    {
+      "query_id": "query-p2-18-kis",
+      "phase": "P2",
+      "text": "Cảnh quay các con mèo trong một căn phòng. Có một tô bằng kim loại úp ngược lại trên thùng màu đỏ. Kết thúc bằng cảnh một chú mèo có đeo bảng tên có chữ \"Nà Ní\"",
+      "gt_videos": [
+        "L30_V040"
+      ],
+      "gt_frames": [
+        [
+          "L30_V040",
+          475
+        ],
+        [
+          "L30_V040",
+          484
+        ],
+        [
+          "L30_V040",
+          1009
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 69,
+      "top_videos": [
+        "L30_V040",
+        "K01_V025",
+        "K03_V015",
+        "L21_V009",
+        "K11_V010",
+        "K11_V028",
+        "K08_V007",
+        "L25_V048",
+        "K03_V001",
+        "K04_V027"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 612.7,
+          "ocr": 1281.7
+        },
+        "fusion_ms": 251.4,
+        "parse_ms": 767.9,
+        "total_ms": 2302.2
+      },
+      "wall_ms": 2316.9791649997933,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p2-19-kis",
+      "phase": "P2",
+      "text": "Cảnh quay bắt đầu bằng rất nhiều người vui chơi ở một con suối. Có một nhóm người ngồi dưới một tấm bạt. Trên suối có các bạn nhỏ nô đùa, và kết thúc cảnh quay có một bạn nhỏ mặc áo đen và vàng đang ngồi giữa dòng suối.",
+      "gt_videos": [
+        "L22_V011"
+      ],
+      "gt_frames": [
+        [
+          "L22_V011",
+          12990
+        ],
+        [
+          "L22_V011",
+          13230
+        ],
+        [
+          "L22_V011",
+          13470
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 33,
+      "top_videos": [
+        "L22_V011",
+        "K18_V002",
+        "L30_V033",
+        "K03_V016",
+        "K06_V015",
+        "K19_V028",
+        "L27_V005",
+        "K18_V003",
+        "K05_V012",
+        "K10_V023"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 600.0
+        },
+        "fusion_ms": 247.5,
+        "parse_ms": 951.7,
+        "total_ms": 1799.3
+      },
+      "wall_ms": 1809.6807500005525,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p2-20-kis",
+      "phase": "P2",
+      "text": "Đoạn video bắt đầu bằng cảnh một số người đang cào muối trên đồng. Cảnh tiếp theo là một đoàn người đang vẫy tay phía sau một bảng chữ. Cuối cùng là hình ảnh một đoàn người đang đứng trước một căn nhà có câu \"Gừng cay muối mặn xin đừng quên nhau\".",
+      "gt_videos": [
+        "K06_V010"
+      ],
+      "gt_frames": [
+        [
+          "K06_V010",
+          7780
+        ],
+        [
+          "K06_V010",
+          7800
+        ],
+        [
+          "K06_V010",
+          7820
+        ],
+        [
+          "K06_V010",
+          7840
+        ],
+        [
+          "K06_V010",
+          7860
+        ],
+        [
+          "K06_V010",
+          7880
+        ],
+        [
+          "K06_V010",
+          7899
+        ],
+        [
+          "K06_V010",
+          7915
+        ],
+        [
+          "K06_V010",
+          7935
+        ],
+        [
+          "K06_V010",
+          7955
+        ],
+        [
+          "K06_V010",
+          7975
+        ],
+        [
+          "K06_V010",
+          7979
+        ],
+        [
+          "K06_V010",
+          7995
+        ],
+        [
+          "K06_V010",
+          8015
+        ],
+        [
+          "K06_V010",
+          8035
+        ],
+        [
+          "K06_V010",
+          8055
+        ],
+        [
+          "K06_V010",
+          8075
+        ],
+        [
+          "K06_V010",
+          8080
+        ]
+      ],
+      "video_rank": 3,
+      "frame_rank": 20,
+      "n_groups": 54,
+      "top_videos": [
+        "K09_V010",
+        "K11_V007",
+        "K06_V010",
+        "K09_V011",
+        "K12_V007",
+        "L25_V010",
+        "K18_V012",
+        "L25_V036",
+        "K01_V026",
+        "K14_V022"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 612.6,
+          "ocr": 1563.6
+        },
+        "fusion_ms": 260.1,
+        "parse_ms": 2436.4,
+        "total_ms": 4261.4
+      },
+      "wall_ms": 4275.498429999061,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p2-23-kis",
+      "phase": "P2",
+      "text": "Cảnh quay chú gấu bông màu xanh đựng trong chiếc hộp hình trụ trong suốt. Trên chú gấu bông này có những cảm biến giúp chuyển động và phát ra âm thanh.",
+      "gt_videos": [
+        "K04_V013"
+      ],
+      "gt_frames": [
+        [
+          "K04_V013",
+          20990
+        ],
+        [
+          "K04_V013",
+          21090
+        ]
+      ],
+      "video_rank": 15,
+      "frame_rank": 47,
+      "n_groups": 100,
+      "top_videos": [
+        "K11_V006",
+        "K15_V003",
+        "K19_V008",
+        "K11_V005",
+        "K09_V025",
+        "K20_V005",
+        "K11_V013",
+        "K13_V011",
+        "K14_V016",
+        "K04_V014"
+      ],
+      "channels_used": [
+        "audio",
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 592.8,
+          "audio": 1504.1
+        },
+        "fusion_ms": 269.8,
+        "parse_ms": 1475.8,
+        "total_ms": 3250.7
+      },
+      "wall_ms": 3267.733382001097,
+      "workbook_recall_note": "R20"
+    },
+    {
+      "query_id": "query-p2-24-kis",
+      "phase": "P2",
+      "text": "Một nhóm ngư dân campuchia đang ngồi cầm tấm bạt để nâng một con cá rất to. Đây là loài cá trong tình trạng nguy cấp. Có 3 con khác nhau được đánh bắt. Kết thúc đoạn trước cảnh một nhà nghiên cứu sinh học được phỏng vấn.",
+      "gt_videos": [
+        "K05_V013"
+      ],
+      "gt_frames": [
+        [
+          "K05_V013",
+          23156
+        ],
+        [
+          "K05_V013",
+          23200
+        ],
+        [
+          "K05_V013",
+          23300
+        ],
+        [
+          "K05_V013",
+          23400
+        ],
+        [
+          "K05_V013",
+          23500
+        ],
+        [
+          "K05_V013",
+          23600
+        ],
+        [
+          "K05_V013",
+          23700
+        ],
+        [
+          "K05_V013",
+          23820
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 100,
+      "top_videos": [
+        "K05_V013",
+        "K17_V004",
+        "L25_V010",
+        "L28_V008",
+        "L27_V016",
+        "K02_V021",
+        "L25_V063",
+        "K12_V001",
+        "K15_V006",
+        "K11_V014"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr",
+        "speech"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 606.8,
+          "ocr": 1553.0,
+          "speech": 2077.4
+        },
+        "fusion_ms": 264.6,
+        "parse_ms": 1443.3,
+        "total_ms": 3787.1
+      },
+      "wall_ms": 3802.8572570001415,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p2-25-kis",
+      "phase": "P2",
+      "text": "Một con robot có 4 chân gắn với 4 bánh xe chạy trên đồng cỏ. Cảnh sau có những con bò đứng kế bên con robot. Đoán clip kết thúc bằng cảnh phỏng vấn người trong nhóm làm ra con robot để mô tả các phương thức hoạt động và sự hữu ích của nó.",
+      "gt_videos": [
+        "K18_V002"
+      ],
+      "gt_frames": [
+        [
+          "K18_V002",
+          4080
+        ],
+        [
+          "K18_V002",
+          4230
+        ],
+        [
+          "K18_V002",
+          5190
+        ],
+        [
+          "K18_V002",
+          5280
+        ]
+      ],
+      "video_rank": null,
+      "frame_rank": null,
+      "n_groups": 100,
+      "top_videos": [
+        "K05_V018",
+        "K20_V006",
+        "K20_V027",
+        "K06_V027",
+        "K09_V024",
+        "K19_V019",
+        "K17_V030",
+        "L25_V077",
+        "K11_V030",
+        "L21_V002"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr",
+        "speech"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 674.7,
+          "ocr": 1335.4,
+          "speech": 986.5
+        },
+        "fusion_ms": 261.8,
+        "parse_ms": 1463.9,
+        "total_ms": 3062.9
+      },
+      "wall_ms": 3077.7157719985553,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p2-26-kis",
+      "phase": "P2",
+      "text": "Cảnh phỏng vấn tổng thống Donald Trump, đằng sau ông là các bức hình và những lá cờ. Sau đó là cảnh một đoàn người đang di chuyển trên đường dọc theo một bờ biển. Cuối cùng là cảnh một số người trong đoàn người này đang vác những bao tải màu trắng.",
+      "gt_videos": [
+        "K09_V012"
+      ],
+      "gt_frames": [
+        [
+          "K09_V012",
+          19838
+        ],
+        [
+          "K09_V012",
+          19928
+        ],
+        [
+          "K09_V012",
+          20105
+        ]
+      ],
+      "video_rank": 46,
+      "frame_rank": 183,
+      "n_groups": 100,
+      "top_videos": [
+        "K15_V017",
+        "K13_V008",
+        "K04_V011",
+        "L25_V010",
+        "K10_V003",
+        "K08_V006",
+        "K17_V002",
+        "K04_V004",
+        "K16_V030",
+        "K10_V026"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr",
+        "speech"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 653.0,
+          "ocr": 1570.0,
+          "speech": 987.8
+        },
+        "fusion_ms": 263.2,
+        "parse_ms": 4154.4,
+        "total_ms": 5988.8
+      },
+      "wall_ms": 6001.771277000444,
+      "workbook_recall_note": "R5"
+    },
+    {
+      "query_id": "query-p2-27-kis",
+      "phase": "P2",
+      "text": "Đoạn video về một cuộc họp bàn về giá điện. Phân cảnh đầu tiên là hình ảnh một người đàn ông mặc áo trắng, đeo kính, đang đứng phát biểu. Trên tay người đàn ông có cầm một văn bản. Xung quanh là những người khác đang ngồi nghe. Một trong những phân cảnh sau đó là hình ảnh phòng họp rộng, khá đông người ngồi. Phía trên có một màn hình led đưa thông tin về cuộc họp với chữ trắng và nền màu xanh dương.",
+      "gt_videos": [
+        "K15_V010"
+      ],
+      "gt_frames": [
+        [
+          "K15_V010",
+          1252
+        ],
+        [
+          "K15_V010",
+          1275
+        ],
+        [
+          "K15_V010",
+          1300
+        ],
+        [
+          "K15_V010",
+          1775
+        ],
+        [
+          "K15_V010",
+          1800
+        ],
+        [
+          "K15_V010",
+          1975
+        ]
+      ],
+      "video_rank": 2,
+      "frame_rank": 21,
+      "n_groups": 100,
+      "top_videos": [
+        "L25_V081",
+        "K15_V010",
+        "K05_V020",
+        "K06_V020",
+        "K02_V018",
+        "K19_V030",
+        "K01_V015",
+        "K19_V005",
+        "K19_V004",
+        "K16_V025"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr",
+        "speech"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 718.4,
+          "ocr": 1669.9,
+          "speech": 1003.3
+        },
+        "fusion_ms": 261.3,
+        "parse_ms": 2993.4,
+        "total_ms": 4925.7
+      },
+      "wall_ms": 4939.172453001447,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p2-28-kis",
+      "phase": "P2",
+      "text": "Đoạn video chứa hình ảnh của nhiều loại cá cảnh khác nhau, trong đó có cá đĩa, cá rồng, và nhiều loại cá khác. Một vài phân cảnh có hình ảnh của cá la hán với đầu rất to.",
+      "gt_videos": [
+        "K18_V002"
+      ],
+      "gt_frames": [
+        [
+          "K18_V002",
+          4080
+        ],
+        [
+          "K18_V002",
+          4230
+        ],
+        [
+          "K18_V002",
+          5190
+        ],
+        [
+          "K18_V002",
+          5280
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 19,
+      "top_videos": [
+        "K18_V002",
+        "K13_V005",
+        "K01_V026",
+        "L28_V006",
+        "K01_V011",
+        "K16_V021",
+        "L28_V004",
+        "L29_V022",
+        "L28_V005",
+        "L27_V009"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 609.6
+        },
+        "fusion_ms": 477.9,
+        "parse_ms": 1642.0,
+        "total_ms": 2729.7
+      },
+      "wall_ms": 2740.3720210004394,
+      "workbook_recall_note": "R2"
+    },
+    {
+      "query_id": "query-p2-29-kis",
+      "phase": "P2",
+      "text": "Đoạn video đưa tin về một cảng biển. Phân cảnh đầu tiên là hình ảnh biển mênh mông với một cây cầu rất dài nối ra giữa biển. Trong đoạn tin có một số phân cảnh phỏng vấn một người đàn ông đội nón tai bèo.",
+      "gt_videos": [
+        "K10_V010"
+      ],
+      "gt_frames": [
+        [
+          "K10_V010",
+          6395
+        ],
+        [
+          "K10_V010",
+          6552
+        ],
+        [
+          "K10_V010",
+          7295
+        ],
+        [
+          "K10_V010",
+          7725
+        ],
+        [
+          "K10_V010",
+          7815
+        ]
+      ],
+      "video_rank": 2,
+      "frame_rank": 9,
+      "n_groups": 100,
+      "top_videos": [
+        "K09_V024",
+        "K10_V010",
+        "K13_V010",
+        "L22_V005",
+        "K04_V015",
+        "K03_V022",
+        "L25_V036",
+        "K03_V027",
+        "K14_V003",
+        "K10_V008"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr",
+        "speech"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 614.2,
+          "ocr": 1553.8,
+          "speech": 988.1
+        },
+        "fusion_ms": 256.7,
+        "parse_ms": 1217.7,
+        "total_ms": 3029.6
+      },
+      "wall_ms": 3042.7553770005034,
+      "workbook_recall_note": "R3"
+    },
+    {
+      "query_id": "query-p2-30-kis",
+      "phase": "P2",
+      "text": "Đoạn video đưa tin về một cuộc đua giữa các kị sĩ. Một trong các phân cảnh là hình ảnh đồng cỏ xanh rộng, các kị sĩ cưỡi ngựa chạy trên cánh đồng này. Rất đông người đứng xem xung quanh khu vực đua. Trên đường đua có cắm những lá cờ màu đỏ.",
+      "gt_videos": [
+        "K09_V007"
+      ],
+      "gt_frames": [
+        [
+          "K09_V007",
+          5346
+        ],
+        [
+          "K09_V007",
+          5481
+        ],
+        [
+          "K09_V007",
+          5532
+        ],
+        [
+          "K09_V007",
+          5658
+        ],
+        [
+          "K09_V007",
+          5838
+        ],
+        [
+          "K09_V007",
+          5868
+        ],
+        [
+          "K09_V007",
+          5922
+        ],
+        [
+          "K09_V007",
+          6017
+        ],
+        [
+          "K09_V007",
+          6114
+        ],
+        [
+          "K09_V007",
+          6371
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 33,
+      "top_videos": [
+        "K09_V007",
+        "L22_V007",
+        "K19_V020",
+        "K20_V027",
+        "K14_V015",
+        "K20_V001",
+        "K03_V025",
+        "L23_V010",
+        "L21_V019",
+        "K07_V014"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 632.0
+        },
+        "fusion_ms": 480.5,
+        "parse_ms": 1441.3,
+        "total_ms": 2554.0
+      },
+      "wall_ms": 2563.4790919993975,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p3-2-kis",
+      "phase": "P3",
+      "text": "Cảnh quay cận cảnh một miếng thiếc có nhiều lỗ thủng. Được biết lỗ thủng này do người đàn ông dùng đinh đóng vào. Mặt lõm của miếng thiếc này màu trắng. Kết thúc cảnh quay ta thấy được công dụng của miếng thiếc này.",
+      "gt_videos": [
+        "L29_V020"
+      ],
+      "gt_frames": [
+        [
+          "L29_V020",
+          16890
+        ],
+        [
+          "L29_V020",
+          16925
+        ],
+        [
+          "L29_V020",
+          16980
+        ],
+        [
+          "L29_V020",
+          17050
+        ],
+        [
+          "L29_V020",
+          17100
+        ],
+        [
+          "L29_V020",
+          17150
+        ],
+        [
+          "L29_V020",
+          17225
+        ]
+      ],
+      "video_rank": null,
+      "frame_rank": null,
+      "n_groups": 72,
+      "top_videos": [
+        "K19_V001",
+        "K05_V028",
+        "K18_V015",
+        "K18_V018",
+        "K09_V011",
+        "L28_V023",
+        "K05_V029",
+        "K18_V010",
+        "K05_V008",
+        "L28_V019"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 593.7
+        },
+        "fusion_ms": 498.9,
+        "parse_ms": 1297.5,
+        "total_ms": 2390.2
+      },
+      "wall_ms": 2401.685347000239,
+      "workbook_recall_note": "No"
+    },
+    {
+      "query_id": "query-p3-4-kis",
+      "phase": "P3",
+      "text": "Cảnh quay các con động vật nối đuôi nhau. Con đi đầu lớn nhất, các con phía sau có kích thước lần lượt là nhỏ lớn nhỏ lớn. Tuy nhiên, ở vị trí thứ 2 có 2 con đi song song. Sau đó là cảnh con chim ở trên cây.",
+      "gt_videos": [
+        "K10_V002"
+      ],
+      "gt_frames": [
+        [
+          "K10_V002",
+          19160
+        ],
+        [
+          "K10_V002",
+          19170
+        ],
+        [
+          "K10_V002",
+          19180
+        ],
+        [
+          "K10_V002",
+          19500
+        ],
+        [
+          "K10_V002",
+          19650
+        ]
+      ],
+      "video_rank": 45,
+      "frame_rank": null,
+      "n_groups": 54,
+      "top_videos": [
+        "K16_V003",
+        "K15_V015",
+        "K12_V015",
+        "K13_V008",
+        "K12_V012",
+        "L22_V004",
+        "K03_V022",
+        "K12_V029",
+        "K06_V030",
+        "L25_V077"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 611.5,
+          "ocr": 1315.9
+        },
+        "fusion_ms": 250.1,
+        "parse_ms": 3991.4,
+        "total_ms": 5558.1
+      },
+      "wall_ms": 5570.961450999675,
+      "workbook_recall_note": "R24"
+    },
+    {
+      "query_id": "query-p3-6-kis",
+      "phase": "P3",
+      "text": "Cảnh quay các dãy xe nối đuôi nhau với xe đầu tiên màu trắng. Sau đó là cảnh quay gần hơn đến chiếc xe đầu tiên. Ta thấy đèn xe mỗi bên là hình chữ U ngược đang nhấp nháy. Xe này không có biển số và ta thấy họa tiếc khắc chìm nổi ở giữa đầu xe.",
+      "gt_videos": [
+        "K14_V022"
+      ],
+      "gt_frames": [
+        [
+          "K14_V022",
+          16140
+        ],
+        [
+          "K14_V022",
+          16215
+        ]
+      ],
+      "video_rank": 68,
+      "frame_rank": null,
+      "n_groups": 100,
+      "top_videos": [
+        "K19_V027",
+        "K15_V025",
+        "K19_V016",
+        "K17_V027",
+        "K07_V025",
+        "K04_V026",
+        "K04_V028",
+        "K03_V006",
+        "K02_V018",
+        "K19_V009"
+      ],
+      "channels_used": [
+        "audio",
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 796.4,
+          "ocr": 1108.7,
+          "audio": 1867.4
+        },
+        "fusion_ms": 719.3,
+        "parse_ms": 2892.2,
+        "total_ms": 5481.2
+      },
+      "wall_ms": 5492.980602999523,
+      "workbook_recall_note": "R27 (theo video)"
+    },
+    {
+      "query_id": "query-p3-7-kis",
+      "phase": "P3",
+      "text": "Cảnh quay từ phía sau một cậu bé và một cô gái đứng cạnh nhau. cậu bé này đang mặc một chiếc quần màu xanh. Đây là một đám cháy đang được các lính cứu hỏa ra sức dập lửa. Sau đó ta thấy những người xung quanh đưa camera ra quay phim lại và hình như đang livestream. Đây là một cửa hàng ở TP Đồng Xoài.",
+      "gt_videos": [
+        "K13_V025"
+      ],
+      "gt_frames": [
+        [
+          "K13_V025",
+          16770
+        ],
+        [
+          "K13_V025",
+          16821
+        ],
+        [
+          "K13_V025",
+          17016
+        ],
+        [
+          "K13_V025",
+          17130
+        ],
+        [
+          "K13_V025",
+          17640
+        ]
+      ],
+      "video_rank": 2,
+      "frame_rank": 11,
+      "n_groups": 48,
+      "top_videos": [
+        "K18_V005",
+        "K13_V025",
+        "K06_V020",
+        "K18_V026",
+        "K17_V022",
+        "K15_V017",
+        "K20_V019",
+        "K20_V025",
+        "K08_V019",
+        "K05_V022"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 606.0
+        },
+        "fusion_ms": 489.5,
+        "parse_ms": 2622.3,
+        "total_ms": 3718.0
+      },
+      "wall_ms": 3731.324794998727,
+      "workbook_recall_note": "R3"
+    },
+    {
+      "query_id": "query-p3-8-kis",
+      "phase": "P3",
+      "text": "Đoạn video 3D mô phỏng nhiệm vụ của một tàu vũ trụ. Có đoạn mô phỏng tàu dùng một loại sóng để quét một bề mặt một địa hình. Có đoạn mô phỏng quỹ đạo của con tàu này.",
+      "gt_videos": [
+        "K16_V004"
+      ],
+      "gt_frames": [
+        [
+          "K16_V004",
+          15120
+        ],
+        [
+          "K16_V004",
+          15210
+        ],
+        [
+          "K16_V004",
+          15483
+        ],
+        [
+          "K16_V004",
+          15540
+        ],
+        [
+          "K16_V004",
+          15603
+        ],
+        [
+          "K16_V004",
+          15690
+        ],
+        [
+          "K16_V004",
+          15750
+        ],
+        [
+          "K16_V004",
+          15779
+        ],
+        [
+          "K16_V004",
+          15869
+        ],
+        [
+          "K16_V004",
+          16080
+        ],
+        [
+          "K16_V004",
+          16109
+        ]
+      ],
+      "video_rank": 21,
+      "frame_rank": 109,
+      "n_groups": 63,
+      "top_videos": [
+        "K14_V024",
+        "K20_V016",
+        "K05_V006",
+        "K12_V014",
+        "K02_V005",
+        "K06_V025",
+        "K05_V028",
+        "L22_V013",
+        "L25_V034",
+        "K01_V015"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 615.8,
+          "ocr": 1281.0
+        },
+        "fusion_ms": 255.9,
+        "parse_ms": 600.2,
+        "total_ms": 2138.4
+      },
+      "wall_ms": 2155.757802000153,
+      "workbook_recall_note": ""
+    },
+    {
+      "query_id": "query-p3-9-kis",
+      "phase": "P3",
+      "text": "Trong đoạn video nhìn thấy rất nhiều khinh khí cầu. Có cái có hình cờ hải tặc Luffy trong anime One Piece. Có cái thể hiện hình ảnh người Na'vi trong phim Avatar.",
+      "gt_videos": [
+        "K14_V002"
+      ],
+      "gt_frames": [
+        [
+          "K14_V002",
+          18411
+        ],
+        [
+          "K14_V002",
+          18885
+        ],
+        [
+          "K14_V002",
+          18910
+        ],
+        [
+          "K14_V002",
+          18930
+        ],
+        [
+          "K14_V002",
+          18960
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 58,
+      "top_videos": [
+        "K14_V002",
+        "K01_V013",
+        "K04_V028",
+        "K19_V007",
+        "K17_V017",
+        "K05_V026",
+        "K12_V004",
+        "K13_V025",
+        "K13_V028",
+        "L25_V054"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 600.8,
+          "ocr": 807.5
+        },
+        "fusion_ms": 250.4,
+        "parse_ms": 533.2,
+        "total_ms": 1592.1
+      },
+      "wall_ms": 1606.7394699985016,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p3-10-kis",
+      "phase": "P3",
+      "text": "Một người phụ nữ đang bế một chú chó trả lời phỏng vấn. Chú chó này đạt giải trong một cuộc thi bơi được tổ chức trong một công viên nước.",
+      "gt_videos": [
+        "K20_V009"
+      ],
+      "gt_frames": [
+        [
+          "K20_V009",
+          23900
+        ],
+        [
+          "K20_V009",
+          23955
+        ],
+        [
+          "K20_V009",
+          24030
+        ],
+        [
+          "K20_V009",
+          24075
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 87,
+      "top_videos": [
+        "K20_V009",
+        "L21_V006",
+        "K11_V008",
+        "K05_V017",
+        "K10_V024",
+        "K18_V007",
+        "K13_V021",
+        "L21_V008",
+        "K14_V013",
+        "K14_V028"
+      ],
+      "channels_used": [
+        "image_pe",
+        "speech"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 642.8,
+          "speech": 495.9
+        },
+        "fusion_ms": 254.8,
+        "parse_ms": 736.5,
+        "total_ms": 1634.2
+      },
+      "wall_ms": 1652.0637960002205,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p3-11-kis",
+      "phase": "P3",
+      "text": "Hai cảnh sát giao thông đang dùng bình chữa cháy để dập một chiếc xe ô tô đang cháy. Chiếc xe bị cháy bên cạnh biển báo hiệu cho biết tốc độ tối đa cho phép là 120km/h.",
+      "gt_videos": [
+        "K19_V022"
+      ],
+      "gt_frames": [
+        [
+          "K19_V022",
+          11730
+        ],
+        [
+          "K19_V022",
+          11760
+        ],
+        [
+          "K19_V022",
+          12450
+        ],
+        [
+          "K19_V022",
+          12621
+        ],
+        [
+          "K19_V022",
+          12791
+        ],
+        [
+          "K19_V022",
+          12840
+        ]
+      ],
+      "video_rank": 3,
+      "frame_rank": 26,
+      "n_groups": 79,
+      "top_videos": [
+        "K20_V006",
+        "K02_V001",
+        "K19_V022",
+        "K08_V008",
+        "K13_V017",
+        "K03_V012",
+        "K06_V023",
+        "K15_V023",
+        "K11_V010",
+        "K09_V007"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "QA",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 599.6,
+          "ocr": 811.1
+        },
+        "fusion_ms": 266.2,
+        "parse_ms": 1348.8,
+        "total_ms": 2427.5
+      },
+      "wall_ms": 2439.765428998726,
+      "workbook_recall_note": "R8"
+    },
+    {
+      "query_id": "query-p3-12-kis",
+      "phase": "P3",
+      "text": "Đoạn video múa rồng, những người biểu diễn múa rồng mặc trang phục của các vận động viên bóng đá.",
+      "gt_videos": [
+        "K08_V021"
+      ],
+      "gt_frames": [
+        [
+          "K08_V021",
+          26977
+        ],
+        [
+          "K08_V021",
+          27050
+        ],
+        [
+          "K08_V021",
+          27136
+        ],
+        [
+          "K08_V021",
+          27150
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 18,
+      "top_videos": [
+        "K08_V021",
+        "L24_V003",
+        "L24_V002",
+        "L24_V004",
+        "L24_V045",
+        "L24_V043",
+        "L24_V040",
+        "L24_V041",
+        "L24_V011",
+        "L24_V021"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 596.1
+        },
+        "fusion_ms": 497.2,
+        "parse_ms": 1094.8,
+        "total_ms": 2188.3
+      },
+      "wall_ms": 2198.5478659989894,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p3-14-kis",
+      "phase": "P3",
+      "text": "Trong đoạn tin có nhiều tác phẩm trang trí bằng trái cây. Có đa dạng các loại tác phẩm, có nhiều tác phẩm có hình ảnh chân dung Bác Hồ, Dinh Độc Lập, xe tăng số hiệu 390.",
+      "gt_videos": [
+        "K17_V010"
+      ],
+      "gt_frames": [
+        [
+          "K17_V010",
+          10445
+        ],
+        [
+          "K17_V010",
+          10506
+        ],
+        [
+          "K17_V010",
+          10602
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 50,
+      "top_videos": [
+        "K17_V010",
+        "K13_V016",
+        "K16_V016",
+        "K17_V003",
+        "L25_V080",
+        "K17_V005",
+        "K16_V006",
+        "L25_V010",
+        "L28_V016",
+        "K10_V012"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 607.0,
+          "ocr": 1542.9
+        },
+        "fusion_ms": 251.4,
+        "parse_ms": 1800.2,
+        "total_ms": 3596.1
+      },
+      "wall_ms": 3610.8766159995866,
+      "workbook_recall_note": "R3"
+    },
+    {
+      "query_id": "query-p3-15-kis",
+      "phase": "P3",
+      "text": "Trong một đoạn video nấu ăn một món ăn về tôm. Cảnh quay đang lột vỏ con tôm cuối cùng và sau đó để con tôm này lên dĩa đang có sẵn 5 con tôm đã lột vỏ.",
+      "gt_videos": [
+        "K14_V002",
+        "L26_V222"
+      ],
+      "gt_frames": [
+        [
+          "K14_V002",
+          3000
+        ],
+        [
+          "L26_V222",
+          2868
+        ],
+        [
+          "L26_V222",
+          2962
+        ],
+        [
+          "L26_V222",
+          3025
+        ]
+      ],
+      "video_rank": 7,
+      "frame_rank": 29,
+      "n_groups": 73,
+      "top_videos": [
+        "L26_V227",
+        "L26_V456",
+        "L26_V477",
+        "L26_V414",
+        "L26_V099",
+        "L26_V156",
+        "L26_V222",
+        "L26_V427",
+        "L26_V220",
+        "L26_V443"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 626.8,
+          "ocr": 1041.1
+        },
+        "fusion_ms": 252.6,
+        "parse_ms": 2759.9,
+        "total_ms": 4054.7
+      },
+      "wall_ms": 4068.1151959997806,
+      "workbook_recall_note": "R2"
+    },
+    {
+      "query_id": "query-p3-16-kis",
+      "phase": "P3",
+      "text": "Nhiều con rùa có kích thước nhỏ đang ăn rau cải trong một trang trại rùa.",
+      "gt_videos": [
+        "K04_V021"
+      ],
+      "gt_frames": [
+        [
+          "K04_V021",
+          18308
+        ],
+        [
+          "K04_V021",
+          19746
+        ]
+      ],
+      "video_rank": 3,
+      "frame_rank": 18,
+      "n_groups": 33,
+      "top_videos": [
+        "K08_V015",
+        "K09_V010",
+        "K04_V021",
+        "K08_V021",
+        "L30_V013",
+        "L27_V016",
+        "K15_V008",
+        "K02_V011",
+        "L29_V006",
+        "K07_V004"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 627.5
+        },
+        "fusion_ms": 487.4,
+        "parse_ms": 453.7,
+        "total_ms": 1568.7
+      },
+      "wall_ms": 1577.4568850010837,
+      "workbook_recall_note": "R13"
+    },
+    {
+      "query_id": "query-p3-17-kis",
+      "phase": "P3",
+      "text": "Cảnh đầu tiên có thể thấy 2 bạn nữ mặc áo dài tạo dáng chụp hình với hoa, hai bạn nắm tay nhau, mỗi bạn đang cầm bó hoa giơ lên cao .Sau đó là cảnh 4 bạn nữ mặc áo dài nắm tay nhau đi phía trước chợ Bến Thành.",
+      "gt_videos": [
+        "K06_V003"
+      ],
+      "gt_frames": [
+        [
+          "K06_V003",
+          11610
+        ],
+        [
+          "K06_V003",
+          11640
+        ],
+        [
+          "K06_V003",
+          11700
+        ],
+        [
+          "K06_V003",
+          11739
+        ]
+      ],
+      "video_rank": 73,
+      "frame_rank": null,
+      "n_groups": 77,
+      "top_videos": [
+        "K08_V012",
+        "K08_V017",
+        "K01_V018",
+        "K13_V030",
+        "K03_V018",
+        "K09_V024",
+        "K01_V001",
+        "K09_V001",
+        "K08_V004",
+        "L25_V036"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 615.8,
+          "ocr": 1570.7
+        },
+        "fusion_ms": 256.1,
+        "parse_ms": 2952.4,
+        "total_ms": 4780.5
+      },
+      "wall_ms": 4793.803443999423,
+      "workbook_recall_note": ""
+    },
+    {
+      "query_id": "query-p3-18-kis",
+      "phase": "P3",
+      "text": "Đoạn tin về trái sầu riêng. Cuối đoạn video là cảnh quay từ trên cao, có một người đẩy xe có chất sầu riêng đi về hướng phải,  có một người đẩy xe trống đi về hướng trái.",
+      "gt_videos": [
+        "K03_V011",
+        "K04_V013"
+      ],
+      "gt_frames": [
+        [
+          "K03_V011",
+          9120
+        ],
+        [
+          "K03_V011",
+          9400
+        ],
+        [
+          "K03_V011",
+          9600
+        ],
+        [
+          "K03_V011",
+          9779
+        ],
+        [
+          "K04_V013",
+          8040
+        ],
+        [
+          "K04_V013",
+          8200
+        ],
+        [
+          "K04_V013",
+          8400
+        ],
+        [
+          "K04_V013",
+          8571
+        ]
+      ],
+      "video_rank": 17,
+      "frame_rank": 82,
+      "n_groups": 100,
+      "top_videos": [
+        "L21_V021",
+        "K16_V006",
+        "K15_V008",
+        "K16_V032",
+        "K19_V011",
+        "K09_V016",
+        "L22_V020",
+        "K16_V008",
+        "K10_V025",
+        "K06_V025"
+      ],
+      "channels_used": [
+        "audio",
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 624.6,
+          "audio": 1178.8
+        },
+        "fusion_ms": 259.7,
+        "parse_ms": 1331.3,
+        "total_ms": 2770.7
+      },
+      "wall_ms": 2782.997232001435,
+      "workbook_recall_note": "R100"
+    },
+    {
+      "query_id": "query-p3-19-kis",
+      "phase": "P3",
+      "text": "Một nhóm người đang đứng xung quanh một cái bàn, trên bàn có thiết bị và một chiếc điện thoại. Sau đó là cảnh quay cận vào điện thoại, 1 người đang thao tác trên màn hình điện thoại bấm chọn 50ml.",
+      "gt_videos": [
+        "K16_V005"
+      ],
+      "gt_frames": [
+        [
+          "K16_V005",
+          4140
+        ],
+        [
+          "K16_V005",
+          4161
+        ],
+        [
+          "K16_V005",
+          4180
+        ],
+        [
+          "K16_V005",
+          4459
+        ],
+        [
+          "K16_V005",
+          4479
+        ],
+        [
+          "K16_V005",
+          4490
+        ]
+      ],
+      "video_rank": 6,
+      "frame_rank": 9,
+      "n_groups": 100,
+      "top_videos": [
+        "K20_V017",
+        "K06_V017",
+        "K13_V024",
+        "K04_V028",
+        "K10_V001",
+        "K16_V005",
+        "K10_V025",
+        "L25_V049",
+        "K15_V018",
+        "K10_V012"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 622.5,
+          "ocr": 1299.0
+        },
+        "fusion_ms": 265.9,
+        "parse_ms": 2959.0,
+        "total_ms": 4525.4
+      },
+      "wall_ms": 4540.320348000023,
+      "workbook_recall_note": "R9"
+    },
+    {
+      "query_id": "query-p3-21-kis",
+      "phase": "P3",
+      "text": "Đoạn video chạy nước rút của một chặng đua xe đạp. Người về nhất mặc áo xám, nón trắng. Người về nhì mặc áo trắng, nó trắng. Người về ba mặc áo đen, nón đỏ.",
+      "gt_videos": [
+        "K19_V007"
+      ],
+      "gt_frames": [
+        [
+          "K19_V007",
+          29400
+        ],
+        [
+          "K19_V007",
+          29430
+        ],
+        [
+          "K19_V007",
+          29580
+        ],
+        [
+          "K19_V007",
+          29640
+        ],
+        [
+          "K19_V007",
+          29700
+        ],
+        [
+          "K19_V007",
+          29715
+        ],
+        [
+          "K19_V007",
+          29760
+        ]
+      ],
+      "video_rank": null,
+      "frame_rank": null,
+      "n_groups": 45,
+      "top_videos": [
+        "L23_V016",
+        "L23_V018",
+        "L23_V021",
+        "K13_V025",
+        "K13_V019",
+        "L23_V020",
+        "K13_V006",
+        "L23_V015",
+        "K13_V027",
+        "L23_V010"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 634.2
+        },
+        "fusion_ms": 479.2,
+        "parse_ms": 1102.4,
+        "total_ms": 2216.0
+      },
+      "wall_ms": 2226.772936999623,
+      "workbook_recall_note": ""
+    },
+    {
+      "query_id": "query-p3-22-kis",
+      "phase": "P3",
+      "text": "Đầu tiên là cảnh quay một người đang làm hành động mở một gói bánh snack, góc quay từ phía bên trong gói bánh. Sau đó là cảnh quay một dĩa snack khoai tây lát.",
+      "gt_videos": [
+        "K16_V032"
+      ],
+      "gt_frames": [
+        [
+          "K16_V032",
+          10875
+        ],
+        [
+          "K16_V032",
+          10900
+        ],
+        [
+          "K16_V032",
+          10933
+        ],
+        [
+          "K16_V032",
+          10950
+        ],
+        [
+          "K16_V032",
+          11000
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 74,
+      "top_videos": [
+        "K16_V032",
+        "L29_V019",
+        "K17_V004",
+        "K12_V030",
+        "K18_V007",
+        "L26_V034",
+        "L26_V295",
+        "L26_V251",
+        "L26_V194",
+        "L26_V231"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 705.3
+        },
+        "fusion_ms": 481.6,
+        "parse_ms": 2565.0,
+        "total_ms": 3752.2
+      },
+      "wall_ms": 3766.3478140002553,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p3-23-kis",
+      "phase": "P3",
+      "text": "Cảnh quay một phụ nữ cosplay nữ siêu nhân đang đi trong hành lang bệnh viện, tiến lại gần một em bé trên tay một người phụ nữ. Người cosplay nữ siêu nhân cùng tạo hình trái tim với đứa bé bằng bàn tay.",
+      "gt_videos": [
+        "K06_V014"
+      ],
+      "gt_frames": [
+        [
+          "K06_V014",
+          13450
+        ],
+        [
+          "K06_V014",
+          13500
+        ],
+        [
+          "K06_V014",
+          13527
+        ]
+      ],
+      "video_rank": 2,
+      "frame_rank": 6,
+      "n_groups": 55,
+      "top_videos": [
+        "K12_V012",
+        "K06_V014",
+        "K16_V029",
+        "K17_V008",
+        "K10_V017",
+        "K12_V016",
+        "L22_V003",
+        "K04_V022",
+        "K14_V011",
+        "K11_V005"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 669.0
+        },
+        "fusion_ms": 477.9,
+        "parse_ms": 1464.4,
+        "total_ms": 2611.6
+      },
+      "wall_ms": 2622.1001940011774,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p3-26-kis",
+      "phase": "P3",
+      "text": "Đoạn video một tuyến đường ngập nước, người dân đi lại khó khăn. Đoạn video có hình ảnh cột mốc cho biết đây là QL60 tại KM00, thành phố Tân An.",
+      "gt_videos": [
+        "K13_V003"
+      ],
+      "gt_frames": [
+        [
+          "K13_V003",
+          10680
+        ],
+        [
+          "K13_V003",
+          10710
+        ],
+        [
+          "K13_V003",
+          11070
+        ],
+        [
+          "K13_V003",
+          11250
+        ],
+        [
+          "K13_V003",
+          11550
+        ],
+        [
+          "K13_V003",
+          11700
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 97,
+      "top_videos": [
+        "K13_V003",
+        "L21_V028",
+        "K14_V029",
+        "K16_V015",
+        "K20_V023",
+        "K20_V024",
+        "K03_V028",
+        "K15_V028",
+        "K01_V030",
+        "K04_V003"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 610.4,
+          "ocr": 1302.3
+        },
+        "fusion_ms": 262.1,
+        "parse_ms": 790.9,
+        "total_ms": 2356.6
+      },
+      "wall_ms": 2369.0428150002845,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p3-27-kis",
+      "phase": "P3",
+      "text": "Đoạn video Tổng thống Mỹ Donald Trump đi bên cạnh một người phụ nữ. Trang phục người phụ nữ mặc cho thấy có vẻ người này là một sĩ quan. Khung cảnh và âm thanh có vẻ là ở sân bay.",
+      "gt_videos": [
+        "K20_V018"
+      ],
+      "gt_frames": [
+        [
+          "K20_V018",
+          697
+        ],
+        [
+          "K20_V018",
+          14150
+        ]
+      ],
+      "video_rank": 3,
+      "frame_rank": 17,
+      "n_groups": 100,
+      "top_videos": [
+        "K19_V002",
+        "K15_V017",
+        "K20_V018",
+        "K07_V024",
+        "K14_V026",
+        "K07_V011",
+        "K08_V006",
+        "K15_V027",
+        "K08_V012",
+        "L22_V013"
+      ],
+      "channels_used": [
+        "audio",
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 697.0,
+          "audio": 1338.4
+        },
+        "fusion_ms": 262.7,
+        "parse_ms": 728.9,
+        "total_ms": 2331.0
+      },
+      "wall_ms": 2341.8368169986934,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p3-28-kis",
+      "phase": "P3",
+      "text": "Đoạn video tin tức về một cánh tay robot. Trong đoạn video có một mô phỏng 3D của cánh tay robot này. Cánh tay robot này có 3 ngón tay.",
+      "gt_videos": [
+        "K12_V007"
+      ],
+      "gt_frames": [
+        [
+          "K12_V007",
+          18395
+        ],
+        [
+          "K12_V007",
+          18629
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 2,
+      "n_groups": 85,
+      "top_videos": [
+        "K12_V007",
+        "K07_V026",
+        "K11_V019",
+        "K11_V006",
+        "K13_V030",
+        "K01_V024",
+        "K05_V022",
+        "K03_V026",
+        "K06_V023",
+        "K01_V022"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 620.6,
+          "ocr": 1011.9
+        },
+        "fusion_ms": 252.4,
+        "parse_ms": 1010.8,
+        "total_ms": 2276.3
+      },
+      "wall_ms": 2289.3332340008783,
+      "workbook_recall_note": "R3"
+    },
+    {
+      "query_id": "query-p3-29-kis",
+      "phase": "P3",
+      "text": "Cảnh một bạn nam đang đứng trước sản phẩm của mình trong một cuộc thi. Sau đó bạn nam này trả lời phỏng vấn bằng ngôn ngữ ký hiệu.",
+      "gt_videos": [
+        "K13_V021"
+      ],
+      "gt_frames": [
+        [
+          "K13_V021",
+          11940
+        ],
+        [
+          "K13_V021",
+          12120
+        ],
+        [
+          "K13_V021",
+          12160
+        ],
+        [
+          "K13_V021",
+          12200
+        ],
+        [
+          "K13_V021",
+          12252
+        ]
+      ],
+      "video_rank": 3,
+      "frame_rank": 11,
+      "n_groups": 100,
+      "top_videos": [
+        "L30_V037",
+        "K13_V024",
+        "K13_V021",
+        "K20_V003",
+        "L30_V029",
+        "L30_V089",
+        "K03_V020",
+        "L25_V054",
+        "L21_V008",
+        "K08_V015"
+      ],
+      "channels_used": [
+        "image_pe",
+        "speech"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 602.1,
+          "speech": 966.8
+        },
+        "fusion_ms": 256.8,
+        "parse_ms": 2785.6,
+        "total_ms": 4010.1
+      },
+      "wall_ms": 4020.620264000172,
+      "workbook_recall_note": "R5"
+    },
+    {
+      "query_id": "query-p3-31-kis",
+      "phase": "P3",
+      "text": "Cảnh quay mà khung hình được chia làm 3 phần quay một người đang nói về chủ đề y khoa. Cảnh bên phải cùng mặc áo khác màu và vị trí dòng chữ khác với 2 cảnh còn lại. Sau đó là một cảnh khác cũng có bố cục chia 3 tương tự, tuy nhiên lần này cảnh ở giữa tóc ngắn hơn 2 bên còn lại.",
+      "gt_videos": [
+        "L30_V009"
+      ],
+      "gt_frames": [
+        [
+          "L30_V009",
+          5482
+        ],
+        [
+          "L30_V009",
+          5506
+        ],
+        [
+          "L30_V009",
+          5632
+        ]
+      ],
+      "video_rank": 4,
+      "frame_rank": null,
+      "n_groups": 100,
+      "top_videos": [
+        "L25_V018",
+        "L30_V032",
+        "K14_V018",
+        "L30_V009",
+        "L25_V010",
+        "L30_V096",
+        "L25_V080",
+        "K19_V023",
+        "K13_V017",
+        "K14_V015"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr",
+        "speech"
+      ],
+      "query_type": "TRAKE",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 772.3,
+          "ocr": 1644.5,
+          "speech": 1536.7
+        },
+        "fusion_ms": 254.9,
+        "parse_ms": 2783.1,
+        "total_ms": 4683.8
+      },
+      "wall_ms": 4695.0243400006,
+      "workbook_recall_note": "R2"
+    },
+    {
+      "query_id": "query-p3-33-kis",
+      "phase": "P3",
+      "text": "Đoạn video gồm các hình ảnh từ tài liệu văn bản/inforgraphic của tổng cục thống kê về tình hình kinh tế xã hội 9 tháng đầu năm 2024. Trong đoạn video có hình ảnh thể hiện tốc độ tăng trưởng GDP và cơ cấu GDP trong 9 tháng này.",
+      "gt_videos": [
+        "K02_V007"
+      ],
+      "gt_frames": [
+        [
+          "K02_V007",
+          4158
+        ],
+        [
+          "K02_V007",
+          4338
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 1,
+      "n_groups": 77,
+      "top_videos": [
+        "K02_V007",
+        "L25_V007",
+        "K06_V001",
+        "K18_V028",
+        "L25_V060",
+        "K02_V021",
+        "L25_V054",
+        "K15_V021",
+        "K05_V026",
+        "K15_V009"
+      ],
+      "channels_used": [
+        "image_pe",
+        "ocr"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 607.0,
+          "ocr": 861.5
+        },
+        "fusion_ms": 252.5,
+        "parse_ms": 1185.0,
+        "total_ms": 2300.2
+      },
+      "wall_ms": 2313.149138000881,
+      "workbook_recall_note": "R1"
+    },
+    {
+      "query_id": "query-p3-34-kis",
+      "phase": "P3",
+      "text": "Trong đoạn video, có thể thấy khung gầm của một xe ô tô điện (chỉ có khung gầm, không có bộ phận bên trên) trong một hệ thống tự động đổi pin. Hệ thống đang tiến hành các thao tác để đổi pin.",
+      "gt_videos": [
+        "K05_V019"
+      ],
+      "gt_frames": [
+        [
+          "K05_V019",
+          25390
+        ],
+        [
+          "K05_V019",
+          25430
+        ],
+        [
+          "K05_V019",
+          25500
+        ]
+      ],
+      "video_rank": 1,
+      "frame_rank": 5,
+      "n_groups": 42,
+      "top_videos": [
+        "K05_V019",
+        "K17_V005",
+        "K03_V008",
+        "K12_V021",
+        "K15_V013",
+        "K15_V023",
+        "K01_V016",
+        "L21_V025",
+        "K16_V007",
+        "K12_V025"
+      ],
+      "channels_used": [
+        "image_pe"
+      ],
+      "query_type": "T-KIS",
+      "latency_ms": {
+        "channels": {
+          "image_pe": 620.0
+        },
+        "fusion_ms": 481.5,
+        "parse_ms": 1546.3,
+        "total_ms": 2648.0
+      },
+      "wall_ms": 2657.089182999698,
+      "workbook_recall_note": "R1"
+    }
+  ]
+}

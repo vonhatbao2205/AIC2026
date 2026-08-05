@@ -152,13 +152,52 @@ def test_submit_and_duplicate_guard(tmp_path, monkeypatch):
     payload = {
         "task_id": "qX",
         "query_type": "T-KIS",
-        "payload": {"video_id": "K01_V001", "frame_idx": 150},
+        "payload": {"video_id": "K01_V001", "frame_idx": 150, "timestamp": 6.0},
     }
     r1 = client.post("/api/submit", json=payload)
     assert r1.status_code == 200
+    # The stored entry carries the exact DRES v2 body (ms window, no text).
+    assert r1.json()["answer_sets"][0]["answers"][0]["mediaItemName"] == "K01_V001"
     r2 = client.post("/api/submit", json=payload)
     assert r2.status_code == 409
     assert r2.json()["detail"]["error"] == "duplicate_submit"
+
+
+def test_submit_rejects_a_frame_with_no_resolvable_time():
+    """No pts_time and no fps means no ms window — caught before DRES sees it."""
+    from app.main import submit_service
+
+    submit_service._history = []
+    r = client.post(
+        "/api/submit",
+        json={"task_id": "qX", "query_type": "T-KIS", "payload": {"video_id": "K01_V001", "frame_idx": 150}},
+    )
+    assert r.status_code == 400
+    assert r.json()["detail"]["error"] == "invalid_format"
+
+
+def test_submit_preview_returns_the_exact_dres_body():
+    r = client.post(
+        "/api/submit/preview",
+        json={
+            "task_id": "qX",
+            "query_type": "QA",
+            "payload": {"video_id": "K01_V001", "frame_idx": 150, "timestamp": 6.0, "answer": "HTV7"},
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["answer_mode"] == "temporal_text"
+    # QA carries the segment AND the answer, per the BTC payload example.
+    assert body["body"]["answerSets"][0]["answers"] == [
+        {"mediaItemName": "K01_V001", "start": 5500, "end": 6500, "text": "HTV7"}
+    ]
+
+
+def test_dres_status_reports_disabled_in_mock_mode():
+    r = client.get("/api/dres/status")
+    assert r.status_code == 200
+    assert r.json()["configured"] is False
 
 
 def test_canvas_palette_only_offers_what_od_can_answer():

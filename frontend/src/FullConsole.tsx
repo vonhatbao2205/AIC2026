@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, ApiError, type ManualOverrides } from "./api/client";
+import { api, ApiError, type ManualOverrides, type SubmitBody } from "./api/client";
 import type {
+  AnswerMode,
   CanvasSpec,
   Channel,
+  DresEvaluation,
+  DresStatus,
+  DresTaskHint,
   FeedbackState,
   FrameResult,
   HealthResponse,
@@ -11,12 +15,14 @@ import type {
   QaAnalysisResponse,
   QueryType,
   SubmitEntry,
+  SubmitPreview,
   Timeline as TimelineData,
   VideoGroup,
 } from "./api/types";
 import { CanvasPanel } from "./components/CanvasPanel";
 import { ChannelControls } from "./components/ChannelControls";
 import { DetailPanel } from "./components/DetailPanel";
+import { DresBar } from "./components/DresBar";
 import { FeedbackBar } from "./components/FeedbackBar";
 import { HistorySidebar } from "./components/HistorySidebar";
 import { NeighborStrip } from "./components/NeighborStrip";
@@ -26,11 +32,13 @@ import { QaAssistPanel } from "./components/QaAssistPanel";
 import { Results } from "./components/Results";
 import { PausedFramePanel, type PausedFrame } from "./components/PausedFramePanel";
 import { ShortcutsModal } from "./components/ShortcutsModal";
+import { TaskHintPanel } from "./components/TaskHintPanel";
 import { SubmitGuard } from "./components/SubmitGuard";
 import { Timeline } from "./components/Timeline";
 import { TopBar } from "./components/TopBar";
 import { TrakePanel, type TrakeSlot } from "./components/TrakePanel";
 import { VideoViewer, type VideoViewerHandle } from "./components/VideoViewer";
+import { autoEvaluationId } from "./lib/dres";
 import { findQaFrame, selectQaCandidateFrames } from "./lib/qa";
 import { validateIncreasingOrder } from "./lib/snap";
 
@@ -86,8 +94,26 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
 
   const [keymapOpen, setKeymapOpen] = useState(false);
   const [guardOpen, setGuardOpen] = useState(false);
-  const [taskId, setTaskId] = useState("q001");
   const [answer, setAnswer] = useState("");
+
+  // ---- DRES (official evaluation server) ----
+  // The run and the open task come from the server; `pinnedEvaluationId` is set
+  // only when the operator overrides the auto-routing by query type.
+  const [dresStatus, setDresStatus] = useState<DresStatus | null>(null);
+  const [dresEvaluations, setDresEvaluations] = useState<DresEvaluation[]>([]);
+  const [pinnedEvaluationId, setPinnedEvaluationId] = useState<string | null>(null);
+  const [dresError, setDresError] = useState<string | null>(null);
+  const [dresBusy, setDresBusy] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [taskNameOverride, setTaskNameOverride] = useState("");
+  const [answerMode, setAnswerMode] = useState<AnswerMode>("auto");
+  const [segmentPadMs, setSegmentPadMs] = useState(500);
+  const [taskHint, setTaskHint] = useState<DresTaskHint | null>(null);
+  const [taskHintLoading, setTaskHintLoading] = useState(false);
+  const [taskHintError, setTaskHintError] = useState<string | null>(null);
+  const [submitPreview, setSubmitPreview] = useState<SubmitPreview | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [qaAnalysis, setQaAnalysis] = useState<QaAnalysisResponse | null>(null);
   const [qaAnalyzing, setQaAnalyzing] = useState(false);
   const [qaAnalysisError, setQaAnalysisError] = useState<string | null>(null);
@@ -105,6 +131,9 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
   const [toast, setToast] = useState<{ msg: string; kind: "ok" | "bad" } | null>(null);
 
   const queryRef = useRef<HTMLTextAreaElement>(null);
+  // Set as soon as the operator edits the query themselves; the task statement
+  // prefill must never clobber their words.
+  const queryTouched = useRef(false);
   const viewerRef = useRef<VideoViewerHandle>(null);
   const timelineCache = useRef<Map<string, TimelineData>>(new Map());
 
@@ -206,6 +235,149 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
   const refreshHistory = useCallback(() => {
     api.history().then((r) => setHistory(r.history)).catch(() => {});
   }, []);
+
+  const clearHistory = useCallback(async (opts: { ids?: string[]; taskId?: string } = {}) => {
+    try {
+      const r = await api.clearHistory(opts);
+      setDuplicateId(null);
+      refreshHistory();
+      setToast({
+        msg: r.deleted ? `Đã xoá ${r.deleted} mục (backup ${r.backup})` : "Không có mục nào để xoá",
+        kind: "ok",
+      });
+    } catch {
+      setToast({ msg: "Xoá history thất bại", kind: "bad" });
+    }
+  }, [refreshHistory]);
+
+  // ---- DRES: connection, open task, countdown ----
+  const refreshDresEvaluations = useCallback(async (force = false) => {
+    try {
+      const r = await api.dresEvaluations(force);
+      setDresEvaluations(r.evaluations);
+      setDresError(null);
+    } catch (e) {
+      setDresEvaluations([]);
+      setDresError(e instanceof ApiError ? String(e.detail ?? e.message) : "DRES unreachable");
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.dresStatus()
+      .then((s) => {
+        if (cancelled) return;
+        setDresStatus(s);
+        setSegmentPadMs(s.segment_pad_ms);
+        if (s.configured) refreshDresEvaluations(true);
+        else setDresError(null);
+      })
+      .catch(() => !cancelled && setDresStatus(null));
+    return () => { cancelled = true; };
+  }, [refreshDresEvaluations]);
+
+  // The open task changes without warning during a run, so poll it. 5 s is well
+  // under the shortest task and the backend caches for 2 s.
+  useEffect(() => {
+    if (!dresStatus?.configured) return;
+    const id = setInterval(() => refreshDresEvaluations(), 5000);
+    return () => clearInterval(id);
+  }, [dresStatus?.configured, refreshDresEvaluations]);
+
+  const evaluationId = pinnedEvaluationId ?? autoEvaluationId(dresEvaluations, queryType);
+  const activeEvaluation = dresEvaluations.find((e) => e.id === evaluationId) ?? null;
+  const currentTaskName = activeEvaluation?.current_task?.name ?? null;
+  // History and dedup are scoped to the open DRES task (mirrors `_task_scope`
+  // in submit_service.py), so answers for one task never mask another's.
+  const submitTaskName = taskNameOverride.trim() || currentTaskName;
+  const taskScope = submitTaskName
+    ? evaluationId
+      ? `${evaluationId}/${submitTaskName}`
+      : submitTaskName
+    : "unknown-task";
+
+  // Countdown between polls: seed from the server, tick locally.
+  useEffect(() => {
+    setTimeLeft(activeEvaluation?.state?.timeLeft ?? null);
+  }, [activeEvaluation?.state?.timeLeft, activeEvaluation?.id]);
+  useEffect(() => {
+    if (timeLeft == null) return;
+    const id = setInterval(() => setTimeLeft((t) => (t == null ? null : Math.max(0, t - 1))), 1000);
+    return () => clearInterval(id);
+  }, [timeLeft == null]);
+
+  // A new task means a new answer, a fresh dedup scope and no stale overrides.
+  useEffect(() => {
+    setTaskNameOverride("");
+    setAnswerMode("auto");
+  }, [currentTaskName]);
+
+  // ---- the task statement (đề bài) ----
+  // Keyed on the task template: the hint never changes while a task is open, and
+  // a V-KIS media hint is far too big to re-fetch on the 5 s poll.
+  const taskTemplateId = activeEvaluation?.state?.taskTemplateId ?? null;
+  const fetchTaskHint = useCallback(
+    async (force = false) => {
+      if (!evaluationId) return;
+      setTaskHintLoading(true);
+      try {
+        const hint = await api.dresTaskHint(queryType, evaluationId, force);
+        setTaskHint(hint);
+        setTaskHintError(null);
+      } catch (e) {
+        setTaskHint(null);
+        setTaskHintError(e instanceof ApiError ? String(e.detail ?? e.message) : "Không lấy được đề bài");
+      } finally {
+        setTaskHintLoading(false);
+      }
+    },
+    [evaluationId, queryType],
+  );
+
+  useEffect(() => {
+    if (!dresStatus?.configured || !evaluationId) {
+      setTaskHint(null);
+      return;
+    }
+    fetchTaskHint();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dresStatus?.configured, evaluationId, taskTemplateId]);
+
+  // A statement IS the query for T-KIS/QA, so it prefills the box — but never
+  // over the operator's own words, not even when it lands mid-keystroke. The
+  // statement of a previous task is fair game: a new task supersedes it.
+  const prefilledHint = useRef<string | null>(null);
+  useEffect(() => {
+    const text = taskHint?.text;
+    if (!text || prefilledHint.current === text) return;
+    prefilledHint.current = text;
+    setQuery((current) => {
+      if (queryTouched.current && current.trim()) return current;
+      queryTouched.current = false;
+      return text;
+    });
+  }, [taskHint?.text]);
+
+  function useHintAsQuery() {
+    if (!taskHint?.text) return;
+    queryTouched.current = true;
+    setQuery(taskHint.text);
+    queryRef.current?.focus();
+  }
+
+  const reconnectDres = useCallback(async () => {
+    setDresBusy(true);
+    try {
+      await api.dresLogin();
+      setDresStatus(await api.dresStatus());
+      await refreshDresEvaluations(true);
+      setToast({ msg: "DRES reconnected ✓", kind: "ok" });
+    } catch (e) {
+      setToast({ msg: e instanceof ApiError ? `DRES login failed: ${String(e.detail ?? "")}` : "DRES login failed", kind: "bad" });
+    } finally {
+      setDresBusy(false);
+    }
+  }, [refreshDresEvaluations]);
 
   // ---- load timeline only for the video actually being shown inline ----
   const selectedVideoId = selectedGroup?.video_id;
@@ -492,6 +664,12 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     if (evidenceId) focusQaEvidence(evidenceId, true);
   }
 
+  /** Every manual edit of the query box goes through here. */
+  const editQuery = useCallback((value: string) => {
+    queryTouched.current = true;
+    setQuery(value);
+  }, []);
+
   // ---- T-KIS append hint ----
   function appendHint() {
     if (!query.trim()) return;
@@ -605,31 +783,42 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     if (gi >= 0) { setSelectedVideo(gi); setSelectedFrame(0); }
     // Duplicate check against the new slots (state update is async).
     const key = `${slots[0]?.video_id}|${slots.map((s) => s?.frame_idx).join(",")}`;
-    const dup = history.some((h) => h.task_id === taskId && (h.dedup_keys || []).includes(key));
+    const dup = history.some((h) => h.task_id === taskScope && (h.dedup_keys || []).includes(key));
     setDuplicateId(dup ? key : null);
     setGuardOpen(true);
   }
 
-  // ---- duplicate pre-check (mirrors backend dedup keys: video_id:frame_idx) ----
+  // ---- duplicate pre-check (mirrors the backend dedup keys) ----
   // The target is passed in rather than read from state: openGuard sets it in the
   // same tick, so the dedup pre-check would otherwise run against the old value.
+  // The backend re-checks authoritatively and its answer arrives with the preview.
   function dedupKeyFor(target: GuardTarget): string | null {
     if (queryType === "TRAKE") {
       const filled = trakeSlots.filter((s): s is TrakeSlot => s !== null);
       if (!filled.length) return null;
       return `${filled[0].video_id}|${filled.map((s) => s.frame_idx).join(",")}`;
     }
-    if (target === "paused") {
-      return pausedFrame ? `${pausedFrame.video_id}:${pausedFrame.frame_idx}` : null;
+    // A pure text answer is identified by the text alone.
+    if (answerMode === "text" || (queryType === "QA" && answerMode === "auto" && !selectedFrameObj && !pausedFrame)) {
+      const text = answer.trim().replace(/\s+/g, " ").toLowerCase();
+      return text ? `text:${text}` : null;
     }
-    if (selectedFrameObj) return `${selectedFrameObj.video_id}:${frameIdxOf(selectedFrameObj)}`;
-    return null;
+    const frameKey =
+      target === "paused"
+        ? pausedFrame && `${pausedFrame.video_id}:${pausedFrame.frame_idx}`
+        : selectedFrameObj && `${selectedFrameObj.video_id}:${frameIdxOf(selectedFrameObj)}`;
+    if (!frameKey) return null;
+    // QA answers carry the segment AND the text, so both make up the identity:
+    // a new answer on the same frame is a new guess, not a repeat.
+    const combined = queryType === "QA" ? answerMode === "auto" : answerMode === "temporal_text";
+    if (!combined) return frameKey;
+    return `${frameKey}|text:${answer.trim().replace(/\s+/g, " ").toLowerCase()}`;
   }
   function computeDuplicate(target: GuardTarget): string | null {
     const key = dedupKeyFor(target);
     if (!key) return null;
     for (const h of history) {
-      if (h.task_id !== taskId) continue;
+      if (h.task_id !== taskScope) continue;
       if ((h.dedup_keys || []).includes(key)) return key;
     }
     return null;
@@ -651,42 +840,105 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     setGuardOpen(true);
   }
 
+  /** The request behind both the guard's preview and the actual submit.
+   *  DRES v2 needs a millisecond window, so `fps` rides along for the frames
+   *  whose pts_time is unknown (the backend derives ms = frame_idx / fps). */
+  function buildSubmitBody(): SubmitBody | null {
+    const payload: SubmitBody["payload"] = {};
+    if (queryType === "TRAKE") {
+      const video = trakeSlots.find((s): s is TrakeSlot => s !== null)?.video_id;
+      payload.video_id = video;
+      payload.fps = timeline?.fps ?? undefined;
+      payload.events = trakeSlots
+        .map((s, i) => (s ? { event_index: i + 1, frame_idx: s.frame_idx, pts_time: s.pts_time, video_id: s.video_id, submit_keyframe_id: s.submit_keyframe_id } : null))
+        .filter((e): e is NonNullable<typeof e> => e !== null);
+    } else if (guardPausedFrame || selectedFrameObj) {
+      const fi = guardPausedFrame?.frame_idx
+        ?? (selectedFrameObj ? frameIdxOf(selectedFrameObj) : null);
+      if (fi == null) return null;
+      payload.video_id = guardPausedFrame?.video_id ?? selectedFrameObj?.video_id;
+      payload.frame_idx = fi;
+      payload.timestamp = guardPausedFrame?.pts_time
+        ?? selectedFrameObj?.pts_time
+        ?? undefined;
+      payload.fps = guardPausedFrame?.fps ?? selectedFrameObj?.fps ?? timeline?.fps ?? undefined;
+      if (!guardPausedFrame && selectedFrameObj) {
+        payload.submit_keyframe_id = selectedFrameObj.submit_keyframe_id;
+      }
+      if (queryType === "QA") payload.answer = answer;
+    } else {
+      return null;
+    }
+    return {
+      task_id: "",
+      evaluation_id: evaluationId,
+      task_name: taskNameOverride.trim() || null,
+      query_type: queryType,
+      payload,
+      answer_mode: answerMode,
+      segment_pad_ms: segmentPadMs,
+    };
+  }
+
+  // While the guard is open, ask the backend for the exact DRES body. This is
+  // what turns "hope the format is right" into something the operator can read.
+  useEffect(() => {
+    if (!guardOpen) {
+      setSubmitPreview(null);
+      setPreviewError(null);
+      return;
+    }
+    const body = buildSubmitBody();
+    if (!body) {
+      setSubmitPreview(null);
+      setPreviewError("Chưa chọn được frame để nộp.");
+      return;
+    }
+    let cancelled = false;
+    setPreviewLoading(true);
+    const id = setTimeout(() => {
+      api.submitPreview(body)
+        .then((p) => {
+          if (cancelled) return;
+          setSubmitPreview(p);
+          setPreviewError(null);
+          // The server's dedup verdict wins over the local pre-check.
+          setDuplicateId(p.duplicate_key);
+        })
+        .catch((e) => {
+          if (cancelled) return;
+          setSubmitPreview(null);
+          const detail = e instanceof ApiError ? (e.detail as { message?: string } | null) : null;
+          setPreviewError(detail?.message ?? "Không dựng được payload DRES.");
+        })
+        .finally(() => !cancelled && setPreviewLoading(false));
+    }, 150); // debounce: the answer / pad inputs change on every keystroke
+    return () => { cancelled = true; clearTimeout(id); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guardOpen, guardTarget, queryType, answer, answerMode, segmentPadMs, taskNameOverride,
+      evaluationId, currentTaskName, selectedFrameObj, pausedFrame, trakeSlots]);
+
   async function confirmSubmit() {
+    const body = buildSubmitBody();
+    if (!body) {
+      setToast({ msg: "Không xác định được frame_idx cho frame này — không thể nộp.", kind: "bad" });
+      return;
+    }
     setSubmitting(true);
     try {
-      // DRES submits by video_id + frame_idx (frame_idx = round(pts * fps)).
-      const payload: Parameters<typeof api.submit>[0]["payload"] = {};
-      if (queryType === "TRAKE") {
-        const video = trakeSlots.find((s): s is TrakeSlot => s !== null)?.video_id;
-        payload.video_id = video;
-        payload.events = trakeSlots
-          .map((s, i) => (s ? { event_index: i + 1, frame_idx: s.frame_idx, pts_time: s.pts_time, submit_keyframe_id: s.submit_keyframe_id } : null))
-          .filter((e): e is NonNullable<typeof e> => e !== null);
-      } else if (guardPausedFrame || selectedFrameObj) {
-        const fi = guardPausedFrame?.frame_idx
-          ?? (selectedFrameObj ? frameIdxOf(selectedFrameObj) : null);
-        if (fi == null) {
-          setToast({ msg: "Không xác định được frame_idx cho frame này — không thể nộp.", kind: "bad" });
-          setSubmitting(false);
-          return;
-        }
-        payload.video_id = guardPausedFrame?.video_id ?? selectedFrameObj?.video_id;
-        payload.frame_idx = fi;
-        payload.timestamp = guardPausedFrame?.pts_time
-          ?? selectedFrameObj?.pts_time
-          ?? undefined;
-        if (!guardPausedFrame && selectedFrameObj) {
-          payload.submit_keyframe_id = selectedFrameObj.submit_keyframe_id;
-        }
-        if (queryType === "QA") payload.answer = answer;
-      }
-      await api.submit({
-        task_id: taskId,
-        query_type: queryType,
-        payload,
-        allow_duplicate: duplicateId != null,
+      const entry = await api.submit({ ...body, allow_duplicate: duplicateId != null });
+      const verdict = entry.verdict ?? null;
+      setToast({
+        msg: entry.status === "dres_error"
+          ? `DRES lỗi: ${entry.dres?.error ?? "?"}`
+          : verdict
+          ? `DRES: ${verdict}`
+          : entry.status === "dres_ok"
+          ? "Submitted to DRES ✓"
+          : "Saved locally ✓",
+        kind: entry.status === "dres_error" || verdict === "WRONG" ? "bad" : "ok",
       });
-      setToast({ msg: "Submitted ✓", kind: "ok" });
+      if (verdict === "WRONG") setPenalties((p) => p + 1);
       setGuardOpen(false);
       setDuplicateId(null);
       refreshHistory();
@@ -694,8 +946,11 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
       if (e instanceof ApiError && e.status === 409) {
         const detail = e.detail as { submit_keyframe_id?: string };
         setDuplicateId(detail?.submit_keyframe_id || "duplicate");
-        setPenalties((p) => p + 1);
         setToast({ msg: "Blocked: duplicate submit", kind: "bad" });
+      } else if (e instanceof ApiError && e.status === 400) {
+        const detail = e.detail as { message?: string } | null;
+        setPreviewError(detail?.message ?? "Payload không hợp lệ.");
+        setToast({ msg: detail?.message ?? "Payload không hợp lệ", kind: "bad" });
       } else {
         setToast({ msg: "Submit failed", kind: "bad" });
       }
@@ -827,6 +1082,9 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
           setQaAnalysisError(null);
           setAnswer("");
           setCanvasQueries([]);
+          // The answer shape belongs to the task type, so it must not survive a
+          // switch: a `temporal` override carried into QA silently drops the text.
+          setAnswerMode("auto");
         }}
         elapsed={elapsed}
         penalties={penalties}
@@ -835,6 +1093,18 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
         onSimpleMode={onSimpleMode}
         onShowKeymap={() => setKeymapOpen(true)}
       />
+      <DresBar
+        status={dresStatus}
+        evaluations={dresEvaluations}
+        evaluationId={evaluationId}
+        pinned={pinnedEvaluationId !== null}
+        timeLeft={timeLeft}
+        error={dresError}
+        busy={dresBusy}
+        onSelect={setPinnedEvaluationId}
+        onRefresh={() => refreshDresEvaluations(true)}
+        onReconnect={reconnectDres}
+      />
       {health && !health.ok && health.warnings.length > 0 && (
         <div className="warn-banner">⚠ {health.warnings.join(" · ")} — {health.mode === "mock" ? "running in mock mode" : "live retrieval degraded"}</div>
       )}
@@ -842,9 +1112,17 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
       <div className="workspace">
         {/* LEFT */}
         <div className="col col-left">
+          <TaskHintPanel
+            hint={taskHint}
+            loading={taskHintLoading}
+            error={taskHintError}
+            inQuery={Boolean(taskHint?.text) && query.trim() === taskHint?.text.trim()}
+            onUseAsQuery={useHintAsQuery}
+            onRefresh={() => fetchTaskHint(true)}
+          />
           <QueryPanel
             query={query}
-            setQuery={setQuery}
+            setQuery={editQuery}
             hints={hints}
             onAppendHint={appendHint}
             onClearHints={() => setHints([])}
@@ -1023,7 +1301,12 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
             onSubmit={() => openGuard("result")}
             onCopyId={copyId}
           />
-          <HistorySidebar history={history} />
+          <HistorySidebar
+            history={history}
+            taskScope={taskScope}
+            taskLabel={submitTaskName}
+            onDelete={clearHistory}
+          />
         </div>
       </div>
 
@@ -1034,10 +1317,19 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
         pausedFrame={guardPausedFrame}
         frameIdx={guardFrameIdx}
         trakeSlots={trakeSlots}
-        taskId={taskId}
-        setTaskId={setTaskId}
         answer={answer}
         setAnswer={setAnswer}
+        dresConfigured={Boolean(dresStatus?.configured)}
+        evaluationName={activeEvaluation?.name ?? null}
+        taskNameOverride={taskNameOverride}
+        setTaskNameOverride={setTaskNameOverride}
+        answerMode={answerMode}
+        setAnswerMode={setAnswerMode}
+        segmentPadMs={segmentPadMs}
+        setSegmentPadMs={setSegmentPadMs}
+        preview={submitPreview}
+        previewError={previewError}
+        previewLoading={previewLoading}
         duplicateId={duplicateId}
         orderViolations={orderViolations}
         submitting={submitting}

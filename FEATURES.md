@@ -82,12 +82,23 @@ Toàn bộ tính năng hiện có của hệ thống truy hồi video AIC26 (bac
 - **Kéo-thả keyframe giữa các ô event** để sắp xếp lại thứ tự (swap); validate thứ tự tăng dần, cảnh báo `⚠ order`.
 - **Auto-fill E1..En** từ video đang chọn; marker event màu trên timeline.
 
-## 10. Submit (định dạng DRES) & lịch sử
-- Payload: **TKIS/VKIS** `{video_id, frame_idx, timestamp}` · **QA** `+answer` · **TRAKE** `{video_id, events:[{event_index, frame_idx}]}` (frame_idx tăng dần). Map T-KIS→TKIS, V-KIS→VKIS.
-- **Submit guard** trước mọi submit: thumbnail, video_id, frame_idx, nguồn raw paused frame hoặc btc id, thời gian, evidence OCR/ASR/audio, ô answer (QA), danh sách frame_idx có thứ tự (TRAKE).
-- **Chống nộp trùng**: dedup theo `video_id:frame_idx` (KIS/QA) / `video_id|f1,f2,…` (TRAKE) per task → 409 + nút "Submit anyway". Chặn submit khi không tính được frame_idx.
-- **Submit history sidebar**: loại task, frame, trạng thái (local / dres_ok / dres_error), cờ dup, answer.
-- **DRES adapter** tùy chọn (`DRES_BASE_URL`/`DRES_TOKEN`); thiếu thì lưu local history (đúng format).
+## 10. Submit lên DRES (Client API v2) & lịch sử
+- **Đăng nhập & phiên**: backend `POST /api/v2/login` (user/password trong `backend/.env`) → `sessionId`, mọi call sau đính `?session=…`; gặp 401/403 thì tự login lại **1 lần** rồi retry (hết hạn phiên không làm mất lượt nộp). Frontend không bao giờ thấy mật khẩu.
+- **Đề bài tự fetch từ DRES**: panel "Đề bài" ở đầu cột trái hiện nguyên văn câu hỏi/mô tả của task đang mở (endpoint `…/template/task/{taskTemplateId}/hint` — nằm trong full `/openapi.json`, KHÔNG có trong `clientapi.json`), kèm media hint (ảnh/clip cho V-KIS). **Tự điền vào ô truy vấn** khi ô còn trống hoặc còn đề bài của task cũ, **không bao giờ đè chữ operator đã gõ**; có nút `→ dùng làm truy vấn` / `copy` / `⟳`. Cache theo task template nên poll không tải lại media.
+- **DRES bar** (dưới top bar): trạng thái kết nối, user, chọn evaluation run (mặc định *auto* theo loại truy vấn: `tkis` / `qa` / `vkis` / `trake`), **tên task đang mở**, `taskStatus`, đồng hồ đếm ngược; poll 5 s + nút refresh/reconnect.
+- **Định dạng answerSets đúng chuẩn v2** (`{"answerSets":[{"taskName","answers":[…]}]}`):
+  - **T-KIS / V-KIS**: 1 answer `{mediaItemName, start, end}` — **milli-giây**, `mediaItemName` không có `.mp4`/thư mục.
+  - **TRAKE**: mỗi event 1 answer temporal, đúng thứ tự, trong cùng answer set.
+  - **QA**: **một** answer mang cả bốn trường `{mediaItemName, start, end, text}` — đúng ví dụ payload BTC đưa: xác định đoạn video **và** trả lời. (Vẫn có mode `text only` để đè khi cần.)
+  - Cửa sổ = thời điểm chọn ± `DRES_SEGMENT_PAD_MS` (mặc định 500 ms; range dài 0 ms có thể bị loại bởi overlap check). Sửa được ngay trong guard, hoặc gửi thẳng `start_ms`/`end_ms`.
+- **`taskName` lấy từ server** (`currentTask`) tại thời điểm nộp → luôn khớp task đang mở; operator vẫn có thể gõ đè.
+- **Submit guard** trước mọi submit: thumbnail, video_id, frame_idx, nguồn raw paused frame hoặc btc id, thời gian, evidence OCR/ASR/audio, ô answer (QA), danh sách frame_idx có thứ tự (TRAKE), **+ evaluation/task đích, answer mode, ± ms, và JSON payload y hệt cái sẽ gửi** (`POST /api/submit/preview`, không gửi gì lên DRES).
+- **Chặn sai định dạng tại chỗ**: QA thiếu text / frame không suy ra được mốc thời gian → nút submit bị khoá kèm lý do, không tốn 1 lần nộp sai.
+- **Chống nộp trùng** (scope = `{evaluationId}/{taskName}`): dedup theo `video_id:frame_idx` (KIS) / `video_id|f1,f2,…` (TRAKE) / `video_id:frame_idx|text:<đáp án>` (QA — đổi đáp án hoặc đổi đoạn video đều là lượt mới; chỉ lặp y hệt cặp (đoạn, đáp án) mới bị chặn) → 409 + nút "Submit anyway".
+- **Chặn lệch định dạng**: `answer as` reset về `auto` mỗi khi đổi loại truy vấn / đổi task (trước đây bị dính → QA im lặng gửi thiếu `text`), và backend so `taskType` DRES trả về với shape đang dựng → cảnh báo đỏ trong guard nếu lệch.
+- **Xoá lịch sử**: mỗi mục có **checkbox** (chọn nhiều → "Xoá đã chọn") và nút **✕** xoá riêng 1 mục; nút `clear…` để xoá **cả task đang mở** hoặc **tất cả** (có xác nhận 2 bước); mọi mục bị xoá được ghi ra file backup `submit_history.<ts>.bak.json` cạnh file gốc. Lưu ý: xoá cũng xoá luôn trí nhớ dedup (bài đã nộp sẽ không còn bị cảnh báo trùng); bài đã lên DRES thì vẫn còn nguyên trên server.
+- **Submit history sidebar**: loại task, frame, trạng thái (local / dres_ok / dres_error), **verdict DRES** (CORRECT/WRONG/…), cờ dup, answer; đồng hồ "Wrong" trên top bar đếm verdict WRONG.
+- **Mock mode không bao giờ gọi DRES thật** (`has_dres` = false khi `AIC26_MOCK_MODE=true`).
 
 ## 11. Video & timeline
 - **Video inline**: phím **`v`** trên keyframe đang chọn → video hiện **ngay dưới group đó**, **tua đúng keyframe**; chọn keyframe khác cùng video → chỉ seek (không reload, load 1 lần/video); chọn keyframe khác video → tự ẩn. Video **fill khung** (object-fit cover, bỏ viền đen). `Space` = play/pause gốc.
@@ -108,7 +119,7 @@ Toàn bộ tính năng hiện có của hệ thống truy hồi video AIC26 (bac
 - **Song song hoá**: kênh search, TRAKE per-event + pass-2, timeline (4 query Elastic), enrich 1 `_mget`.
 - **Chịu lỗi từng kênh**: kênh chết (PE/GLAP down) → bỏ qua + cảnh báo, kênh khác vẫn chạy (không sập search).
 - **Fallback**: dịch lỗi → giữ bản gốc; GLAP/Whisper/PE không có → fallback rõ ràng; cache parser + timeline (client).
-- **Health** `GET /api/health`: trạng thái Elastic/Milvus/PE + `capabilities` (llm_query_parser, audio_vector_search, dres_submit, vlm_*) + warnings. UI hiện banner mock/lỗi.
+- **Health** `GET /api/health`: trạng thái Elastic/Milvus/PE + `capabilities` (llm_query_parser, audio_vector_search, dres_submit, dres_connected, vlm_*) + warnings. UI hiện banner mock/lỗi.
 
 ## 15. API endpoints
 | Method | Path | Mục đích |
@@ -124,13 +135,20 @@ Toàn bộ tính năng hiện có của hệ thống truy hồi video AIC26 (bac
 | GET | `/api/keyframes/{submit_keyframe_id:path}` | chuẩn hoá id + URL + timing |
 | GET | `/api/videos/{video_id}/timeline` | keyframes timeline |
 | POST | `/api/videos/{video_id}/snap` | snap raw→keyframe |
-| POST | `/api/submit` | submit (DRES format) + dedup guard |
-| GET | `/api/submit/history` | lịch sử submit |
+| GET | `/api/dres/status` | kết nối DRES + user đang đăng nhập |
+| POST | `/api/dres/login` | đăng nhập lại (phiên hết hạn) |
+| GET | `/api/dres/evaluations` | các run + task đang mở + `taskStatus`/`timeLeft` |
+| GET | `/api/dres/current-task` | task đang mở của 1 run |
+| GET | `/api/dres/task-hint` | **đề bài** của task đang mở (text + media hint) |
+| POST | `/api/submit/preview` | dựng đúng body DRES (không gửi) + cảnh báo trùng |
+| POST | `/api/submit` | submit DRES v2 (answerSets) + dedup guard |
+| GET | `/api/submit/history` | lịch sử submit + verdict |
+| DELETE | `/api/submit/history` | xoá log local: `?ids=a,b` (từng mục), `?task_id=` (1 task), không tham số = tất cả; luôn backup |
 | POST | `/api/translate` | dịch VI→EN |
 | POST | `/api/transcribe` | Whisper STT (audio→text+EN) |
 
 ## 16. Cấu hình (env, xem `backend/.env.example`)
-`ELASTIC_ENDPOINT/API_KEY` · `MILVUS_ENDPOINT/TOKEN` · `PE_ENCODER_URL`(+`_TOKEN`) · `GLAP_ENCODER_URL` (mặc định = PE) · `NVILA_BASE_URL/TOKEN` · `NVILA_TIMEOUT_SECONDS/MAX_CANDIDATES` · `DEEPSEEK_API_KEY` · `DEEPSEEK_GROUNDING_*` · `MEDIA_BASE_URL` · `NVIDIA_API_KEY/BASE_URL` · `NVIDIA_MODEL` (parse) · `NVIDIA_FAST_MODEL` (expansion) · `SLIM_PARSE` · `TRANSLATE_TO_EN` · `WHISPER_MODEL` · `DRES_BASE_URL/TOKEN` · `IDX_*` · `MILVUS_IMAGE_COLLECTION` · `MILVUS_AUDIO_COLLECTION` · `AIC26_MOCK_MODE` · `CORS_ORIGINS`.
+`ELASTIC_ENDPOINT/API_KEY` · `MILVUS_ENDPOINT/TOKEN` · `PE_ENCODER_URL`(+`_TOKEN`) · `GLAP_ENCODER_URL` (mặc định = PE) · `NVILA_BASE_URL/TOKEN` · `NVILA_TIMEOUT_SECONDS/MAX_CANDIDATES` · `DEEPSEEK_API_KEY` · `DEEPSEEK_GROUNDING_*` · `MEDIA_BASE_URL` · `NVIDIA_API_KEY/BASE_URL` · `NVIDIA_MODEL` (parse) · `NVIDIA_FAST_MODEL` (expansion) · `SLIM_PARSE` · `TRANSLATE_TO_EN` · `WHISPER_MODEL` · `DRES_BASE_URL` · `DRES_USERNAME/PASSWORD` · `DRES_SESSION` · `DRES_EVALUATION_ID` · `DRES_SEGMENT_PAD_MS` · `IDX_*` · `MILVUS_IMAGE_COLLECTION` · `MILVUS_AUDIO_COLLECTION` · `AIC26_MOCK_MODE` · `CORS_ORIGINS`.
 
 ## 17. Models & dữ liệu
 - **PE-Core-G14-448** (1280-d) — ảnh + text, Kaggle FastAPI + cloudflared (`model-setup-backend.ipynb`).

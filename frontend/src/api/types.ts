@@ -357,10 +357,99 @@ export interface HealthResponse {
   warnings: string[];
 }
 
+// ---- DRES (official evaluation server, Client API v2) ----------------------
+
+/** One answer as DRES v2 wants it: text (QA) or media item + ms window (KIS). */
+export interface DresAnswer {
+  text?: string;
+  mediaItemName?: string;
+  mediaItemCollectionName?: string;
+  start?: number;
+  end?: number;
+}
+
+export interface DresAnswerSet {
+  taskName?: string;
+  answers: DresAnswer[];
+}
+
+export interface DresTaskTemplate {
+  name: string;
+  taskGroup: string;
+  taskType: string;
+  duration: number | null;
+}
+
+export interface DresEvaluationState {
+  evaluationStatus: string;
+  taskStatus: "NO_TASK" | "CREATED" | "PREPARING" | "RUNNING" | "ENDED" | "IGNORED";
+  /** Identifies the open task; changes when the organisers move to the next one. */
+  taskTemplateId?: string | null;
+  /** Seconds left in the open task; null for open-ended tasks. */
+  timeLeft: number | null;
+  timeElapsed: number;
+}
+
+/** The task statement DRES shows the team: text (T-KIS/QA) and/or media (V-KIS). */
+export interface DresTaskHint {
+  evaluation_id: string;
+  task_template_id: string | null;
+  task_name: string | null;
+  task_type: string | null;
+  task_status: string | null;
+  text: string;
+  elements: { content_type: "TEXT" | "IMAGE" | "VIDEO"; content: string; offset: number }[];
+  loop?: boolean;
+  warnings: string[];
+}
+
+export interface DresEvaluation {
+  id: string;
+  name: string;
+  status: string;
+  type: string;
+  teams: string[];
+  task_templates: DresTaskTemplate[];
+  current_task: DresTaskTemplate | null;
+  state: DresEvaluationState | null;
+}
+
+export interface DresStatus {
+  configured: boolean;
+  base_url: string;
+  logged_in: boolean;
+  username: string | null;
+  user: { id?: string; username?: string; role?: string } | null;
+  pinned_evaluation_id: string | null;
+  segment_pad_ms: number;
+  error: string | null;
+}
+
+export type AnswerMode = "auto" | "temporal" | "temporal_text" | "text" | "item";
+
+/** The exact request the backend would send to DRES for the current pick. */
+export interface SubmitPreview {
+  evaluation_id: string | null;
+  task_name: string | null;
+  /** DRES's own task type ("Textual KIS", "Question Answering", …). */
+  task_type: string | null;
+  task_id: string;
+  answer_mode: Exclude<AnswerMode, "auto">;
+  /** True when the answer shape contradicts the task type — a silent wrong submit. */
+  answer_mode_mismatch: boolean;
+  segment_pad_ms: number;
+  body: { answerSets: DresAnswerSet[] };
+  duplicate_key: string | null;
+  url: string | null;
+  warnings: string[];
+}
+
 export interface SubmitEntry {
   id: string;
   ts: number;
   task_id: string;
+  evaluation_id?: string | null;
+  task_name?: string | null;
   query_type: QueryType;
   payload: {
     video_id?: string;
@@ -369,8 +458,12 @@ export interface SubmitEntry {
     answer?: string;
     submit_keyframe_id?: string;
   };
+  answer_sets?: DresAnswerSet[];
   dedup_keys: string[];
   status: string;
+  /** DRES verdict when the server judged it: CORRECT | WRONG | INDETERMINATE | UNDECIDABLE. */
+  verdict?: string | null;
+  dres?: { description?: string; error?: string } | null;
   was_duplicate: boolean;
 }
 

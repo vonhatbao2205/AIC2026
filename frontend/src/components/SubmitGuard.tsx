@@ -1,4 +1,4 @@
-import type { FrameResult, QueryType } from "../api/types";
+import type { AnswerMode, FrameResult, QueryType, SubmitPreview } from "../api/types";
 import { formatTime } from "../lib/media";
 import type { PausedFrame } from "./PausedFramePanel";
 import type { TrakeSlot } from "./TrakePanel";
@@ -10,19 +10,39 @@ interface Props {
   pausedFrame: PausedFrame | null;
   frameIdx: number | null; // effective frame_idx that will be submitted
   trakeSlots: (TrakeSlot | null)[];
-  taskId: string;
-  setTaskId: (v: string) => void;
   answer: string;
   setAnswer: (v: string) => void;
-  duplicateId: string | null; // the already-submitted frame id, if any
+  // ---- DRES target: what the answer is sent as, and to which open task ----
+  dresConfigured: boolean;
+  evaluationName: string | null;
+  /** Empty = take the open task name from the server at submit time. */
+  taskNameOverride: string;
+  setTaskNameOverride: (v: string) => void;
+  answerMode: AnswerMode;
+  setAnswerMode: (v: AnswerMode) => void;
+  segmentPadMs: number;
+  setSegmentPadMs: (v: number) => void;
+  preview: SubmitPreview | null;
+  previewError: string | null;
+  previewLoading: boolean;
+  duplicateId: string | null; // the already-submitted answer key, if any
   orderViolations: number[];
   submitting: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
+/** DRES windows are milliseconds; show them as mm:ss.mmm so they stay checkable. */
+function msLabel(ms: number | undefined): string {
+  if (ms == null) return "—";
+  return `${formatTime(ms / 1000)}.${String(Math.round(ms) % 1000).padStart(3, "0")}`;
+}
+
 export function SubmitGuard(props: Props) {
-  const { open, queryType, frame, pausedFrame, frameIdx, trakeSlots, duplicateId, orderViolations, submitting } = props;
+  const {
+    open, queryType, frame, pausedFrame, frameIdx, trakeSlots, duplicateId,
+    orderViolations, submitting, preview, previewError, previewLoading,
+  } = props;
   if (!open) return null;
 
   const isTrake = queryType === "TRAKE";
@@ -32,8 +52,17 @@ export function SubmitGuard(props: Props) {
   const audio = frame?.evidence.find((e) => e.type === "audio");
 
   const missingFrameIdx = !isTrake && !pausedFrame && !!frame && frameIdx == null;
-  const blocked = isTrake ? filledSlots.length === 0 : (!pausedFrame && !frame) || missingFrameIdx;
-  const preview = pausedFrame?.thumbnail ?? frame?.keyframe_url ?? null;
+  const answers = preview?.body.answerSets[0]?.answers ?? [];
+  const resolvedMode = preview?.answer_mode ?? (queryType === "QA" ? "temporal_text" : "temporal");
+  // Only a pure text answer has no segment to widen.
+  const hasSegment = resolvedMode !== "text" && resolvedMode !== "item";
+  const taskLabel = preview?.task_name ?? props.taskNameOverride ?? "";
+  // A format error means DRES would reject (or misread) this answer — the guard
+  // holds it here instead of spending a wrong submit on it.
+  const blocked =
+    (isTrake ? filledSlots.length === 0 : (!pausedFrame && !frame) || missingFrameIdx) ||
+    Boolean(previewError);
+  const thumbUrl = pausedFrame?.thumbnail ?? frame?.keyframe_url ?? null;
   const previewAlt = pausedFrame
     ? `Paused frame ${pausedFrame.frame_idx}`
     : frame?.submit_keyframe_id ?? "Submission frame";
@@ -53,16 +82,75 @@ export function SubmitGuard(props: Props) {
         <div className="modal-body">
           {duplicateId && (
             <div className="dup-warn" data-testid="dup-warn">
-              ⚠ Duplicate: {duplicateId} was already submitted for task {props.taskId}.
+              ⚠ Duplicate: {duplicateId} was already submitted for task {taskLabel || "này"}.
             </div>
           )}
           {isTrake && orderViolations.length > 0 && (
             <div className="dup-warn">⚠ Order violation at E{orderViolations.join(", E")} — events must increase in time.</div>
           )}
+          {previewError && (
+            <div className="dup-warn" data-testid="guard-format-error">⚠ {previewError}</div>
+          )}
+          {preview?.warnings?.map((w) => (
+            <div className="dup-warn" key={w}>⚠ {w}</div>
+          ))}
 
-          <div className="row" style={{ marginBottom: 10 }}>
-            <span className="k" style={{ width: 70, color: "var(--fg-faint)" }}>task id</span>
-            <input className="answer-input" value={props.taskId} onChange={(e) => props.setTaskId(e.target.value)} style={{ maxWidth: 200 }} />
+          {/* ---- DRES target ---- */}
+          <div className="guard-dres" data-testid="guard-dres-target">
+            <div className="row">
+              <span className="k" style={{ width: 74, color: "var(--fg-faint)" }}>evaluation</span>
+              <span className="v mono" data-testid="guard-evaluation">
+                {props.evaluationName ?? (props.dresConfigured ? "…" : "local only")}
+              </span>
+              {/* DRES's own task type decides the answer shape. */}
+              {preview?.task_type && (
+                <span className="badge image_pe" data-testid="guard-task-type">{preview.task_type}</span>
+              )}
+            </div>
+            <div className="row">
+              <span className="k" style={{ width: 74, color: "var(--fg-faint)" }}>task name</span>
+              <input
+                className="answer-input"
+                data-testid="guard-task-name"
+                value={props.taskNameOverride}
+                onChange={(e) => props.setTaskNameOverride(e.target.value)}
+                placeholder={preview?.task_name ?? "auto (task đang mở)"}
+                style={{ maxWidth: 220 }}
+              />
+              {preview?.task_name && !props.taskNameOverride && (
+                <span className="badge image_pe" data-testid="guard-task-auto">{preview.task_name}</span>
+              )}
+            </div>
+            <div className="row">
+              <span className="k" style={{ width: 74, color: "var(--fg-faint)" }}>answer as</span>
+              <select
+                className={`dres-select${preview?.answer_mode_mismatch ? " bad" : ""}`}
+                data-testid="guard-answer-mode"
+                value={props.answerMode}
+                onChange={(e) => props.setAnswerMode(e.target.value as AnswerMode)}
+              >
+                <option value="auto">auto ({queryType === "QA" ? "media + time + text" : "media + time"})</option>
+                <option value="temporal_text">media + time + text (QA)</option>
+                <option value="temporal">media + time (start/end ms)</option>
+                <option value="text">text only</option>
+                <option value="item">media item only</option>
+              </select>
+              {hasSegment && (
+                <>
+                  <span className="k" style={{ color: "var(--fg-faint)" }}>± ms</span>
+                  <input
+                    className="answer-input"
+                    data-testid="guard-pad-ms"
+                    type="number"
+                    min={0}
+                    step={100}
+                    value={props.segmentPadMs}
+                    onChange={(e) => props.setSegmentPadMs(Math.max(0, Number(e.target.value) || 0))}
+                    style={{ maxWidth: 90 }}
+                  />
+                </>
+              )}
+            </div>
           </div>
 
           {isTrake ? (
@@ -91,8 +179,8 @@ export function SubmitGuard(props: Props) {
             </div>
           ) : pausedFrame || frame ? (
             <>
-              {preview ? (
-                <img className="guard-thumb" src={preview} alt={previewAlt} />
+              {thumbUrl ? (
+                <img className="guard-thumb" src={thumbUrl} alt={previewAlt} />
               ) : (
                 <div className="guard-thumb guard-placeholder">no preview</div>
               )}
@@ -146,6 +234,36 @@ export function SubmitGuard(props: Props) {
           ) : (
             <div className="empty">Nothing selected.</div>
           )}
+
+          {/* ---- exactly what DRES will receive ---- */}
+          <div className="guard-payload">
+            <div className="k" style={{ color: "var(--fg-faint)", marginBottom: 4 }}>
+              DRES payload {previewLoading && <span className="dres-dim">· đang dựng…</span>}
+            </div>
+            {answers.length > 0 && (
+              <div className="mono" style={{ fontSize: 11, marginBottom: 4 }} data-testid="guard-answer-summary">
+                {answers.map((a, i) => (
+                  <div key={i}>
+                    {a.mediaItemName && (
+                      <>
+                        {a.mediaItemName} · {msLabel(a.start)} → {msLabel(a.end)} ({a.start}–{a.end} ms)
+                        {a.text != null && " · "}
+                      </>
+                    )}
+                    {a.text != null && <>text: “{a.text}”</>}
+                  </div>
+                ))}
+              </div>
+            )}
+            <pre className="guard-json" data-testid="guard-json">
+              {preview ? JSON.stringify(preview.body, null, 2) : previewError ? "—" : "…"}
+            </pre>
+            {preview?.url && (
+              <div className="mono" style={{ fontSize: 10, color: "var(--fg-faint)" }}>
+                POST {preview.url}
+              </div>
+            )}
+          </div>
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={props.onCancel}>Cancel</button>

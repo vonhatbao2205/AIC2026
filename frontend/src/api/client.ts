@@ -1,9 +1,13 @@
 // Thin fetch wrapper around the backend. The frontend only ever talks to the
 // backend — it never holds Elastic/Milvus/NVIDIA credentials.
 import type {
+  AnswerMode,
   CanvasPalette,
   CanvasSearchResponse,
   CanvasSpec,
+  DresEvaluation,
+  DresStatus,
+  DresTaskHint,
   FeedbackState,
   HealthResponse,
   ParsedQuery,
@@ -14,6 +18,7 @@ import type {
   SimpleSearchResponse,
   SnapResult,
   SubmitEntry,
+  SubmitPreview,
   Timeline,
   TrakeSearchResponse,
 } from "./types";
@@ -50,6 +55,36 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export interface ManualOverrides {
   force_channels: string[];
   disable_channels: string[];
+}
+
+/** What /api/submit and /api/submit/preview take. `evaluation_id` / `task_name`
+ *  are resolved from the live DRES run when omitted; `start_ms`/`end_ms` override
+ *  the ms window the backend derives from `timestamp` (or `frame_idx` + `fps`). */
+export interface SubmitBody {
+  task_id?: string;
+  evaluation_id?: string | null;
+  task_name?: string | null;
+  query_type: string;
+  payload: {
+    video_id?: string;
+    frame_idx?: number | null;
+    timestamp?: number | null;
+    fps?: number | null;
+    start_ms?: number | null;
+    end_ms?: number | null;
+    events?: {
+      event_index: number;
+      frame_idx: number;
+      pts_time?: number | null;
+      video_id?: string;
+      submit_keyframe_id?: string;
+    }[];
+    answer?: string;
+    submit_keyframe_id?: string;
+  };
+  answer_mode?: AnswerMode;
+  segment_pad_ms?: number | null;
+  allow_duplicate?: boolean;
 }
 
 export const api = {
@@ -115,19 +150,30 @@ export const api = {
       body: JSON.stringify({ raw_time: rawTime, fps }),
     }),
 
-  submit: (body: {
-    task_id: string;
-    query_type: string;
-    payload: {
-      video_id?: string;
-      frame_idx?: number | null;
-      timestamp?: number | null;
-      events?: { event_index: number; frame_idx: number; pts_time?: number | null; submit_keyframe_id?: string }[];
-      answer?: string;
-      submit_keyframe_id?: string;
-    };
-    allow_duplicate?: boolean;
-  }) =>
+  // ---- DRES ----------------------------------------------------------------
+  dresStatus: () => request<DresStatus>("/api/dres/status"),
+
+  dresLogin: () =>
+    request<{ ok: boolean; base_url: string }>("/api/dres/login", { method: "POST" }),
+
+  dresEvaluations: (force = false) =>
+    request<{ evaluations: DresEvaluation[]; server_time: number | null; pinned_evaluation_id: string | null }>(
+      `/api/dres/evaluations${force ? "?force=true" : ""}`,
+    ),
+
+  dresTaskHint: (queryType: string, evaluationId?: string | null, force = false) =>
+    request<DresTaskHint>(
+      `/api/dres/task-hint?query_type=${encodeURIComponent(queryType)}` +
+        `${evaluationId ? `&evaluation_id=${encodeURIComponent(evaluationId)}` : ""}${force ? "&force=true" : ""}`,
+    ),
+
+  submitPreview: (body: SubmitBody) =>
+    request<SubmitPreview>("/api/submit/preview", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  submit: (body: SubmitBody) =>
     request<SubmitEntry>("/api/submit", {
       method: "POST",
       body: JSON.stringify(body),
@@ -135,6 +181,19 @@ export const api = {
 
   history: (taskId?: string) =>
     request<{ history: SubmitEntry[] }>(`/api/submit/history${taskId ? `?task_id=${taskId}` : ""}`),
+
+  /** Deletes LOCAL log entries only (and their dedup memory); DRES keeps its record.
+   *  `ids` removes specific entries, `taskId` one task, neither clears everything. */
+  clearHistory: (opts: { ids?: string[]; taskId?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (opts.ids) params.set("ids", opts.ids.join(","));
+    if (opts.taskId) params.set("task_id", opts.taskId);
+    const query = params.toString();
+    return request<{ deleted: number; remaining: number; backup: string | null }>(
+      `/api/submit/history${query ? `?${query}` : ""}`,
+      { method: "DELETE" },
+    );
+  },
 
   translate: (text: string) =>
     request<{ text: string; text_en: string }>("/api/translate", {
