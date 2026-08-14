@@ -1,8 +1,11 @@
 """Mocked adapter tests — exercise the mock-mode paths (no live services)."""
+import json
+
 import httpx
 import pytest
 
 import app.adapters.deepseek_grounding as deepseek_grounding_module
+from app import mock_data
 from app.adapters.deepseek_grounding import (
     DeepSeekGroundingClient,
     WebGroundingUnavailable,
@@ -23,6 +26,116 @@ async def test_elastic_mock_ocr_search(settings):
     for h in hits:
         assert "image_path" not in h  # never leak path
         assert h["submit_keyframe_id"].count("/") == 2
+
+
+@pytest.mark.asyncio
+async def test_ocr_full_coverage_rejects_partial_thpt_2021_hits(settings, monkeypatch):
+    """Regression: either word alone used to pass the OR-based OCR query."""
+    monkeypatch.setattr(
+        mock_data,
+        "MOCK_OCR",
+        {
+            "K01/K01_V001/001": {"text_clean": "THPT", "clock": None, "hour": None},
+            "K01/K01_V001/002": {"text_clean": "2021", "clock": None, "hour": None},
+            "K01/K01_V001/003": {
+                "text_clean": "Kỳ thi THPT quốc gia năm 2021",
+                "clock": None,
+                "hour": None,
+            },
+        },
+    )
+    client = ElasticClient(settings)
+
+    hits = await client.search_ocr(
+        ["THPT 2021"], ["thpt 2021"], numbers=["2021"]
+    )
+
+    assert [hit["submit_keyframe_id"] for hit in hits] == ["K01/K01_V001/003"]
+
+
+@pytest.mark.asyncio
+async def test_ocr_live_dsl_requires_all_terms_and_uses_dis_max(settings, monkeypatch):
+    """The live query must not recreate OR matching across duplicate fields."""
+    client = ElasticClient(settings)
+    client.mock = False
+    bodies = []
+
+    async def fake_search(index, body):
+        bodies.append(body)
+        return {"hits": {"hits": []}}
+
+    monkeypatch.setattr(client, "_search", fake_search)
+    await client.search_ocr(
+        ["THPT 2021"], ["thpt 2021"], numbers=["2021"]
+    )
+
+    assert len(bodies) == 1  # acronym + number has no unsafe fuzzy fallback
+    body = bodies[0]
+    dis_max = body["query"]["bool"]["must"][0]["dis_max"]
+    assert dis_max["tie_breaker"] == 0.1
+    assert any(clause.get("nested", {}).get("path") == "boxes" for clause in dis_max["queries"])
+    assert all(
+        next(iter(clause["match"].values()))["operator"] == "and"
+        for clause in dis_max["queries"]
+        if "match" in clause
+    )
+    assert "minimum_should_match" not in json.dumps(body)
+    assert "fuzziness" not in json.dumps(body)
+
+    numeric_filter = body["query"]["bool"]["filter"][0]["dis_max"]
+    numeric_queries = [
+        next(iter(query["match"].values()))["query"]
+        for query in numeric_filter["queries"]
+    ]
+    assert numeric_queries == ["2021", "2021", "2021"]
+
+    bodies.clear()
+    await client.search_ocr(["covid-19"], ["covid-19"], numbers=["19"])
+    assert len(bodies) == 1  # both halves of a joined alpha-numeric code stay exact
+    assert "fuzziness" not in json.dumps(bodies[0])
+
+
+@pytest.mark.asyncio
+async def test_ocr_fuzzy_fallback_keeps_number_exact_and_below_strict(settings, monkeypatch):
+    client = ElasticClient(settings)
+    client.mock = False
+    bodies = []
+
+    def hit(keyframe_id, score, text):
+        return {
+            "_score": score,
+            "_source": {
+                "submit_keyframe_id": keyframe_id,
+                "video_id": "K01_V001",
+                "keyframe_n": int(keyframe_id.rsplit("/", 1)[1]),
+                "text_clean": text,
+            },
+        }
+
+    responses = [
+        {"hits": {"hits": [hit("K01/K01_V001/001", 1.0, "trường 2021")] }},
+        {"hits": {"hits": [hit("K01/K01_V001/002", 999.0, "truòng 2021")] }},
+    ]
+
+    async def fake_search(index, body):
+        bodies.append(body)
+        return responses[len(bodies) - 1]
+
+    monkeypatch.setattr(client, "_search", fake_search)
+    hits = await client.search_ocr(
+        ["trường 2021"], ["truong 2021"], numbers=["2021"], size=20
+    )
+
+    # Quality tier wins over incomparable BM25 magnitudes from two requests.
+    assert [item["submit_keyframe_id"] for item in hits] == [
+        "K01/K01_V001/001",
+        "K01/K01_V001/002",
+    ]
+    fallback_must = bodies[1]["query"]["bool"]["must"][0]["dis_max"]["queries"][0]["bool"]["must"]
+    params = [next(iter(clause["match"].values())) for clause in fallback_must]
+    by_token = {item["query"]: item for item in params}
+    assert by_token["truong"]["fuzziness"] == "AUTO"
+    assert "fuzziness" not in by_token["2021"]
 
 
 @pytest.mark.asyncio

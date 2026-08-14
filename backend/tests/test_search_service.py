@@ -32,6 +32,29 @@ async def test_search_never_emits_image_path(settings):
 
 
 @pytest.mark.asyncio
+async def test_ocr_runner_forwards_structured_numbers(settings, monkeypatch):
+    svc = SearchService(settings)
+    captured = {}
+
+    async def fake_search_ocr(queries_vi, queries_folded, **kwargs):
+        captured.update(kwargs)
+        return []
+
+    monkeypatch.setattr(svc.elastic, "search_ocr", fake_search_ocr)
+    await svc._run_ocr(
+        {
+            "queries_vi": ["THPT 2021"],
+            "queries_folded": ["thpt 2021"],
+            "numbers": ["2021"],
+            "time_filters": {},
+        },
+        50,
+    )
+
+    assert captured["numbers"] == ["2021"]
+
+
+@pytest.mark.asyncio
 async def test_search_feedback_negative_frame_excluded(settings):
     svc = SearchService(settings)
     base = await svc.search({"query": "thời sự"})

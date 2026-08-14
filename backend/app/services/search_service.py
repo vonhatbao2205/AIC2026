@@ -126,6 +126,7 @@ class SearchService:
             cfg.get("queries_vi") or [],
             cfg.get("queries_folded") or [],
             exact_phrases=cfg.get("exact_phrases") or [],
+            numbers=cfg.get("numbers") or [],
             hour=tf.get("hour"),
             clock=tf.get("clock"),
             size=top_k,

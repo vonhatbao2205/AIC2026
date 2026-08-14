@@ -18,6 +18,11 @@ def test_heuristic_ocr_likely_on_digits_and_clock():
     assert p["channels"]["ocr"]["time_filters"]["clock"] == "18:29:57"
 
 
+def test_ocr_fold_matches_ingestion_for_vietnamese_d_stroke():
+    p = heuristic_parse("Đại học 2021")
+    assert p["channels"]["ocr"]["queries_folded"] == ["dai hoc 2021"]
+
+
 def test_heuristic_speech_likely():
     p = heuristic_parse("thủ tướng phát biểu về kinh tế")
     assert p["channels"]["speech"]["enabled"] is True

@@ -17,6 +17,7 @@ from typing import Any
 import httpx
 
 from .config import Settings
+from .text_normalization import fold_vietnamese
 
 # ---- Heuristic signal lexicons (Vietnamese) ---------------------------
 _OCR_HINT_WORDS = ["chữ", "dòng chữ", "biển", "logo", "thương hiệu", "tiêu đề", "tên", "số điện thoại"]
@@ -47,10 +48,7 @@ def _empty_channel(name: str) -> dict[str, Any]:
 
 
 def _fold(text: str) -> str:
-    import unicodedata
-
-    nfd = unicodedata.normalize("NFD", text)
-    return "".join(c for c in nfd if unicodedata.category(c) != "Mn").lower()
+    return fold_vietnamese(text)
 
 
 def heuristic_parse(
@@ -538,6 +536,7 @@ def _populate_channel_queries(parsed: dict[str, Any], name: str, channel: dict[s
     elif name == "ocr" and not channel.get("queries_vi"):
         channel["queries_vi"] = [q_vi] if q_vi else []
         channel["queries_folded"] = [_fold(q_vi)] if q_vi else []
+        channel["numbers"] = re.findall(r"\d+", q_vi) if q_vi else []
     elif name == "speech" and not channel.get("queries_vi"):
         channel["queries_vi"] = [q_vi] if q_vi else []
     elif name == "audio" and not channel.get("queries_en"):

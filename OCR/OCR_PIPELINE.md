@@ -86,7 +86,7 @@ ocr_clean.jsonl                        + text_clean, text_clean_fold, clock, hou
 | field | nghĩa |
 |---|---|
 | `text_clean` | đã bỏ logo/đồng hồ/watermark/nút YouTube/ký tự lẻ/toạ độ sót — **dùng để search** |
-| `text_clean_fold` | `text_clean` bỏ dấu + lowercase — **search không dấu/fuzzy** |
+| `text_clean_fold` | `text_clean` bỏ dấu + lowercase — **search không dấu** và fuzzy fallback có kiểm soát |
 | `clock` | đồng hồ phát sóng HH:MM:SS tách riêng (vd `18:30:51`) |
 | `hour` | giờ (int, vd `18`) — để filter sáng/chiều |
 
@@ -153,7 +153,7 @@ Bỏ các box **TOÀN BỘ là rác** (câu có chữ thật thì giữ nguyên)
 
 **Trường để index/search:**
 - `text_clean` → analyzer tiếng Việt + BM25 (search **có dấu**).
-- `text_clean_fold` → search **không dấu** + **fuzzy** (Levenshtein ≤1–2) cho lỗi OCR.
+- `text_clean_fold` → search **không dấu**; chỉ fuzzy chữ thường ở fallback khi strict search thiếu kết quả. Số/năm/mã/acronym luôn exact.
 - (tuỳ chọn) `text_nfc` giữ làm bản đầy đủ.
 
 **Trường keyword/filter (không phân tích):**
@@ -163,12 +163,12 @@ Bỏ các box **TOÀN BỘ là rác** (câu có chữ thật thì giữ nguyên)
 
 **Gợi ý mapping:**
 - `text_clean`: `type text`, analyzer tiếng Việt (vd plugin `vi_analyzer` hoặc ICU), kèm sub-field `.fold` (không dấu) và `.keyword`.
-- Bật **fuzziness** ở query (AUTO) để chịu lỗi OCR.
+- Không bật fuzzy đại trà. Backend xếp OCR theo tầng: phrase cùng box → phrase toàn frame → đủ toàn bộ token có dấu → đủ toàn bộ token không dấu. Chỉ khi tầng strict có ít kết quả mới chạy fuzzy fallback; số/năm/mã/acronym không bao giờ fuzzy.
 - Bulk index bằng `elasticsearch.helpers.bulk` (382k doc).
 
 ### 8.2. Tích hợp vào hệ thống retrieval
 - **OCR-aware activation:** chỉ bật kênh OCR khi query "OCR-likely" (số, tên riêng, brand, dấu trích dẫn) — LLM phân loại query. (Tránh lỗi "metadata tạ" của năm trước.)
-- **Fusion:** gộp rank OCR với PE/SigLIP semantic bằng **RRF (k=60)**, không hardcode trọng số.
+- **Fusion:** gộp rank OCR với PE/SigLIP semantic bằng **RRF (k=60)**. OCR strict luôn đứng trước fuzzy fallback để BM25 từ hai query khác nhau không đảo tầng chất lượng.
 
 ### 8.3. Dọn dẹp / kiểm tra
 - **Verify L23** (2,326) đã đủ chưa; chạy lại nếu thiếu.
