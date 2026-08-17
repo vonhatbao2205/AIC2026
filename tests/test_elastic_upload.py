@@ -1,13 +1,16 @@
 import gzip
 import hashlib
 import json
+import tempfile
 import unittest
+from pathlib import Path
 
 from elastic_upload import (
     auth_headers,
     build_bulk_payload,
     chunked,
     drop_first,
+    iter_infoshotpp_keyframes,
     iter_od_documents,
     normalize_ocr_record,
     normalize_od_record,
@@ -62,6 +65,39 @@ def od_fixture(prefix, shards, *, hashes=None, corrupt_checksum=False):
 
 
 class ElasticUploadTest(unittest.TestCase):
+    def test_infoshotpp_map_preserves_ordinal_and_decode_frame_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            category = root / "L25"
+            category.mkdir()
+            (category / "L25_V001.csv").write_text(
+                "n,pts_time,fps,frame_idx\r\n"
+                "1,0.120,25.0,3\r\n"
+                "2,0.119,25.0,8\r\n",
+                encoding="utf-8",
+            )
+
+            rows = list(iter_infoshotpp_keyframes(root))
+
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[1]["submit_keyframe_id"], "L25/L25_V001/002")
+        self.assertEqual(rows[1]["keyframe_id"], "L25_V001/002")
+        self.assertEqual(rows[1]["frame_id"], "L25_V001@f00000008")
+        self.assertEqual(rows[1]["keyframe_n"], 2)
+        self.assertEqual(rows[1]["frame_idx"], 8)
+        self.assertEqual(rows[1]["pts_time"], 0.119)
+
+    def test_infoshotpp_map_rejects_non_contiguous_n(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            category = root / "L21"
+            category.mkdir()
+            (category / "L21_V001.csv").write_text(
+                "n,pts_time,fps,frame_idx\n2,0.1,25,3\n", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(ValueError, "expected 1"):
+                list(iter_infoshotpp_keyframes(root))
+
     def test_auth_headers_wrap_raw_api_key(self):
         headers = auth_headers("abc123")
 
