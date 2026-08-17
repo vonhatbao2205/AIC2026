@@ -146,14 +146,27 @@ class Settings:
     dres_timeout_seconds: float = 20.0
 
     # Index / collection names (override only if you re-uploaded with a new prefix).
+    # `_1` = BTC keyframes (v1 indices), `_2` = InfoShot++ keyframes (v2 indices).
+    # The unsuffixed name is the active alias `for_retrieval_database` fills in.
     idx_keyframe_map: str = "aic26_keyframe_map_v1"
     idx_keyframe_map_1: str = "aic26_keyframe_map_v1"
     idx_keyframe_map_2: str = "aic26_keyframe_map_infoshotpp_v1"
     idx_ocr: str = "aic26_ocr_keyframes_v1"
+    idx_ocr_1: str = "aic26_ocr_keyframes_v1"
+    idx_ocr_2: str = "aic26_ocr_keyframes_v2"
     idx_speech: str = "aic26_speech_segments_v1"
+    idx_speech_1: str = "aic26_speech_segments_v1"
+    idx_speech_2: str = "aic26_speech_segments_v2"
     idx_audio: str = "aic26_audio_windows_v1"
+    idx_audio_1: str = "aic26_audio_windows_v1"
+    idx_audio_2: str = "aic26_audio_windows_v2"
     # OD frame documents (`od-frame-v5`) behind the V-KIS canvas channel.
     idx_objects: str = "aic26_od_frames_v1"
+    # Categories whose OCR is not in the active OCR index. The InfoShot++ OCR
+    # artifact has no L26 yet, and an operator has to be able to see that a
+    # negative OCR result there means "not indexed", not "not on screen".
+    ocr_missing_categories: tuple[str, ...] = ()
+    ocr_missing_categories_2: tuple[str, ...] = ("L26",)
     milvus_image_collection: str = "aic26_image_peg14_v1"
     milvus_image_collection_1: str = "aic26_image_peg14_v1"
     milvus_image_collection_2: str = "aic26_image_peg14_infoshotpp_v1"
@@ -199,6 +212,19 @@ class Settings:
     def is_infoshotpp(self) -> bool:
         return self.retrieval_database == "infoshotpp"
 
+    @property
+    def unsupported_channels(self) -> frozenset[str]:
+        """Channels this profile has no index for, so retrieval can say so.
+
+        Since the v2 metadata upload, InfoShot++ answers OCR, speech and audio
+        from its own `*_v2` indices. Only the V-KIS object/canvas channels remain
+        BTC-only: `aic26_od_frames_v1` is keyed by BTC keyframes and there is no
+        InfoShot++ object detection run yet.
+        """
+        if self.is_infoshotpp:
+            return frozenset({"object_layout", "canvas_image"})
+        return frozenset()
+
     def for_retrieval_database(self, database: str) -> "Settings":
         """Return request-scoped adapter/media settings for one dataset."""
         if database not in {"btc", "infoshotpp"}:
@@ -210,6 +236,10 @@ class Settings:
                 milvus_endpoint=self.milvus_endpoint_1 or self.milvus_endpoint,
                 milvus_token=self.milvus_token_1 or self.milvus_token,
                 idx_keyframe_map=self.idx_keyframe_map_1,
+                idx_ocr=self.idx_ocr_1,
+                idx_speech=self.idx_speech_1,
+                idx_audio=self.idx_audio_1,
+                ocr_missing_categories=(),
                 milvus_image_collection=self.milvus_image_collection_1,
                 keyframe_media_base_url=self.media_base_url,
             )
@@ -219,6 +249,10 @@ class Settings:
             milvus_endpoint=self.milvus_endpoint_2,
             milvus_token=self.milvus_token_2,
             idx_keyframe_map=self.idx_keyframe_map_2,
+            idx_ocr=self.idx_ocr_2,
+            idx_speech=self.idx_speech_2,
+            idx_audio=self.idx_audio_2,
+            ocr_missing_categories=self.ocr_missing_categories_2,
             milvus_image_collection=self.milvus_image_collection_2,
             keyframe_media_base_url=self.keyframe_media_base_url_2,
         )
@@ -329,6 +363,16 @@ def get_settings() -> Settings:
         or _env("MILVUS_IMAGE_COLLECTION")
         or "aic26_image_peg14_v1"
     )
+    # `IDX_OCR`/`IDX_SPEECH`/`IDX_AUDIO` keep naming the BTC (profile 1) indices so
+    # an existing .env keeps working; the InfoShot++ v2 indices get their own keys.
+    idx_ocr_1 = _env("IDX_OCR_1") or _env("IDX_OCR") or "aic26_ocr_keyframes_v1"
+    idx_speech_1 = _env("IDX_SPEECH_1") or _env("IDX_SPEECH") or "aic26_speech_segments_v1"
+    idx_audio_1 = _env("IDX_AUDIO_1") or _env("IDX_AUDIO") or "aic26_audio_windows_v1"
+    missing_ocr_2 = tuple(
+        part.strip().upper()
+        for part in (_env("OCR_MISSING_CATEGORIES_2", "L26") or "").split(",")
+        if part.strip()
+    )
 
     return Settings(
         elastic_endpoint=_env("ELASTIC_ENDPOINT") or file_default("elastic_endpoint.txt"),
@@ -377,10 +421,17 @@ def get_settings() -> Settings:
         idx_keyframe_map_2=(
             _env("IDX_KEYFRAME_MAP_2") or "aic26_keyframe_map_infoshotpp_v1"
         ),
-        idx_ocr=_env("IDX_OCR") or "aic26_ocr_keyframes_v1",
-        idx_speech=_env("IDX_SPEECH") or "aic26_speech_segments_v1",
-        idx_audio=_env("IDX_AUDIO") or "aic26_audio_windows_v1",
+        idx_ocr=idx_ocr_1,
+        idx_ocr_1=idx_ocr_1,
+        idx_ocr_2=_env("IDX_OCR_2") or "aic26_ocr_keyframes_v2",
+        idx_speech=idx_speech_1,
+        idx_speech_1=idx_speech_1,
+        idx_speech_2=_env("IDX_SPEECH_2") or "aic26_speech_segments_v2",
+        idx_audio=idx_audio_1,
+        idx_audio_1=idx_audio_1,
+        idx_audio_2=_env("IDX_AUDIO_2") or "aic26_audio_windows_v2",
         idx_objects=_env("IDX_OBJECTS") or "aic26_od_frames_v1",
+        ocr_missing_categories_2=missing_ocr_2,
         milvus_image_collection=image_collection_1,
         milvus_image_collection_1=image_collection_1,
         milvus_image_collection_2=(

@@ -31,10 +31,14 @@ export function TopBar({ queryType, onQueryType, elapsed, penalties, latency, he
         data-testid="retrieval-database"
         value={retrievalDatabase}
         onChange={(event) => onRetrievalDatabase(event.target.value as RetrievalDatabase)}
-        title={retrievalDatabase === "btc" ? "BTC: đầy đủ mọi kênh" : "InfoShot++: chỉ PE image"}
+        title={
+          retrievalDatabase === "btc"
+            ? "BTC: đầy đủ mọi kênh"
+            : "InfoShot++: PE image + OCR/speech/audio (index v2); V-KIS canvas chưa có"
+        }
       >
         <option value="btc">BTC · đầy đủ</option>
-        <option value="infoshotpp">InfoShot++ · PE only</option>
+        <option value="infoshotpp">InfoShot++ · v2 (no canvas)</option>
       </select>
       <div className="seg" role="tablist" aria-label="Query type">
         {TYPES.map((t) => (

@@ -32,7 +32,7 @@ async def test_search_never_emits_image_path(settings):
 
 
 @pytest.mark.asyncio
-async def test_infoshotpp_profile_runs_only_pe_and_splits_media_origins(settings):
+async def test_infoshotpp_profile_runs_text_channels_and_splits_media_origins(settings):
     settings.milvus_endpoint_2 = "https://milvus-2.test"
     settings.milvus_token_2 = "token-2"
     settings.keyframe_media_base_url_2 = "https://hf.test/resolve"
@@ -40,8 +40,8 @@ async def test_infoshotpp_profile_runs_only_pe_and_splits_media_origins(settings
     parsed = {
         "channels": {
             "image_pe": {"enabled": True, "weight": 1.0, "queries_en": ["a street"]},
-            "ocr": {"enabled": True, "weight": 1.0, "queries_vi": ["abc"]},
-            "speech": {"enabled": True, "weight": 1.0, "queries_vi": ["abc"]},
+            "ocr": {"enabled": True, "weight": 1.0, "queries_vi": ["giá vàng"]},
+            "speech": {"enabled": True, "weight": 1.0, "queries_vi": ["giá vàng"]},
             "audio": {"enabled": True, "weight": 1.0, "queries_en": ["music"]},
         },
         "filters": {},
@@ -51,11 +51,31 @@ async def test_infoshotpp_profile_runs_only_pe_and_splits_media_origins(settings
     res = await svc.search({"query": "x", "parsed": parsed})
 
     assert res["retrieval_database"] == "infoshotpp"
-    assert set(res["latency_ms"]["channels"]) == {"image_pe"}
-    assert any("chỉ hỗ trợ PE image" in warning for warning in res["warnings"])
+    # Since the v2 metadata upload every Elastic channel is served for InfoShot++ too.
+    assert set(res["latency_ms"]["channels"]) == {"image_pe", "ocr", "speech", "audio"}
+    # ...but the operator is told which categories the v2 OCR index does not cover.
+    assert any("L26" in warning for warning in res["warnings"])
     frame = res["groups"][0]["frames"][0]
     assert frame["keyframe_url"].startswith("https://hf.test/resolve/Keyframes/")
     assert frame["video_url"].startswith("https://media.test/Videos/")
+
+
+@pytest.mark.asyncio
+async def test_infoshotpp_profile_selects_the_v2_metadata_indices(settings):
+    profile = settings.for_retrieval_database("infoshotpp")
+
+    assert profile.idx_ocr == settings.idx_ocr_2
+    assert profile.idx_speech == settings.idx_speech_2
+    assert profile.idx_audio == settings.idx_audio_2
+    assert profile.unsupported_channels == frozenset({"object_layout", "canvas_image"})
+    # The BTC profile must keep pointing at the untouched v1 indices.
+    btc = settings.for_retrieval_database("btc")
+    assert (btc.idx_ocr, btc.idx_speech, btc.idx_audio) == (
+        settings.idx_ocr_1,
+        settings.idx_speech_1,
+        settings.idx_audio_1,
+    )
+    assert btc.unsupported_channels == frozenset()
 
 
 @pytest.mark.asyncio

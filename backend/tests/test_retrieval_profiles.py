@@ -12,6 +12,12 @@ def configured_settings() -> Settings:
         keyframe_media_base_url_2="https://huggingface.test/bucket/resolve",
         idx_keyframe_map_1="btc-map",
         idx_keyframe_map_2="infoshot-map",
+        idx_ocr_1="btc-ocr",
+        idx_ocr_2="infoshot-ocr-v2",
+        idx_speech_1="btc-speech",
+        idx_speech_2="infoshot-speech-v2",
+        idx_audio_1="btc-audio",
+        idx_audio_2="infoshot-audio-v2",
         milvus_image_collection_1="btc-images",
         milvus_image_collection_2="infoshot-images",
     )
@@ -22,6 +28,12 @@ def test_btc_profile_keeps_full_dataset_endpoints():
 
     assert profile.milvus_endpoint == "https://btc.milvus.test"
     assert profile.idx_keyframe_map == "btc-map"
+    assert (profile.idx_ocr, profile.idx_speech, profile.idx_audio) == (
+        "btc-ocr",
+        "btc-speech",
+        "btc-audio",
+    )
+    assert profile.ocr_missing_categories == ()
     assert profile.milvus_image_collection == "btc-images"
     assert profile.keyframe_media_base_url == "https://media.r2.test"
     assert profile.has_glap is False  # no encoder configured in this fixture
@@ -33,6 +45,12 @@ def test_infoshot_profile_splits_hf_keyframes_from_r2_video():
 
     assert profile.milvus_endpoint == "https://infoshot.milvus.test"
     assert profile.idx_keyframe_map == "infoshot-map"
+    assert (profile.idx_ocr, profile.idx_speech, profile.idx_audio) == (
+        "infoshot-ocr-v2",
+        "infoshot-speech-v2",
+        "infoshot-audio-v2",
+    )
+    assert profile.ocr_missing_categories == ("L26",)
     assert profile.milvus_image_collection == "infoshot-images"
     assert profile.has_glap is False
     assert media.keyframe_url("L26_V001", 1).startswith("https://huggingface.test/")

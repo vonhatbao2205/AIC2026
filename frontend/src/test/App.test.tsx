@@ -875,14 +875,16 @@ describe("AIC26 retrieval console (full)", () => {
     expect(screen.getByTestId("topk-slider")).toBeInTheDocument();
   });
 
-  it("sends the selected InfoShot++ profile and disables unavailable channels", async () => {
+  it("sends the selected InfoShot++ profile and keeps the v2 metadata channels usable", async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.selectOptions(screen.getByTestId("retrieval-database"), "infoshotpp");
 
-    expect(screen.getByTestId("channel-ocr")).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByTestId("channel-speech")).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByTestId("channel-audio")).toHaveAttribute("aria-disabled", "true");
+    // OCR / speech / audio are served from the InfoShot++ v2 indices, so they
+    // must stay toggleable on this profile (only the OD channels are locked).
+    expect(screen.getByTestId("channel-ocr")).toHaveAttribute("aria-disabled", "false");
+    expect(screen.getByTestId("channel-speech")).toHaveAttribute("aria-disabled", "false");
+    expect(screen.getByTestId("channel-audio")).toHaveAttribute("aria-disabled", "false");
 
     await user.type(screen.getByTestId("query-input"), "street scene");
     await user.click(screen.getByTestId("search-btn"));

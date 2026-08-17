@@ -161,9 +161,11 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
             "dres_submit": settings.has_dres,
             "dres_connected": bool(dres.get("ok")),
             "audio_vector_search": selected_settings.has_glap and not settings.mock_mode,
-            "ocr_search": retrieval_database == "btc",
-            "speech_search": retrieval_database == "btc",
-            "audio_search": retrieval_database == "btc",
+            # Both profiles now have their own OCR/speech/audio indices (BTC: the
+            # `*_v1` set, InfoShot++: the `*_v2` set built on the new keyframe map).
+            "ocr_search": "ocr" not in selected_settings.unsupported_channels,
+            "speech_search": "speech" not in selected_settings.unsupported_channels,
+            "audio_search": "audio" not in selected_settings.unsupported_channels,
             # NVILA currently reranks/grounds only the QA candidate pack; it is
             # not a general reranker for T-KIS/V-KIS/TRAKE retrieval results.
             "vlm_rerank": False,
@@ -181,6 +183,15 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
             ),
         },
         "retrieval_database": retrieval_database,
+        "indices": {
+            "keyframe_map": selected_settings.idx_keyframe_map,
+            "ocr": selected_settings.idx_ocr,
+            "speech": selected_settings.idx_speech,
+            "audio": selected_settings.idx_audio,
+        },
+        # Categories the active OCR index does not cover, so a blank OCR result
+        # there reads as "not indexed" rather than "no text on screen".
+        "ocr_missing_categories": list(selected_settings.ocr_missing_categories),
         "warnings": [
             f"{name} unreachable: {s.get('error')}"
             for name, s in services.items()
@@ -291,7 +302,10 @@ async def search_canvas(req: CanvasSearchRequest):
     if req.retrieval_database != "btc":
         raise HTTPException(
             status_code=400,
-            detail="InfoShot++ hiện chỉ hỗ trợ PE image; V-KIS canvas chưa có dữ liệu OD.",
+            detail=(
+                "InfoShot++ đã có PE image + OCR/speech/audio (index v2), nhưng V-KIS "
+                "canvas vẫn khoá: chưa có object detection cho keyframe InfoShot++."
+            ),
         )
     return await canvas_service.search(req.model_dump())
 

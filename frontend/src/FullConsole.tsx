@@ -1183,7 +1183,8 @@ export default function FullConsole({ onSimpleMode, onShowSettings, configVersio
           )}
           {queryType === "V-KIS" && retrievalDatabase === "infoshotpp" && (
             <div className="warn-banner">
-              InfoShot++ hiện chỉ có PE image; OCR, speech, audio và V-KIS canvas chưa được index.
+              InfoShot++ đã có PE image, OCR, speech và audio (index v2). Riêng V-KIS canvas
+              còn khoá: chưa có object detection cho keyframe InfoShot++.
             </div>
           )}
           <div className="results-toolbar">

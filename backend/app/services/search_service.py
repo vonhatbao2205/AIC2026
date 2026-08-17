@@ -248,14 +248,17 @@ class SearchService:
     ) -> tuple[list[VideoGroup], dict[str, Any]]:
         channels_cfg = parsed.get("channels", {})
         filters = parsed.get("filters", {})
+        unsupported = self.s.unsupported_channels
         runners = {
-            "image_pe": self._run_image_pe,
-            "ocr": self._run_ocr,
-            "speech": self._run_speech,
-            "audio": self._run_audio,
+            name: runner
+            for name, runner in (
+                ("image_pe", self._run_image_pe),
+                ("ocr", self._run_ocr),
+                ("speech", self._run_speech),
+                ("audio", self._run_audio),
+            )
+            if name not in unsupported
         }
-        if self.s.is_infoshotpp:
-            runners = {"image_pe": self._run_image_pe}
         feedback = feedback or {}
         tasks: dict[Channel, asyncio.Task] = {}
         for name, runner in runners.items():
@@ -272,16 +275,20 @@ class SearchService:
         channel_hits: dict[Channel, list[ChannelHit]] = {}
         weights: dict[str, float] = {}
         warnings: list[str] = []
-        if self.s.is_infoshotpp:
-            disabled = [
-                name
-                for name in ("ocr", "speech", "audio")
-                if channels_cfg.get(name, {}).get("enabled")
-            ]
-            if disabled:
-                warnings.append(
-                    "InfoShot++ hiện chỉ hỗ trợ PE image; đã tắt: " + ", ".join(disabled)
-                )
+        disabled = [
+            name for name in sorted(unsupported) if channels_cfg.get(name, {}).get("enabled")
+        ]
+        if disabled:
+            warnings.append(
+                f"{self.s.retrieval_database} chưa có dữ liệu cho kênh: " + ", ".join(disabled)
+            )
+        if self.s.ocr_missing_categories and "ocr" in tasks:
+            warnings.append(
+                "OCR "
+                + self.s.retrieval_database
+                + " chưa index category: "
+                + ", ".join(self.s.ocr_missing_categories)
+            )
         for name, task in tasks.items():
             try:
                 hits, ms = await task

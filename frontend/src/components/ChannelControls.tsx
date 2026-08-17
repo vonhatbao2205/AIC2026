@@ -9,7 +9,9 @@ interface Props {
 }
 
 export function ChannelControls({ parsed, overrides, onToggle, retrievalDatabase }: Props) {
-  const unsupported = new Set<Channel>(["ocr", "speech", "audio", "object_layout", "canvas_image"]);
+  // InfoShot++ answers OCR / speech / audio from its own v2 indices since the
+  // metadata migration. Only the OD-backed channels stay unavailable there.
+  const unsupported = new Set<Channel>(["object_layout", "canvas_image"]);
   function isEnabled(c: Channel): boolean {
     if (overrides.disable_channels.includes(c)) return false;
     if (overrides.force_channels.includes(c)) return true;
@@ -33,7 +35,7 @@ export function ChannelControls({ parsed, overrides, onToggle, retrievalDatabase
             aria-checked={on}
             data-testid={`channel-${c}`}
             aria-disabled={disabled}
-            title={disabled ? "Chưa có dữ liệu cho InfoShot++" : undefined}
+            title={disabled ? "Chưa có object detection cho InfoShot++" : undefined}
           >
             <span className="lbl">
               <span className={`badge ${c}`}>{CHANNEL_LABEL[c]}</span>
@@ -48,7 +50,7 @@ export function ChannelControls({ parsed, overrides, onToggle, retrievalDatabase
       })}
       <div className="hint-text">
         {retrievalDatabase === "infoshotpp"
-          ? "InfoShot++ chỉ chạy PE image và similar-image trên embedding mới."
+          ? "InfoShot++ chạy PE image, similar-image, OCR/speech/audio trên index v2. OCR chưa có L26; V-KIS canvas vẫn khoá (chưa có object detection)."
           : "Confidence/stoplist demotion (speech low/intro, audio stoplist & generic captions) is applied automatically by the backend."}
       </div>
     </div>
