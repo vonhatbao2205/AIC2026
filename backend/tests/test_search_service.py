@@ -36,6 +36,7 @@ async def test_infoshotpp_profile_runs_text_channels_and_splits_media_origins(se
     settings.milvus_endpoint_2 = "https://milvus-2.test"
     settings.milvus_token_2 = "token-2"
     settings.keyframe_media_base_url_2 = "https://hf.test/resolve"
+    settings.video_media_base_url_2 = "https://hf.test/resolve"
     svc = SearchService(settings.for_retrieval_database("infoshotpp"))
     parsed = {
         "channels": {
@@ -56,8 +57,10 @@ async def test_infoshotpp_profile_runs_text_channels_and_splits_media_origins(se
     # ...but the operator is told which categories the v2 OCR index does not cover.
     assert any("L26" in warning for warning in res["warnings"])
     frame = res["groups"][0]["frames"][0]
+    # Both media kinds come from the Hugging Face bucket on this profile; the
+    # BTC profile keeps its own origins (see test_retrieval_profiles.py).
     assert frame["keyframe_url"].startswith("https://hf.test/resolve/Keyframes/")
-    assert frame["video_url"].startswith("https://media.test/Videos/")
+    assert frame["video_url"].startswith("https://hf.test/resolve/Videos/")
 
 
 @pytest.mark.asyncio

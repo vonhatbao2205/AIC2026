@@ -31,7 +31,7 @@ class SearchService:
         self.pe = PeEncoderClient(settings)
         self.glap = GlapEncoderClient(settings)
         self.parser = QueryParser(settings)
-        self.media = MediaUrlBuilder(settings.keyframe_media_base_url, settings.media_base_url)
+        self.media = MediaUrlBuilder(settings.keyframe_media_base_url, settings.video_media_base_url)
 
     # ---- channel runners ----------------------------------------------
     async def _run_image_pe(self, cfg: dict[str, Any], top_k: int) -> tuple[list[ChannelHit], float]:

@@ -19,7 +19,7 @@ class TimelineService:
     def __init__(self, settings: Settings):
         self.s = settings
         self.elastic = ElasticClient(settings)
-        self.media = MediaUrlBuilder(settings.keyframe_media_base_url, settings.media_base_url)
+        self.media = MediaUrlBuilder(settings.keyframe_media_base_url, settings.video_media_base_url)
 
     async def build(self, video_id: str) -> dict[str, Any]:
         keyframes_raw = await self.elastic.get_video_keyframes(video_id)

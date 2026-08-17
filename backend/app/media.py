@@ -1,6 +1,7 @@
 """Media URL builders (Cloudflare R2 and/or a Hugging Face public bucket).
 
-Layout (from CLOUDFLARE_R2_MEDIA_HANDOFF.md):
+Layout (from CLOUDFLARE_R2_MEDIA_HANDOFF.md; the HF migration reproduces it
+key-for-key, so only the base URL differs between the two origins):
   keyframe: {keyframe_base}/Keyframes/Keyframes_{group}/{video_id}/{frame_3_digits}.jpg
   video:    {video_base}/Videos/Videos_{group}/{video_id}.mp4
 

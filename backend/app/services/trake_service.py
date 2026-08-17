@@ -23,7 +23,7 @@ class TrakeService:
     def __init__(self, settings: Settings, search_service: SearchService | None = None):
         self.s = settings
         self.search = search_service or SearchService(settings)
-        self.media = MediaUrlBuilder(settings.keyframe_media_base_url, settings.media_base_url)
+        self.media = MediaUrlBuilder(settings.keyframe_media_base_url, settings.video_media_base_url)
 
     async def search_trake(self, req: dict[str, Any]) -> dict[str, Any]:
         query = req.get("query", "")

@@ -98,7 +98,7 @@ def build_runtime() -> Settings:
     }
     timeline_services = {name: TimelineService(cfg) for name, cfg in profile_settings.items()}
     media_builders = {
-        name: MediaUrlBuilder(cfg.keyframe_media_base_url, cfg.media_base_url)
+        name: MediaUrlBuilder(cfg.keyframe_media_base_url, cfg.video_media_base_url)
         for name, cfg in profile_settings.items()
     }
     # Backward-compatible aliases used by tests and a few internal call sites.
