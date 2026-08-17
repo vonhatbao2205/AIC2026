@@ -365,8 +365,10 @@ function mockFetch(historySeed: any[] = []) {
     const json = (body: unknown, status = 200) =>
       ({ ok: status < 400, status, json: async () => body } as Response);
 
-    if (path.endsWith("/api/health"))
-      return json({ ok: true, mode: "mock", services: {}, capabilities: { qa_nvila: true, qa_web_grounding: true, qa_visual_verification: true, canvas_object_search: true }, warnings: [] });
+    if (path.includes("/api/health"))
+      return json({ ok: true, mode: "mock", retrieval_database: path.includes("infoshotpp") ? "infoshotpp" : "btc", services: {}, capabilities: { qa_nvila: true, qa_web_grounding: true, qa_visual_verification: true, canvas_object_search: true }, warnings: [] });
+    if (path.endsWith("/api/config"))
+      return json({ configured: true, mock_mode: true, missing_required: [], env_path: "/config/.env", env_exists: true, groups: [] });
     if (path.endsWith("/api/dres/status")) return json(DRES_STATUS);
     if (path.includes("/api/dres/task-hint")) return json(taskHintFor(path));
     if (path.includes("/api/dres/evaluations"))
@@ -871,6 +873,24 @@ describe("AIC26 retrieval console (full)", () => {
     render(<App />);
     await user.click(screen.getByText("Simple ⤴"));
     expect(screen.getByTestId("topk-slider")).toBeInTheDocument();
+  });
+
+  it("sends the selected InfoShot++ profile and disables unavailable channels", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.selectOptions(screen.getByTestId("retrieval-database"), "infoshotpp");
+
+    expect(screen.getByTestId("channel-ocr")).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByTestId("channel-speech")).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByTestId("channel-audio")).toHaveAttribute("aria-disabled", "true");
+
+    await user.type(screen.getByTestId("query-input"), "street scene");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => {
+      const call = vi.mocked(fetch).mock.calls.find(([url]) => String(url).endsWith("/api/search"));
+      expect(call).toBeTruthy();
+      expect(JSON.parse(String(call?.[1]?.body)).retrieval_database).toBe("infoshotpp");
+    });
   });
 
   // ---- relevance feedback -------------------------------------------------

@@ -2,6 +2,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app import paths
 from app.main import app
 
 client = TestClient(app)
@@ -242,3 +243,13 @@ def test_canvas_search_rejects_an_oversized_canvas():
         json={"canvas": {"objects": [{"label": "person", "bbox": [0, 0, 0.1, 0.1]}] * 13}},
     )
     assert r.status_code == 422
+
+
+@pytest.mark.skipif(paths.static_dir() is None, reason="frontend not built (npm run build)")
+def test_bundled_ui_is_served_with_a_spa_fallback():
+    """The packaged app is one origin: the console and the API share a port."""
+    assert client.get("/").status_code == 200
+    # Unknown UI paths fall back to the shell so the app boots anywhere.
+    assert client.get("/deep/link").status_code == 200
+    # …but a mistyped API path must stay a 404, not become an HTML page.
+    assert client.get("/api/definitely-not-a-route").status_code == 404

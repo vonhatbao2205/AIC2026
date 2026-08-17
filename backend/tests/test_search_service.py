@@ -32,6 +32,33 @@ async def test_search_never_emits_image_path(settings):
 
 
 @pytest.mark.asyncio
+async def test_infoshotpp_profile_runs_only_pe_and_splits_media_origins(settings):
+    settings.milvus_endpoint_2 = "https://milvus-2.test"
+    settings.milvus_token_2 = "token-2"
+    settings.keyframe_media_base_url_2 = "https://hf.test/resolve"
+    svc = SearchService(settings.for_retrieval_database("infoshotpp"))
+    parsed = {
+        "channels": {
+            "image_pe": {"enabled": True, "weight": 1.0, "queries_en": ["a street"]},
+            "ocr": {"enabled": True, "weight": 1.0, "queries_vi": ["abc"]},
+            "speech": {"enabled": True, "weight": 1.0, "queries_vi": ["abc"]},
+            "audio": {"enabled": True, "weight": 1.0, "queries_en": ["music"]},
+        },
+        "filters": {},
+        "rerank_policy": {"rrf_k": 60},
+    }
+
+    res = await svc.search({"query": "x", "parsed": parsed})
+
+    assert res["retrieval_database"] == "infoshotpp"
+    assert set(res["latency_ms"]["channels"]) == {"image_pe"}
+    assert any("chỉ hỗ trợ PE image" in warning for warning in res["warnings"])
+    frame = res["groups"][0]["frames"][0]
+    assert frame["keyframe_url"].startswith("https://hf.test/resolve/Keyframes/")
+    assert frame["video_url"].startswith("https://media.test/Videos/")
+
+
+@pytest.mark.asyncio
 async def test_ocr_runner_forwards_structured_numbers(settings, monkeypatch):
     svc = SearchService(settings)
     captured = {}

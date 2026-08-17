@@ -2,6 +2,10 @@
 
 Endpoints:
   GET  /api/health
+  GET  /api/config
+  GET  /api/config/template
+  POST /api/config/import
+  POST /api/config/reload
   POST /api/query/parse
   POST /api/search
   POST /api/search/trake
@@ -26,20 +30,25 @@ from __future__ import annotations
 import asyncio
 import re
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .adapters.deepseek_grounding import DeepSeekGroundingClient, WebGroundingUnavailable
 from .adapters.dres_client import DresClient, DresError, DresNotConfigured
 from .adapters.nvila_client import NvilaQaClient, NvilaUnavailable
+from . import paths
 from .canvas import palette_manifest
-from .config import get_settings
+from .config import Settings, get_settings
 from .identity import canonical_submit_keyframe_id, parse_submit_keyframe_id
 from .media import MediaUrlBuilder
 from .models import (
     CanvasSearchRequest,
     ParseRequest,
     QaAnalyzeRequest,
+    RetrievalDatabase,
     SearchRequest,
     SimpleSearchRequest,
     SnapRequest,
@@ -48,6 +57,7 @@ from .models import (
     TrakeSearchRequest,
 )
 from .translate import translate_vi_to_en
+from .services import config_service
 from .services.canvas_service import CanvasService
 from .services.search_service import SearchService, ServiceUnavailable
 from .services.submit_service import DuplicateSubmitError, SubmitFormatError, SubmitService
@@ -64,27 +74,66 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-search_service = SearchService(settings)
-trake_service = TrakeService(settings, search_service)
-canvas_service = CanvasService(settings, search_service)
-timeline_service = TimelineService(settings)
-dres_client = DresClient(settings)
-submit_service = SubmitService(settings, dres_client)
-media = MediaUrlBuilder(settings.media_base_url)
-nvila_qa = NvilaQaClient(settings)
-web_grounding_client = DeepSeekGroundingClient(settings)
+
+def build_runtime() -> Settings:
+    """(Re)create every service from the current configuration.
+
+    The packaged app is configured through the UI, not the shell: after an
+    operator imports a `.env` the process must pick the new credentials up
+    without a restart. Endpoints resolve these names at call time, so rebinding
+    the module globals swaps the whole stack atomically from the caller's view.
+    """
+    global settings, search_service, trake_service, canvas_service, timeline_service
+    global search_services, trake_services, timeline_services, media_builders, profile_settings
+    global dres_client, submit_service, media, nvila_qa, web_grounding_client
+
+    get_settings.cache_clear()
+    settings = get_settings()
+    profile_settings = {
+        name: settings.for_retrieval_database(name) for name in ("btc", "infoshotpp")
+    }
+    search_services = {name: SearchService(cfg) for name, cfg in profile_settings.items()}
+    trake_services = {
+        name: TrakeService(profile_settings[name], search_services[name]) for name in profile_settings
+    }
+    timeline_services = {name: TimelineService(cfg) for name, cfg in profile_settings.items()}
+    media_builders = {
+        name: MediaUrlBuilder(cfg.keyframe_media_base_url, cfg.media_base_url)
+        for name, cfg in profile_settings.items()
+    }
+    # Backward-compatible aliases used by tests and a few internal call sites.
+    search_service = search_services["btc"]
+    trake_service = trake_services["btc"]
+    timeline_service = timeline_services["btc"]
+    canvas_service = CanvasService(profile_settings["btc"], search_service)
+    dres_client = DresClient(settings)
+    # History is reloaded from disk with the new service; it is not credentials.
+    submit_service = SubmitService(settings, dres_client)
+    media = media_builders["btc"]
+    nvila_qa = NvilaQaClient(settings)
+    web_grounding_client = DeepSeekGroundingClient(settings)
+    return settings
+
+
+build_runtime()
 
 
 @app.get("/api/health")
-async def health():
-    elastic, milvus, pe, nvila, grounding, objects, dres = await asyncio.gather(
-        search_service.elastic.health(),
-        search_service.milvus.health(),
-        search_service.pe.health(),
+async def health(retrieval_database: RetrievalDatabase = "btc"):
+    selected = search_services[retrieval_database]
+    selected_settings = profile_settings[retrieval_database]
+    elastic, milvus, pe, nvila, grounding, dres = await asyncio.gather(
+        selected.elastic.health(),
+        selected.milvus.health(),
+        selected.pe.health(),
         nvila_qa.health(),
         web_grounding_client.health(),
-        canvas_service.objects.health(),
         dres_client.health(),
+    )
+    objects = (
+        await canvas_service.objects.health()
+        if retrieval_database == "btc"
+        else {"ok": False, "mode": "disabled", "reason": "not indexed for InfoShot++"}
     )
     services = {
         "elastic": elastic,
@@ -97,7 +146,7 @@ async def health():
     }
     # NVILA is an optional QA accelerator: a stopped Colab session must not mark
     # the core retrieval stack unhealthy.
-    ok = settings.mock_mode or all(s.get("ok") for s in (elastic, milvus, pe))
+    ok = selected_settings.mock_mode or all(s.get("ok") for s in (elastic, milvus, pe))
     has_live_nvila = settings.has_nvila and not settings.mock_mode and bool(nvila.get("ok"))
     has_qa_nvila = settings.mock_mode or has_live_nvila
     has_qa_visual_verification = settings.mock_mode or (
@@ -111,7 +160,10 @@ async def health():
             "llm_query_parser": settings.has_llm and not settings.mock_mode,
             "dres_submit": settings.has_dres,
             "dres_connected": bool(dres.get("ok")),
-            "audio_vector_search": settings.has_glap and not settings.mock_mode,
+            "audio_vector_search": selected_settings.has_glap and not settings.mock_mode,
+            "ocr_search": retrieval_database == "btc",
+            "speech_search": retrieval_database == "btc",
+            "audio_search": retrieval_database == "btc",
             # NVILA currently reranks/grounds only the QA candidate pack; it is
             # not a general reranker for T-KIS/V-KIS/TRAKE retrieval results.
             "vlm_rerank": False,
@@ -124,14 +176,63 @@ async def health():
             "qa_visual_verification": has_qa_visual_verification,
             "qa_web_grounding": settings.mock_mode or settings.has_web_grounding,
             # V-KIS canvas: OD spatial match needs the object index to answer.
-            "canvas_object_search": settings.mock_mode or bool(objects.get("ok")),
+            "canvas_object_search": retrieval_database == "btc" and (
+                settings.mock_mode or bool(objects.get("ok"))
+            ),
         },
+        "retrieval_database": retrieval_database,
         "warnings": [
             f"{name} unreachable: {s.get('error')}"
             for name, s in services.items()
             if not s.get("ok") and s.get("mode") != "disabled"
         ],
     }
+
+
+@app.get("/api/config")
+async def config_status():
+    """Which variables are set, for the settings screen. Secrets come back masked."""
+    return config_service.status(settings)
+
+
+@app.get("/api/config/template")
+async def config_template():
+    """The documented `.env` template, so an operator can fill one in from the app."""
+    return PlainTextResponse(
+        config_service.template_text(),
+        headers={"Content-Disposition": 'attachment; filename=".env.example"'},
+    )
+
+
+@app.post("/api/config/import")
+async def config_import(file: UploadFile = File(...), replace: bool = Form(False)):
+    """Import an uploaded `.env` and rebuild the service stack around it.
+
+    Merges by default: keys the file omits keep their current value. `replace`
+    makes the uploaded file the whole configuration.
+    """
+    raw = await file.read()
+    if len(raw) > 256_000:
+        raise HTTPException(status_code=413, detail="Config file too large (max 256 KB).")
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise HTTPException(
+            status_code=400, detail="Not a UTF-8 text file — expected a .env file."
+        ) from exc
+    try:
+        summary = config_service.apply_env_text(text, replace=replace)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    build_runtime()
+    return {**summary, "status": config_service.status(settings)}
+
+
+@app.post("/api/config/reload")
+async def config_reload():
+    """Re-read the config file from disk and rebuild the services."""
+    build_runtime()
+    return config_service.status(settings)
 
 
 @app.post("/api/query/parse")
@@ -150,7 +251,9 @@ async def parse_query(req: ParseRequest):
 async def search_simple(req: SimpleSearchRequest):
     """Minimal vector-only search: flat keyframe list ordered by cosine."""
     try:
-        return await search_service.simple_image_search(req.query, top_k=req.top_k)
+        return await search_services[req.retrieval_database].simple_image_search(
+            req.query, top_k=req.top_k
+        )
     except ServiceUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -161,14 +264,14 @@ async def search(req: SearchRequest):
     if req.feedback is not None:
         payload["feedback"] = req.feedback.model_dump()
     payload["manual_overrides"] = req.manual_overrides.model_dump()
-    return await search_service.search(payload)
+    return await search_services[req.retrieval_database].search(payload)
 
 
 @app.post("/api/search/trake")
 async def search_trake(req: TrakeSearchRequest):
     payload = req.model_dump()
     payload["manual_overrides"] = req.manual_overrides.model_dump()
-    return await trake_service.search_trake(payload)
+    return await trake_services[req.retrieval_database].search_trake(payload)
 
 
 @app.get("/api/canvas/palette")
@@ -185,6 +288,11 @@ async def canvas_palette():
 @app.post("/api/search/canvas")
 async def search_canvas(req: CanvasSearchRequest):
     """V-KIS canvas search: canvas JSON → OD spatial match + PE text, RRF-fused."""
+    if req.retrieval_database != "btc":
+        raise HTTPException(
+            status_code=400,
+            detail="InfoShot++ hiện chỉ hỗ trợ PE image; V-KIS canvas chưa có dữ liệu OD.",
+        )
     return await canvas_service.search(req.model_dump())
 
 
@@ -196,6 +304,7 @@ async def analyze_qa(req: QaAnalyzeRequest):
     Image URLs are reconstructed here, preventing arbitrary fetch targets from
     being forwarded to the Colab worker.
     """
+    selected_media = media_builders[req.retrieval_database]
     candidates: list[dict] = []
     for index, item in enumerate(req.candidates[: settings.nvila_max_candidates]):
         try:
@@ -225,7 +334,7 @@ async def analyze_qa(req: QaAnalyzeRequest):
             "frame_idx": item.frame_idx,
             "pts_time": item.pts_time,
             "retrieval_score": item.retrieval_score,
-            "image_url": media.keyframe_url(parsed_id.video_id, parsed_id.keyframe_n),
+            "image_url": selected_media.keyframe_url(parsed_id.video_id, parsed_id.keyframe_n),
             "evidence": cues,
         })
 
@@ -325,13 +434,17 @@ async def analyze_qa(req: QaAnalyzeRequest):
 
 
 @app.get("/api/keyframes/{submit_keyframe_id:path}")
-async def get_keyframe(submit_keyframe_id: str):
+async def get_keyframe(
+    submit_keyframe_id: str, retrieval_database: RetrievalDatabase = "btc"
+):
     try:
         canonical = canonical_submit_keyframe_id(submit_keyframe_id)
         parsed = parse_submit_keyframe_id(canonical)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    record = await search_service.elastic.get_keyframe(canonical)
+    selected_search = search_services[retrieval_database]
+    selected_media = media_builders[retrieval_database]
+    record = await selected_search.elastic.get_keyframe(canonical)
     return {
         "image_id": canonical,
         "submit_keyframe_id": canonical,
@@ -340,21 +453,24 @@ async def get_keyframe(submit_keyframe_id: str):
         "pts_time": (record or {}).get("pts_time"),
         "fps": (record or {}).get("fps"),
         "frame_idx": (record or {}).get("frame_idx"),
-        "keyframe_url": media.keyframe_url(parsed.video_id, parsed.keyframe_n),
-        "video_url": media.video_url(parsed.video_id),
+        "retrieval_database": retrieval_database,
+        "keyframe_url": selected_media.keyframe_url(parsed.video_id, parsed.keyframe_n),
+        "video_url": selected_media.video_url(parsed.video_id),
         "found": record is not None,
     }
 
 
 @app.get("/api/videos/{video_id}/timeline")
-async def video_timeline(video_id: str):
-    return await timeline_service.build(video_id)
+async def video_timeline(video_id: str, retrieval_database: RetrievalDatabase = "btc"):
+    return await timeline_services[retrieval_database].build(video_id)
 
 
 @app.post("/api/videos/{video_id}/snap")
 async def snap_frame(video_id: str, req: SnapRequest):
-    """Snap a raw paused time to the nearest BTC keyframe for TRAKE frame-pick."""
-    timeline = await timeline_service.build(video_id)
+    """Snap a raw paused time to the selected profile's nearest keyframe."""
+    selected_timeline = timeline_services[req.retrieval_database]
+    selected_media = media_builders[req.retrieval_database]
+    timeline = await selected_timeline.build(video_id)
     fps = req.fps or timeline.get("fps") or 25.0
     result = snap_to_keyframe(req.raw_time, fps, timeline["keyframes"])
     if result is None:
@@ -371,7 +487,8 @@ async def snap_frame(video_id: str, req: SnapRequest):
         "delta_frames": result.delta_frames,
         "delta_seconds": round(result.delta_seconds, 4),
         "far": result.far,
-        "keyframe_url": media.keyframe_url(video_id, result.keyframe_n),
+        "retrieval_database": req.retrieval_database,
+        "keyframe_url": selected_media.keyframe_url(video_id, result.keyframe_n),
     }
 
 
@@ -935,3 +1052,31 @@ async def transcribe_endpoint(audio: UploadFile = File(...), translate: bool = T
         raise HTTPException(status_code=500, detail=f"Transcription failed: {exc}") from exc
     text_en = await translate_vi_to_en(text) if (translate and text) else None
     return {"text": text, "text_en": text_en}
+
+
+# --- Bundled UI -------------------------------------------------------------
+# The packaged app serves the built console from the same origin as the API: one
+# process, one port, no CORS and no second server for the operator to start. A
+# source checkout has no build output and skips this, leaving `npm run dev` and
+# its /api proxy in charge.
+
+
+class _SpaStaticFiles(StaticFiles):
+    """Static files with a single-page fallback for unknown paths.
+
+    API 404s are left alone — answering them with index.html would turn a typo'd
+    endpoint into a 200 and an unreadable client-side error.
+    """
+
+    async def get_response(self, path: str, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code != 404 or path.startswith("api/"):
+                raise
+            return await super().get_response("index.html", scope)
+
+
+_ui_dir = paths.static_dir()
+if _ui_dir is not None:
+    app.mount("/", _SpaStaticFiles(directory=_ui_dir, html=True), name="ui")

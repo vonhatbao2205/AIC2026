@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { api } from "./api/client";
 import FullConsole from "./FullConsole";
 import SimpleSearch from "./SimpleSearch";
+import { SettingsModal } from "./components/SettingsModal";
+import type { RetrievalDatabase } from "./api/types";
 
 type View = "console" | "simple";
 
@@ -9,6 +12,29 @@ export default function App() {
     const saved = typeof localStorage !== "undefined" ? localStorage.getItem("aic26_view") : null;
     return saved === "simple" ? "simple" : "console";
   });
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [retrievalDatabase, setRetrievalDatabase] = useState<RetrievalDatabase>(() => {
+    const saved = typeof localStorage !== "undefined"
+      ? localStorage.getItem("aic26_retrieval_database")
+      : null;
+    return saved === "infoshotpp" ? "infoshotpp" : "btc";
+  });
+  // Bumped after a config import so the console re-reads /api/health against the
+  // services the backend has just rebuilt.
+  const [configVersion, setConfigVersion] = useState(0);
+
+  useEffect(() => {
+    // A freshly downloaded build carries no credentials. Open the setup screen
+    // rather than letting the operator's first search fail unexplained.
+    api
+      .config()
+      .then((cfg) => {
+        if (!cfg.configured) setSettingsOpen(true);
+      })
+      .catch(() => {
+        /* backend not up yet — the console shows its own connection error */
+      });
+  }, []);
 
   function go(v: View) {
     setView(v);
@@ -19,9 +45,38 @@ export default function App() {
     }
   }
 
-  return view === "simple" ? (
-    <SimpleSearch onFullMode={() => go("console")} />
-  ) : (
-    <FullConsole onSimpleMode={() => go("simple")} />
+  function chooseDatabase(database: RetrievalDatabase) {
+    setRetrievalDatabase(database);
+    try {
+      localStorage.setItem("aic26_retrieval_database", database);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return (
+    <>
+      {view === "simple" ? (
+        <SimpleSearch
+          retrievalDatabase={retrievalDatabase}
+          onRetrievalDatabase={chooseDatabase}
+          onFullMode={() => go("console")}
+          onShowSettings={() => setSettingsOpen(true)}
+        />
+      ) : (
+        <FullConsole
+          onSimpleMode={() => go("simple")}
+          onShowSettings={() => setSettingsOpen(true)}
+          configVersion={configVersion}
+          retrievalDatabase={retrievalDatabase}
+          onRetrievalDatabase={chooseDatabase}
+        />
+      )}
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onApplied={() => setConfigVersion((v) => v + 1)}
+      />
+    </>
   );
 }

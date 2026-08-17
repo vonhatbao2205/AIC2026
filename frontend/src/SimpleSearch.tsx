@@ -1,10 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api/client";
-import type { SimpleResult } from "./api/types";
+import type { RetrievalDatabase, SimpleResult } from "./api/types";
 import { ThemeToggle } from "./components/ThemeToggle";
 
 // Minimal vector-only view: one query box + slider + keyframe grid.
-export default function SimpleSearch({ onFullMode }: { onFullMode: () => void }) {
+export default function SimpleSearch({
+  onFullMode,
+  onShowSettings,
+  retrievalDatabase,
+  onRetrievalDatabase,
+}: {
+  onFullMode: () => void;
+  onShowSettings: () => void;
+  retrievalDatabase: RetrievalDatabase;
+  onRetrievalDatabase: (database: RetrievalDatabase) => void;
+}) {
   const [query, setQuery] = useState("");
   const [topK, setTopK] = useState(40);
   const [results, setResults] = useState<SimpleResult[]>([]);
@@ -25,7 +35,7 @@ export default function SimpleSearch({ onFullMode }: { onFullMode: () => void })
     setLoading(true);
     setError(null);
     try {
-      const res = await api.simpleSearch(q, topK);
+      const res = await api.simpleSearch(q, topK, retrievalDatabase);
       setResults(res.results);
       setMode(res.mode);
       setLatency(res.latency_ms);
@@ -51,7 +61,20 @@ export default function SimpleSearch({ onFullMode }: { onFullMode: () => void })
           <button className="btn sm ghost" style={{ marginLeft: 12 }} onClick={onFullMode}>
             Console ⤴
           </button>
+          <select
+            className="btn sm ghost"
+            aria-label="Retrieval database"
+            data-testid="retrieval-database"
+            value={retrievalDatabase}
+            onChange={(event) => onRetrievalDatabase(event.target.value as RetrievalDatabase)}
+          >
+            <option value="btc">BTC · đầy đủ</option>
+            <option value="infoshotpp">InfoShot++ · PE only</option>
+          </select>
           <span style={{ flex: 1 }} />
+          <button className="btn sm ghost" onClick={onShowSettings} title="Cấu hình — import .env">
+            ⚙ Cấu hình
+          </button>
           <ThemeToggle />
         </div>
 

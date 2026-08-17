@@ -4,6 +4,7 @@ export type Channel =
   | "image_pe" | "ocr" | "speech" | "audio" | "similar" | "object_layout" | "canvas_image";
 export type QueryType = "T-KIS" | "QA" | "V-KIS" | "TRAKE";
 export type QueryTypeHint = "auto" | QueryType;
+export type RetrievalDatabase = "btc" | "infoshotpp";
 
 export interface Evidence {
   type: Channel;
@@ -109,6 +110,7 @@ export interface LatencyBreakdown {
 }
 
 export interface SearchResponse {
+  retrieval_database: RetrievalDatabase;
   query: string;
   parsed: ParsedQuery;
   groups: VideoGroup[];
@@ -293,6 +295,7 @@ export interface TrakeSequence {
 }
 
 export interface TrakeSearchResponse {
+  retrieval_database: RetrievalDatabase;
   query: string;
   parsed: ParsedQuery;
   events: { event_index: number; description_vi: string; candidate_count: number }[];
@@ -309,6 +312,7 @@ export interface TimelineKeyframe {
 }
 
 export interface Timeline {
+  retrieval_database: RetrievalDatabase;
   video_id: string;
   fps: number;
   duration: number | null;
@@ -342,6 +346,7 @@ export interface SimpleResult {
 }
 
 export interface SimpleSearchResponse {
+  retrieval_database: RetrievalDatabase;
   query: string;
   translated_query?: string | null;
   results: SimpleResult[];
@@ -350,6 +355,7 @@ export interface SimpleSearchResponse {
 }
 
 export interface HealthResponse {
+  retrieval_database: RetrievalDatabase;
   ok: boolean;
   mode: "mock" | "live";
   services: Record<string, { ok: boolean; error?: string }>;
@@ -474,4 +480,43 @@ export interface FeedbackState {
   /** Seeds the image-to-image `similar` retrieval channel. */
   positive_frames: string[];
   negative_frames: string[];
+}
+
+// ---- Configuration (in-app .env import) ------------------------------------
+
+export interface ConfigKeyStatus {
+  key: string;
+  label: string;
+  secret: boolean;
+  required: boolean;
+  set: boolean;
+  /** Masked for secrets; the real value for everything else. */
+  preview: string;
+  /** Set from the process environment, so importing a file will not change it. */
+  from_process_env: boolean;
+}
+
+export interface ConfigGroupStatus {
+  name: string;
+  summary: string;
+  keys: ConfigKeyStatus[];
+}
+
+export interface ConfigStatus {
+  configured: boolean;
+  mock_mode: boolean;
+  missing_required: string[];
+  env_path: string;
+  env_exists: boolean;
+  groups: ConfigGroupStatus[];
+}
+
+export interface ConfigImportResult {
+  env_path: string;
+  applied: string[];
+  unknown: string[];
+  rejected: string[];
+  ignored_blank: string[];
+  replaced: boolean;
+  status: ConfigStatus;
 }

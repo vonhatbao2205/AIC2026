@@ -1,6 +1,6 @@
 """Keyframe timeline for one video.
 
-Returns the BTC keyframe list (sorted, with frame_idx/pts_time) used by the
+Returns the selected profile's keyframe list (sorted, with frame_idx/pts_time) used by the
 frontend filmstrip and the TRAKE pause-frame picker (snap to nearest keyframe).
 The heavier OCR/speech/audio tracks were intentionally dropped for speed.
 """
@@ -19,7 +19,7 @@ class TimelineService:
     def __init__(self, settings: Settings):
         self.s = settings
         self.elastic = ElasticClient(settings)
-        self.media = MediaUrlBuilder(settings.media_base_url)
+        self.media = MediaUrlBuilder(settings.keyframe_media_base_url, settings.media_base_url)
 
     async def build(self, video_id: str) -> dict[str, Any]:
         keyframes_raw = await self.elastic.get_video_keyframes(video_id)
@@ -41,6 +41,7 @@ class TimelineService:
         duration = keyframes[-1]["pts_time"] if keyframes else None
 
         return {
+            "retrieval_database": self.s.retrieval_database,
             "video_id": video_id,
             "fps": fps,
             "duration": duration,

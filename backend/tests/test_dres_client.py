@@ -71,7 +71,7 @@ async def test_expired_session_triggers_one_relogin_and_retry():
 
 
 @pytest.mark.asyncio
-async def test_submit_sends_answer_sets_and_reads_the_verdict():
+async def test_submit_sends_answer_sets_and_reads_the_verdict(allow_test_submit):
     bodies = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -100,7 +100,7 @@ async def test_submit_sends_answer_sets_and_reads_the_verdict():
 
 
 @pytest.mark.asyncio
-async def test_submit_202_is_accepted_without_a_verdict():
+async def test_submit_202_is_accepted_without_a_verdict(allow_test_submit):
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/api/v2/login":
             return httpx.Response(200, json=LOGIN_OK)
@@ -112,7 +112,7 @@ async def test_submit_202_is_accepted_without_a_verdict():
 
 
 @pytest.mark.asyncio
-async def test_submit_rejection_raises_with_the_server_description():
+async def test_submit_rejection_raises_with_the_server_description(allow_test_submit):
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/api/v2/login":
             return httpx.Response(200, json=LOGIN_OK)
@@ -191,7 +191,7 @@ async def test_prepare_resolves_the_open_task_name(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_submit_posts_to_dres_and_records_the_verdict(tmp_path):
+async def test_submit_posts_to_dres_and_records_the_verdict(tmp_path, allow_test_submit):
     posted: list[dict] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -403,7 +403,7 @@ async def test_task_hint_says_so_when_dres_withholds_it(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_dres_failure_still_records_the_attempt_locally(tmp_path):
+async def test_dres_failure_still_records_the_attempt_locally(tmp_path, allow_test_submit):
     def handler(request: httpx.Request) -> httpx.Response:
         path = request.url.path
         if path == "/api/v2/login":

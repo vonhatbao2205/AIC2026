@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 """Create Elasticsearch indices and bulk-upload retrieval metadata.
 
-Sources: local staging JSONL (keyframe map / speech / audio / OCR) and, for the
-object-detection index, the committed `od-frame-v5` shards on Cloudflare R2 —
-read and checksum-verified straight from the bucket, no local staging step.
+Sources: local staging JSONL (BTC keyframe map / speech / audio / OCR), final
+InfoShot++ map CSVs, and, for the object-detection index, the committed
+`od-frame-v5` shards on Cloudflare R2 — read and checksum-verified straight from
+the bucket, no local staging step.
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
 import gzip
 import hashlib
 import hmac
 import io
 import json
+import math
 import os
 import re
 import time
@@ -32,6 +35,13 @@ from typing import Any, Protocol
 DEFAULT_INDEX_PREFIX = "aic26"
 DEFAULT_R2_BUCKET = "aic26-media"
 DEFAULT_MAX_BULK_BYTES = 8 * 1024 * 1024
+DEFAULT_INFOSHOTPP_MAP_ROOT = Path(
+    "/home/bao/Projects/ExtractKeyframe/infoshootpp/map-keyframes"
+)
+DEFAULT_INFOSHOTPP_MAP_INDEX = "aic26_keyframe_map_infoshotpp_v1"
+EXPECTED_INFOSHOTPP_VIDEOS = 873
+EXPECTED_INFOSHOTPP_KEYFRAMES = 1_339_055
+EXPECTED_INFOSHOTPP_CATEGORIES = {f"L{number:02d}" for number in range(21, 31)}
 
 
 def read_secret(path: Path) -> str:
@@ -420,6 +430,7 @@ def keyframe_mapping() -> dict[str, Any]:
             "dynamic": False,
             "properties": {
                 "keyframe_id": keyword(),
+                "frame_id": keyword(),
                 "submit_keyframe_id": keyword(),
                 "video_id": keyword(),
                 "category_hint": keyword(),
@@ -794,6 +805,104 @@ def jsonl_source(
     return open_records
 
 
+def _infoshotpp_map_files(root: Path) -> list[Path]:
+    files = sorted(root.glob("L*/L*_V*.csv"))
+    if not files:
+        raise FileNotFoundError(f"Không tìm thấy map-keyframe CSV dưới {root}")
+    return files
+
+
+def iter_infoshotpp_keyframes(root: Path, *, skip: int = 0) -> Iterator[dict[str, Any]]:
+    """Read final InfoShot++ maps without conflating ordinal ``n`` and frame_idx.
+
+    The final JPEG is ``f{frame_idx:08d}.jpg`` while the application identity is
+    ``<category>/<video_id>/<n:03d>``.  ``pts_time`` is deliberately not required
+    to be monotonic: the final L25 maps contain a handful of sub-frame regressions,
+    while frame_idx remains the canonical strictly-increasing decode identity.
+    """
+    remaining = max(0, skip)
+    for path in _infoshotpp_map_files(root):
+        video_id = path.stem
+        category = path.parent.name
+        if video_id.split("_", 1)[0] != category:
+            raise ValueError(f"{path}: category/video mismatch")
+        expected_n = 1
+        previous_frame_idx = -1
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle)
+            if reader.fieldnames != ["n", "pts_time", "fps", "frame_idx"]:
+                raise ValueError(f"{path}: unexpected header {reader.fieldnames!r}")
+            for line_number, row in enumerate(reader, 2):
+                try:
+                    n = int(row["n"])
+                    pts_time = float(row["pts_time"])
+                    fps = float(row["fps"])
+                    frame_idx = int(row["frame_idx"])
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise ValueError(f"{path}:{line_number}: invalid map row") from exc
+                if n != expected_n:
+                    raise ValueError(f"{path}:{line_number}: n={n}, expected {expected_n}")
+                if frame_idx <= previous_frame_idx:
+                    raise ValueError(
+                        f"{path}:{line_number}: frame_idx={frame_idx} is not strictly increasing"
+                    )
+                if not math.isfinite(pts_time) or not math.isfinite(fps) or fps <= 0:
+                    raise ValueError(f"{path}:{line_number}: invalid pts_time/fps")
+                expected_n += 1
+                previous_frame_idx = frame_idx
+                if remaining:
+                    remaining -= 1
+                    continue
+                keyframe_name = f"{n:03d}"
+                yield {
+                    "keyframe_id": f"{video_id}/{keyframe_name}",
+                    "frame_id": f"{video_id}@f{frame_idx:08d}",
+                    "submit_keyframe_id": f"{category}/{video_id}/{keyframe_name}",
+                    "video_id": video_id,
+                    "category_hint": category,
+                    "submit_category": category,
+                    "keyframe_n": n,
+                    "keyframe_name": keyframe_name,
+                    "pts_time": pts_time,
+                    "fps": fps,
+                    "frame_idx": frame_idx,
+                }
+
+
+def infoshotpp_source(root: Path) -> Callable[[int], Iterator[dict[str, Any]]]:
+    def open_records(skip: int) -> Iterator[dict[str, Any]]:
+        return iter_infoshotpp_keyframes(root, skip=skip)
+
+    return open_records
+
+
+def audit_infoshotpp_maps(root: Path) -> dict[str, Any]:
+    """Fully validate the fixed final corpus before the first Elastic write."""
+    videos: set[str] = set()
+    categories: set[str] = set()
+    rows = 0
+    for record in iter_infoshotpp_keyframes(root):
+        rows += 1
+        videos.add(record["video_id"])
+        categories.add(record["submit_category"])
+    if rows != EXPECTED_INFOSHOTPP_KEYFRAMES:
+        raise RuntimeError(
+            f"InfoShot++ map rows={rows:,}, expected {EXPECTED_INFOSHOTPP_KEYFRAMES:,}"
+        )
+    if len(videos) != EXPECTED_INFOSHOTPP_VIDEOS:
+        raise RuntimeError(
+            f"InfoShot++ videos={len(videos):,}, expected {EXPECTED_INFOSHOTPP_VIDEOS:,}"
+        )
+    if categories != EXPECTED_INFOSHOTPP_CATEGORIES:
+        raise RuntimeError(
+            f"InfoShot++ categories={sorted(categories)}, expected "
+            f"{sorted(EXPECTED_INFOSHOTPP_CATEGORIES)}"
+        )
+    result = {"rows": rows, "videos": len(videos), "categories": sorted(categories)}
+    print(f"[keyframe_map_infoshotpp] preflight PASS: {result}")
+    return result
+
+
 def iter_jsonl(path: Path, transform: Callable[[dict[str, Any]], dict[str, Any]]) -> Iterator[dict[str, Any]]:
     with path.open(encoding="utf-8") as handle:
         for line in handle:
@@ -838,6 +947,8 @@ def build_jobs(
     prefix: str,
     staging_dir: Path,
     ocr_path: Path | None,
+    infoshotpp_map_root: Path | None = None,
+    infoshotpp_map_index: str = DEFAULT_INFOSHOTPP_MAP_INDEX,
     od_job: UploadJob | None = None,
 ) -> list[UploadJob]:
     jobs = [
@@ -866,6 +977,17 @@ def build_jobs(
             open_records=jsonl_source(staging_dir / "audio_windows_mapped.jsonl"),
         ),
     ]
+    if infoshotpp_map_root is not None:
+        jobs.append(
+            UploadJob(
+                logical_name="keyframe_map_infoshotpp",
+                index_name=infoshotpp_map_index,
+                id_field="submit_keyframe_id",
+                mapping=keyframe_mapping(),
+                source_label=str(infoshotpp_map_root),
+                open_records=infoshotpp_source(infoshotpp_map_root),
+            )
+        )
     if ocr_path is not None:
         jobs.append(
             UploadJob(
@@ -968,13 +1090,32 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--endpoint-file", type=Path, default=Path("API_KEY/elastic_endpoint.txt"))
     parser.add_argument("--api-key-file", type=Path, default=Path("API_KEY/elastic_apikey.txt"))
     parser.add_argument("--staging-dir", type=Path, default=Path("elastic_staging"))
-    parser.add_argument("--ocr-path", type=Path, default=Path("ocr_clean.jsonl"))
+    parser.add_argument("--ocr-path", type=Path, default=Path("OCR/ocr_clean.jsonl"))
     parser.add_argument("--no-ocr", action="store_true")
+    parser.add_argument(
+        "--infoshootpp-map-root",
+        type=Path,
+        default=DEFAULT_INFOSHOTPP_MAP_ROOT,
+        help="Root chứa Lxx/Lxx_Vxxx.csv của InfoShot++ final map.",
+    )
+    parser.add_argument(
+        "--infoshootpp-map-index",
+        default=DEFAULT_INFOSHOTPP_MAP_INDEX,
+        help="Index riêng cho map InfoShot++; không ghi đè map BTC.",
+    )
+    parser.add_argument("--no-infoshootpp-map", action="store_true")
     parser.add_argument("--index-prefix", default=DEFAULT_INDEX_PREFIX)
     parser.add_argument(
         "--only",
         nargs="*",
-        choices=["keyframe_map", "speech_segments", "audio_windows", "ocr_keyframes", "od_frames"],
+        choices=[
+            "keyframe_map",
+            "keyframe_map_infoshotpp",
+            "speech_segments",
+            "audio_windows",
+            "ocr_keyframes",
+            "od_frames",
+        ],
         help="Upload only selected logical indices.",
     )
     parser.add_argument("--resume-existing", action="store_true")
@@ -1010,10 +1151,22 @@ def main() -> None:
     endpoint = read_secret(args.endpoint_file)
     api_key = read_secret(args.api_key_file)
     ocr_path = None if args.no_ocr else args.ocr_path
-    jobs = build_jobs(args.index_prefix, args.staging_dir, ocr_path, build_od_job(args))
+    infoshotpp_root = None if args.no_infoshootpp_map else args.infoshootpp_map_root
+    jobs = build_jobs(
+        args.index_prefix,
+        args.staging_dir,
+        ocr_path,
+        infoshotpp_root,
+        args.infoshootpp_map_index,
+        build_od_job(args),
+    )
     if args.only:
         allowed = set(args.only)
         jobs = [job for job in jobs if job.logical_name in allowed]
+    if any(job.logical_name == "keyframe_map_infoshotpp" for job in jobs):
+        # Intentional second read: this pass proves the whole corpus is valid;
+        # upload_job then streams it. No partially-audited index is created.
+        audit_infoshotpp_maps(args.infoshootpp_map_root)
 
     client = ElasticClient(endpoint, api_key)
     cluster_info = client.json_request("GET", "/", expected=(200,), timeout=60)

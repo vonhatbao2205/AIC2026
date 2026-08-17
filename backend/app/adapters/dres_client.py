@@ -20,6 +20,7 @@ data returned by the endpoints in `app.main`.
 from __future__ import annotations
 
 import asyncio
+import os
 from typing import Any
 
 import httpx
@@ -236,6 +237,16 @@ class DresClient:
     # ---- submission -------------------------------------------------------
     async def submit(self, evaluation_id: str, answer_sets: list[dict[str, Any]]) -> dict[str, Any]:
         """POST one submission. 200 = judged, 202 = accepted, verdict pending."""
+        # A submission is irreversible and a wrong one is scored against the team.
+        # The suite runs in mock mode, but one leaked setting once turned that off
+        # mid-run and the submit tests posted 34 wrong answers to the official
+        # server. Refuse outright under pytest: no configuration mistake should be
+        # able to reach this line from a test.
+        if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("AIC26_ALLOW_TEST_SUBMIT"):
+            raise DresError(
+                "Refusing to submit from a test run. Set AIC26_ALLOW_TEST_SUBMIT=1 "
+                "only against a local DRES simulator, never the official server."
+            )
         body = {"answerSets": answer_sets}
         client = self._pool.get()
         url = f"{self.base_url}/api/v2/submit/{evaluation_id}"

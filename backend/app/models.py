@@ -7,6 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 QueryTypeHint = Literal["auto", "T-KIS", "QA", "V-KIS", "TRAKE"]
+RetrievalDatabase = Literal["btc", "infoshotpp"]
 
 
 class ManualOverrides(BaseModel):
@@ -32,6 +33,7 @@ class FeedbackState(BaseModel):
 
 
 class SearchRequest(BaseModel):
+    retrieval_database: RetrievalDatabase = "btc"
     query: str = ""
     query_type_hint: QueryTypeHint = "auto"
     previous_hints: list[str] = Field(default_factory=list)
@@ -45,6 +47,7 @@ class SearchRequest(BaseModel):
 
 
 class SimpleSearchRequest(BaseModel):
+    retrieval_database: RetrievalDatabase = "btc"
     query: str = ""
     top_k: int = 60
 
@@ -54,6 +57,7 @@ class TranslateRequest(BaseModel):
 
 
 class TrakeSearchRequest(BaseModel):
+    retrieval_database: RetrievalDatabase = "btc"
     query: str = ""
     previous_hints: list[str] = Field(default_factory=list)
     manual_overrides: ManualOverrides = Field(default_factory=ManualOverrides)
@@ -66,6 +70,7 @@ class TrakeSearchRequest(BaseModel):
 
 
 class SnapRequest(BaseModel):
+    retrieval_database: RetrievalDatabase = "btc"
     raw_time: float
     fps: float | None = None
 
@@ -92,6 +97,7 @@ class CanvasSpec(BaseModel):
 
 
 class CanvasSearchRequest(BaseModel):
+    retrieval_database: RetrievalDatabase = "btc"
     canvas: CanvasSpec
     top_k: int = Field(default=100, ge=1, le=400)
     max_videos: int = Field(default=50, ge=1, le=200)
@@ -115,6 +121,7 @@ class QaCandidate(BaseModel):
 
 
 class QaAnalyzeRequest(BaseModel):
+    retrieval_database: RetrievalDatabase = "btc"
     question: str = Field(min_length=1, max_length=2000)
     candidates: list[QaCandidate] = Field(min_length=1, max_length=24)
     max_answers: int = Field(default=5, ge=1, le=8)

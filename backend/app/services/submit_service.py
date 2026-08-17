@@ -25,6 +25,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from .. import paths
 from ..adapters.dres_client import DresClient, DresError, DresNotConfigured
 from ..config import Settings
 
@@ -259,9 +260,7 @@ class SubmitService:
         self.s = settings
         self.dres = dres if dres is not None else DresClient(settings)
         self._lock = threading.Lock()
-        self.history_path = history_path or (
-            Path(__file__).resolve().parents[2] / "data" / "submit_history.json"
-        )
+        self.history_path = history_path or (paths.data_dir() / "submit_history.json")
         self.history_path.parent.mkdir(parents=True, exist_ok=True)
         self._history: list[dict[str, Any]] = self._load()
         self._overview_cache: tuple[float, list[dict[str, Any]]] | None = None

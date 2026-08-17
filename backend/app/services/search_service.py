@@ -31,7 +31,7 @@ class SearchService:
         self.pe = PeEncoderClient(settings)
         self.glap = GlapEncoderClient(settings)
         self.parser = QueryParser(settings)
-        self.media = MediaUrlBuilder(settings.media_base_url)
+        self.media = MediaUrlBuilder(settings.keyframe_media_base_url, settings.media_base_url)
 
     # ---- channel runners ----------------------------------------------
     async def _run_image_pe(self, cfg: dict[str, Any], top_k: int) -> tuple[list[ChannelHit], float]:
@@ -254,6 +254,8 @@ class SearchService:
             "speech": self._run_speech,
             "audio": self._run_audio,
         }
+        if self.s.is_infoshotpp:
+            runners = {"image_pe": self._run_image_pe}
         feedback = feedback or {}
         tasks: dict[Channel, asyncio.Task] = {}
         for name, runner in runners.items():
@@ -270,6 +272,16 @@ class SearchService:
         channel_hits: dict[Channel, list[ChannelHit]] = {}
         weights: dict[str, float] = {}
         warnings: list[str] = []
+        if self.s.is_infoshotpp:
+            disabled = [
+                name
+                for name in ("ocr", "speech", "audio")
+                if channels_cfg.get(name, {}).get("enabled")
+            ]
+            if disabled:
+                warnings.append(
+                    "InfoShot++ hiện chỉ hỗ trợ PE image; đã tắt: " + ", ".join(disabled)
+                )
         for name, task in tasks.items():
             try:
                 hits, ms = await task
@@ -324,7 +336,13 @@ class SearchService:
         t0 = time.perf_counter()
         query = (query or "").strip()
         if not query:
-            return {"query": query, "results": [], "mode": "mock" if self.s.mock_mode else "live", "latency_ms": 0}
+            return {
+                "query": query,
+                "results": [],
+                "retrieval_database": self.s.retrieval_database,
+                "mode": "mock" if self.s.mock_mode else "live",
+                "latency_ms": 0,
+            }
         # Translate VI→EN so the English-centric PE encoder gets an English query.
         search_text = query
         if self.s.translate_to_en and not self.s.mock_mode:
@@ -339,7 +357,11 @@ class SearchService:
                 f"Restart the Kaggle PE server and update PE_ENCODER_URL. Detail: {exc}"
             ) from exc
         try:
-            raw = await asyncio.to_thread(self.milvus.search_image, vectors[0], top_k=top_k)
+            raw = (
+                self.milvus.search_image(vectors[0], top_k=top_k)
+                if self.milvus.mock
+                else await asyncio.to_thread(self.milvus.search_image, vectors[0], top_k=top_k)
+            )
         except Exception as exc:  # noqa: BLE001
             raise ServiceUnavailable(f"Milvus image search failed: {exc}") from exc
         results = [
@@ -356,6 +378,7 @@ class SearchService:
         ]
         return {
             "query": query,
+            "retrieval_database": self.s.retrieval_database,
             "translated_query": search_text if search_text != query else None,
             "results": results,
             "mode": "mock" if self.s.mock_mode else "live",
@@ -412,6 +435,7 @@ class SearchService:
 
         return {
             "query": query,
+            "retrieval_database": self.s.retrieval_database,
             "parsed": parsed,
             "groups": [self._serialize_group(g) for g in groups[: req.get("max_videos", 50)]],
             "latency_ms": latency,

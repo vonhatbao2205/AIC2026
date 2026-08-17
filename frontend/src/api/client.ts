@@ -5,6 +5,8 @@ import type {
   CanvasPalette,
   CanvasSearchResponse,
   CanvasSpec,
+  ConfigImportResult,
+  ConfigStatus,
   DresEvaluation,
   DresStatus,
   DresTaskHint,
@@ -14,6 +16,7 @@ import type {
   QaAnalysisResponse,
   QaAnalyzeCandidate,
   QueryTypeHint,
+  RetrievalDatabase,
   SearchResponse,
   SimpleSearchResponse,
   SnapResult,
@@ -88,12 +91,37 @@ export interface SubmitBody {
 }
 
 export const api = {
-  health: () => request<HealthResponse>("/api/health"),
+  health: (database: RetrievalDatabase = "btc") =>
+    request<HealthResponse>(`/api/health?retrieval_database=${database}`),
 
-  simpleSearch: (query: string, top_k: number) =>
+  config: () => request<ConfigStatus>("/api/config"),
+
+  /** URL of the documented `.env` template — used as a plain download link. */
+  configTemplateUrl: () => `${BASE}/api/config/template`,
+
+  importConfig: async (file: File, replace: boolean): Promise<ConfigImportResult> => {
+    const form = new FormData();
+    form.append("file", file, ".env");
+    form.append("replace", String(replace));
+    const resp = await fetch(`${BASE}/api/config/import`, { method: "POST", body: form });
+    if (!resp.ok) {
+      let detail: unknown = null;
+      try {
+        detail = (await resp.json()).detail ?? null;
+      } catch {
+        /* ignore */
+      }
+      throw new ApiError(resp.status, detail, `${resp.status} /api/config/import`);
+    }
+    return resp.json();
+  },
+
+  reloadConfig: () => request<ConfigStatus>("/api/config/reload", { method: "POST" }),
+
+  simpleSearch: (query: string, top_k: number, retrieval_database: RetrievalDatabase = "btc") =>
     request<SimpleSearchResponse>("/api/search/simple", {
       method: "POST",
-      body: JSON.stringify({ query, top_k }),
+      body: JSON.stringify({ query, top_k, retrieval_database }),
     }),
 
   parse: (query: string, hint: QueryTypeHint, previous_hints: string[], overrides: ManualOverrides, use_llm = false) =>
@@ -103,6 +131,7 @@ export const api = {
     }),
 
   search: (body: {
+    retrieval_database: RetrievalDatabase;
     query: string;
     query_type_hint: QueryTypeHint;
     previous_hints: string[];
@@ -117,7 +146,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
-  searchTrake: (body: { query: string; previous_hints: string[]; manual_overrides: ManualOverrides; use_llm?: boolean; expand?: boolean }) =>
+  searchTrake: (body: { retrieval_database: RetrievalDatabase; query: string; previous_hints: string[]; manual_overrides: ManualOverrides; use_llm?: boolean; expand?: boolean }) =>
     request<TrakeSearchResponse>("/api/search/trake", {
       method: "POST",
       body: JSON.stringify(body),
@@ -125,13 +154,14 @@ export const api = {
 
   canvasPalette: () => request<CanvasPalette>("/api/canvas/palette"),
 
-  searchCanvas: (body: { canvas: CanvasSpec; top_k?: number; candidate_pool?: number }) =>
+  searchCanvas: (body: { retrieval_database: RetrievalDatabase; canvas: CanvasSpec; top_k?: number; candidate_pool?: number }) =>
     request<CanvasSearchResponse>("/api/search/canvas", {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
   qaAnalyze: (body: {
+    retrieval_database: RetrievalDatabase;
     question: string;
     candidates: QaAnalyzeCandidate[];
     max_answers?: number;
@@ -142,12 +172,13 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
-  timeline: (videoId: string) => request<Timeline>(`/api/videos/${videoId}/timeline`),
+  timeline: (videoId: string, database: RetrievalDatabase = "btc") =>
+    request<Timeline>(`/api/videos/${videoId}/timeline?retrieval_database=${database}`),
 
-  snap: (videoId: string, rawTime: number, fps?: number) =>
+  snap: (videoId: string, rawTime: number, fps?: number, retrieval_database: RetrievalDatabase = "btc") =>
     request<SnapResult>(`/api/videos/${videoId}/snap`, {
       method: "POST",
-      body: JSON.stringify({ raw_time: rawTime, fps }),
+      body: JSON.stringify({ raw_time: rawTime, fps, retrieval_database }),
     }),
 
   // ---- DRES ----------------------------------------------------------------

@@ -18,6 +18,7 @@ nvidia_api_key.txt
 # Defensive patterns for any other loose credential files
 *api*key*.txt
 *_token.txt
+HF_BUCKET/HF_TOKEN.txt
 *_endpoint.txt
 *secret*.txt
 *credentials*.json
@@ -68,6 +69,9 @@ backend/data/
 # Pipeline checkpoints / runtime state
 *_checkpoint.json
 milvus_upload_checkpoint.json
+.milvus_upload_state_*.json
+milvus_upload_pe_core_verification.json
+.hf_media_local_upload_state*.json
 
 # ---- OS / editor ------------------------------------------------------------
 .DS_Store
@@ -75,3 +79,12 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# ---- Packaged app (docker compose) ------------------------------------------
+# The imported .env and the submit history of a local container run.
+/config/
+/data/
+# Distributable bundle produced by scripts/package.sh
+/dist-app/
+/dist-app.zip
+/dist-app.tar.gz

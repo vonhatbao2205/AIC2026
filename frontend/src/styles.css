@@ -634,3 +634,35 @@ button { font-family: inherit; }
 .canvas-panel .row.between { justify-content: space-between; width: 100%; }
 .canvas-panel .hint { font-size: 11px; color: var(--fg-faint); }
 .canvas-panel .k { font-size: 10px; color: var(--fg-faint); letter-spacing: 0.03em; }
+
+/* ---- Settings / configuration modal ---- */
+.cfg-banner { padding: 10px 12px; border-radius: var(--radius-sm); font-size: 12.5px; line-height: 1.5; margin-bottom: 12px; border: 1px solid var(--line-2); background: var(--bg-3); }
+.cfg-banner.bad { border-color: color-mix(in srgb, var(--bad) 45%, transparent); background: color-mix(in srgb, var(--bad) 10%, var(--bg-3)); }
+.cfg-banner.warn { border-color: color-mix(in srgb, var(--warn) 45%, transparent); background: color-mix(in srgb, var(--warn) 10%, var(--bg-3)); }
+.cfg-banner.ok { border-color: color-mix(in srgb, var(--ok) 45%, transparent); background: color-mix(in srgb, var(--ok) 10%, var(--bg-3)); }
+.cfg-banner code, .cfg-banner .mono { font-family: var(--mono); font-size: 11.5px; }
+
+.cfg-drop { border: 1.5px dashed var(--line-2); border-radius: var(--radius); padding: 22px 16px; text-align: center; cursor: pointer; background: var(--bg-3); transition: border-color .12s, background .12s; }
+.cfg-drop:hover, .cfg-drop.over { border-color: var(--accent); background: var(--accent-weak); }
+.cfg-drop-main { font-size: 13px; color: var(--fg); }
+.cfg-drop-sub { font-size: 11.5px; color: var(--fg-faint); margin-top: 4px; }
+
+.cfg-actions { display: flex; align-items: center; gap: 8px; margin: 12px 0 14px; }
+.cfg-actions .spacer { flex: 1; }
+.cfg-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-dim); cursor: pointer; }
+
+.cfg-path { font-size: 11.5px; color: var(--fg-faint); margin-bottom: 12px; }
+.cfg-group { margin-bottom: 14px; }
+.cfg-group-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+.cfg-group-name { font-size: 12px; font-weight: 600; color: var(--fg); }
+.cfg-group-sum { font-size: 11px; color: var(--fg-faint); }
+.cfg-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.cfg-table td { padding: 4px 6px; border-top: 1px solid var(--line-soft); vertical-align: top; }
+.cfg-table tr.missing .cfg-key { color: var(--bad); }
+.cfg-key { white-space: nowrap; color: var(--fg-dim); width: 1%; }
+.cfg-key .health-dot { margin-right: 6px; }
+.cfg-req { color: var(--bad); margin-left: 2px; }
+.cfg-label { color: var(--fg-faint); }
+.cfg-value { color: var(--fg-dim); word-break: break-all; }
+.cfg-unset { color: var(--fg-faint); }
+.cfg-envtag { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 999px; font-size: 9.5px; letter-spacing: .04em; text-transform: uppercase; background: var(--bg-hover); color: var(--fg-faint); border: 1px solid var(--line); }

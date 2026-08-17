@@ -51,7 +51,7 @@ class CanvasService:
         self.s = settings
         self.search_service = search_service or SearchService(settings)
         self.objects = ObjectElasticClient(settings)
-        self.media = MediaUrlBuilder(settings.media_base_url)
+        self.media = MediaUrlBuilder(settings.keyframe_media_base_url, settings.media_base_url)
 
     async def search(self, req: dict[str, Any]) -> dict[str, Any]:
         t_total = time.perf_counter()

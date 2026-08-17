@@ -14,6 +14,7 @@ import type {
   ParsedQuery,
   QaAnalysisResponse,
   QueryType,
+  RetrievalDatabase,
   SubmitEntry,
   SubmitPreview,
   Timeline as TimelineData,
@@ -50,7 +51,16 @@ const EMPTY_FEEDBACK: FeedbackState = {
   positive_videos: [], negative_videos: [], positive_frames: [], negative_frames: [],
 };
 
-export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void }) {
+interface ConsoleProps {
+  onSimpleMode: () => void;
+  onShowSettings: () => void;
+  /** Changes when the operator imports a new config; re-reads service health. */
+  configVersion?: number;
+  retrievalDatabase: RetrievalDatabase;
+  onRetrievalDatabase: (database: RetrievalDatabase) => void;
+}
+
+export default function FullConsole({ onSimpleMode, onShowSettings, configVersion = 0, retrievalDatabase, onRetrievalDatabase }: ConsoleProps) {
   const [queryType, setQueryType] = useState<QueryType>("T-KIS");
   const [query, setQuery] = useState("");
   const [hints, setHints] = useState<string[]>([]);
@@ -215,10 +225,24 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
 
 
   // ---- bootstrap: health + history + timer ----
+  // Re-runs on a config import: the backend swapped its whole service stack, so
+  // the capability flags this UI hides features behind are stale.
   useEffect(() => {
-    api.health().then(setHealth).catch(() => setHealth(null));
+    api.health(retrievalDatabase).then(setHealth).catch(() => setHealth(null));
     refreshHistory();
-  }, []);
+  }, [configVersion, retrievalDatabase]);
+
+  useEffect(() => {
+    timelineCache.current.clear();
+    setGroups([]);
+    setParsed(null);
+    setTimeline(null);
+    setActiveVideoId(null);
+    setVideoVisible(false);
+    setFeedback(EMPTY_FEEDBACK);
+    setOverrides(EMPTY_OVERRIDES);
+    setCanvasQueries([]);
+  }, [retrievalDatabase]);
 
   useEffect(() => {
     const id = setInterval(() => setElapsed((e) => e + 1), 1000);
@@ -393,14 +417,14 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     }
     let cancelled = false;
     setTimeline(null); // show loading state for the new video
-    api.timeline(activeVideoId).then((tl) => {
+    api.timeline(activeVideoId, retrievalDatabase).then((tl) => {
       timelineCache.current.set(activeVideoId, tl);
       if (!cancelled) setTimeline(tl);
     }).catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [activeVideoId]);
+  }, [activeVideoId, retrievalDatabase]);
 
   // ---- search ----
   const runSearch = useCallback(async () => {
@@ -415,7 +439,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     setCanvasQueries([]);
     try {
       if (queryType === "TRAKE") {
-        const res = await api.searchTrake({ query, previous_hints: hints, manual_overrides: overrides, use_llm: useLLM, expand });
+        const res = await api.searchTrake({ retrieval_database: retrievalDatabase, query, previous_hints: hints, manual_overrides: overrides, use_llm: useLLM, expand });
         setParsed(res.parsed);
         const grp: VideoGroup[] = res.sequences.map((s) => ({
           video_id: s.video_id,
@@ -453,6 +477,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
         setActiveSlot(0);
       } else {
         const res = await api.search({
+          retrieval_database: retrievalDatabase,
           query,
           query_type_hint: queryType,
           previous_hints: hints,
@@ -478,7 +503,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     } finally {
       setLoading(false);
     }
-  }, [query, hints, overrides, queryType, feedback, useLLM, expand]);
+  }, [query, hints, overrides, queryType, feedback, useLLM, expand, retrievalDatabase]);
 
   // ---- V-KIS canvas search ----
   // A separate entry point from the text query: the canvas is its own query, so
@@ -490,7 +515,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     setDuplicateId(null);
     setPausedFrame(null);
     try {
-      const res = await api.searchCanvas({ canvas });
+      const res = await api.searchCanvas({ retrieval_database: retrievalDatabase, canvas });
       setParsed(null);
       setGroups(res.groups);
       setLatency(res.latency_ms);
@@ -507,7 +532,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [retrievalDatabase]);
 
   // Moving the selection to a different video auto-hides the old inline video
   // (it will reload only when the operator presses 'v' on the new video).
@@ -642,6 +667,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
     setQaAnalysisError(null);
     try {
       const result = await api.qaAnalyze({
+        retrieval_database: retrievalDatabase,
         question,
         candidates: qaCandidates,
         max_answers: 5,
@@ -1090,8 +1116,11 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
         penalties={penalties}
         latency={latency}
         health={health}
+        retrievalDatabase={retrievalDatabase}
+        onRetrievalDatabase={onRetrievalDatabase}
         onSimpleMode={onSimpleMode}
         onShowKeymap={() => setKeymapOpen(true)}
+        onShowSettings={onShowSettings}
       />
       <DresBar
         status={dresStatus}
@@ -1136,7 +1165,7 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
             expand={expand}
             onToggleExpand={() => setExpand((v) => !v)}
           />
-          <ChannelControls parsed={parsed} overrides={overrides} onToggle={toggleChannel} />
+          <ChannelControls retrievalDatabase={retrievalDatabase} parsed={parsed} overrides={overrides} onToggle={toggleChannel} />
           <QueryUnderstanding parsed={parsed} />
         </div>
 
@@ -1144,13 +1173,18 @@ export default function FullConsole({ onSimpleMode }: { onSimpleMode: () => void
         <div className="col col-center" style={focusZone === "results" ? { boxShadow: "inset 0 2px 0 var(--accent)" } : undefined}>
           {/* The canvas lives in the widest column: V-KIS drawing accuracy is
               limited by how much room the operator has to draw. */}
-          {queryType === "V-KIS" && (
+          {queryType === "V-KIS" && retrievalDatabase === "btc" && (
             <CanvasPanel
               onSearch={runCanvasSearch}
               loading={loading}
               generatedQueries={canvasQueries}
               objectSearchAvailable={health ? Boolean(health.capabilities.canvas_object_search) : null}
             />
+          )}
+          {queryType === "V-KIS" && retrievalDatabase === "infoshotpp" && (
+            <div className="warn-banner">
+              InfoShot++ hiện chỉ có PE image; OCR, speech, audio và V-KIS canvas chưa được index.
+            </div>
           )}
           <div className="results-toolbar">
             <span className="results-count">

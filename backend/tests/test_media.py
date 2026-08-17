@@ -34,3 +34,10 @@ def test_shard_submit_id_resolves_to_video_group():
     b = MediaUrlBuilder(BASE)
     url = b.keyframe_url_from_submit_id("L26/L26_V001/014")
     assert "Keyframes_L26/L26_V001/014.jpg" in url
+
+
+def test_split_keyframe_hf_and_video_r2_origins():
+    b = MediaUrlBuilder("https://hf.test/resolve", "https://r2.test")
+
+    assert b.keyframe_url("L26_V001", 12).startswith("https://hf.test/resolve/Keyframes/")
+    assert b.video_url("L26_V001") == "https://r2.test/Videos/Videos_L26/L26_V001.mp4"
