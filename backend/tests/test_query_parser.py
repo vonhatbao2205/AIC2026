@@ -23,6 +23,56 @@ def test_ocr_fold_matches_ingestion_for_vietnamese_d_stroke():
     assert p["channels"]["ocr"]["queries_folded"] == ["dai hoc 2021"]
 
 
+def test_ocr_keeps_the_number_and_drops_the_prose_around_it():
+    """Regression: a scene description was sent to OCR as an all-token query.
+
+    `search_ocr` ANDs `queries_vi`, so this 28-token sentence asked Elasticsearch
+    for a frame containing every word of it — 0 of the 779,995 OCR frames do. The
+    only thing actually printed on the answer frames is the speed readout "69".
+    """
+    p = heuristic_parse(
+        "Đoạn video không chuyển cảnh thể hiện phần đua nước rút về đích của các "
+        "tay đua. Vận tốc cao nhất đo được đến con số 69 km/h."
+    )
+    ocr = p["channels"]["ocr"]
+
+    assert ocr["enabled"] is True
+    assert ocr["numbers"] == ["69"]
+    assert ocr["queries_vi"] == []
+    assert ocr["queries_folded"] == []
+
+
+def test_ocr_keeps_a_short_query_as_literal_screen_text():
+    ocr = heuristic_parse("THPT 2021")["channels"]["ocr"]
+    assert ocr["queries_vi"] == ["THPT 2021"]
+    assert ocr["numbers"] == ["2021"]
+
+
+def test_ocr_quoted_span_wins_over_the_sentence_around_it():
+    ocr = heuristic_parse(
+        'Người dẫn chương trình đứng trước tấm bảng có dòng chữ "Chào mừng năm học mới" '
+        "trong sân trường đông học sinh"
+    )["channels"]["ocr"]
+    assert ocr["exact_phrases"] == ["Chào mừng năm học mới"]
+    assert ocr["queries_vi"] == []
+
+
+def test_ocr_ignores_a_digit_welded_to_a_code():
+    ocr = heuristic_parse("logo VTV3 ở góc màn hình")["channels"]["ocr"]
+    assert ocr["numbers"] == []  # the 3 belongs to VTV3, it is not a number to search
+    assert ocr["queries_vi"] == ["logo VTV3 ở góc màn hình"]
+
+
+def test_ocr_stays_off_when_a_cue_word_yields_nothing_searchable():
+    """A cue word alone is not evidence: enabling OCR here would cost a request
+    and return nothing, because no part of the sentence is printed on a frame."""
+    ocr = heuristic_parse(
+        "Cảnh quay có một tấm biển hiệu rất mờ ở phía xa trong con hẻm nhỏ vào "
+        "buổi tối mà người xem hoàn toàn không đọc được nội dung của nó"
+    )["channels"]["ocr"]
+    assert ocr["enabled"] is False
+
+
 def test_heuristic_speech_likely():
     p = heuristic_parse("thủ tướng phát biểu về kinh tế")
     assert p["channels"]["speech"]["enabled"] is True

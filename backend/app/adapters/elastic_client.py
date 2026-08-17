@@ -36,23 +36,31 @@ def _unique_text(values: list[str] | None) -> list[str]:
     return out
 
 
-def _numeric_filters(
+def _safe_numbers(
     numbers: list[str] | None,
     queries: list[str],
     *,
     hour: int | None,
     clock: str | None,
-) -> list[dict[str, Any]]:
-    """Build hard constraints for standalone numeric OCR evidence.
+) -> list[str]:
+    """The numbers in a query that are worth searching for on their own.
 
     Digits embedded in an alphanumeric code (for example the ``3`` in VTV3)
     are already protected by the strict all-token query and must not be queried
     as a separate token.  Clock/hour values are stored outside ``text_clean``
     by OCR post-processing, so their dedicated filters replace text filters.
+
+    A number is dropped only when the query text proves it is embedded: it occurs
+    in that text and never occurs standalone there. A number the text does not
+    mention at all is left alone — the parser strips descriptive prose before
+    calling this, so `queries` can be empty or hold an unrelated phrase while the
+    numbers came from the part of the query that was discarded. Vetoing on that
+    absence used to delete every number and leave the OCR channel with nothing.
     """
     clock_parts = set(re.findall(r"\d+", clock or ""))
     if hour is not None:
         clock_parts.add(str(hour))
+    haystack = [query for query in queries if query and query.strip()]
 
     safe: list[str] = []
     for raw in numbers or []:
@@ -60,9 +68,15 @@ def _numeric_filters(
         if not number.isdigit() or number in clock_parts or number in safe:
             continue
         standalone = re.compile(rf"(?<!\w){re.escape(number)}(?!\w)", re.UNICODE)
-        if any(standalone.search(query) for query in queries):
-            safe.append(number)
+        mentioned = any(number in query for query in haystack)
+        if mentioned and not any(standalone.search(query) for query in haystack):
+            continue  # only ever appears welded into a code, e.g. the 3 of VTV3
+        safe.append(number)
+    return safe
 
+
+def _numeric_filters(numbers: list[str]) -> list[dict[str, Any]]:
+    """One hard constraint per number, so every number in the query is required."""
     return [
         {
             "dis_max": {
@@ -74,7 +88,7 @@ def _numeric_filters(
                 "tie_breaker": 0.0,
             }
         }
-        for number in safe
+        for number in numbers
     ]
 
 
@@ -300,10 +314,6 @@ class ElasticClient:
         clock: str | None = None,
         size: int = 100,
     ) -> list[dict[str, Any]]:
-        # No query text and no time filter => nothing to search (never match_all).
-        if not queries_vi and not (queries_folded or []) and not (exact_phrases or []) and hour is None and not clock:
-            return []
-
         queries_vi = _unique_text(queries_vi)
         queries_folded = _unique_text(
             [*(queries_folded or []), *(fold_vietnamese(query) for query in queries_vi)]
@@ -315,6 +325,10 @@ class ElasticClient:
                 for query in [*queries_vi, *exact_phrases]
                 for number in re.findall(r"\d+", query)
             ]
+        # No text, no digits and no time filter => nothing to search (never match_all).
+        if not queries_vi and not queries_folded and not exact_phrases and not numbers and hour is None and not clock:
+            return []
+
         if self.mock:
             return self._mock_ocr(
                 queries_vi,
@@ -326,70 +340,90 @@ class ElasticClient:
                 size=size,
             )
 
-        strict = _strict_ocr_clauses(queries_vi, queries_folded, exact_phrases)
-        if not strict:
-            return []  # never fall through to match_all on an empty text query
-
-        filt: list[dict] = []
-        if hour is not None:
-            filt.append({"term": {"hour": hour}})
-        if clock:
-            filt.append({"term": {"clock": clock}})
-        filt.extend(
-            _numeric_filters(
-                numbers,
-                [*queries_vi, *queries_folded, *exact_phrases],
-                hour=hour,
-                clock=clock,
-            )
+        safe_numbers = _safe_numbers(
+            numbers,
+            [*queries_vi, *queries_folded, *exact_phrases],
+            hour=hour,
+            clock=clock,
         )
+        numeric = _numeric_filters(safe_numbers)
+        strict = _strict_ocr_clauses(queries_vi, queries_folded, exact_phrases)
+        if not queries_vi and not queries_folded and safe_numbers:
+            # No free-text query, so the digits are first-class evidence and must
+            # score, not merely filter. They go through the exact-phrase builder
+            # so a frame whose overlay box IS the number — a speed readout, a
+            # jersey number — wins on the nested `boxes.text` clause instead of
+            # competing on whole-frame text length, where a long ticker
+            # mentioning the same digits would bury it.
+            #
+            # They are added even when `exact_phrases` already produced clauses,
+            # because those phrases are guesses about what is printed on screen
+            # and a wrong guess must not be able to delete the number. Measured:
+            # for "…69 km/h" an LLM proposes the phrase "km/h", but OCR reads the
+            # bare readout and never the unit — as the only `must` clause that
+            # phrase cut 641 candidates to 1 and lost the answer, while as one
+            # option of a dis_max alongside "69" it costs nothing.
+            strict += _strict_ocr_clauses([], [], safe_numbers)
 
-        strict_body = {
-            "size": size,
-            "query": {
-                "bool": {
-                    "must": [
-                        {
-                            "dis_max": {
-                                "queries": strict,
-                                # Multiple fields are representations of the same
-                                # OCR evidence.  Only a small secondary-field tie
-                                # boost is allowed instead of summing every field.
-                                "tie_breaker": 0.1,
-                            }
-                        }
-                    ],
-                    "filter": filt,
+        time_filters: list[dict] = []
+        if hour is not None:
+            time_filters.append({"term": {"hour": hour}})
+        if clock:
+            time_filters.append({"term": {"clock": clock}})
+
+        if strict:
+            must: list[dict] = [
+                {
+                    "dis_max": {
+                        "queries": strict,
+                        # Multiple fields are representations of the same
+                        # OCR evidence.  Only a small secondary-field tie
+                        # boost is allowed instead of summing every field.
+                        "tie_breaker": 0.1,
+                    }
                 }
-            },
-        }
-        strict_hits = _ocr_hits(await self._search(self.s.idx_ocr, strict_body))
+            ]
+            # dis_max above only needs ONE clause to match; these keep every
+            # number in the query required.
+            filt = [*time_filters, *numeric]
+        elif time_filters:
+            # A bare broadcast-clock query. Scores are uniform, but the frames it
+            # returns are exactly the matching ones and RRF consumes rank anyway.
+            must = []
+            filt = time_filters
+        else:
+            return []  # never fall through to match_all on an empty query
 
-        # Strict matches always form the first quality tier.  Only when that
-        # tier is sparse do we pay for a second fuzzy request, whose hits are
-        # appended (never allowed to outrank a full-coverage strict match).
-        strict_floor = min(size, _OCR_FALLBACK_STRICT_FLOOR)
-        if len(strict_hits) >= strict_floor:
-            return strict_hits[:size]
+        primary_body = {"size": size, "query": {"bool": {"must": must, "filter": filt}}}
+        primary_hits = _ocr_hits(await self._search(self.s.idx_ocr, primary_body))
 
+        # Full-coverage matches always form the first quality tier.  Only when
+        # that tier is sparse do we pay for a second fuzzy request, whose hits are
+        # appended (never allowed to outrank a full-coverage match).
+        fallback_floor = min(size, _OCR_FALLBACK_STRICT_FLOOR)
+        if len(primary_hits) >= fallback_floor:
+            return primary_hits[:size]
+
+        # Fuzzy only ever applies to words. A digits-only query has no fuzzy tier
+        # by construction: `_fuzzy_ocr_query` returns None without text sources.
         fuzzy = _fuzzy_ocr_query(queries_vi, queries_folded)
         if fuzzy is None:
-            return strict_hits[:size]
+            return primary_hits[:size]
         fallback_body = {
             "size": size,
-            "query": {"bool": {"must": [fuzzy], "filter": filt}},
+            "query": {"bool": {"must": [fuzzy], "filter": [*time_filters, *numeric]}},
         }
         fallback_hits = _ocr_hits(await self._search(self.s.idx_ocr, fallback_body))
-        seen = {hit["submit_keyframe_id"] for hit in strict_hits}
+        seen = {hit["submit_keyframe_id"] for hit in primary_hits}
         for hit in fallback_hits:
             keyframe_id = hit["submit_keyframe_id"]
             if keyframe_id in seen:
                 continue
-            strict_hits.append(hit)
+            primary_hits.append(hit)
             seen.add(keyframe_id)
-            if len(strict_hits) >= size:
+            if len(primary_hits) >= size:
                 break
-        return strict_hits
+        return primary_hits
 
     # ---- Speech --------------------------------------------------------
     async def search_speech(
@@ -595,15 +629,12 @@ class ElasticClient:
             for query in [*queries_vi, *queries_folded, *exact_phrases]
             if query
         ]
-        required_numbers = [
-            item["dis_max"]["queries"][0]["match"]["text_clean"]["query"]
-            for item in _numeric_filters(
-                numbers,
-                [*queries_vi, *queries_folded, *exact_phrases],
-                hour=hour,
-                clock=clock,
-            )
-        ]
+        required_numbers = _safe_numbers(
+            numbers,
+            [*queries_vi, *queries_folded, *exact_phrases],
+            hour=hour,
+            clock=clock,
+        )
         out = []
         for kf_id, rec in mock_data.MOCK_OCR.items():
             text = fold_vietnamese(rec["text_clean"])

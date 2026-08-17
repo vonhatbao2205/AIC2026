@@ -96,6 +96,102 @@ async def test_ocr_live_dsl_requires_all_terms_and_uses_dis_max(settings, monkey
 
 
 @pytest.mark.asyncio
+async def test_ocr_digits_only_query_scores_on_boxes_not_just_filters(settings, monkeypatch):
+    """A digits-only query must SELECT documents, not merely narrow them.
+
+    The parser drops the prose of a scene description and keeps its numbers, so
+    the numbers become the query. Left in `filter` they would narrow a result set
+    no other clause ever produced, and OCR would return nothing.
+    """
+    client = ElasticClient(settings)
+    client.mock = False
+    bodies = []
+
+    async def fake_search(index, body):
+        bodies.append(body)
+        return {"hits": {"hits": []}}
+
+    monkeypatch.setattr(client, "_search", fake_search)
+    await client.search_ocr([], [], numbers=["69"])
+
+    assert len(bodies) == 1  # no fuzzy tier for digits
+    dis_max = bodies[0]["query"]["bool"]["must"][0]["dis_max"]
+    nested = [clause for clause in dis_max["queries"] if "nested" in clause]
+    # The overlay number is its own OCR box, so the boxes clause is what ranks the
+    # right frame above a long ticker that happens to mention the same digits.
+    assert nested and nested[0]["nested"]["path"] == "boxes"
+    assert nested[0]["nested"]["query"]["match_phrase"]["boxes.text"]["query"] == "69"
+    # ...and the number stays required, not merely preferred.
+    numeric = bodies[0]["query"]["bool"]["filter"][0]["dis_max"]["queries"]
+    assert {next(iter(q["match"].values()))["query"] for q in numeric} == {"69"}
+
+
+@pytest.mark.asyncio
+async def test_ocr_wrong_phrase_cannot_delete_the_number_evidence(settings, monkeypatch):
+    """An LLM-proposed phrase is a guess about what is printed; a number is not.
+
+    For "…vận tốc 69 km/h" a parser may offer the phrase "km/h", but OCR reads the
+    bare readout and never the unit. As the only `must` clause that guess cut the
+    candidate set from 641 frames to 1 and lost the answer, so the number has to
+    stay in the same dis_max rather than being demoted to a filter.
+    """
+    client = ElasticClient(settings)
+    client.mock = False
+    bodies = []
+
+    async def fake_search(index, body):
+        bodies.append(body)
+        return {"hits": {"hits": []}}
+
+    monkeypatch.setattr(client, "_search", fake_search)
+    await client.search_ocr([], [], exact_phrases=["km/h"], numbers=["69"])
+
+    clauses = json.dumps(bodies[0]["query"]["bool"]["must"][0]["dis_max"]["queries"])
+    assert "km/h" in clauses and '"69"' in clauses
+
+
+@pytest.mark.asyncio
+async def test_ocr_free_text_query_keeps_numbers_as_filter_only(settings, monkeypatch):
+    """The full-coverage contract: "THPT 2021" must not be satisfied by "2021"."""
+    client = ElasticClient(settings)
+    client.mock = False
+    bodies = []
+
+    async def fake_search(index, body):
+        bodies.append(body)
+        return {"hits": {"hits": []}}
+
+    monkeypatch.setattr(client, "_search", fake_search)
+    await client.search_ocr(["THPT 2021"], ["thpt 2021"], numbers=["2021"])
+
+    for clause in bodies[0]["query"]["bool"]["must"][0]["dis_max"]["queries"]:
+        rendered = json.dumps(clause, ensure_ascii=False)
+        assert "THPT 2021" in rendered or "thpt 2021" in rendered
+
+
+@pytest.mark.asyncio
+async def test_ocr_clock_only_query_still_searches(settings, monkeypatch):
+    """A bare broadcast clock is a legitimate query; it used to return nothing."""
+    client = ElasticClient(settings)
+    client.mock = False
+    bodies = []
+
+    async def fake_search(index, body):
+        bodies.append(body)
+        return {"hits": {"hits": []}}
+
+    monkeypatch.setattr(client, "_search", fake_search)
+    await client.search_ocr([], [], hour=18, clock="18:29:57")
+
+    assert len(bodies) == 1
+    assert bodies[0]["query"]["bool"]["filter"] == [
+        {"term": {"hour": 18}},
+        {"term": {"clock": "18:29:57"}},
+    ]
+    assert bodies[0]["query"]["bool"]["must"] == []
+
+
+@pytest.mark.asyncio
 async def test_ocr_fuzzy_fallback_keeps_number_exact_and_below_strict(settings, monkeypatch):
     client = ElasticClient(settings)
     client.mock = False

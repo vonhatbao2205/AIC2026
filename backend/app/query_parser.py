@@ -32,6 +32,19 @@ _AUDIO_LABELS = {
 _TRAKE_CONNECTORS = ["sau đó", "rồi", "tiếp theo", "sau khi", "trước khi", "tiếp đến", "cuối cùng", "đầu tiên", "then", "after that", "next"]
 _QA_MARKERS = ["?", "bao nhiêu", "là gì", "ở đâu", "khi nào", "ai", "tại sao", "màu gì", "mấy"]
 _CLOCK_RE = re.compile(r"\b([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?\b")
+_QUOTED_RE = re.compile(r"[\"“”'`]([^\"“”'`]{2,}?)[\"“”'`]")
+_OCR_TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
+
+# A literal on-screen string a person types out is short: a channel bug, a
+# headline fragment, a score, a speed readout. `ElasticClient.search_ocr` turns
+# `queries_vi` into an `operator: and` clause, so handing it a descriptive
+# sentence asks Elasticsearch for one frame containing every word of it.
+# Measured against the InfoShot++ OCR corpus: the 28-token query "Đoạn video
+# không chuyển cảnh … 69 km/h" matches 0 of 779,995 frames (best overlap 21/28,
+# on an unrelated frame), while its one piece of real screen text — "69" — is
+# present on the answer frames. Past this many tokens the query is prose about a
+# scene rather than text on screen, so only the structured evidence is searched.
+OCR_MAX_LITERAL_TOKENS = 12
 
 
 def _empty_channel(name: str) -> dict[str, Any]:
@@ -49,6 +62,59 @@ def _empty_channel(name: str) -> dict[str, Any]:
 
 def _fold(text: str) -> str:
     return fold_vietnamese(text)
+
+
+def ocr_evidence(text: str, *, fallback_to_full_text: bool = False) -> dict[str, Any]:
+    """Pull out the parts of a query that could plausibly be printed on a frame.
+
+    Returns the OCR channel's evidence fields. Quoted spans, standalone numbers
+    and a broadcast clock are things a frame can literally contain; the prose
+    around them is not, and forwarding it as `queries_vi` would make the OCR
+    search require every word of the sentence (see `OCR_MAX_LITERAL_TOKENS`).
+
+    `fallback_to_full_text` is for a channel the operator forced on: with no
+    structured evidence at all, searching the text is still better than a forced
+    channel that quietly does nothing.
+    """
+    text = text.strip()
+    clock_match = _CLOCK_RE.search(text)
+    clock = clock_match.group(0) if clock_match else None
+    hour = int(clock_match.group(1)) if clock_match else None
+
+    exact_phrases: list[str] = []
+    for match in _QUOTED_RE.finditer(text):
+        phrase = match.group(1).strip()
+        if phrase and phrase not in exact_phrases:
+            exact_phrases.append(phrase)
+
+    # Clock digits are searched through `time_filters`, and a digit welded to a
+    # code ("VTV3") belongs to that code — neither is a number to look for alone.
+    clock_digits = set(re.findall(r"\d+", clock or ""))
+    numbers: list[str] = []
+    for number in re.findall(r"\d+", text):
+        if number in clock_digits or number in numbers:
+            continue
+        if re.search(rf"(?<!\w){re.escape(number)}(?!\w)", text):
+            numbers.append(number)
+
+    # The clock is spent through its own filter, so it must not eat the budget
+    # that decides whether the rest of the query reads as literal screen text.
+    without_clock = text.replace(clock, " ") if clock else text
+    literal = len(_OCR_TOKEN_RE.findall(without_clock)) <= OCR_MAX_LITERAL_TOKENS
+    if exact_phrases:
+        # Quotes already say which span is on screen; the rest is context.
+        literal = False
+    elif not literal and fallback_to_full_text and not numbers and not clock:
+        literal = True
+
+    queries_vi = [text] if literal and text else []
+    return {
+        "queries_vi": queries_vi,
+        "queries_folded": [_fold(query) for query in queries_vi],
+        "exact_phrases": exact_phrases,
+        "numbers": numbers,
+        "time_filters": {"hour": hour, "clock": clock},
+    }
 
 
 def heuristic_parse(
@@ -91,18 +157,24 @@ def heuristic_parse(
     )
 
     if ocr_likely:
-        clock_match = _CLOCK_RE.search(combined)
-        hour = int(clock_match.group(1)) if clock_match else None
-        numbers = re.findall(r"\d+", combined)
-        channels["ocr"].update(
-            enabled=True,
-            weight=0.8,
-            reason="Query has digits/quotes/text cues.",
-            queries_vi=[combined],
-            queries_folded=[_fold(combined)],
-            numbers=numbers,
-            time_filters={"hour": hour, "clock": clock_match.group(0) if clock_match else None},
-        )
+        evidence = ocr_evidence(combined)
+        # A cue word can flag a query as OCR-ish while leaving nothing a frame
+        # could actually contain. Enabling the channel then would cost a request
+        # and return nothing, so route on the evidence, not on the cue.
+        if any(
+            (
+                evidence["queries_vi"],
+                evidence["exact_phrases"],
+                evidence["numbers"],
+                evidence["time_filters"]["clock"],
+            )
+        ):
+            channels["ocr"].update(
+                enabled=True,
+                weight=0.8,
+                reason="Query has digits/quotes/text cues.",
+                **evidence,
+            )
     if speech_likely:
         channels["speech"].update(
             enabled=True, weight=0.8, reason="Query refers to spoken content.", queries_vi=[combined]
@@ -155,7 +227,7 @@ def heuristic_parse(
         "rerank_policy": {"use_rrf": True, "rrf_k": 60, "group_by_video": True, "prefer_temporal_cooccurrence": True},
         "ui_hints": {
             "show_timeline": query_type == "TRAKE",
-            "show_ocr_snippets": ocr_likely,
+            "show_ocr_snippets": channels["ocr"]["enabled"],
             "show_speech_snippets": speech_likely,
             "show_audio_badges": audio_likely,
             "require_submit_guard": True,
@@ -533,10 +605,11 @@ def _populate_channel_queries(parsed: dict[str, Any], name: str, channel: dict[s
     q_en = parsed.get("translated_en_visual") or q_vi
     if name == "image_pe" and not channel.get("queries_en"):
         channel["queries_en"] = [q_en] if q_en else []
-    elif name == "ocr" and not channel.get("queries_vi"):
-        channel["queries_vi"] = [q_vi] if q_vi else []
-        channel["queries_folded"] = [_fold(q_vi)] if q_vi else []
-        channel["numbers"] = re.findall(r"\d+", q_vi) if q_vi else []
+    elif name == "ocr" and not any(
+        channel.get(key) for key in ("queries_vi", "exact_phrases", "numbers")
+    ):
+        if q_vi:
+            channel.update(ocr_evidence(q_vi, fallback_to_full_text=True))
     elif name == "speech" and not channel.get("queries_vi"):
         channel["queries_vi"] = [q_vi] if q_vi else []
     elif name == "audio" and not channel.get("queries_en"):
