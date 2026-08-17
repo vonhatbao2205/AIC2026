@@ -99,6 +99,120 @@ button { font-family: inherit; }
   * { transition: none !important; animation: none !important; }
 }
 
+/* ---- Multi-tab shell ----
+   The rail is a fixed column on the left; each pane holds one whole console.
+   Parked panes stay mounted (display:none) so an imported pack can search them
+   all at once — their result thumbnails are lazy, so nothing is fetched. */
+.workspace-shell {
+  --rail-collapsed: 46px;
+  --rail-expanded: 208px;
+  display: grid; grid-template-columns: var(--rail-collapsed) 1fr;
+  height: 100vh; overflow: hidden;
+}
+.workspace-body { min-width: 0; min-height: 0; overflow: hidden; }
+.tab-pane { display: flex; flex-direction: column; height: 100vh; min-height: 0; overflow: hidden; }
+.tab-pane:empty { display: none; }
+.tab-pane > .app { flex: 1; min-height: 0; }
+
+/* The column keeps the collapsed width; the panel inside it grows over the
+   console. Expanding on :focus-within as well as :hover keeps the rail usable
+   when it is reached with the keyboard instead of a pointer. */
+.tab-rail { position: relative; z-index: 60; }
+.tab-rail-inner {
+  position: absolute; top: 0; bottom: 0; left: 0;
+  width: var(--rail-collapsed);
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--bg-2); border-right: 1px solid var(--line);
+  overflow: hidden;
+  transition: width 140ms ease, box-shadow 140ms ease;
+}
+.tab-rail:hover .tab-rail-inner,
+.tab-rail:focus-within .tab-rail-inner {
+  width: var(--rail-expanded);
+  box-shadow: 6px 0 22px rgba(0, 0, 0, 0.45);
+}
+@media (prefers-reduced-motion: reduce) { .tab-rail-inner { transition: none; } }
+
+.tab-rail-list { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+.rail-tab {
+  position: relative; cursor: pointer; user-select: none;
+  padding: 6px 8px; border-radius: 6px; border: 1px solid transparent;
+  background: var(--bg-1); display: flex; flex-direction: column; gap: 1px;
+  border-left: 3px solid var(--fg-faint);
+}
+.rail-tab:hover { background: var(--bg-3); }
+/* Only the non-left edges take the accent: the left border is the tab's query
+   type, which must stay readable while the tab is selected. */
+.rail-tab.active {
+  background: var(--bg-3);
+  border-top-color: var(--accent); border-right-color: var(--accent); border-bottom-color: var(--accent);
+}
+.rail-tab.tkis { border-left-color: var(--e1, #4f8cff); }
+.rail-tab.qa { border-left-color: var(--e2, #f2b23e); }
+.rail-tab.vkis { border-left-color: var(--e3, #9b7bff); }
+.rail-tab.trake { border-left-color: var(--e4, #38c1a0); }
+.rail-tab.submission { margin: 6px; border-left-color: var(--accent); }
+.rail-tab-code { font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+.rail-tab-type { font-size: 11px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+.rail-tab-sub { font-size: 10px; color: var(--fg-faint); display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.rail-tab-rows {
+  position: absolute; right: 4px; bottom: 4px;
+  font-size: 9px; padding: 0 4px; border-radius: 7px;
+  background: var(--accent); color: var(--bg);
+}
+.rail-tab-close {
+  position: absolute; right: 3px; top: 3px;
+  background: none; border: 0; color: var(--fg-faint); cursor: pointer;
+  font-size: 13px; line-height: 1; padding: 1px 3px; border-radius: 4px;
+}
+
+/* ---- collapsed state: two-letter code only, everything else folded away ---- */
+.tab-rail:not(:hover):not(:focus-within) .rail-tab-type,
+.tab-rail:not(:hover):not(:focus-within) .rail-tab-sub,
+.tab-rail:not(:hover):not(:focus-within) .rail-tab-close { display: none; }
+.tab-rail:hover .rail-tab-code,
+.tab-rail:focus-within .rail-tab-code { display: none; }
+.tab-rail:not(:hover):not(:focus-within) .rail-tab {
+  align-items: center; padding: 7px 4px;
+}
+.tab-rail:not(:hover):not(:focus-within) .rail-tab-rows {
+  right: 2px; bottom: 2px; padding: 0 3px;
+}
+.tab-rail:not(:hover):not(:focus-within) .rail-tab.submission { margin: 4px; }
+.rail-tab-close:hover { color: var(--bad); background: var(--bg-1); }
+.rail-add {
+  background: var(--bg-1); border: 1px dashed var(--line); color: var(--fg-dim);
+  border-radius: 6px; padding: 5px; cursor: pointer; font-size: 14px;
+}
+.rail-add:hover { color: var(--accent); border-color: var(--accent); }
+.rail-spin {
+  width: 7px; height: 7px; border-radius: 50%;
+  border: 1.5px solid var(--accent); border-top-color: transparent;
+  animation: rail-spin 0.7s linear infinite; display: inline-block;
+}
+@keyframes rail-spin { to { transform: rotate(360deg); } }
+
+/* ---- Submission tab ---- */
+.submission-view { overflow-y: auto; padding: 14px 18px 40px; height: 100vh; }
+.submission-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.submission-block { border: 1px solid var(--line); border-radius: 8px; margin-bottom: 12px; background: var(--bg-1); }
+.submission-block-head { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.submission-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.submission-table th {
+  text-align: left; font-weight: 500; font-size: 10px; color: var(--fg-faint);
+  padding: 4px 6px; border-bottom: 1px solid var(--line);
+}
+.submission-table td { padding: 2px 6px; border-bottom: 1px solid var(--bg-3); }
+.submission-table tr.bad-row { background: color-mix(in srgb, var(--bad) 12%, transparent); }
+.submission-table td.dim { color: var(--fg-faint); }
+.cell-input {
+  width: 100%; background: var(--bg); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; font-size: 12px;
+}
+.cell-input:focus { outline: none; border-color: var(--accent); }
+.submission-problems { margin: 6px 10px; padding-left: 16px; font-size: 11px; color: var(--bad); }
+.submission-empty-list { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 10px; }
+
 /* ---- App grid ---- */
 .app { display: grid; grid-template-rows: auto auto 1fr; height: 100vh; overflow: hidden; }
 .workspace { display: grid; grid-template-columns: 340px 1fr 392px; min-height: 0; gap: 0; }

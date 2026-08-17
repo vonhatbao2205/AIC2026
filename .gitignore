@@ -57,6 +57,7 @@ yarn-error.log*
 # Bulk index/staging records and transcripts
 *.jsonl
 elastic_staging/
+elastic_staging_v2/
 speech_out/
 results_audio_event/
 map-keyframes-s1-s2/

@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from app.config import Settings
 from app.media import MediaUrlBuilder
 
@@ -57,6 +59,39 @@ def test_infoshot_profile_splits_hf_keyframes_from_r2_video():
     assert media.video_url("L26_V001").startswith("https://media.r2.test/")
 
 
+def test_video_origin_is_split_per_profile_like_the_keyframe_origin():
+    """The HF bucket carries the 873 InfoShot++ videos (L21-L30) only.
+
+    Sending profile 1 there would 404 every K01-K20 video, so each profile keeps
+    its own video origin and only InfoShot++ moves to Hugging Face.
+    """
+    settings = replace(
+        configured_settings(),
+        video_media_base_url_2="https://hf.test/buckets/team/aic26-media/resolve",
+    )
+    btc = settings.for_retrieval_database("btc")
+    infoshot = settings.for_retrieval_database("infoshotpp")
+
+    assert MediaUrlBuilder(btc.keyframe_media_base_url, btc.video_media_base_url).video_url(
+        "K01_V001"
+    ) == "https://media.r2.test/Videos/Videos_K01/K01_V001.mp4"
+    assert MediaUrlBuilder(
+        infoshot.keyframe_media_base_url, infoshot.video_media_base_url
+    ).video_url("L26_V001") == (
+        "https://hf.test/buckets/team/aic26-media/resolve/Videos/Videos_L26/L26_V001.mp4"
+    )
+
+
+def test_profile_one_video_origin_can_be_moved_to_hugging_face_later():
+    """One env var flips BTC over once K01-K20 land in the bucket."""
+    settings = replace(configured_settings(), video_media_base_url_1="https://hf.test/resolve")
+    btc = settings.for_retrieval_database("btc")
+
+    assert MediaUrlBuilder(btc.keyframe_media_base_url, btc.video_media_base_url).video_url(
+        "K01_V001"
+    ) == "https://hf.test/resolve/Videos/Videos_K01/K01_V001.mp4"
+
+
 def test_unknown_profile_is_rejected():
     try:
         configured_settings().for_retrieval_database("wrong")
@@ -64,3 +99,20 @@ def test_unknown_profile_is_rejected():
         assert "Unknown retrieval database" in str(exc)
     else:
         raise AssertionError("unknown retrieval profile was accepted")
+
+
+def test_live_dres_submission_is_locked_off_by_default():
+    """Answers are collected in the app's Submission tab and exported as CSV.
+
+    Nothing may reach the evaluation server unless someone sets DRES_ENABLED, so
+    a fully-credentialled config still reports DRES as unavailable.
+    """
+    credentialled = Settings(
+        mock_mode=False,
+        dres_base_url="http://dres.test",
+        dres_username="fourier1",
+        dres_password="secret",
+    )
+    assert credentialled.dres_enabled is False
+    assert credentialled.has_dres is False
+    assert replace(credentialled, dres_enabled=True).has_dres is True

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "./api/client";
-import FullConsole from "./FullConsole";
+import Workspace from "./Workspace";
 import SimpleSearch from "./SimpleSearch";
 import { SettingsModal } from "./components/SettingsModal";
 import type { RetrievalDatabase } from "./api/types";
@@ -64,7 +64,7 @@ export default function App() {
           onShowSettings={() => setSettingsOpen(true)}
         />
       ) : (
-        <FullConsole
+        <Workspace
           onSimpleMode={() => go("simple")}
           onShowSettings={() => setSettingsOpen(true)}
           configVersion={configVersion}

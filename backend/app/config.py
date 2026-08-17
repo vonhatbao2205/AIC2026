@@ -12,6 +12,11 @@ from pathlib import Path
 
 from . import paths
 
+#: Public read endpoint of the team's Hugging Face storage bucket. The browse UI
+#: is `.../tree/<path>`; `/resolve/<path>` is what actually serves bytes (and
+#: honours Range requests, which `<video>` seeking needs).
+HF_MEDIA_BASE_URL = "https://huggingface.co/buckets/Baonenha1/aic26-media/resolve"
+
 
 # What this process took from a .env file, so a re-read can drop it first.
 # Without that, importing a new config would be a no-op: the previous values are
@@ -94,11 +99,16 @@ class Settings:
     # as PE; if unset, falls back to pe_encoder_url.
     glap_encoder_url: str | None = None
     media_base_url: str = "https://media.example.com"
-    # Active keyframe origin. Videos always stay on media_base_url (Cloudflare R2).
+    # Active keyframe/video origins for the profile handling this request.
     keyframe_media_base_url: str = "https://media.example.com"
-    keyframe_media_base_url_2: str = (
-        "https://huggingface.co/buckets/Baonenha1/aic26-media/resolve"
-    )
+    keyframe_media_base_url_2: str = HF_MEDIA_BASE_URL
+    # Videos are split the same way keyframes are, because the two origins do not
+    # hold the same corpus: the Hugging Face bucket carries the 873 InfoShot++
+    # videos (L21–L30) only, so pointing profile 1 at it would 404 every K01–K20
+    # video. Empty means "same origin as media_base_url".
+    video_media_base_url: str = ""
+    video_media_base_url_1: str = ""
+    video_media_base_url_2: str = HF_MEDIA_BASE_URL
     nvidia_api_key: str | None = None
     nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
     # Routing parser model. qwen3-next (3B-active MoE) is the fastest model that
@@ -144,6 +154,10 @@ class Settings:
     # overlap checks, and ±0.5 s stays far inside a typical KIS target segment.
     dres_segment_pad_ms: int = 500
     dres_timeout_seconds: float = 20.0
+    # Master switch for live submission. Answers are collected in the app's
+    # Submission tab and exported as a CSV pack, so nothing may reach the
+    # evaluation server by accident; set DRES_ENABLED=true to run live again.
+    dres_enabled: bool = False
 
     # Index / collection names (override only if you re-uploaded with a new prefix).
     # `_1` = BTC keyframes (v1 indices), `_2` = InfoShot++ keyframes (v2 indices).
@@ -186,6 +200,8 @@ class Settings:
         # keyframe origin was explicitly set.
         if self.keyframe_media_base_url == "https://media.example.com":
             self.keyframe_media_base_url = self.media_base_url.rstrip("/")
+        if not self.video_media_base_url:
+            self.video_media_base_url = self.media_base_url.rstrip("/")
 
     @property
     def has_elastic(self) -> bool:
@@ -242,6 +258,7 @@ class Settings:
                 ocr_missing_categories=(),
                 milvus_image_collection=self.milvus_image_collection_1,
                 keyframe_media_base_url=self.media_base_url,
+                video_media_base_url=(self.video_media_base_url_1 or self.media_base_url).rstrip("/"),
             )
         return replace(
             self,
@@ -255,6 +272,7 @@ class Settings:
             ocr_missing_categories=self.ocr_missing_categories_2,
             milvus_image_collection=self.milvus_image_collection_2,
             keyframe_media_base_url=self.keyframe_media_base_url_2,
+            video_media_base_url=(self.video_media_base_url_2 or self.media_base_url).rstrip("/"),
         )
 
     @property
@@ -278,7 +296,7 @@ class Settings:
         Mock mode never talks to the real evaluation server — fixtures are not
         answers, and the whole test suite runs with mock mode on.
         """
-        if self.mock_mode:
+        if self.mock_mode or not self.dres_enabled:
             return False
         return bool(
             self.dres_base_url and (self.dres_session or (self.dres_username and self.dres_password))
@@ -388,10 +406,11 @@ def get_settings() -> Settings:
         glap_encoder_url=_env("GLAP_ENCODER_URL"),
         media_base_url=media_base_url,
         keyframe_media_base_url=media_base_url,
-        keyframe_media_base_url_2=(
-            _env("KEYFRAME_MEDIA_BASE_URL_2")
-            or "https://huggingface.co/buckets/Baonenha1/aic26-media/resolve"
-        ).rstrip("/"),
+        keyframe_media_base_url_2=(_env("KEYFRAME_MEDIA_BASE_URL_2") or HF_MEDIA_BASE_URL).rstrip("/"),
+        # Set VIDEO_MEDIA_BASE_URL_1 to the HF base too, once K01–K20 videos have
+        # been migrated there; until then profile 1 must keep its R2 origin.
+        video_media_base_url_1=(_env("VIDEO_MEDIA_BASE_URL_1") or media_base_url).rstrip("/"),
+        video_media_base_url_2=(_env("VIDEO_MEDIA_BASE_URL_2") or HF_MEDIA_BASE_URL).rstrip("/"),
         nvidia_api_key=_env("NVIDIA_API_KEY") or file_default("nvidia_api_key.txt"),
         nvidia_base_url=_env("NVIDIA_BASE_URL") or "https://integrate.api.nvidia.com/v1",
         nvidia_model=_env("NVIDIA_MODEL") or "qwen/qwen3-next-80b-a3b-instruct",
@@ -416,6 +435,7 @@ def get_settings() -> Settings:
         dres_evaluation_id=_env("DRES_EVALUATION_ID"),
         dres_segment_pad_ms=max(0, dres_segment_pad_ms),
         dres_timeout_seconds=max(5.0, dres_timeout_seconds),
+        dres_enabled=(_env("DRES_ENABLED", "false") or "false").lower() in {"1", "true", "yes", "on"},
         idx_keyframe_map=idx_keyframe_map_1,
         idx_keyframe_map_1=idx_keyframe_map_1,
         idx_keyframe_map_2=(

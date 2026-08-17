@@ -24,6 +24,7 @@ import { CanvasPanel } from "./components/CanvasPanel";
 import { ChannelControls } from "./components/ChannelControls";
 import { DetailPanel } from "./components/DetailPanel";
 import { DresBar } from "./components/DresBar";
+import { QuestionBar } from "./components/QuestionBar";
 import { FeedbackBar } from "./components/FeedbackBar";
 import { HistorySidebar } from "./components/HistorySidebar";
 import { NeighborStrip } from "./components/NeighborStrip";
@@ -41,10 +42,27 @@ import { TrakePanel, type TrakeSlot } from "./components/TrakePanel";
 import { VideoViewer, type VideoViewerHandle } from "./components/VideoViewer";
 import { autoEvaluationId } from "./lib/dres";
 import { findQaFrame, selectQaCandidateFrames } from "./lib/qa";
+import { kindForQueryType, type ImportedQuestion } from "./lib/questions";
 import { validateIncreasingOrder } from "./lib/snap";
+import { findDuplicate, rowToCsvLine, type SubmissionRow } from "./lib/submission";
+
+/** What a submit hands to the Workspace to become one CSV row. */
+export interface SubmissionDraft {
+  questionId: string;
+  videoId: string;
+  frames: number[];
+  answer: string;
+}
 
 /** The submit guard acts on exactly one of these; they never shadow each other. */
 type GuardTarget = "result" | "paused";
+
+/** DRES submission is switched off: answers are collected in the Submission tab
+ *  and exported as a CSV pack instead of being posted to the evaluation server.
+ *  The DRES code below is kept intact and gated on this flag rather than deleted,
+ *  so a live run can be turned back on by flipping it (and `DRES_ENABLED` in
+ *  `backend/app/config.py`) without rebuilding the submit path. */
+const DRES_ENABLED = false;
 
 const EMPTY_OVERRIDES: ManualOverrides = { force_channels: [], disable_channels: [] };
 const EMPTY_FEEDBACK: FeedbackState = {
@@ -58,11 +76,36 @@ interface ConsoleProps {
   configVersion?: number;
   retrievalDatabase: RetrievalDatabase;
   onRetrievalDatabase: (database: RetrievalDatabase) => void;
+  // ---- multi-tab wiring (owned by Workspace) ----
+  /** False while this tab is parked behind another one. */
+  active: boolean;
+  /** Controlled so the tab rail can label the tab with it in real time. */
+  queryType: QueryType;
+  onQueryType: (queryType: QueryType) => void;
+  questions: ImportedQuestion[];
+  question: ImportedQuestion | null;
+  onSelectQuestion: (questionId: string | null) => void;
+  onImportQuestions: (file: File) => void;
+  importing: boolean;
+  importError: string | null;
+  onOpenSubmission: () => void;
+  /** Rows already collected for this tab's question, for the duplicate check. */
+  questionRows: SubmissionRow[];
+  onSubmitRow: (draft: SubmissionDraft) => void;
+  /** Bumped by an import to make this tab search on its own. */
+  autoRunToken: number;
+  onBusyChange: (busy: boolean) => void;
 }
 
-export default function FullConsole({ onSimpleMode, onShowSettings, configVersion = 0, retrievalDatabase, onRetrievalDatabase }: ConsoleProps) {
-  const [queryType, setQueryType] = useState<QueryType>("T-KIS");
-  const [query, setQuery] = useState("");
+export default function FullConsole({
+  onSimpleMode, onShowSettings, configVersion = 0, retrievalDatabase, onRetrievalDatabase,
+  active, queryType, onQueryType, questions, question, onSelectQuestion, onImportQuestions,
+  importing, importError, onOpenSubmission, questionRows, onSubmitRow, autoRunToken, onBusyChange,
+}: ConsoleProps) {
+  // `runSearch` shadows this with an explicit override, so the state itself is
+  // kept under a distinct name and re-exported for every other reader.
+  const [queryState, setQuery] = useState("");
+  const query = queryState;
   const [hints, setHints] = useState<string[]>([]);
   const [parsed, setParsed] = useState<ParsedQuery | null>(null);
   const [overrides, setOverrides] = useState<ManualOverrides>(EMPTY_OVERRIDES);
@@ -287,6 +330,7 @@ export default function FullConsole({ onSimpleMode, onShowSettings, configVersio
   }, []);
 
   useEffect(() => {
+    if (!DRES_ENABLED) return;
     let cancelled = false;
     api.dresStatus()
       .then((s) => {
@@ -303,7 +347,7 @@ export default function FullConsole({ onSimpleMode, onShowSettings, configVersio
   // The open task changes without warning during a run, so poll it. 5 s is well
   // under the shortest task and the backend caches for 2 s.
   useEffect(() => {
-    if (!dresStatus?.configured) return;
+    if (!DRES_ENABLED || !dresStatus?.configured) return;
     const id = setInterval(() => refreshDresEvaluations(), 5000);
     return () => clearInterval(id);
   }, [dresStatus?.configured, refreshDresEvaluations]);
@@ -359,7 +403,7 @@ export default function FullConsole({ onSimpleMode, onShowSettings, configVersio
   );
 
   useEffect(() => {
-    if (!dresStatus?.configured || !evaluationId) {
+    if (!DRES_ENABLED || !dresStatus?.configured || !evaluationId) {
       setTaskHint(null);
       return;
     }
@@ -388,6 +432,33 @@ export default function FullConsole({ onSimpleMode, onShowSettings, configVersio
     setQuery(taskHint.text);
     queryRef.current?.focus();
   }
+
+  // ---- the imported question this tab answers ----
+  // Assigning a question loads its statement, exactly like a DRES task statement
+  // used to. Unlike that path this one always wins: picking a question IS the
+  // operator asking for its text, so it is not held back by `queryTouched`.
+  const loadedQuestionId = useRef<string | null>(null);
+  useEffect(() => {
+    if (!question || loadedQuestionId.current === question.id) return;
+    loadedQuestionId.current = question.id;
+    queryTouched.current = false;
+    setQuery(question.text);
+    setHints([]);
+    setGroups([]);
+    setParsed(null);
+  }, [question]);
+
+  // Import-driven search: the Workspace bumps the token after it has assigned the
+  // question, and the statement rides along so the run does not race the state
+  // update that fills the query box.
+  const lastAutoRun = useRef(0);
+  useEffect(() => {
+    if (!autoRunToken || autoRunToken === lastAutoRun.current) return;
+    lastAutoRun.current = autoRunToken;
+    const text = question?.text?.trim();
+    if (text) runSearch(text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRunToken, question?.id]);
 
   const reconnectDres = useCallback(async () => {
     setDresBusy(true);
@@ -427,7 +498,10 @@ export default function FullConsole({ onSimpleMode, onShowSettings, configVersio
   }, [activeVideoId, retrievalDatabase]);
 
   // ---- search ----
-  const runSearch = useCallback(async () => {
+  const runSearch = useCallback(async (overrideQuery?: string) => {
+    // The override exists for the import-driven run, which fires in the same tick
+    // as the setQuery that fills the box and would otherwise read the old value.
+    const query = typeof overrideQuery === "string" ? overrideQuery : queryState;
     if (!query.trim() && hints.length === 0) return;
     setLoading(true);
     setDuplicateId(null);
@@ -503,7 +577,11 @@ export default function FullConsole({ onSimpleMode, onShowSettings, configVersio
     } finally {
       setLoading(false);
     }
-  }, [query, hints, overrides, queryType, feedback, useLLM, expand, retrievalDatabase]);
+  }, [queryState, hints, overrides, queryType, feedback, useLLM, expand, retrievalDatabase]);
+
+  // The tab rail shows a spinner per tab, so the parent has to know which tabs
+  // are still running after an import kicked all of them off at once.
+  useEffect(() => { onBusyChange(loading); }, [loading, onBusyChange]);
 
   // ---- V-KIS canvas search ----
   // A separate entry point from the text query: the canvas is its own query, so
@@ -814,6 +892,52 @@ export default function FullConsole({ onSimpleMode, onShowSettings, configVersio
     setGuardOpen(true);
   }
 
+  // ---- submission draft (what a submit writes into the Submission tab) ----
+  /** The frames the current selection would contribute, in event order. */
+  function draftFrames(target: GuardTarget): number[] | null {
+    if (queryType === "TRAKE") {
+      const filled = trakeSlots.filter((s): s is TrakeSlot => s !== null);
+      return filled.length ? filled.map((slot) => slot.frame_idx) : null;
+    }
+    const idx =
+      target === "paused"
+        ? pausedFrame?.frame_idx ?? null
+        : selectedFrameObj
+          ? frameIdxOf(selectedFrameObj)
+          : null;
+    return idx == null ? null : [idx];
+  }
+
+  function draftVideoId(target: GuardTarget): string | null {
+    if (queryType === "TRAKE") {
+      return trakeSlots.find((s): s is TrakeSlot => s !== null)?.video_id ?? null;
+    }
+    return (target === "paused" ? pausedFrame?.video_id : selectedFrameObj?.video_id) ?? null;
+  }
+
+  function buildDraft(target: GuardTarget): SubmissionDraft | null {
+    if (!question) return null;
+    const frames = draftFrames(target);
+    const videoId = draftVideoId(target);
+    if (!frames || !videoId) return null;
+    return { questionId: question.id, videoId, frames, answer: answer.trim() };
+  }
+
+  const guardDraft = guardOpen ? buildDraft(guardTarget) : null;
+  const guardCsvLine = guardDraft
+    ? rowToCsvLine({ ...guardDraft, id: "" }, question ? question.kind : kindForQueryType(queryType))
+    : null;
+  const guardCsvError = (() => {
+    if (DRES_ENABLED) return null;
+    if (!question) return "Tab này chưa gán câu hỏi — chọn câu hỏi ở thanh QUERY PACK trước khi nộp.";
+    if (!guardDraft) return "Chưa xác định được video/frame_idx để ghi.";
+    if (question.kind === "qa" && !answer.trim()) return "Câu Q&A cần có answer.";
+    if (question.kind === "trake" && question.eventCount && guardDraft.frames.length !== question.eventCount) {
+      return `Câu TRAKE này cần đúng ${question.eventCount} frame (đang có ${guardDraft.frames.length}).`;
+    }
+    return null;
+  })();
+
   // ---- duplicate pre-check (mirrors the backend dedup keys) ----
   // The target is passed in rather than read from state: openGuard sets it in the
   // same tick, so the dedup pre-check would otherwise run against the old value.
@@ -841,6 +965,13 @@ export default function FullConsole({ onSimpleMode, onShowSettings, configVersio
     return `${frameKey}|text:${answer.trim().replace(/\s+/g, " ").toLowerCase()}`;
   }
   function computeDuplicate(target: GuardTarget): string | null {
+    if (!DRES_ENABLED) {
+      // The submission table is the record now, so it is also the dedup scope.
+      const draft = buildDraft(target);
+      if (!draft || !question) return null;
+      const hit = findDuplicate(questionRows, draft, question.kind);
+      return hit ? rowToCsvLine(hit, question.kind) : null;
+    }
     const key = dedupKeyFor(target);
     if (!key) return null;
     for (const h of history) {
@@ -909,7 +1040,7 @@ export default function FullConsole({ onSimpleMode, onShowSettings, configVersio
   // While the guard is open, ask the backend for the exact DRES body. This is
   // what turns "hope the format is right" into something the operator can read.
   useEffect(() => {
-    if (!guardOpen) {
+    if (!DRES_ENABLED || !guardOpen) {
       setSubmitPreview(null);
       setPreviewError(null);
       return;
@@ -945,6 +1076,18 @@ export default function FullConsole({ onSimpleMode, onShowSettings, configVersio
       evaluationId, currentTaskName, selectedFrameObj, pausedFrame, trakeSlots]);
 
   async function confirmSubmit() {
+    if (!DRES_ENABLED) {
+      const draft = buildDraft(guardTarget);
+      if (!draft || guardCsvError) {
+        setToast({ msg: guardCsvError ?? "Chưa dựng được dòng submission.", kind: "bad" });
+        return;
+      }
+      onSubmitRow(draft);
+      setToast({ msg: `Đã ghi vào ${draft.questionId}.csv`, kind: "ok" });
+      setGuardOpen(false);
+      setDuplicateId(null);
+      return;
+    }
     const body = buildSubmitBody();
     if (!body) {
       setToast({ msg: "Không xác định được frame_idx cho frame này — không thể nộp.", kind: "bad" });
@@ -986,7 +1129,10 @@ export default function FullConsole({ onSimpleMode, onShowSettings, configVersio
   }
 
   // ---- keyboard ----
+  // Every tab stays mounted so an import can search them all at once, so the
+  // shortcut handler must belong to exactly one of them: the visible one.
   useEffect(() => {
+    if (!active) return;
     function isTyping() {
       const el = document.activeElement;
       return el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA");
@@ -1096,12 +1242,19 @@ export default function FullConsole({ onSimpleMode, onShowSettings, configVersio
     navigator.clipboard?.writeText(id).then(() => setToast({ msg: `Copied ${id}`, kind: "ok" })).catch(() => {});
   }
 
+  // A parked tab stays MOUNTED — that is what lets an imported pack run every
+  // tab's search at once and keep each result set — but it renders nothing.
+  // Hooks above have all run, so its state and in-flight requests are intact;
+  // only the DOM is skipped, which keeps 24 open tabs from meaning 24 live
+  // consoles (and keeps `getByTestId` addressing exactly one console).
+  if (!active) return null;
+
   return (
     <div className="app">
       <TopBar
         queryType={queryType}
         onQueryType={(t) => {
-          setQueryType(t);
+          onQueryType(t);
           setParsed(null);
           setPausedFrame(null);
           setQaAnalysis(null);
@@ -1122,18 +1275,31 @@ export default function FullConsole({ onSimpleMode, onShowSettings, configVersio
         onShowKeymap={() => setKeymapOpen(true)}
         onShowSettings={onShowSettings}
       />
-      <DresBar
-        status={dresStatus}
-        evaluations={dresEvaluations}
-        evaluationId={evaluationId}
-        pinned={pinnedEvaluationId !== null}
-        timeLeft={timeLeft}
-        error={dresError}
-        busy={dresBusy}
-        onSelect={setPinnedEvaluationId}
-        onRefresh={() => refreshDresEvaluations(true)}
-        onReconnect={reconnectDres}
-      />
+      {DRES_ENABLED ? (
+        <DresBar
+          status={dresStatus}
+          evaluations={dresEvaluations}
+          evaluationId={evaluationId}
+          pinned={pinnedEvaluationId !== null}
+          timeLeft={timeLeft}
+          error={dresError}
+          busy={dresBusy}
+          onSelect={setPinnedEvaluationId}
+          onRefresh={() => refreshDresEvaluations(true)}
+          onReconnect={reconnectDres}
+        />
+      ) : (
+        <QuestionBar
+          questions={questions}
+          selectedId={question?.id ?? null}
+          onSelect={onSelectQuestion}
+          onImport={onImportQuestions}
+          importing={importing}
+          importError={importError}
+          rowCount={questionRows.length}
+          onOpenSubmission={onOpenSubmission}
+        />
+      )}
       {health && !health.ok && health.warnings.length > 0 && (
         <div className="warn-banner">⚠ {health.warnings.join(" · ")} — {health.mode === "mock" ? "running in mock mode" : "live retrieval degraded"}</div>
       )}
@@ -1354,6 +1520,10 @@ export default function FullConsole({ onSimpleMode, onShowSettings, configVersio
         trakeSlots={trakeSlots}
         answer={answer}
         setAnswer={setAnswer}
+        dresEnabled={DRES_ENABLED}
+        questionId={question?.id ?? null}
+        csvLine={guardCsvLine}
+        csvError={guardCsvError}
         dresConfigured={Boolean(dresStatus?.configured)}
         evaluationName={activeEvaluation?.name ?? null}
         taskNameOverride={taskNameOverride}

@@ -2,6 +2,29 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
+import { buildZipBytes } from "../lib/zip";
+
+/** A query pack shaped like the organiser's: one .txt per question, type in the name. */
+const PACK = [
+  { name: "query-p1-1-kis.txt", text: "bản tin thời sự buổi tối" },
+  { name: "query-p1-2-qa.txt", text: "xã này tên là gì?" },
+  { name: "query-p1-3-trake.txt", text: "E1: bắt đầu chạy.\nE2: về đích." },
+];
+
+/** Import a pack through the real file input (STORED zip: no inflate in jsdom). */
+async function importPack(files = PACK) {
+  const bytes = buildZipBytes(files);
+  const file = new File([bytes as BlobPart], "query-p1-groupA.zip", { type: "application/zip" });
+  fireEvent.change(screen.getByTestId("import-input"), { target: { files: [file] } });
+  await waitFor(() =>
+    expect(screen.getAllByTestId(/^rail-tab-\d+$/)).toHaveLength(files.length),
+  );
+}
+
+/** Open the tab the rail shows at `index` (tabs come back in pack order). */
+async function openTab(user: ReturnType<typeof userEvent.setup>, index: number) {
+  await user.click(screen.getByTestId(`rail-tab-${index}`));
+}
 
 const FRAME1 = {
   image_id: "K01/K01_V001/001",
@@ -624,22 +647,22 @@ describe("AIC26 retrieval console (full)", () => {
   });
 
   it("submit guard blocks a duplicate submit", async () => {
-    vi.stubGlobal(
-      "fetch",
-      mockFetch([
-        { id: "old", ts: Date.now() / 1000, task_id: TKIS_SCOPE, query_type: "T-KIS", payload: { video_id: "K01_V001", frame_idx: 0 }, dedup_keys: ["K01_V001:0"], status: "dres_ok", verdict: "WRONG", was_duplicate: false },
-      ]),
-    );
     const user = userEvent.setup();
     render(<App />);
-    await user.type(screen.getByTestId("query-input"), "thời sự");
-    await user.click(screen.getByTestId("search-btn"));
+    await importPack();
     await waitFor(() => screen.getByTestId("detail-panel"));
 
+    // First submit of this frame writes a row…
     await user.click(screen.getByTestId("open-submit"));
     await waitFor(() => expect(screen.getByTestId("submit-guard")).toBeInTheDocument());
-    expect(screen.getByTestId("dup-warn")).toBeInTheDocument();
-    expect(screen.getByTestId("confirm-submit")).toHaveTextContent(/Submit anyway/i);
+    expect(screen.queryByTestId("dup-warn")).not.toBeInTheDocument();
+    await user.click(screen.getByTestId("confirm-submit"));
+
+    // …so the second one is a repeat, and the guard says so before it lands.
+    await user.click(screen.getByTestId("open-submit"));
+    await waitFor(() => expect(screen.getByTestId("submit-guard")).toBeInTheDocument());
+    expect(screen.getByTestId("dup-warn")).toHaveTextContent("K01_V001,0");
+    expect(screen.getByTestId("confirm-submit")).toHaveTextContent(/dù trùng/i);
   });
 
   it("switches between grouped and flat top-K views", async () => {
@@ -684,11 +707,11 @@ describe("AIC26 retrieval console (full)", () => {
     async (queryType) => {
       const user = userEvent.setup();
       render(<App />);
-      if (queryType !== "T-KIS") {
+      await importPack();
+      if (queryType === "QA") await openTab(user, 1);
+      if (queryType !== "T-KIS" && queryType !== "QA") {
         await user.click(screen.getByRole("tab", { name: queryType }));
       }
-      await user.type(screen.getByTestId("query-input"), "thời sự");
-      await user.click(screen.getByTestId("search-btn"));
       await waitFor(() => screen.getByTestId("detail-panel"));
 
       (document.activeElement as HTMLElement)?.blur();
@@ -714,37 +737,26 @@ describe("AIC26 retrieval console (full)", () => {
       if (queryType === "QA") {
         await user.type(screen.getByTestId("qa-answer"), "HTV7");
       }
+      // The row the guard is about to write carries the RAW frame, not the
+      // result keyframe the detail panel is still showing.
+      expect(screen.getByTestId("guard-csv-line")).toHaveTextContent(
+        queryType === "QA" ? "K01_V001,130,HTV7" : "K01_V001,130",
+      );
       await user.click(screen.getByTestId("confirm-submit"));
 
-      await waitFor(() => {
-        const submitCall = vi.mocked(fetch).mock.calls.find(
-          ([url]) => String(url).endsWith("/api/submit"),
-        );
-        expect(submitCall).toBeDefined();
-        const body = JSON.parse(String(submitCall?.[1]?.body));
-        expect(body.query_type).toBe(queryType);
-        expect(body.payload).toMatchObject({
-          video_id: "K01_V001",
-          frame_idx: 130,
-          timestamp: 5.2,
-        });
-        expect(body.payload.submit_keyframe_id).toBeUndefined();
-      });
+      await user.click(screen.getByTestId("open-submission"));
+      const panel = await screen.findByTestId("submission-panel");
+      const expectedFile = queryType === "QA" ? "query-p1-2-qa" : "query-p1-1-kis";
+      expect(within(panel).getByTestId(`csv-${expectedFile}`)).toHaveTextContent(
+        queryType === "QA" ? "K01_V001,130,HTV7" : "K01_V001,130",
+      );
     },
   );
 
   it("runs the duplicate pre-check against the frame the guard was opened for", async () => {
-    // Only the PAUSED frame (130) was submitted before; the result keyframe was not.
-    vi.stubGlobal(
-      "fetch",
-      mockFetch([
-        { id: "old", ts: Date.now() / 1000, task_id: TKIS_SCOPE, query_type: "T-KIS", payload: { video_id: "K01_V001", frame_idx: 130 }, dedup_keys: ["K01_V001:130"], status: "dres_ok", verdict: "WRONG", was_duplicate: false },
-      ]),
-    );
     const user = userEvent.setup();
     render(<App />);
-    await user.type(screen.getByTestId("query-input"), "thời sự");
-    await user.click(screen.getByTestId("search-btn"));
+    await importPack();
     await waitFor(() => screen.getByTestId("detail-panel"));
 
     (document.activeElement as HTMLElement)?.blur();
@@ -753,6 +765,11 @@ describe("AIC26 retrieval console (full)", () => {
     Object.defineProperty(video, "currentTime", { configurable: true, writable: true, value: 5.2 });
     fireEvent.pause(video);
     await screen.findByTestId("paused-frame-chip");
+
+    // Submit ONLY the paused frame (130); the result keyframe (0) stays unused.
+    fireEvent.keyDown(window, { key: "Enter", shiftKey: true });
+    await waitFor(() => expect(screen.getByTestId("submit-guard")).toBeInTheDocument());
+    await user.click(screen.getByTestId("confirm-submit"));
 
     // Result target: not a duplicate, even though a paused frame is captured.
     fireEvent.keyDown(window, { key: "Enter" });
@@ -763,14 +780,13 @@ describe("AIC26 retrieval console (full)", () => {
     // Paused target: the warning must fire on the very first open, not one late.
     fireEvent.keyDown(window, { key: "Enter", shiftKey: true });
     await waitFor(() => expect(screen.getByTestId("submit-guard")).toBeInTheDocument());
-    expect(screen.getByTestId("dup-warn")).toHaveTextContent("K01_V001:130");
+    expect(screen.getByTestId("dup-warn")).toHaveTextContent("K01_V001,130");
   });
 
   it("keeps Detail on the result keyframe while a paused frame is captured", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.type(screen.getByTestId("query-input"), "thời sự");
-    await user.click(screen.getByTestId("search-btn"));
+    await importPack();
     await waitFor(() => screen.getByTestId("detail-panel"));
 
     (document.activeElement as HTMLElement)?.blur();
@@ -784,15 +800,13 @@ describe("AIC26 retrieval console (full)", () => {
     fireEvent.keyDown(window, { key: "Enter" });
     expect(await screen.findByTestId("guard-target")).toHaveTextContent("result keyframe");
     expect(screen.getByTestId("guard-frame-idx")).not.toHaveTextContent("130");
+    // The row follows the guard's target, so it holds the result keyframe (0).
+    expect(screen.getByTestId("guard-csv-line")).toHaveTextContent("K01_V001,0");
     await user.click(screen.getByTestId("confirm-submit"));
 
-    await waitFor(() => {
-      const call = vi.mocked(fetch).mock.calls.find(([url]) => String(url).endsWith("/api/submit"));
-      expect(call).toBeDefined();
-      const body = JSON.parse(String(call?.[1]?.body));
-      expect(body.payload.submit_keyframe_id).toBe("K01/K01_V001/001");
-      expect(body.payload.frame_idx).not.toBe(130);
-    });
+    await user.click(screen.getByTestId("open-submission"));
+    const panel = await screen.findByTestId("submission-panel");
+    expect(within(panel).getByTestId("csv-query-p1-1-kis")).toHaveTextContent("K01_V001,0");
   });
 
   it("Shift+Enter submits the paused raw frame instead of the result keyframe", async () => {
@@ -1056,255 +1070,238 @@ describe("AIC26 retrieval console (full)", () => {
   });
 });
 
-describe("DRES submission", () => {
-  async function search(user: ReturnType<typeof userEvent.setup>, queryType?: "QA") {
+describe("query pack + submission table", () => {
+  it("opens one tab per question, on the right query type, and searches them all", async () => {
     render(<App />);
-    if (queryType) await user.click(screen.getByRole("tab", { name: queryType }));
+    await importPack();
+
+    const rail = screen.getByTestId("tab-rail");
+    expect(within(rail).getByTestId("rail-tab-0")).toHaveTextContent("T-KIS");
+    expect(within(rail).getByTestId("rail-tab-1")).toHaveTextContent("QA");
+    expect(within(rail).getByTestId("rail-tab-2")).toHaveTextContent("TRAKE");
+
+    // The statement is loaded into the query box of its own tab…
+    await waitFor(() => expect(screen.getByTestId("query-input")).toHaveValue(PACK[0].text));
+    // …and every tab ran its search without anyone pressing the button.
+    await waitFor(() => {
+      const searched = vi.mocked(fetch).mock.calls
+        .filter(([url]) => String(url).endsWith("/api/search"))
+        .map(([, init]) => JSON.parse(String(init?.body)).query);
+      expect(searched).toContain(PACK[0].text);
+      expect(searched).toContain(PACK[1].text);
+    });
+    await waitFor(() => {
+      const trake = vi.mocked(fetch).mock.calls
+        .filter(([url]) => String(url).endsWith("/api/search/trake"))
+        .map(([, init]) => JSON.parse(String(init?.body)).query);
+      expect(trake).toContain(PACK[2].text);
+    });
+  });
+
+  it("renames the tab in real time when the query type changes inside it", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+
+    expect(screen.getByTestId("rail-tab-0")).toHaveTextContent("T-KIS");
+    await user.click(screen.getByRole("tab", { name: "V-KIS" }));
+    expect(screen.getByTestId("rail-tab-0")).toHaveTextContent("V-KIS");
+  });
+
+  it("still shows a console on a second mount", async () => {
+    // Regression: tab ids come from a module-level counter, so a hardcoded
+    // initial `active` of "tab-1" matched nothing from the second mount on and
+    // the workspace rendered an empty body.
+    const first = render(<App />);
+    expect(screen.getByTestId("query-input")).toBeInTheDocument();
+    first.unmount();
+
+    render(<App />);
+    expect(screen.getByTestId("query-input")).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^rail-tab-\d+$/)).toHaveLength(1);
+  });
+
+  it("keeps a comma while a multi-event TRAKE row is being typed", async () => {
+    // Regression: the frame cell used to be controlled straight off number[],
+    // so "1200," re-rendered as "1200" and a second event could never be typed.
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByText("query-p1-3-trake +"));
+
+    const row = await screen.findByTestId("row-query-p1-3-trake-0");
+    const frameCell = within(row).getAllByRole("textbox")[1];
+    await user.type(frameCell, "1200, 1850");
+
+    expect(frameCell).toHaveValue("1200, 1850");
+    expect(screen.getByTestId("csv-query-p1-3-trake")).toHaveTextContent(",1200,1850");
+  });
+
+  it("can get back to the search UI and import from the submission view", async () => {
+    // The bar holding "Import câu hỏi" lives inside the console, which the
+    // submission view does not render — so that view needs its own way out and
+    // its own import button, or it is a dead end on first launch.
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByTestId("open-submission"));
+    expect(await screen.findByTestId("submission-panel")).toBeInTheDocument();
+    expect(screen.queryByTestId("query-input")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("submission-back"));
+    expect(screen.getByTestId("query-input")).toBeInTheDocument();
+
+    // …and the empty state's instruction points at a button that is really there.
+    await user.click(screen.getByTestId("open-submission"));
+    const bytes = buildZipBytes(PACK);
+    const file = new File([bytes as BlobPart], "pack.zip", { type: "application/zip" });
+    fireEvent.change(screen.getByTestId("submission-import-input"), { target: { files: [file] } });
+    await waitFor(() => expect(screen.getAllByTestId(/^rail-tab-\d+$/)).toHaveLength(PACK.length));
+  });
+
+  it("returns to the tab the operator came from, not always the first", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await openTab(user, 2); // the TRAKE tab
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByTestId("submission-back"));
+
+    expect(screen.getByRole("tab", { name: "TRAKE", selected: true })).toBeInTheDocument();
+  });
+
+  it("keeps the rail addressable while it is collapsed", async () => {
+    // The rail collapses to a two-letter code and expands on hover, so every tab
+    // carries a spoken name of its own (the visible code is aria-hidden) and the
+    // widening panel is a separate layer that can overlay the console.
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+
+    expect(document.querySelector(".tab-rail-inner")).toBeInTheDocument();
+    const trakeTab = screen.getByTestId("rail-tab-2");
+    expect(trakeTab).toHaveAccessibleName("Tab 3 · TRAKE · câu 3");
+    expect(within(trakeTab).getByText("TR")).toHaveAttribute("aria-hidden", "true");
+
+    // Collapsed or not, clicking still switches tabs.
+    await user.click(trakeTab);
+    expect(trakeTab).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("adds and closes tabs", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    expect(screen.getAllByTestId(/^rail-tab-\d+$/)).toHaveLength(1);
+    await user.click(screen.getByTestId("rail-add"));
+    expect(screen.getAllByTestId(/^rail-tab-\d+$/)).toHaveLength(2);
+    await user.click(screen.getByTestId("rail-close-1"));
+    expect(screen.getAllByTestId(/^rail-tab-\d+$/)).toHaveLength(1);
+  });
+
+  it("never posts to DRES: a submit writes a row into the submission table", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await waitFor(() => screen.getByTestId("detail-panel"));
+
+    await user.click(screen.getByTestId("open-submit"));
+    await waitFor(() => expect(screen.getByTestId("submit-guard")).toBeInTheDocument());
+    expect(screen.getByTestId("guard-question")).toHaveTextContent("query-p1-1-kis.csv");
+    expect(screen.getByTestId("guard-csv-line")).toHaveTextContent("K01_V001,0");
+    await user.click(screen.getByTestId("confirm-submit"));
+
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).endsWith("/api/submit"))).toBe(false);
+    await user.click(screen.getByTestId("open-submission"));
+    expect(await screen.findByTestId("csv-query-p1-1-kis")).toHaveTextContent("K01_V001,0");
+  });
+
+  it("blocks a submit from a tab with no question bound", async () => {
+    const user = userEvent.setup();
+    render(<App />);
     await user.type(screen.getByTestId("query-input"), "thời sự");
     await user.click(screen.getByTestId("search-btn"));
     await waitFor(() => screen.getByTestId("detail-panel"));
-  }
-
-  const lastSubmit = () => {
-    const call = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("/api/submit")).pop();
-    return JSON.parse(String(call?.[1]?.body));
-  };
-
-  it("fetches the task statement and prefills the empty query box", async () => {
-    render(<App />);
-
-    expect(await screen.findByTestId("task-hint-text")).toHaveTextContent(TKIS_STATEMENT);
-    await waitFor(() => expect(screen.getByTestId("query-input")).toHaveValue(TKIS_STATEMENT));
-  });
-
-  it("never overwrites a query the operator wrote, but offers the statement", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    // Written before the statement lands (fireEvent is synchronous, so this
-    // deterministically wins the race the operator would otherwise lose).
-    fireEvent.change(screen.getByTestId("query-input"), { target: { value: "máy ảnh trên quyển sách" } });
-    await screen.findByTestId("task-hint-text");
-
-    expect(screen.getByTestId("query-input")).toHaveValue("máy ảnh trên quyển sách");
-
-    await user.click(screen.getByTestId("task-hint-use"));
-    expect(screen.getByTestId("query-input")).toHaveValue(TKIS_STATEMENT);
-  });
-
-  it("loads the statement of the run the query type routes to", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await screen.findByTestId("task-hint-text");
-
-    await user.click(screen.getByRole("tab", { name: "QA" }));
-
-    await waitFor(() => expect(screen.getByTestId("task-hint-text")).toHaveTextContent(QA_STATEMENT));
-  });
-
-  it("clears the submit log only after confirming, and can scope it to the task", async () => {
-    const other = {
-      id: "old2", ts: Date.now() / 1000, task_id: "e-qa/qa-00", query_type: "QA",
-      payload: { video_id: "K01_V001", frame_idx: 0, answer: "HTV7" },
-      dedup_keys: ["K01_V001:0|text:htv7"], status: "dres_ok", verdict: "CORRECT", was_duplicate: false,
-    };
-    vi.stubGlobal("fetch", mockFetch([
-      {
-        id: "old1", ts: Date.now() / 1000, task_id: TKIS_SCOPE, query_type: "T-KIS",
-        payload: { video_id: "K01_V001", frame_idx: 0 }, dedup_keys: ["K01_V001:0"],
-        status: "dres_ok", verdict: "WRONG", was_duplicate: false,
-      },
-      other,
-    ]));
-    const user = userEvent.setup();
-    render(<App />);
-    await screen.findByTestId("history-sidebar");
-    expect(await screen.findByText(/Submit history \(2\)/)).toBeInTheDocument();
-
-    // One click only arms the action — nothing is deleted yet.
-    await user.click(screen.getByTestId("history-clear"));
-    expect(screen.getByTestId("history-clear-confirm")).toBeInTheDocument();
-    expect(screen.getByText(/Submit history \(2\)/)).toBeInTheDocument();
-
-    // Scoped clear keeps the other task's entries.
-    await user.click(screen.getByTestId("history-clear-task"));
-    await waitFor(() => expect(screen.getByText(/Submit history \(1\)/)).toBeInTheDocument());
-    expect(historyStore).toEqual([other]);
-
-    await user.click(screen.getByTestId("history-clear"));
-    await user.click(screen.getByTestId("history-clear-all"));
-    await waitFor(() => expect(screen.getByText(/Submit history \(0\)/)).toBeInTheDocument());
-    expect(historyStore).toEqual([]);
-  });
-
-  it("deletes only the submissions the operator picked", async () => {
-    const entry = (id: string, frame: number) => ({
-      id, ts: Date.now() / 1000, task_id: TKIS_SCOPE, query_type: "T-KIS",
-      payload: { video_id: "K01_V001", frame_idx: frame },
-      dedup_keys: [`K01_V001:${frame}`], status: "dres_ok", verdict: "WRONG", was_duplicate: false,
-    });
-    vi.stubGlobal("fetch", mockFetch([entry("h1", 100), entry("h2", 200), entry("h3", 300)]));
-    const user = userEvent.setup();
-    render(<App />);
-    await screen.findByTestId("history-sidebar");
-
-    // Multi-select two of the three, then delete just those.
-    await user.click(screen.getByTestId("history-pick-h1"));
-    await user.click(screen.getByTestId("history-pick-h3"));
-    expect(screen.getByTestId("history-selection")).toHaveTextContent("2 mục đã chọn");
-    await user.click(screen.getByTestId("history-delete-selected"));
-
-    await waitFor(() => expect(historyStore.map((h) => h.id)).toEqual(["h2"]));
-    expect(screen.getByText(/Submit history \(1\)/)).toBeInTheDocument();
-
-    // The per-row ✕ deletes a single entry.
-    await user.click(screen.getByTestId("history-delete-h2"));
-    await waitFor(() => expect(historyStore).toEqual([]));
-  });
-
-  it("shows the open task, its type and the countdown", async () => {
-    render(<App />);
-    expect(await screen.findByTestId("dres-task")).toHaveTextContent("tkis-00");
-    expect(screen.getByTestId("dres-task-status")).toHaveTextContent("RUNNING");
-    expect(screen.getByTestId("dres-clock")).toHaveTextContent("5:00 left");
-  });
-
-  it("routes the submit to the evaluation run that matches the query type", async () => {
-    const user = userEvent.setup();
-    await search(user);
 
     await user.click(screen.getByTestId("open-submit"));
-    expect(await screen.findByTestId("guard-evaluation")).toHaveTextContent("tkis");
-    await waitFor(() => expect(screen.getByTestId("guard-task-auto")).toHaveTextContent("tkis-00"));
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
-
-    await user.click(screen.getByRole("tab", { name: "QA" }));
-    await waitFor(() => expect(screen.getByTestId("dres-task")).toHaveTextContent("qa-00"));
+    await waitFor(() => expect(screen.getByTestId("submit-guard")).toBeInTheDocument());
+    expect(screen.getByTestId("guard-format-error")).toHaveTextContent(/chưa gán câu hỏi/i);
+    expect(screen.getByTestId("confirm-submit")).toBeDisabled();
   });
 
-  it("KIS submits a media item with a millisecond window, never text", async () => {
+  it("keeps several answers per question and exports them as one CSV", async () => {
     const user = userEvent.setup();
-    await search(user);
+    render(<App />);
+    await importPack();
+    await waitFor(() => screen.getByTestId("detail-panel"));
 
     await user.click(screen.getByTestId("open-submit"));
-    // The guard shows the exact body before it is sent.
-    await waitFor(() =>
-      expect(screen.getByTestId("guard-json")).toHaveTextContent(/"mediaItemName": "K01_V001"/),
-    );
-    expect(screen.getByTestId("guard-answer-summary")).toHaveTextContent("0–500 ms");
-
+    await user.click(screen.getByTestId("confirm-submit"));
+    // Move to the second retrieved frame and submit that one too.
+    await user.click(screen.getAllByTestId("frame-thumb")[1]);
+    await user.click(screen.getByTestId("open-submit"));
     await user.click(screen.getByTestId("confirm-submit"));
 
-    await waitFor(() => {
-      const body = lastSubmit();
-      expect(body.evaluation_id).toBe("e-tkis");
-      expect(body.query_type).toBe("T-KIS");
-      expect(body.answer_mode).toBe("auto");
-      expect(body.segment_pad_ms).toBe(500);
-      // pts_time + fps let the backend build start/end in ms.
-      expect(body.payload).toMatchObject({ video_id: "K01_V001", timestamp: 0, fps: 25 });
-      expect(body.payload.answer).toBeUndefined();
-    });
+    await user.click(screen.getByTestId("open-submission"));
+    const csv = await screen.findByTestId("csv-query-p1-1-kis");
+    expect(csv.textContent).toBe("K01_V001,0\r\nK01_V001,450");
   });
 
-  it("a manual answer shape never survives a query-type switch", async () => {
-    // Regression: `temporal` picked on a KIS task used to stick, so the next QA
-    // submit silently sent a media segment and dropped the typed answer.
+  it("lets the operator edit a row and warns instead of locking it", async () => {
     const user = userEvent.setup();
-    await search(user);
-
-    await user.click(screen.getByTestId("open-submit"));
-    await user.selectOptions(await screen.findByTestId("guard-answer-mode"), "temporal");
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
-
-    await user.click(screen.getByRole("tab", { name: "QA" }));
-    await user.type(screen.getByTestId("query-input"), "tác giả");
-    await user.click(screen.getByTestId("search-btn"));
+    render(<App />);
+    await importPack();
     await waitFor(() => screen.getByTestId("detail-panel"));
     await user.click(screen.getByTestId("open-submit"));
-
-    expect(await screen.findByTestId("guard-answer-mode")).toHaveValue("auto");
-    await user.type(screen.getByTestId("qa-answer"), "Nguyễn Thắm");
-    await waitFor(() =>
-      expect(screen.getByTestId("guard-json")).toHaveTextContent(/"text": "Nguyễn Thắm"/),
-    );
-  });
-
-  it("warns when the answer shape contradicts the DRES task type", async () => {
-    const user = userEvent.setup();
-    await search(user, "QA");
-
-    await user.click(screen.getByTestId("open-submit"));
-    await user.type(await screen.findByTestId("qa-answer"), "Nguyễn Thắm");
-    await user.selectOptions(screen.getByTestId("guard-answer-mode"), "temporal");
-
-    await waitFor(() =>
-      expect(screen.getByTestId("submit-guard")).toHaveTextContent(/SẼ BỊ BỎ/),
-    );
-  });
-
-  it("QA submits the answer as text", async () => {
-    const user = userEvent.setup();
-    await search(user, "QA");
-
-    await user.click(screen.getByTestId("open-submit"));
-    await user.type(await screen.findByTestId("qa-answer"), "HTV7");
-
-    await waitFor(() => expect(screen.getByTestId("guard-json")).toHaveTextContent(/"text": "HTV7"/));
     await user.click(screen.getByTestId("confirm-submit"));
+    await user.click(screen.getByTestId("open-submission"));
 
-    await waitFor(() => {
-      const body = lastSubmit();
-      expect(body.evaluation_id).toBe("e-qa");
-      expect(body.payload.answer).toBe("HTV7");
+    const row = await screen.findByTestId("row-query-p1-1-kis-0");
+    const videoCell = within(row).getAllByRole("textbox")[0];
+    await user.clear(videoCell);
+    await user.type(videoCell, "L01_V028.mp4");
+
+    expect(await screen.findByTestId("csv-query-p1-1-kis")).toHaveTextContent("L01_V028.mp4,0");
+    expect(screen.getByTestId("problems-query-p1-1-kis")).toBeInTheDocument();
+  });
+
+  it("checks the TRAKE event count of a row against its question", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await openTab(user, 2); // the 2-event TRAKE question
+    await user.click(screen.getByTestId("open-submission"));
+
+    // A blank row starts with no frames at all, which is already the wrong count.
+    await user.click(screen.getByText("query-p1-3-trake +"));
+    const row = await screen.findByTestId("row-query-p1-3-trake-0");
+    const frameCell = within(row).getAllByRole("textbox")[1];
+    await user.type(frameCell, "1200, 900");
+
+    expect(screen.getByTestId("problems-query-p1-3-trake")).toBeInTheDocument();
+    const problems = screen.getByTestId("submission-query-p1-3-trake");
+    expect(problems).toHaveTextContent(/tăng dần/);
+  });
+
+  it("exports a zip with the CSVs under submission/", async () => {
+    const user = userEvent.setup();
+    const created: Blob[] = [];
+    const createObjectURL = vi.fn((blob: Blob) => {
+      created.push(blob);
+      return "blob:submission";
     });
-  });
+    vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL: vi.fn() });
 
-  it("QA duplicate check covers the segment and the answer text", async () => {
-    vi.stubGlobal(
-      "fetch",
-      mockFetch([
-        {
-          id: "old", ts: Date.now() / 1000, task_id: "e-qa/qa-00", query_type: "QA",
-          payload: { video_id: "K01_V001", frame_idx: 0, answer: "HTV7" },
-          dedup_keys: ["K01_V001:0|text:htv7"], status: "dres_ok", verdict: "WRONG", was_duplicate: false,
-        },
-      ]),
-    );
-    const user = userEvent.setup();
-    await search(user, "QA");
-
+    render(<App />);
+    await importPack();
+    await waitFor(() => screen.getByTestId("detail-panel"));
     await user.click(screen.getByTestId("open-submit"));
-    await user.type(await screen.findByTestId("qa-answer"), "HTV7");
-    expect(await screen.findByTestId("dup-warn")).toHaveTextContent("K01_V001:0|text:htv7");
+    await user.click(screen.getByTestId("confirm-submit"));
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByTestId("export-submission"));
 
-    // A different answer from the same frame is a new attempt, not a duplicate.
-    await user.clear(screen.getByTestId("qa-answer"));
-    await user.type(screen.getByTestId("qa-answer"), "HTV9");
-    await waitFor(() => expect(screen.queryByTestId("dup-warn")).not.toBeInTheDocument());
-  });
-
-  it("blocks the submit when the payload cannot be built", async () => {
-    const user = userEvent.setup();
-    await search(user, "QA");
-
-    // QA with an empty answer has no `text` — DRES would reject it.
-    await user.click(screen.getByTestId("open-submit"));
-    await waitFor(() => expect(screen.getByTestId("confirm-submit")).toBeDisabled());
-  });
-
-  it("keeps working with DRES offline: the bar says so and the guard still submits", async () => {
-    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
-      const path = String(url);
-      if (path.endsWith("/api/dres/status") || path.includes("/api/dres/evaluations")) {
-        return { ok: false, status: 502, json: async () => ({ detail: "DRES unreachable" }) } as Response;
-      }
-      return mockFetch()(url, init);
-    }));
-    const user = userEvent.setup();
-    await search(user);
-
-    expect(await screen.findByTestId("dres-offline")).toBeInTheDocument();
-    await user.click(screen.getByTestId("open-submit"));
-    await waitFor(() => expect(screen.getByTestId("confirm-submit")).toBeEnabled());
+    expect(created).toHaveLength(1);
+    const text = new TextDecoder().decode(await created[0].arrayBuffer());
+    expect(text).toContain("submission/query-p1-1-kis.csv");
+    expect(text).toContain("K01_V001,0");
   });
 });

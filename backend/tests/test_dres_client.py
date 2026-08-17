@@ -12,6 +12,9 @@ from app.services.submit_service import SubmitService
 def make_client(handler) -> DresClient:
     settings = Settings(
         mock_mode=False,
+        # Live submission is off by default now (answers go to the app's
+        # Submission tab instead), so the adapter's own tests opt back in.
+        dres_enabled=True,
         dres_base_url="http://dres.test",
         dres_username="fourier1",
         dres_password="secret",

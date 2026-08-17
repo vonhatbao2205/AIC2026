@@ -12,6 +12,14 @@ interface Props {
   trakeSlots: (TrakeSlot | null)[];
   answer: string;
   setAnswer: (v: string) => void;
+  // ---- submission-table target (used when DRES is switched off) ----
+  /** False = answers land in the submission table instead of the DRES server. */
+  dresEnabled: boolean;
+  /** Which imported question the row will be written under. */
+  questionId: string | null;
+  /** The exact CSV line that will be appended, or null if it cannot be built. */
+  csvLine: string | null;
+  csvError: string | null;
   // ---- DRES target: what the answer is sent as, and to which open task ----
   dresConfigured: boolean;
   evaluationName: string | null;
@@ -61,7 +69,7 @@ export function SubmitGuard(props: Props) {
   // holds it here instead of spending a wrong submit on it.
   const blocked =
     (isTrake ? filledSlots.length === 0 : (!pausedFrame && !frame) || missingFrameIdx) ||
-    Boolean(previewError);
+    Boolean(props.dresEnabled ? previewError : props.csvError);
   const thumbUrl = pausedFrame?.thumbnail ?? frame?.keyframe_url ?? null;
   const previewAlt = pausedFrame
     ? `Paused frame ${pausedFrame.frame_idx}`
@@ -82,20 +90,43 @@ export function SubmitGuard(props: Props) {
         <div className="modal-body">
           {duplicateId && (
             <div className="dup-warn" data-testid="dup-warn">
-              ⚠ Duplicate: {duplicateId} was already submitted for task {taskLabel || "này"}.
+              ⚠ Trùng: {duplicateId} đã được nộp cho{" "}
+              {props.dresEnabled ? `task ${taskLabel || "này"}` : props.questionId ?? "câu hỏi này"}.
             </div>
           )}
           {isTrake && orderViolations.length > 0 && (
             <div className="dup-warn">⚠ Order violation at E{orderViolations.join(", E")} — events must increase in time.</div>
           )}
-          {previewError && (
+          {props.dresEnabled && previewError && (
             <div className="dup-warn" data-testid="guard-format-error">⚠ {previewError}</div>
+          )}
+          {!props.dresEnabled && props.csvError && (
+            <div className="dup-warn" data-testid="guard-format-error">⚠ {props.csvError}</div>
           )}
           {preview?.warnings?.map((w) => (
             <div className="dup-warn" key={w}>⚠ {w}</div>
           ))}
 
+          {/* ---- submission-table target ---- */}
+          {!props.dresEnabled && (
+            <div className="guard-dres" data-testid="guard-submission-target">
+              <div className="row">
+                <span className="k" style={{ width: 74, color: "var(--fg-faint)" }}>ghi vào</span>
+                <span className="v mono" data-testid="guard-question">
+                  {props.questionId ? `${props.questionId}.csv` : "— chưa gán câu hỏi cho tab này —"}
+                </span>
+              </div>
+              <div className="row">
+                <span className="k" style={{ width: 74, color: "var(--fg-faint)" }}>dòng CSV</span>
+                <span className="v mono" data-testid="guard-csv-line" style={{ color: "var(--accent)" }}>
+                  {props.csvLine ?? "—"}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* ---- DRES target ---- */}
+          {props.dresEnabled && (
           <div className="guard-dres" data-testid="guard-dres-target">
             <div className="row">
               <span className="k" style={{ width: 74, color: "var(--fg-faint)" }}>evaluation</span>
@@ -152,6 +183,7 @@ export function SubmitGuard(props: Props) {
               )}
             </div>
           </div>
+          )}
 
           {isTrake ? (
             <div>
@@ -236,6 +268,7 @@ export function SubmitGuard(props: Props) {
           )}
 
           {/* ---- exactly what DRES will receive ---- */}
+          {props.dresEnabled && (
           <div className="guard-payload">
             <div className="k" style={{ color: "var(--fg-faint)", marginBottom: 4 }}>
               DRES payload {previewLoading && <span className="dres-dim">· đang dựng…</span>}
@@ -264,6 +297,7 @@ export function SubmitGuard(props: Props) {
               </div>
             )}
           </div>
+          )}
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={props.onCancel}>Cancel</button>
@@ -273,7 +307,7 @@ export function SubmitGuard(props: Props) {
             disabled={blocked || submitting}
             onClick={props.onConfirm}
           >
-            {duplicateId ? "Submit anyway" : "Confirm submit"}
+            {duplicateId ? "Ghi thêm dù trùng" : props.dresEnabled ? "Confirm submit" : "Ghi vào submission"}
           </button>
         </div>
       </div>
