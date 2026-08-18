@@ -15,6 +15,22 @@ import {
   type SubmissionRow,
 } from "../lib/submission";
 import { buildZipBytes, crc32 } from "../lib/zip";
+import {
+  canonicalQuestions,
+  packHash,
+  packSummary,
+  recordsToQuestions,
+} from "../lib/questionPack";
+import {
+  MISSING_TABLE_HINT,
+  describeSupabaseError,
+  isMissingTableError,
+  mergeRow,
+  newRowId,
+  recordToRow,
+  rowToRecord,
+  sortRows,
+} from "../lib/sharedSubmission";
 
 const entry = (name: string, text = "nội dung") => ({ name, text });
 
@@ -155,5 +171,146 @@ describe("zip writing", () => {
     const text = new TextDecoder().decode(bytes);
     expect(text).toContain("submission/query-p1-1-kis.csv");
     expect(text).toContain("L01_V028,25300");
+  });
+});
+
+describe("shared submission records", () => {
+  const record = {
+    id: "11111111-1111-4111-8111-111111111111",
+    room: "aic26",
+    session_id: "22222222-2222-4222-8222-222222222222",
+    question_id: "query-p1-4-trake",
+    retrieval_database: "infoshotpp",
+    video_id: "L27_V013",
+    frames: [1200, 1850],
+    keyframe_ids: ["L27/L27_V013/042", null],
+    pts_times: [48.0, null],
+    answer: "",
+    submitted_by: "Bao",
+    source: "submit",
+    revision: 3,
+    created_at: "2026-08-18T10:00:00Z",
+    updated_at: "2026-08-18T10:05:00Z",
+  };
+
+  it("round-trips a row through the wire shape", () => {
+    const row = recordToRow(record);
+    expect(row).toMatchObject({
+      id: record.id,
+      questionId: "query-p1-4-trake",
+      videoId: "L27_V013",
+      frames: [1200, 1850],
+      keyframeIds: ["L27/L27_V013/042", null],
+      ptsTimes: [48, null],
+      retrievalDatabase: "infoshotpp",
+      submittedBy: "Bao",
+      revision: 3,
+      syncState: "synced",
+    });
+    const back = rowToRecord(row, "aic26", "Bao");
+    expect(back.frames).toEqual(record.frames);
+    expect(back.keyframe_ids).toEqual(record.keyframe_ids);
+    expect(back.pts_times).toEqual(record.pts_times);
+  });
+
+  it("keeps the preview arrays aligned with the frames they describe", () => {
+    // A TRAKE row edited frame-by-frame can reach the wire with short arrays;
+    // index i must keep meaning frame i or a preview would show another event.
+    const row: SubmissionRow = {
+      id: "r", questionId: "q", videoId: "V", frames: [10, 20, 30], answer: "",
+      keyframeIds: ["a"], ptsTimes: [],
+    };
+    const sent = rowToRecord(row, "aic26", "me");
+    expect(sent.keyframe_ids).toEqual(["a", null, null]);
+    expect(sent.pts_times).toEqual([null, null, null]);
+  });
+
+  it("never lets a stale reply roll a row back", () => {
+    const older: SubmissionRow = { id: "r", questionId: "q", videoId: "V", frames: [1], answer: "", revision: 2 };
+    const newer: SubmissionRow = { ...older, frames: [9], revision: 5 };
+    expect(mergeRow([newer], older)[0].frames).toEqual([9]);
+    expect(mergeRow([older], newer)[0].frames).toEqual([9]);
+    expect(mergeRow([], newer)).toHaveLength(1);
+  });
+
+  it("orders rows by creation, so editing one does not re-rank the CSV", () => {
+    const rows: SubmissionRow[] = [
+      { id: "b", questionId: "q", videoId: "V", frames: [2], answer: "", createdAt: "2026-01-02", updatedAt: "2026-01-02" },
+      { id: "a", questionId: "q", videoId: "V", frames: [1], answer: "", createdAt: "2026-01-01", updatedAt: "2026-01-09" },
+    ];
+    expect(sortRows(rows).map((row) => row.id)).toEqual(["a", "b"]);
+  });
+
+  it("generates ids the uuid column accepts", () => {
+    expect(newRowId()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  });
+});
+
+describe("supabase error reporting", () => {
+  it("reads a PostgREST error object instead of stringifying it", () => {
+    // Regression: PostgREST rejects with a plain object, so the usual
+    // `instanceof Error` check fell through to String() and showed
+    // "[object Object]" — an error message that tells an operator nothing.
+    const postgrest = {
+      message: "Could not find the table 'public.submissions' in the schema cache",
+      details: null,
+      hint: null,
+      code: "PGRST205",
+    };
+    expect(describeSupabaseError(postgrest)).toContain("Could not find the table");
+    expect(describeSupabaseError(postgrest)).toContain("PGRST205");
+    expect(describeSupabaseError(postgrest)).not.toContain("[object Object]");
+  });
+
+  it("still handles Errors, strings and shapeless values", () => {
+    expect(describeSupabaseError(new Error("boom"))).toBe("boom");
+    expect(describeSupabaseError("plain")).toBe("plain");
+    expect(describeSupabaseError({ weird: 1 })).toBe('{"weird":1}');
+    expect(describeSupabaseError(null)).toBe("Lỗi không xác định");
+  });
+
+  it("recognises the un-run migration and says what to do about it", () => {
+    expect(isMissingTableError({ code: "PGRST205", message: "..." })).toBe(true);
+    expect(isMissingTableError({ code: "42P01", message: "relation does not exist" })).toBe(true);
+    expect(
+      isMissingTableError({ message: "Could not find the table 'public.submissions' in the schema cache" }),
+    ).toBe(true);
+    expect(isMissingTableError({ code: "23505", message: "duplicate key" })).toBe(false);
+    expect(MISSING_TABLE_HINT).toContain("001_shared_submission.sql");
+  });
+});
+
+describe("question pack as shared state", () => {
+  const pack = (over: Partial<{ order: number; text: string }> = {}) => [
+    { id: "query-p1-1-kis", order: 1, kind: "kis" as const, queryType: "T-KIS" as const, text: "a", eventCount: null },
+    {
+      id: "query-p1-4-trake", order: over.order ?? 4, kind: "trake" as const,
+      queryType: "TRAKE" as const, text: over.text ?? "E1: x\nE2: y", eventCount: 2,
+    },
+  ];
+
+  it("fingerprints the same pack identically whatever order it arrives in", () => {
+    // Two machines must agree, or each would think the other published an
+    // update and they would re-download forever.
+    const forward = pack();
+    const reversed = [...pack()].reverse();
+    expect(packHash(forward)).toBe(packHash(reversed));
+  });
+
+  it("changes the fingerprint when any question changes", () => {
+    expect(packHash(pack())).not.toBe(packHash(pack({ text: "E1: x\nE2: z" })));
+    expect(packHash(pack())).not.toBe(packHash(pack({ order: 5 })));
+    expect(packHash(pack())).not.toBe(packHash(pack().slice(0, 1)));
+  });
+
+  it("round-trips through the wire shape the RPC receives", () => {
+    const canonical = canonicalQuestions(pack());
+    expect(canonical.map((q) => q.question_id)).toEqual(["query-p1-1-kis", "query-p1-4-trake"]);
+    expect(canonical[1]).toMatchObject({ ordinal: 4, kind: "trake", query_type: "TRAKE", event_count: 2 });
+    expect(recordsToQuestions(canonical)).toEqual(pack());
+  });
+
+  it("summarises a pack for the publish confirmation", () => {
+    expect(packSummary(pack())).toEqual({ total: 2, byKind: { kis: 1, qa: 0, trake: 1 } });
   });
 });

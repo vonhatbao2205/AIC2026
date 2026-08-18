@@ -52,6 +52,12 @@ export interface SubmissionDraft {
   videoId: string;
   frames: number[];
   answer: string;
+  // Preview/provenance, positionally parallel to `frames`. A frame captured
+  // from a paused video has no extracted keyframe, hence the nulls; `frames`
+  // stays the only value the CSV is built from.
+  keyframeIds: (string | null)[];
+  ptsTimes: (number | null)[];
+  retrievalDatabase: RetrievalDatabase;
 }
 
 /** The submit guard acts on exactly one of these; they never shadow each other. */
@@ -63,6 +69,12 @@ type GuardTarget = "result" | "paused";
  *  so a live run can be turned back on by flipping it (and `DRES_ENABLED` in
  *  `backend/app/config.py`) without rebuilding the submit path. */
 const DRES_ENABLED = false;
+
+/** Keyframes a search retrieves before fusion, and the slider's starting point. */
+const DEFAULT_TOP_K = 100;
+/** TRAKE ranks a per-event candidate pool and the assembly needs it wide, so the
+ *  slider may raise that pool but never drops it below the working default. */
+const TRAKE_MIN_TOP_K = 400;
 
 const EMPTY_OVERRIDES: ManualOverrides = { force_channels: [], disable_channels: [] };
 const EMPTY_FEEDBACK: FeedbackState = {
@@ -89,6 +101,8 @@ interface ConsoleProps {
   importing: boolean;
   importError: string | null;
   onOpenSubmission: () => void;
+  onSearchAll: () => void;
+  searchingAll: boolean;
   /** Rows already collected for this tab's question, for the duplicate check. */
   questionRows: SubmissionRow[];
   onSubmitRow: (draft: SubmissionDraft) => void;
@@ -100,7 +114,8 @@ interface ConsoleProps {
 export default function FullConsole({
   onSimpleMode, onShowSettings, configVersion = 0, retrievalDatabase, onRetrievalDatabase,
   active, queryType, onQueryType, questions, question, onSelectQuestion, onImportQuestions,
-  importing, importError, onOpenSubmission, questionRows, onSubmitRow, autoRunToken, onBusyChange,
+  importing, importError, onOpenSubmission, onSearchAll, searchingAll, questionRows, onSubmitRow,
+  autoRunToken, onBusyChange,
 }: ConsoleProps) {
   // `runSearch` shadows this with an explicit override, so the state itself is
   // kept under a distinct name and re-exported for every other reader.
@@ -110,6 +125,11 @@ export default function FullConsole({
   const [parsed, setParsed] = useState<ParsedQuery | null>(null);
   const [overrides, setOverrides] = useState<ManualOverrides>(EMPTY_OVERRIDES);
   const [useLLM, setUseLLM] = useState(false);
+  // Retrieval depth. `topK` is what the slider holds; `appliedTopK` is what the
+  // results on screen were fetched with. Keeping them apart is what makes the
+  // slider inert until Search is pressed.
+  const [topK, setTopK] = useState(DEFAULT_TOP_K);
+  const [appliedTopK, setAppliedTopK] = useState<number | null>(null);
   const [expand, setExpand] = useState(false);
   const [groups, setGroups] = useState<VideoGroup[]>([]);
   const [latency, setLatency] = useState<LatencyBreakdown | null>(null);
@@ -504,6 +524,7 @@ export default function FullConsole({
     const query = typeof overrideQuery === "string" ? overrideQuery : queryState;
     if (!query.trim() && hints.length === 0) return;
     setLoading(true);
+    setAppliedTopK(topK);
     setDuplicateId(null);
     setPausedFrame(null);
     setQaAnalysis(null);
@@ -513,7 +534,7 @@ export default function FullConsole({
     setCanvasQueries([]);
     try {
       if (queryType === "TRAKE") {
-        const res = await api.searchTrake({ retrieval_database: retrievalDatabase, query, previous_hints: hints, manual_overrides: overrides, use_llm: useLLM, expand });
+        const res = await api.searchTrake({ retrieval_database: retrievalDatabase, query, previous_hints: hints, manual_overrides: overrides, use_llm: useLLM, expand, top_k: Math.max(topK, TRAKE_MIN_TOP_K) });
         setParsed(res.parsed);
         const grp: VideoGroup[] = res.sequences.map((s) => ({
           video_id: s.video_id,
@@ -559,6 +580,11 @@ export default function FullConsole({
           feedback,
           use_llm: useLLM,
           expand,
+          top_k: topK,
+          // Results are grouped by video and the backend then keeps only the
+          // first `max_videos` groups. Left at its default of 50, a deep search
+          // would be silently trimmed back to roughly the old frame count.
+          max_videos: Math.min(500, Math.max(50, Math.ceil(topK / 2))),
         });
         setParsed(res.parsed);
         setGroups(res.groups);
@@ -577,7 +603,8 @@ export default function FullConsole({
     } finally {
       setLoading(false);
     }
-  }, [queryState, hints, overrides, queryType, feedback, useLLM, expand, retrievalDatabase]);
+    // `topK` is read here, not watched: nothing re-runs a search when it moves.
+  }, [queryState, hints, overrides, queryType, feedback, useLLM, expand, retrievalDatabase, topK]);
 
   // The tab rail shows a spinner per tab, so the parent has to know which tabs
   // are still running after an import kicked all of them off at once.
@@ -908,6 +935,25 @@ export default function FullConsole({
     return idx == null ? null : [idx];
   }
 
+  /** Keyframe id per frame, or null where the frame came straight off the video. */
+  function draftKeyframeIds(target: GuardTarget): (string | null)[] {
+    if (queryType === "TRAKE") {
+      return trakeSlots
+        .filter((s): s is TrakeSlot => s !== null)
+        .map((slot) => slot.submit_keyframe_id ?? null);
+    }
+    if (target === "paused") return [null];
+    return [selectedFrameObj?.submit_keyframe_id ?? null];
+  }
+
+  function draftPtsTimes(target: GuardTarget): (number | null)[] {
+    if (queryType === "TRAKE") {
+      return trakeSlots.filter((s): s is TrakeSlot => s !== null).map((slot) => slot.pts_time ?? null);
+    }
+    if (target === "paused") return [pausedFrame?.pts_time ?? null];
+    return [selectedFrameObj?.pts_time ?? null];
+  }
+
   function draftVideoId(target: GuardTarget): string | null {
     if (queryType === "TRAKE") {
       return trakeSlots.find((s): s is TrakeSlot => s !== null)?.video_id ?? null;
@@ -920,7 +966,15 @@ export default function FullConsole({
     const frames = draftFrames(target);
     const videoId = draftVideoId(target);
     if (!frames || !videoId) return null;
-    return { questionId: question.id, videoId, frames, answer: answer.trim() };
+    return {
+      questionId: question.id,
+      videoId,
+      frames,
+      answer: answer.trim(),
+      keyframeIds: draftKeyframeIds(target),
+      ptsTimes: draftPtsTimes(target),
+      retrievalDatabase,
+    };
   }
 
   const guardDraft = guardOpen ? buildDraft(guardTarget) : null;
@@ -1298,6 +1352,8 @@ export default function FullConsole({
           importError={importError}
           rowCount={questionRows.length}
           onOpenSubmission={onOpenSubmission}
+          onSearchAll={onSearchAll}
+          searchingAll={searchingAll}
         />
       )}
       {health && !health.ok && health.warnings.length > 0 && (
@@ -1330,6 +1386,9 @@ export default function FullConsole({
             onToggleLLM={() => setUseLLM((v) => !v)}
             expand={expand}
             onToggleExpand={() => setExpand((v) => !v)}
+            topK={topK}
+            onTopK={setTopK}
+            appliedTopK={appliedTopK}
           />
           <ChannelControls retrievalDatabase={retrievalDatabase} parsed={parsed} overrides={overrides} onToggle={toggleChannel} />
           <QueryUnderstanding parsed={parsed} />

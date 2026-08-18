@@ -11,11 +11,17 @@ const PACK = [
   { name: "query-p1-3-trake.txt", text: "E1: bắt đầu chạy.\nE2: về đích." },
 ];
 
-/** Import a pack through the real file input (STORED zip: no inflate in jsdom). */
-async function importPack(files = PACK) {
+/** Import a pack through the real file input (STORED zip: no inflate in jsdom).
+ *
+ *  Parsing no longer applies the pack — publishing one replaces what the whole
+ *  team answers — so the helper makes the same choice an operator would. Tests
+ *  run with Supabase disabled, where only the local option is available. */
+async function importPack(files = PACK, mode: "local" | "publish" = "local") {
   const bytes = buildZipBytes(files);
   const file = new File([bytes as BlobPart], "query-p1-groupA.zip", { type: "application/zip" });
   fireEvent.change(screen.getByTestId("import-input"), { target: { files: [file] } });
+  await screen.findByTestId("pack-preview");
+  fireEvent.click(screen.getByTestId(mode === "publish" ? "pack-publish" : "pack-local"));
   await waitFor(() =>
     expect(screen.getAllByTestId(/^rail-tab-\d+$/)).toHaveLength(files.length),
   );
@@ -378,6 +384,7 @@ function taskScope(body: any) {
   return name ? `${body.evaluation_id}/${name}` : "unknown-task";
 }
 
+let keyframeLookups: string[] = [];
 let historyStore: any[] = [];
 let canvasRequests: any[] = [];
 
@@ -447,6 +454,16 @@ function mockFetch(historySeed: any[] = []) {
     if (path.endsWith("/api/query/parse")) return json(SEARCH_RESPONSE.parsed);
     if (path.endsWith("/api/qa/analyze")) return json(QA_ANALYSIS_RESPONSE);
     if (path.includes("/timeline")) return json(TIMELINE);
+    if (path.includes("/api/keyframes/")) {
+      const id = decodeURIComponent(path.split("/api/keyframes/")[1].split("?")[0]);
+      keyframeLookups.push(id);
+      return json({
+        image_id: id, submit_keyframe_id: id, video_id: "K01_V001", keyframe_n: 1,
+        pts_time: 0, fps: 25, frame_idx: 0, retrieval_database: "btc",
+        keyframe_url: `https://media.test/Keyframes/${id}.jpg`,
+        video_url: FRAME1.video_url, found: true,
+      });
+    }
     if (path.endsWith("/api/submit")) {
       const body = JSON.parse((init?.body as string) || "{}");
       const invalid = formatError(body);
@@ -478,6 +495,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   historyStore = [];
   canvasRequests = [];
+  keyframeLookups = [];
 });
 
 describe("V-KIS canvas", () => {
@@ -663,6 +681,51 @@ describe("AIC26 retrieval console (full)", () => {
     await waitFor(() => expect(screen.getByTestId("submit-guard")).toBeInTheDocument());
     expect(screen.getByTestId("dup-warn")).toHaveTextContent("K01_V001,0");
     expect(screen.getByTestId("confirm-submit")).toHaveTextContent(/dù trùng/i);
+  });
+
+  it("retrieves 100 keyframes by default and sends the slider value on the next search", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByTestId("query-input"), "thời sự");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => screen.getByTestId("detail-panel"));
+
+    const bodies = () =>
+      vi.mocked(fetch).mock.calls
+        .filter(([url]) => String(url).endsWith("/api/search"))
+        .map(([, init]) => JSON.parse(String(init?.body)));
+    expect(bodies()[0].top_k).toBe(100);
+    expect(screen.getByTestId("topk-value")).toHaveTextContent("100");
+
+    fireEvent.change(screen.getByTestId("topk-slider"), { target: { value: "600" } });
+    await user.click(screen.getByTestId("search-btn"));
+
+    await waitFor(() => expect(bodies()).toHaveLength(2));
+    expect(bodies()[1].top_k).toBe(600);
+    // The 50-video cap would otherwise trim a deep search back to roughly the
+    // old frame count, so it scales with the depth that was asked for.
+    expect(bodies()[1].max_videos).toBe(300);
+  });
+
+  it("does not re-run the search while the depth slider is being dragged", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByTestId("query-input"), "thời sự");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => screen.getByTestId("detail-panel"));
+
+    const searchCount = () =>
+      vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("/api/search")).length;
+    expect(searchCount()).toBe(1);
+
+    for (const value of ["200", "400", "800", "1000"]) {
+      fireEvent.change(screen.getByTestId("topk-slider"), { target: { value } });
+    }
+    // Every channel would be re-queried on each drag step otherwise.
+    expect(searchCount()).toBe(1);
+    expect(screen.getByTestId("topk-value")).toHaveTextContent("1000");
+    // ...and the operator is told the results on screen are not the new depth.
+    expect(screen.getByTestId("topk-dirty")).toHaveTextContent("100");
   });
 
   it("switches between grouped and flat top-K views", async () => {
@@ -1156,6 +1219,8 @@ describe("query pack + submission table", () => {
     const bytes = buildZipBytes(PACK);
     const file = new File([bytes as BlobPart], "pack.zip", { type: "application/zip" });
     fireEvent.change(screen.getByTestId("submission-import-input"), { target: { files: [file] } });
+    await screen.findByTestId("pack-preview");
+    fireEvent.click(screen.getByTestId("pack-local"));
     await waitFor(() => expect(screen.getAllByTestId(/^rail-tab-\d+$/)).toHaveLength(PACK.length));
   });
 
@@ -1186,6 +1251,149 @@ describe("query pack + submission table", () => {
     // Collapsed or not, clicking still switches tabs.
     await user.click(trakeTab);
     expect(trakeTab).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("keeps the table textual and only loads a picture when P is pressed", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await waitFor(() => screen.getByTestId("detail-panel"));
+    await user.click(screen.getByTestId("open-submit"));
+    await user.click(screen.getByTestId("confirm-submit"));
+    await user.click(screen.getByTestId("open-submission"));
+
+    // Five clients syncing text must not turn into five clients fetching media:
+    // the table shows ids only until somebody asks for a frame.
+    const panel = await screen.findByTestId("submission-panel");
+    expect(within(panel).queryByRole("img")).not.toBeInTheDocument();
+    expect(keyframeLookups).toEqual([]);
+
+    await user.click(screen.getByTestId("row-query-p1-1-kis-0"));
+    fireEvent.keyDown(window, { key: "P" });
+
+    const preview = await screen.findByTestId("frame-preview");
+    await waitFor(() => expect(keyframeLookups).toEqual(["K01/K01_V001/001"]));
+    expect(within(preview).getByRole("img")).toHaveAttribute(
+      "src",
+      "https://media.test/Keyframes/K01/K01_V001/001.jpg",
+    );
+
+    fireEvent.keyDown(window, { key: "P" });
+    await waitFor(() => expect(screen.queryByTestId("frame-preview")).not.toBeInTheDocument());
+  });
+
+  it("says so instead of faking a picture for a raw video frame", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await waitFor(() => screen.getByTestId("detail-panel"));
+
+    // Submit the paused RAW frame: it has no extracted keyframe behind it.
+    (document.activeElement as HTMLElement)?.blur();
+    fireEvent.keyDown(window, { key: "v" });
+    const video = (await screen.findByTestId("video-viewer")) as HTMLVideoElement;
+    Object.defineProperty(video, "currentTime", { configurable: true, writable: true, value: 5.2 });
+    fireEvent.pause(video);
+    await screen.findByTestId("paused-frame-chip");
+    await user.click(screen.getByTestId("submit-paused-frame"));
+    await user.click(screen.getByTestId("confirm-submit"));
+
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByTestId("row-query-p1-1-kis-0"));
+    fireEvent.keyDown(window, { key: "P" });
+
+    expect(await screen.findByTestId("preview-raw")).toHaveTextContent("RAW VIDEO FRAME");
+    expect(keyframeLookups).toEqual([]);
+  });
+
+  it("re-picks a frame from the video and writes it back to the row", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await waitFor(() => screen.getByTestId("detail-panel"));
+    await user.click(screen.getByTestId("open-submit"));
+    await user.click(screen.getByTestId("confirm-submit"));
+    await user.click(screen.getByTestId("open-submission"));
+    expect(await screen.findByTestId("csv-query-p1-1-kis")).toHaveTextContent("K01_V001,0");
+
+    await user.click(screen.getByTestId("row-query-p1-1-kis-0"));
+    fireEvent.keyDown(window, { key: "V" });
+    const editor = await screen.findByTestId("frame-editor");
+
+    const video = (await within(editor).findByTestId("video-viewer")) as HTMLVideoElement;
+    Object.defineProperty(video, "currentTime", { configurable: true, writable: true, value: 5.2 });
+    fireEvent.pause(video);
+
+    // The draft stays local until the commit button — otherwise every scrub
+    // would jump the row on four other screens.
+    expect(within(editor).getByTestId("editor-candidate")).toHaveTextContent("frame 130");
+    expect(screen.getByTestId("csv-query-p1-1-kis")).toHaveTextContent("K01_V001,0");
+
+    await user.click(within(editor).getByTestId("editor-commit"));
+    await waitFor(() =>
+      expect(screen.getByTestId("csv-query-p1-1-kis")).toHaveTextContent("K01_V001,130"),
+    );
+  });
+
+  it("can keep the original answer and add the re-picked frame as a second row", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await waitFor(() => screen.getByTestId("detail-panel"));
+    await user.click(screen.getByTestId("open-submit"));
+    await user.click(screen.getByTestId("confirm-submit"));
+    await user.click(screen.getByTestId("open-submission"));
+
+    await user.click(screen.getByTestId("row-query-p1-1-kis-0"));
+    fireEvent.keyDown(window, { key: "V" });
+    const editor = await screen.findByTestId("frame-editor");
+    const video = (await within(editor).findByTestId("video-viewer")) as HTMLVideoElement;
+    Object.defineProperty(video, "currentTime", { configurable: true, writable: true, value: 5.2 });
+    fireEvent.pause(video);
+
+    await user.click(within(editor).getByTestId("editor-commit-new"));
+
+    // Both guesses survive: the original stays put, the new frame is appended.
+    await waitFor(() =>
+      expect(screen.getByTestId("csv-query-p1-1-kis")).toHaveTextContent("K01_V001,0"),
+    );
+    expect(screen.getByTestId("csv-query-p1-1-kis")).toHaveTextContent("K01_V001,130");
+    expect(screen.getByTestId("row-query-p1-1-kis-1")).toBeInTheDocument();
+  });
+
+  it("searches every question on demand, for a machine that only received the pack", async () => {
+    // The machine that imports a pack gets its tabs opened and searched as part
+    // of applying it. A machine that received the same pack over realtime never
+    // ran that step, so it needs a way to reach the same state.
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+
+    // Collapse back to a single idle tab, the way a sync-only machine starts.
+    await user.click(screen.getByTestId("rail-close-2"));
+    await user.click(screen.getByTestId("rail-close-1"));
+    expect(screen.getAllByTestId(/^rail-tab-\d+$/)).toHaveLength(1);
+    const before = vi.mocked(fetch).mock.calls.filter(([url]) =>
+      String(url).endsWith("/api/search"),
+    ).length;
+
+    await user.click(screen.getByTestId("search-all"));
+
+    await waitFor(() => expect(screen.getAllByTestId(/^rail-tab-\d+$/)).toHaveLength(PACK.length));
+    await waitFor(() => {
+      const searched = vi.mocked(fetch).mock.calls
+        .filter(([url]) => String(url).endsWith("/api/search"))
+        .map(([, init]) => JSON.parse(String(init?.body)).query);
+      expect(searched).toContain(PACK[0].text);
+      expect(searched).toContain(PACK[1].text);
+      expect(searched.length).toBeGreaterThan(before);
+    });
+  });
+
+  it("offers nothing to search before a pack exists", async () => {
+    render(<App />);
+    expect(screen.getByTestId("search-all")).toBeDisabled();
+    expect(screen.getByTestId("search-all")).toHaveTextContent("(0)");
   });
 
   it("adds and closes tabs", async () => {

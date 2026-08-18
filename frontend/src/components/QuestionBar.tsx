@@ -12,6 +12,9 @@ interface Props {
   /** Rows already collected for the selected question. */
   rowCount: number;
   onOpenSubmission: () => void;
+  /** Open one tab per question and search them all, the way an import does. */
+  onSearchAll: () => void;
+  searchingAll: boolean;
 }
 
 /** Replaces the DRES bar: the run/task selector became a query-pack selector.
@@ -70,6 +73,19 @@ export function QuestionBar(props: Props) {
       <div className="spacer" />
       <button className="btn sm ghost" onClick={props.onOpenSubmission} data-testid="open-submission">
         Submission
+      </button>
+      <button
+        className="btn sm"
+        onClick={props.onSearchAll}
+        disabled={questions.length === 0 || props.searchingAll}
+        data-testid="search-all"
+        title={
+          questions.length
+            ? `Mở ${questions.length} tab và search tất cả — thay toàn bộ tab đang mở`
+            : "Chưa có gói câu hỏi"
+        }
+      >
+        {props.searchingAll ? "Đang search…" : `⚡ Search tất cả (${questions.length})`}
       </button>
       <input
         ref={fileRef}

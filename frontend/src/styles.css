@@ -780,3 +780,50 @@ button { font-family: inherit; }
 .cfg-value { color: var(--fg-dim); word-break: break-all; }
 .cfg-unset { color: var(--fg-faint); }
 .cfg-envtag { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 999px; font-size: 9.5px; letter-spacing: .04em; text-transform: uppercase; background: var(--bg-hover); color: var(--fg-faint); border: 1px solid var(--line); }
+
+/* ---- Shared submission: sync state, preview, frame editor ---- */
+.sync-pill {
+  font-size: 11px; padding: 3px 9px; border-radius: 11px;
+  border: 1px solid var(--line); color: var(--fg-dim); white-space: nowrap;
+}
+.sync-pill.live { color: var(--ok, #3ecf8e); border-color: color-mix(in srgb, var(--ok, #3ecf8e) 45%, transparent); }
+.sync-pill.error { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
+.sync-pill.pending { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+
+/* Per-row dot: whether the shared table has this answer yet. */
+.sync-dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  margin-right: 5px; vertical-align: middle; background: var(--fg-faint);
+}
+.sync-dot.synced { background: var(--ok, #3ecf8e); }
+.sync-dot.pending { background: var(--warn); }
+
+.submission-table tr.selected-row { outline: 1px solid var(--accent); outline-offset: -1px; }
+.submission-table tr { cursor: pointer; }
+.keyframe-cell { font-size: 11px; }
+
+.preview-overlay {
+  border: 1px solid var(--line-2); border-radius: 8px; background: var(--bg-1);
+  padding: 8px; margin-bottom: 12px;
+}
+.preview-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; }
+.preview-img { max-width: 100%; max-height: 46vh; border-radius: 6px; display: block; margin: 0 auto; }
+
+.modal.wide { width: min(920px, 94vw); }
+.frame-edit-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0 6px;
+}
+.frame-edit-grid .k { font-size: 10px; color: var(--fg-faint); }
+.frame-edit-grid .v { font-size: 13px; }
+
+/* ---- Retrieval depth slider ---- */
+.topk-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.topk-row .k { font-size: 10px; color: var(--fg-faint); text-transform: uppercase; letter-spacing: .04em; }
+.topk-row .slider { flex: 1; min-width: 0; }
+.topk-value { font-size: 12px; color: var(--fg-dim); min-width: 34px; text-align: right; }
+
+/* ---- Question pack publish preview ---- */
+.pack-preview {
+  border: 1px solid var(--accent); border-radius: 8px;
+  background: var(--accent-weak); padding: 10px 12px; margin-bottom: 12px;
+}

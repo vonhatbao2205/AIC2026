@@ -17,10 +17,16 @@ interface Props {
   onToggleLLM: () => void;
   expand: boolean;
   onToggleExpand: () => void;
+  /** Keyframes to retrieve. Applied on the NEXT search, never on change. */
+  topK: number;
+  onTopK: (value: number) => void;
+  /** What the results on screen were actually fetched with, or null before the
+   *  first search — used to tell the operator the slider is not live yet. */
+  appliedTopK: number | null;
 }
 
 export function QueryPanel(props: Props) {
-  const { query, setQuery, hints, onAppendHint, onClearHints, onSearch, loading, parsed, queryType, inputRef, useLLM, onToggleLLM, expand, onToggleExpand } = props;
+  const { query, setQuery, hints, onAppendHint, onClearHints, onSearch, loading, parsed, queryType, inputRef, useLLM, onToggleLLM, expand, onToggleExpand, topK, onTopK, appliedTopK } = props;
   const [listening, setListening] = useState(false);
   const [voiceMsg, setVoiceMsg] = useState<string | null>(null);
   const [interim, setInterim] = useState("");
@@ -219,6 +225,29 @@ export function QueryPanel(props: Props) {
           {expand ? "🔎 Expand on" : "Expand off"}
         </button>
       </div>
+
+      {/* Retrieval depth. Deliberately NOT live: moving it while a hundred
+          results are on screen would re-run every channel on every drag. */}
+      <div className="topk-row">
+        <span className="k">keyframes</span>
+        <input
+          type="range"
+          className="slider"
+          min={20}
+          max={1000}
+          step={20}
+          value={topK}
+          data-testid="topk-slider"
+          aria-label="Số keyframe truy hồi"
+          onChange={(event) => onTopK(Number(event.target.value))}
+        />
+        <span className="mono topk-value" data-testid="topk-value">{topK}</span>
+      </div>
+      {appliedTopK != null && appliedTopK !== topK && (
+        <div className="hint-text" data-testid="topk-dirty">
+          Đang hiển thị {appliedTopK} keyframe — bấm <b>Search</b> để tải lại với {topK}.
+        </div>
+      )}
       {listening && interim && (
         <div className="hint-text" style={{ fontStyle: "italic", color: "var(--fg-dim)" }} data-testid="voice-interim">
           …{interim}

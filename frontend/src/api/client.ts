@@ -12,6 +12,7 @@ import type {
   DresTaskHint,
   FeedbackState,
   HealthResponse,
+  KeyframeInfo,
   ParsedQuery,
   QaAnalysisResponse,
   QaAnalyzeCandidate,
@@ -140,13 +141,15 @@ export const api = {
     feedback?: FeedbackState;
     use_llm?: boolean;
     expand?: boolean;
+    top_k?: number;
+    max_videos?: number;
   }) =>
     request<SearchResponse>("/api/search", {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
-  searchTrake: (body: { retrieval_database: RetrievalDatabase; query: string; previous_hints: string[]; manual_overrides: ManualOverrides; use_llm?: boolean; expand?: boolean }) =>
+  searchTrake: (body: { retrieval_database: RetrievalDatabase; query: string; previous_hints: string[]; manual_overrides: ManualOverrides; use_llm?: boolean; expand?: boolean; top_k?: number }) =>
     request<TrakeSearchResponse>("/api/search/trake", {
       method: "POST",
       body: JSON.stringify(body),
@@ -174,6 +177,11 @@ export const api = {
 
   timeline: (videoId: string, database: RetrievalDatabase = "btc") =>
     request<Timeline>(`/api/videos/${videoId}/timeline?retrieval_database=${database}`),
+
+  keyframe: (submitKeyframeId: string, database: RetrievalDatabase = "btc") =>
+    request<KeyframeInfo>(
+      `/api/keyframes/${submitKeyframeId}?retrieval_database=${database}`,
+    ),
 
   snap: (videoId: string, rawTime: number, fps?: number, retrieval_database: RetrievalDatabase = "btc") =>
     request<SnapResult>(`/api/videos/${videoId}/snap`, {

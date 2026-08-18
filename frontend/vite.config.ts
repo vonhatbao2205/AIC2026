@@ -26,5 +26,13 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     css: false,
+    // Vite loads .env.local for tests too, so without this the suite would spin
+    // up a real Supabase client and point at the team's live submission table.
+    // Tests must exercise the local-only path; sync itself is covered by the
+    // pure record/merge tests in src/test/submission.test.ts.
+    env: {
+      VITE_SUPABASE_URL: "",
+      VITE_SUPABASE_PUBLISHABLE_KEY: "",
+    },
   },
 });

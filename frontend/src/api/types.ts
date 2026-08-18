@@ -320,6 +320,22 @@ export interface Timeline {
   keyframes: TimelineKeyframe[];
 }
 
+/** `GET /api/keyframes/{submit_keyframe_id}` — resolves one keyframe's media
+ *  URLs without loading a whole timeline. Used by the Submission tab's preview. */
+export interface KeyframeInfo {
+  image_id: string;
+  submit_keyframe_id: string;
+  video_id: string;
+  keyframe_n: number;
+  pts_time: number | null;
+  fps: number | null;
+  frame_idx: number | null;
+  retrieval_database: RetrievalDatabase;
+  keyframe_url: string;
+  video_url: string;
+  found: boolean;
+}
+
 export interface SnapResult {
   video_id: string;
   fps: number;

@@ -7,6 +7,7 @@
  *
  * No header row, UTF-8, comma delimiter, CRLF line endings.
  */
+import type { RetrievalDatabase } from "../api/types";
 import type { ImportedQuestion, QuestionKind } from "./questions";
 import { buildZip } from "./zip";
 
@@ -23,6 +24,27 @@ export interface SubmissionRow {
   answer: string;
   /** Filled when the row came from a submit action rather than a manual edit. */
   source?: "submit" | "manual";
+
+  // ---- shared-submission metadata (see supabase/migrations/001_*.sql) ----
+  // `frames` stays the only value the CSV is built from. The two arrays below
+  // are positionally parallel to it and exist so the panel can preview a row
+  // without syncing any media; either entry may be null, because a frame taken
+  // from a paused video need not be an extracted keyframe at all.
+  keyframeIds?: (string | null)[];
+  ptsTimes?: (number | null)[];
+  /** Which profile's media the preview must resolve against. */
+  retrievalDatabase?: RetrievalDatabase;
+  /** Display name of whoever submitted it; local-only when working offline. */
+  submittedBy?: string;
+  /** Session (question pack) the answer belongs to, so a practice run and the
+   *  real round can never be exported together. */
+  sessionId?: string | null;
+  /** Server revision this client last read, for optimistic concurrency. */
+  revision?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  /** Local view of whether the shared store has this row yet. */
+  syncState?: "synced" | "pending" | "local";
 }
 
 /** Identity used for the duplicate warning — the exact tuple the CSV will hold. */

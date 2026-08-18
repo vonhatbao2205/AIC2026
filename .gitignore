@@ -8,6 +8,8 @@
 *.env
 !*.env.example
 backend/.env
+.env.local
+frontend/.env.local
 api-key.txt
 elastic_apikey.txt
 elastic_endpoint.txt

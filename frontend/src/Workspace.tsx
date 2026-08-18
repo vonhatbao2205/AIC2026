@@ -4,7 +4,11 @@ import { SubmissionPanel } from "./components/SubmissionPanel";
 import { SUBMISSION_VIEW, TabRail, type ActiveView, type ConsoleTab } from "./components/TabRail";
 import type { QueryType, RetrievalDatabase } from "./api/types";
 import { parseQuestionPack, type ImportedQuestion } from "./lib/questions";
-import { buildSubmissionZip, MAX_ROWS_PER_QUESTION, findDuplicate, type SubmissionRow } from "./lib/submission";
+import { buildSubmissionZip, MAX_ROWS_PER_QUESTION, type SubmissionRow } from "./lib/submission";
+import { useSharedSubmission } from "./hooks/useSharedSubmission";
+import { useSharedSession } from "./hooks/useSharedSession";
+import { defaultSessionName, packSummary } from "./lib/questionPack";
+import { newRowId } from "./lib/sharedSubmission";
 import { readZipTextFiles, ZipError } from "./lib/zip";
 
 interface Props {
@@ -15,28 +19,10 @@ interface Props {
   onRetrievalDatabase: (database: RetrievalDatabase) => void;
 }
 
-const ROWS_KEY = "aic26_submission_rows";
-const QUESTIONS_KEY = "aic26_question_pack";
-
 let tabSeq = 0;
 function newTab(queryType: QueryType = "T-KIS", questionId: string | null = null): ConsoleTab {
   tabSeq += 1;
   return { id: `tab-${tabSeq}`, queryType, questionId, autoRunToken: 0 };
-}
-
-let rowSeq = 0;
-function newRowId(): string {
-  rowSeq += 1;
-  return `row-${Date.now().toString(36)}-${rowSeq}`;
-}
-
-function loadJson<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
 }
 
 /** Owns everything shared across search tabs: the imported query pack, the tab
@@ -46,9 +32,10 @@ function loadJson<T>(key: string, fallback: T): T {
  *  import has to run all of their searches at once. Result thumbnails are
  *  `loading="lazy"`, so a hidden tab costs DOM but no network. */
 export default function Workspace(props: Props) {
-  const [questions, setQuestions] = useState<ImportedQuestion[]>(() =>
-    loadJson<ImportedQuestion[]>(QUESTIONS_KEY, []),
-  );
+  // The pack is shared state now: Supabase decides which questions the team is
+  // answering, localStorage only caches them for an offline stretch.
+  const pack = useSharedSession();
+  const questions = pack.questions;
   const [tabs, setTabs] = useState<ConsoleTab[]>(() => [newTab()]);
   // Derived, never hardcoded: tab ids come from a counter, so a literal "tab-1"
   // would leave the workspace pointing at nothing on any later mount.
@@ -59,28 +46,17 @@ export default function Workspace(props: Props) {
   useEffect(() => {
     if (active !== SUBMISSION_VIEW) lastConsoleTab.current = active;
   }, [active]);
-  const [rows, setRows] = useState<SubmissionRow[]>(() => loadJson<SubmissionRow[]>(ROWS_KEY, []));
+  // Rows are owned by the shared store now: five operators search on their own
+  // machines but write into one Submission table. With no Supabase configured it
+  // degrades to the previous localStorage-only behaviour.
+  const shared = useSharedSubmission(pack.session?.id ?? null);
+  const rows = shared.rows;
   const [importing, setImporting] = useState(false);
+  /** Parsed but not yet applied — waiting for publish-or-local. */
+  const [pendingPack, setPendingPack] = useState<ImportedQuestion[] | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [busyTabs, setBusyTabs] = useState<Set<string>>(new Set());
-
-  // Answers are the one thing in this app that cannot be recomputed, so they
-  // survive a reload. The pack rides along so the rows keep their CSV names.
-  useEffect(() => {
-    try {
-      localStorage.setItem(ROWS_KEY, JSON.stringify(rows));
-    } catch {
-      /* quota — the table is still authoritative in memory */
-    }
-  }, [rows]);
-  useEffect(() => {
-    try {
-      localStorage.setItem(QUESTIONS_KEY, JSON.stringify(questions));
-    } catch {
-      /* ignore */
-    }
-  }, [questions]);
 
   const questionById = useMemo(
     () => new Map(questions.map((question) => [question.id, question])),
@@ -141,28 +117,35 @@ export default function Workspace(props: Props) {
   );
 
   // ---- import ----
+  /** Open one tab per question, each on the right type and already searching. */
+  const openTabsFor = useCallback((list: ImportedQuestion[]) => {
+    const opened = list.map((question) => {
+      const tab = newTab(question.queryType, question.id);
+      tab.autoRunToken = 1;
+      return tab;
+    });
+    if (!opened.length) return;
+    setTabs(opened);
+    setActive(opened[0].id);
+    setBusyTabs(new Set());
+  }, []);
+
+  /** Parsing no longer applies the pack. Publishing it replaces what five
+   *  machines are answering, so it is a decision the operator states. */
   const importPack = useCallback(async (file: File) => {
     setImporting(true);
     setImportError(null);
     try {
       const entries = await readZipTextFiles(file);
-      const pack = parseQuestionPack(entries);
-      if (!pack.length) {
+      const parsed = parseQuestionPack(entries);
+      if (!parsed.length) {
         throw new ZipError(
           "Không tìm thấy file câu hỏi nào. Tên file phải dạng <tên>-<số>-<kis|qa|trake>.txt",
         );
       }
-      setQuestions(pack);
-      // One tab per question, each already on the right query type, each told to
-      // run its own search — that is the whole point of importing a pack.
-      const opened = pack.map((question) => {
-        const tab = newTab(question.queryType, question.id);
-        tab.autoRunToken = 1;
-        return tab;
-      });
-      setTabs(opened);
-      setActive(opened[0].id);
-      setBusyTabs(new Set());
+      setPendingPack(parsed);
+      // The publish decision lives in the Submission view; go where it is shown.
+      setActive(SUBMISSION_VIEW);
     } catch (error) {
       setImportError(error instanceof Error ? error.message : "Import thất bại");
     } finally {
@@ -170,41 +153,84 @@ export default function Workspace(props: Props) {
     }
   }, []);
 
-  // ---- submission rows ----
-  const addRow = useCallback(
-    (draft: SubmissionDraft) => {
-      const question = questionById.get(draft.questionId);
-      setRows((current) => {
-        if (current.filter((row) => row.questionId === draft.questionId).length >= MAX_ROWS_PER_QUESTION) {
-          return current;
-        }
-        // Duplicates are allowed through deliberately — the guard already warned,
-        // and the operator confirming past it is a decision, not a slip.
-        void (question && findDuplicate(current, draft, question.kind));
-        return [...current, { id: newRowId(), source: "submit", ...draft }];
-      });
+  /** Bring this machine to the same state the importing machine reached.
+   *
+   *  Importing a pack opens a tab per question and searches them all, but a
+   *  machine that received the pack over realtime never ran that step — it just
+   *  had its question list replaced. This is that step, on demand. */
+  const searchAllQuestions = useCallback(() => {
+    if (!questions.length) return;
+    openTabsFor(questions);
+  }, [questions, openTabsFor]);
+
+  const applyPack = useCallback(
+    async (mode: "publish" | "local") => {
+      if (!pendingPack) return;
+      setImportError(null);
+      try {
+        if (mode === "publish") await pack.publish(pendingPack, defaultSessionName(pendingPack));
+        else pack.useLocally(pendingPack);
+        openTabsFor(pendingPack);
+        setPendingPack(null);
+      } catch (error) {
+        setImportError(
+          error instanceof Error ? error.message : "Không publish được gói câu hỏi",
+        );
+      }
     },
-    [questionById],
+    [pendingPack, pack, openTabsFor],
   );
 
-  const addBlankRow = useCallback((questionId: string) => {
-    setRows((current) => [
-      ...current,
-      { id: newRowId(), questionId, videoId: "", frames: [], answer: "", source: "manual" },
-    ]);
-  }, []);
+  // ---- submission rows (delegated to the shared store) ----
+  const addRow = useCallback(
+    (draft: SubmissionDraft) => {
+      // Duplicates are allowed through deliberately — the guard already warned,
+      // and the operator confirming past it is a decision, not a slip.
+      if (rows.filter((row) => row.questionId === draft.questionId).length >= MAX_ROWS_PER_QUESTION) {
+        return;
+      }
+      shared.addRow({ id: newRowId(), source: "submit", ...draft });
+    },
+    [rows, shared],
+  );
 
-  const changeRow = useCallback((rowId: string, patch: Partial<SubmissionRow>) => {
-    setRows((current) => current.map((row) => (row.id === rowId ? { ...row, ...patch } : row)));
-  }, []);
+  const addBlankRow = useCallback(
+    (questionId: string) => {
+      shared.addRow({
+        id: newRowId(),
+        questionId,
+        videoId: "",
+        frames: [],
+        answer: "",
+        source: "manual",
+        retrievalDatabase: props.retrievalDatabase,
+      });
+    },
+    [shared, props.retrievalDatabase],
+  );
 
-  const deleteRow = useCallback((rowId: string) => {
-    setRows((current) => current.filter((row) => row.id !== rowId));
-  }, []);
+  const changeRow = useCallback(
+    (rowId: string, patch: Partial<SubmissionRow>) => shared.updateRow(rowId, patch),
+    [shared],
+  );
 
-  const clearQuestion = useCallback((questionId: string) => {
-    setRows((current) => current.filter((row) => row.questionId !== questionId));
-  }, []);
+  const deleteRow = useCallback((rowId: string) => shared.deleteRow(rowId), [shared]);
+
+  /** Same answer shape, new identity: a second guess for the same question. */
+  const cloneRow = useCallback(
+    (row: SubmissionRow) => {
+      if (rows.filter((item) => item.questionId === row.questionId).length >= MAX_ROWS_PER_QUESTION) {
+        return;
+      }
+      shared.addRow({ ...row, id: newRowId(), revision: 1, createdAt: undefined, syncState: undefined });
+    },
+    [rows, shared],
+  );
+
+  const clearQuestion = useCallback(
+    (questionId: string) => shared.clearQuestion(questionId),
+    [shared],
+  );
 
   const exportZip = useCallback(() => {
     setExportError(null);
@@ -277,6 +303,8 @@ export default function Workspace(props: Props) {
                 importing={importing}
                 importError={importError}
                 onOpenSubmission={() => setActive(SUBMISSION_VIEW)}
+                onSearchAll={searchAllQuestions}
+                searchingAll={busyTabs.size > 0}
                 questionRows={question ? rows.filter((row) => row.questionId === question.id) : []}
                 onSubmitRow={addRow}
                 autoRunToken={tab.autoRunToken}
@@ -293,6 +321,7 @@ export default function Workspace(props: Props) {
               onChangeRow={changeRow}
               onDeleteRow={deleteRow}
               onAddRow={addBlankRow}
+              onCloneRow={cloneRow}
               onClearQuestion={clearQuestion}
               onExport={exportZip}
               onJumpToQuestion={jumpToQuestion}
@@ -309,6 +338,31 @@ export default function Workspace(props: Props) {
               onImport={importPack}
               importing={importing}
               importError={importError}
+              defaultRetrievalDatabase={props.retrievalDatabase}
+              pendingPack={pendingPack}
+              onApplyPack={applyPack}
+              onCancelPack={() => setPendingPack(null)}
+              onSearchAll={searchAllQuestions}
+              searchingAll={busyTabs.size > 0}
+              pack={{
+                shared: pack.shared,
+                sessionName: pack.session?.name ?? null,
+                packHash: pack.session?.packHash ?? null,
+                publishedBy: pack.session?.publishedBy ?? null,
+                origin: pack.origin,
+                loading: pack.loading,
+                error: pack.error,
+              }}
+              sync={{
+                shared: shared.shared,
+                status: shared.status,
+                pending: shared.pending,
+                error: shared.error,
+                room: shared.room,
+                user: shared.user,
+                conflicts: shared.conflicts,
+                onDismissConflict: shared.dismissConflict,
+              }}
             />
           </div>
         )}
