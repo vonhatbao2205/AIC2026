@@ -19,6 +19,11 @@ from ..query_parser import QueryParser
 from ..types import Channel, ChannelHit, Evidence, FusedFrame, VideoGroup
 
 
+#: Upper bound of the console's retrieval-depth slider; every returned frame is
+#: enriched so it can be submitted.
+MAX_ENRICHED_FRAMES = 1000
+
+
 class ServiceUnavailable(Exception):
     """A required upstream (PE encoder / Milvus) is unreachable in live mode."""
 
@@ -320,8 +325,13 @@ class SearchService:
 
     async def _enrich_pts(self, frames: list[FusedFrame]) -> None:
         """Fill pts_time / frame_idx / fps from the keyframe map (single batched
-        _mget). frame_idx + fps are needed to build DRES video_id+frame_idx submits."""
-        need = [f for f in frames[:300] if f.pts_time is None or f.frame_idx is None]
+        _mget). frame_idx + fps are needed to build the video_id+frame_idx submit.
+
+        The cap covers the whole result set the console can ask for. It used to
+        stop at 300, which silently made every frame past that rank
+        unsubmittable — they came back with no frame_idx at all — as soon as the
+        retrieval-depth slider went above it."""
+        need = [f for f in frames[:MAX_ENRICHED_FRAMES] if f.pts_time is None or f.frame_idx is None]
         if not need:
             return
         recs = await self.elastic.get_keyframes_by_ids([f.submit_keyframe_id for f in need])

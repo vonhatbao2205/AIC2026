@@ -42,8 +42,10 @@ class SearchRequest(BaseModel):
     feedback: FeedbackState | None = None
     use_llm: bool = False
     expand: bool = False  # Nemotron query expansion (extra visual paraphrases)
-    top_k: int = 100
-    max_videos: int = 50
+    # Bounded so a malformed client cannot ask for an unbounded fusion; 1000 is
+    # what the console's retrieval-depth slider tops out at.
+    top_k: int = Field(default=100, ge=1, le=1000)
+    max_videos: int = Field(default=50, ge=1, le=500)
 
 
 class SimpleSearchRequest(BaseModel):
@@ -66,7 +68,7 @@ class TrakeSearchRequest(BaseModel):
     expand: bool = False  # Nemotron query expansion per event
     # Wide per-event candidate pool so the video containing all events surfaces a
     # frame for each event (the DP then assembles the ordered sequence).
-    top_k: int = 400
+    top_k: int = Field(default=400, ge=1, le=1000)
 
 
 class SnapRequest(BaseModel):
