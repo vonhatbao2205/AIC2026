@@ -48,8 +48,10 @@ pair. Machine B could hold yesterday's pack, so a row saying
 the one machine A answered. Both now live in the same session.
 
 One person imports the ZIP and presses **⇪ Publish cho cả team**. Everyone else's
-console picks the pack up over realtime; nobody re-imports by hand. **Chỉ máy
-này** still exists for rehearsing without touching the team.
+console picks the pack up over realtime; nobody re-imports by hand. There is
+deliberately no per-machine import: it was the one way two clients could end up
+answering different questions under the same `question_id`. Rehearse by
+publishing into a different `VITE_SUBMISSION_ROOM` instead.
 
 The Submission header shows the live session and its pack fingerprint:
 
@@ -58,9 +60,9 @@ The Submission header shows the live session and its pack fingerprint:
 ```
 
 If a client cannot reach the server it keeps working from its cached pack and
-says so — `⚠ Đang dùng gói câu hỏi từ cache`. A pack imported locally while the
-team has a published one is flagged too, because the answers still go to the
-shared table.
+says so — `⚠ Đang dùng gói câu hỏi từ cache`. With no Supabase configured at all,
+publishing applies the pack to that machine and the panel says so, because the
+console still has to run on a lone laptop.
 
 Answers carry the `session_id` of the pack that defined their questions, so a
 practice run and the real round can never be exported together.

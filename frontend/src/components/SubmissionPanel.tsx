@@ -54,9 +54,9 @@ interface Props {
   importing: boolean;
   importError: string | null;
   sync: SubmissionSyncInfo;
-  /** Parsed pack awaiting a publish-or-local decision. */
+  /** Parsed pack awaiting the publish decision. */
   pendingPack: ImportedQuestion[] | null;
-  onApplyPack: (mode: "publish" | "local") => void;
+  onApplyPack: () => void;
   onCancelPack: () => void;
   onSearchAll: () => void;
   searchingAll: boolean;
@@ -385,23 +385,17 @@ export function SubmissionPanel(props: Props) {
               TRAKE {summary.byKind.trake}
             </div>
             <div className="hint-text" style={{ margin: 0 }}>
-              Publish sẽ thay gói câu hỏi của <b>cả team</b> và mở lại tab theo gói mới.
-              “Chỉ máy này” dùng để thử, không đụng tới người khác.
+              {props.pack.shared
+                ? "Publish sẽ thay gói câu hỏi của cả team và mở lại tab theo gói mới."
+                : "Chưa cấu hình Supabase — gói này sẽ chỉ áp dụng trên máy bạn."}
             </div>
             <div className="row" style={{ gap: 8, marginTop: 6 }}>
-              <button
-                className="btn primary"
-                data-testid="pack-publish"
-                disabled={!props.pack.shared}
-                title={props.pack.shared ? undefined : "Chưa cấu hình Supabase"}
-                onClick={() => props.onApplyPack("publish")}
-              >
+              <button className="btn primary" data-testid="pack-publish" onClick={props.onApplyPack}>
                 ⇪ Publish cho cả team
               </button>
-              <button className="btn ghost" data-testid="pack-local" onClick={() => props.onApplyPack("local")}>
-                Chỉ máy này
+              <button className="btn ghost" data-testid="pack-cancel" onClick={props.onCancelPack}>
+                Huỷ
               </button>
-              <button className="btn ghost" onClick={props.onCancelPack}>Huỷ</button>
             </div>
           </div>
         );

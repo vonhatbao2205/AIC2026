@@ -36,10 +36,12 @@ export interface SharedSession {
   loading: boolean;
   error: string | null;
   shared: boolean;
-  /** Push a parsed pack to the whole team and make it the active session. */
+  /** Push a parsed pack to the whole team and make it the active session.
+   *
+   *  With no Supabase project configured there is no team to publish to, so it
+   *  applies the pack to this machine instead of failing — the console has to
+   *  stay usable on a lone laptop. */
   publish: (questions: ImportedQuestion[], name: string) => Promise<void>;
-  /** Use a pack on this machine only (dev / rehearsal). */
-  useLocally: (questions: ImportedQuestion[]) => void;
 }
 
 interface CachedPack {
@@ -215,8 +217,8 @@ export function useSharedSession(): SharedSession {
       const supabase = getSupabase();
       const hash = packHash(list);
       if (!supabase) {
-        // No project configured: publishing degrades to a local import rather
-        // than failing, so the console still works on a lone machine.
+        // No project configured: apply here rather than fail, and let the panel
+        // say the pack never left this machine.
         cached.current = { sessionId: null, sessionName: name, packHash: hash, questions: list, origin: "local" };
         saveCache(cached.current);
         setQuestions(list);
@@ -262,19 +264,5 @@ export function useSharedSession(): SharedSession {
     [adopt],
   );
 
-  const useLocally = useCallback((list: ImportedQuestion[]) => {
-    cached.current = {
-      sessionId: null,
-      sessionName: null,
-      packHash: packHash(list),
-      questions: list,
-      origin: "local",
-    };
-    saveCache(cached.current);
-    setSession(null);
-    setQuestions(list);
-    setOrigin("local");
-  }, []);
-
-  return { session, questions, origin, loading, error, shared, publish, useLocally };
+  return { session, questions, origin, loading, error, shared, publish };
 }

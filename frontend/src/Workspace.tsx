@@ -52,7 +52,7 @@ export default function Workspace(props: Props) {
   const shared = useSharedSubmission(pack.session?.id ?? null);
   const rows = shared.rows;
   const [importing, setImporting] = useState(false);
-  /** Parsed but not yet applied — waiting for publish-or-local. */
+  /** Parsed but not yet applied — waiting for the publish decision. */
   const [pendingPack, setPendingPack] = useState<ImportedQuestion[] | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -163,23 +163,17 @@ export default function Workspace(props: Props) {
     openTabsFor(questions);
   }, [questions, openTabsFor]);
 
-  const applyPack = useCallback(
-    async (mode: "publish" | "local") => {
-      if (!pendingPack) return;
-      setImportError(null);
-      try {
-        if (mode === "publish") await pack.publish(pendingPack, defaultSessionName(pendingPack));
-        else pack.useLocally(pendingPack);
-        openTabsFor(pendingPack);
-        setPendingPack(null);
-      } catch (error) {
-        setImportError(
-          error instanceof Error ? error.message : "Không publish được gói câu hỏi",
-        );
-      }
-    },
-    [pendingPack, pack, openTabsFor],
-  );
+  const applyPack = useCallback(async () => {
+    if (!pendingPack) return;
+    setImportError(null);
+    try {
+      await pack.publish(pendingPack, defaultSessionName(pendingPack));
+      openTabsFor(pendingPack);
+      setPendingPack(null);
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "Không publish được gói câu hỏi");
+    }
+  }, [pendingPack, pack, openTabsFor]);
 
   // ---- submission rows (delegated to the shared store) ----
   const addRow = useCallback(

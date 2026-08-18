@@ -14,14 +14,14 @@ const PACK = [
 /** Import a pack through the real file input (STORED zip: no inflate in jsdom).
  *
  *  Parsing no longer applies the pack — publishing one replaces what the whole
- *  team answers — so the helper makes the same choice an operator would. Tests
- *  run with Supabase disabled, where only the local option is available. */
-async function importPack(files = PACK, mode: "local" | "publish" = "local") {
+ *  team answers — so the helper confirms it the way an operator would. With
+ *  Supabase disabled in tests, publishing applies the pack to this client. */
+async function importPack(files = PACK) {
   const bytes = buildZipBytes(files);
   const file = new File([bytes as BlobPart], "query-p1-groupA.zip", { type: "application/zip" });
   fireEvent.change(screen.getByTestId("import-input"), { target: { files: [file] } });
   await screen.findByTestId("pack-preview");
-  fireEvent.click(screen.getByTestId(mode === "publish" ? "pack-publish" : "pack-local"));
+  fireEvent.click(screen.getByTestId("pack-publish"));
   await waitFor(() =>
     expect(screen.getAllByTestId(/^rail-tab-\d+$/)).toHaveLength(files.length),
   );
@@ -1220,7 +1220,7 @@ describe("query pack + submission table", () => {
     const file = new File([bytes as BlobPart], "pack.zip", { type: "application/zip" });
     fireEvent.change(screen.getByTestId("submission-import-input"), { target: { files: [file] } });
     await screen.findByTestId("pack-preview");
-    fireEvent.click(screen.getByTestId("pack-local"));
+    fireEvent.click(screen.getByTestId("pack-publish"));
     await waitFor(() => expect(screen.getAllByTestId(/^rail-tab-\d+$/)).toHaveLength(PACK.length));
   });
 
@@ -1394,6 +1394,26 @@ describe("query pack + submission table", () => {
     render(<App />);
     expect(screen.getByTestId("search-all")).toBeDisabled();
     expect(screen.getByTestId("search-all")).toHaveTextContent("(0)");
+  });
+
+  it("offers only publish or cancel after parsing a pack", async () => {
+    // A per-machine import is gone on purpose: it was the way two machines
+    // could end up answering different questions under the same question_id.
+    render(<App />);
+    const bytes = buildZipBytes(PACK);
+    const file = new File([bytes as BlobPart], "pack.zip", { type: "application/zip" });
+    fireEvent.change(screen.getByTestId("import-input"), { target: { files: [file] } });
+
+    const preview = await screen.findByTestId("pack-preview");
+    expect(within(preview).getByTestId("pack-publish")).toBeEnabled();
+    expect(within(preview).getByTestId("pack-cancel")).toBeInTheDocument();
+    expect(screen.queryByTestId("pack-local")).not.toBeInTheDocument();
+    expect(preview).toHaveTextContent("3 câu hỏi");
+
+    // Cancelling leaves the previous pack (here: none) untouched.
+    fireEvent.click(within(preview).getByTestId("pack-cancel"));
+    await waitFor(() => expect(screen.queryByTestId("pack-preview")).not.toBeInTheDocument());
+    expect(screen.getAllByTestId(/^rail-tab-\d+$/)).toHaveLength(1);
   });
 
   it("adds and closes tabs", async () => {
