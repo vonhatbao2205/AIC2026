@@ -6,6 +6,7 @@ import { packSummary } from "../lib/questionPack";
 import {
   MAX_ANSWER_LENGTH,
   MAX_ROWS_PER_QUESTION,
+  auditSubmission,
   findDuplicate,
   questionCsv,
   validateRows,
@@ -194,6 +195,9 @@ export function SubmissionPanel(props: Props) {
   const empty = questions.filter((question) => (byQuestion.get(question.id) ?? []).length === 0);
   const totalRows = rows.length;
   const orphans = rows.filter((row) => !questions.some((question) => question.id === row.questionId));
+  // Recomputed here so the operator sees what blocks the export before pressing
+  // it, not as an error message afterwards.
+  const audit = useMemo(() => auditSubmission(questions, rows), [questions, rows]);
 
   /** Rows in the order they are rendered, for ↑/↓ navigation across questions. */
   const flatRows = useMemo(
@@ -364,8 +368,13 @@ export function SubmissionPanel(props: Props) {
         <button
           className="btn primary"
           onClick={props.onExport}
-          disabled={totalRows === 0}
+          disabled={totalRows === 0 || audit.errors.length > 0}
           data-testid="export-submission"
+          title={
+            audit.errors.length
+              ? `${audit.errors.length} lỗi định dạng phải sửa trước khi export`
+              : "Tạo submission.zip"
+          }
         >
           ⭱ Export submission.zip
         </button>
@@ -410,6 +419,26 @@ export function SubmissionPanel(props: Props) {
       {props.pack.origin === "local" && props.pack.shared && (
         <div className="dup-warn" data-testid="pack-local-only">
           ⚠ Gói câu hỏi này chỉ nằm trên máy bạn (chưa publish) — đáp án vẫn ghi chung với team.
+        </div>
+      )}
+      {audit.errors.length > 0 && (
+        <div className="dup-warn" data-testid="export-blocked">
+          ⛔ {audit.errors.length} lỗi định dạng — export bị chặn. Nộp sai định dạng vẫn tính là
+          một lần nộp (mỗi gói chỉ có 3 lần), nên phải sửa hết trước khi tạo file:
+          <ul className="submission-problems">
+            {audit.errors.slice(0, 12).map((problem, index) => (
+              <li key={`${problem.questionId}-${index}`}>
+                <b>{problem.questionId}</b> {problem.message}
+              </li>
+            ))}
+            {audit.errors.length > 12 && <li>… và {audit.errors.length - 12} lỗi nữa</li>}
+          </ul>
+        </div>
+      )}
+      {audit.unanswered.length > 0 && (
+        <div className="hint-text" data-testid="unanswered-note">
+          {audit.unanswered.length}/{questions.length} câu chưa có đáp án — vẫn được export dưới
+          dạng file CSV rỗng theo đúng cấu trúc BTC yêu cầu.
         </div>
       )}
       {props.pack.error && <div className="dup-warn">⚠ Pack: {props.pack.error}</div>}
@@ -485,9 +514,14 @@ export function SubmissionPanel(props: Props) {
               <span className="dres-dim">
                 {questionRows.length}/{MAX_ROWS_PER_QUESTION} dòng
               </span>
-              {problems.length > 0 && (
-                <span className="dres-warn" data-testid={`problems-${question.id}`}>
-                  {problems.length} cảnh báo
+              {problems.some((problem) => problem.severity === "error") && (
+                <span className="dres-warn" data-testid={`errors-${question.id}`}>
+                  ⛔ {problems.filter((problem) => problem.severity === "error").length} lỗi
+                </span>
+              )}
+              {problems.some((problem) => problem.severity === "warning") && (
+                <span className="dres-dim" data-testid={`problems-${question.id}`}>
+                  {problems.filter((problem) => problem.severity === "warning").length} cảnh báo
                 </span>
               )}
               <div className="spacer" />
@@ -590,7 +624,10 @@ export function SubmissionPanel(props: Props) {
             {problems.length > 0 && (
               <ul className="submission-problems">
                 {problems.map((problem, index) => (
-                  <li key={`${problem.rowId}-${index}`}>{problem.message}</li>
+                  <li key={`${problem.rowId}-${index}`} className={problem.severity}>
+                    {problem.severity === "error" ? "⛔ " : "⚠ "}
+                    {problem.message}
+                  </li>
                 ))}
               </ul>
             )}

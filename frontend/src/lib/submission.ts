@@ -9,7 +9,7 @@
  */
 import type { RetrievalDatabase } from "../api/types";
 import type { ImportedQuestion, QuestionKind } from "./questions";
-import { buildZip } from "./zip";
+import { buildZip, buildZipBytes } from "./zip";
 
 export const MAX_ROWS_PER_QUESTION = 100;
 export const MAX_ANSWER_LENGTH = 100;
@@ -88,64 +88,140 @@ export function questionCsv(rows: SubmissionRow[], kind: QuestionKind): string {
   return rows.map((row) => rowToCsvLine(row, kind)).join("\r\n");
 }
 
+/** `error` blocks the export; `warning` is shown but does not.
+ *
+ *  The split follows the organiser's rules, not taste: a malformed row is
+ *  rejected by their parser, and a rejected submission still burns one of the
+ *  three attempts allowed per pack. Duplicate predictions are nowhere forbidden,
+ *  so they stay advisory. */
+export type ProblemSeverity = "error" | "warning";
+
 export interface RowProblem {
   rowId: string;
   message: string;
+  severity: ProblemSeverity;
+}
+
+export interface SubmissionProblem extends RowProblem {
+  questionId: string;
+}
+
+export interface SubmissionAudit {
+  errors: SubmissionProblem[];
+  warnings: SubmissionProblem[];
+  /** Questions with no prediction at all. Exported as an empty CSV, not blocked. */
+  unanswered: string[];
+}
+
+export class SubmissionFormatError extends Error {
+  readonly problems: SubmissionProblem[];
+
+  constructor(problems: SubmissionProblem[]) {
+    super(
+      `Không export: ${problems.length} lỗi định dạng.\n` +
+        problems.map((problem) => `• ${problem.questionId} ${problem.message}`).join("\n"),
+    );
+    this.name = "SubmissionFormatError";
+    this.problems = problems;
+  }
 }
 
 /** Everything that would make the organiser's parser reject or misread a row. */
 export function validateRows(rows: SubmissionRow[], question: ImportedQuestion): RowProblem[] {
   const problems: RowProblem[] = [];
   const seen = new Map<string, string>();
+  const fail = (rowId: string, message: string) =>
+    problems.push({ rowId, message, severity: "error" });
   rows.forEach((row, index) => {
     const where = `dòng ${index + 1}`;
     if (!row.videoId.trim()) {
-      problems.push({ rowId: row.id, message: `${where}: thiếu tên video` });
+      fail(row.id, `${where}: thiếu tên video`);
     } else if (/\.mp4$/i.test(row.videoId.trim())) {
-      problems.push({ rowId: row.id, message: `${where}: tên video không được có đuôi .mp4` });
+      fail(row.id, `${where}: tên video không được có đuôi .mp4`);
     }
     if (!row.frames.length || row.frames.some((frame) => !Number.isInteger(frame) || frame < 0)) {
-      problems.push({ rowId: row.id, message: `${where}: frame phải là số nguyên ≥ 0` });
+      fail(row.id, `${where}: frame phải là số nguyên ≥ 0`);
     }
     if (question.kind === "trake" && question.eventCount && row.frames.length !== question.eventCount) {
-      problems.push({
-        rowId: row.id,
-        message: `${where}: cần đúng ${question.eventCount} frame (đang có ${row.frames.length})`,
-      });
+      fail(row.id, `${where}: cần đúng ${question.eventCount} frame (đang có ${row.frames.length})`);
     }
     if (question.kind === "trake" && row.frames.some((frame, i) => i > 0 && frame <= row.frames[i - 1])) {
-      problems.push({ rowId: row.id, message: `${where}: frame phải tăng dần theo thời gian` });
+      fail(row.id, `${where}: frame phải tăng dần theo thời gian`);
     }
     if (question.kind === "qa") {
-      if (!row.answer.trim()) problems.push({ rowId: row.id, message: `${where}: thiếu answer` });
+      if (!row.answer.trim()) fail(row.id, `${where}: thiếu answer`);
       else if (row.answer.length > MAX_ANSWER_LENGTH) {
-        problems.push({ rowId: row.id, message: `${where}: answer dài ${row.answer.length} > ${MAX_ANSWER_LENGTH} ký tự` });
+        fail(row.id, `${where}: answer dài ${row.answer.length} > ${MAX_ANSWER_LENGTH} ký tự`);
       }
     }
     const key = rowKey(row, question.kind);
     const previous = seen.get(key);
-    if (previous) problems.push({ rowId: row.id, message: `${where}: trùng với dòng ${previous}` });
-    else seen.set(key, String(index + 1));
+    // Predicting the same frame twice wastes a line but is not a format error.
+    if (previous) {
+      problems.push({ rowId: row.id, message: `${where}: trùng với dòng ${previous}`, severity: "warning" });
+    } else {
+      seen.set(key, String(index + 1));
+    }
   });
   if (rows.length > MAX_ROWS_PER_QUESTION) {
-    problems.push({ rowId: rows[MAX_ROWS_PER_QUESTION]?.id ?? "", message: `Quá ${MAX_ROWS_PER_QUESTION} dòng` });
+    fail(rows[MAX_ROWS_PER_QUESTION]?.id ?? "", `quá ${MAX_ROWS_PER_QUESTION} dòng (đang có ${rows.length})`);
   }
   return problems;
 }
 
-/** Build the zip. Only questions that actually have rows get a CSV. */
+export function rowsForQuestion(rows: SubmissionRow[], questionId: string): SubmissionRow[] {
+  return rows.filter((row) => row.questionId === questionId);
+}
+
+/** Whole-pack check, run before anything is written. */
+export function auditSubmission(
+  questions: ImportedQuestion[],
+  rows: SubmissionRow[],
+): SubmissionAudit {
+  const errors: SubmissionProblem[] = [];
+  const warnings: SubmissionProblem[] = [];
+  const unanswered: string[] = [];
+  for (const question of questions) {
+    const questionRows = rowsForQuestion(rows, question.id);
+    if (questionRows.length === 0) unanswered.push(question.id);
+    for (const problem of validateRows(questionRows, question)) {
+      (problem.severity === "error" ? errors : warnings).push({ ...problem, questionId: question.id });
+    }
+  }
+  return { errors, warnings, unanswered };
+}
+
+/** Build the zip, or refuse.
+ *
+ *  The guard lives here rather than only in the UI so no call site can produce a
+ *  file the organiser would reject — a rejected upload still counts as one of
+ *  the three attempts.
+ *
+ *  Every question in the pack gets a CSV, including ones with no prediction:
+ *  the spec asks for one file per query, so an unanswered question is an empty
+ *  file rather than a missing one. */
+export function buildSubmissionFiles(
+  questions: ImportedQuestion[],
+  rows: SubmissionRow[],
+): { name: string; text: string }[] {
+  const audit = auditSubmission(questions, rows);
+  if (audit.errors.length) throw new SubmissionFormatError(audit.errors);
+  return questions.map((question) => ({
+    // The spec is explicit that the CSVs must sit inside a `submission/`
+    // folder rather than at the root of the archive.
+    name: `${SUBMISSION_DIR}/${question.id}.csv`,
+    text: questionCsv(rowsForQuestion(rows, question.id), question.kind),
+  }));
+}
+
+/** Raw bytes, so the archive can be inspected without a Blob reader. */
+export function buildSubmissionZipBytes(
+  questions: ImportedQuestion[],
+  rows: SubmissionRow[],
+): Uint8Array {
+  return buildZipBytes(buildSubmissionFiles(questions, rows));
+}
+
 export function buildSubmissionZip(questions: ImportedQuestion[], rows: SubmissionRow[]): Blob {
-  const files = questions
-    .map((question) => ({
-      question,
-      rows: rows.filter((row) => row.questionId === question.id).slice(0, MAX_ROWS_PER_QUESTION),
-    }))
-    .filter((entry) => entry.rows.length > 0)
-    .map((entry) => ({
-      // The spec is explicit that the CSVs must sit inside a `submission/`
-      // folder rather than at the root of the archive.
-      name: `${SUBMISSION_DIR}/${entry.question.id}.csv`,
-      text: questionCsv(entry.rows, entry.question.kind),
-    }));
-  return buildZip(files);
+  return buildZip(buildSubmissionFiles(questions, rows));
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { QueryType } from "../api/types";
 import {
   parseQuestionEntry,
   parseQuestionPack,
@@ -6,6 +7,10 @@ import {
   kindForQueryType,
 } from "../lib/questions";
 import {
+  SubmissionFormatError,
+  auditSubmission,
+  buildSubmissionZip,
+  buildSubmissionZipBytes,
   csvField,
   findDuplicate,
   questionCsv,
@@ -312,5 +317,72 @@ describe("question pack as shared state", () => {
 
   it("summarises a pack for the publish confirmation", () => {
     expect(packSummary(pack())).toEqual({ total: 2, byKind: { kis: 1, qa: 0, trake: 1 } });
+  });
+});
+
+describe("export completeness and refusal", () => {
+  const q = (id: string, kind: "kis" | "qa" | "trake", eventCount: number | null = null) => ({
+    id,
+    order: Number(id.split("-")[1]),
+    kind,
+    queryType: (kind === "qa" ? "QA" : kind === "trake" ? "TRAKE" : "T-KIS") as QueryType,
+    text: "",
+    eventCount,
+  });
+  const pack = [q("query-1-kis", "kis"), q("query-2-kis", "kis"), q("query-3-qa", "qa")];
+  const good = (over: Partial<SubmissionRow>): SubmissionRow => ({
+    id: "r", questionId: "query-1-kis", videoId: "L01_V028", frames: [3450], answer: "", ...over,
+  });
+
+  it("writes one CSV per question, including the unanswered ones", () => {
+    // The spec asks for a file per query and shows all of them in the sample
+    // tree; a missing file is a different thing to the grader than an empty one.
+    const rows = [good({ id: "a" })];
+    const text = new TextDecoder().decode(buildSubmissionZipBytes(pack, rows));
+    for (const question of pack) expect(text).toContain(`submission/${question.id}.csv`);
+    expect(auditSubmission(pack, rows).unanswered).toEqual(["query-2-kis", "query-3-qa"]);
+  });
+
+  it("refuses to build a zip when any row would be rejected", () => {
+    const cases: [string, SubmissionRow][] = [
+      [".mp4", good({ videoId: "L01_V028.mp4" })],
+      ["thiếu video", good({ videoId: "  " })],
+      ["thiếu frame", good({ frames: [] })],
+    ];
+    for (const [label, row] of cases) {
+      expect(() => buildSubmissionZip(pack, [row]), label).toThrow(SubmissionFormatError);
+    }
+    // QA rules apply to the QA question only.
+    expect(() =>
+      buildSubmissionZip(pack, [good({ questionId: "query-3-qa", answer: "x".repeat(101) })]),
+    ).toThrow(SubmissionFormatError);
+  });
+
+  it("blocks a TRAKE row with the wrong count or order", () => {
+    const trakePack = [q("query-4-trake", "trake", 3)];
+    const row = (frames: number[]) => good({ questionId: "query-4-trake", frames });
+    expect(() => buildSubmissionZip(trakePack, [row([10, 20])])).toThrow(SubmissionFormatError);
+    expect(() => buildSubmissionZip(trakePack, [row([10, 9, 30])])).toThrow(SubmissionFormatError);
+    expect(() => buildSubmissionZip(trakePack, [row([10, 20, 30])])).not.toThrow();
+  });
+
+  it("names every offending question in the refusal", () => {
+    try {
+      buildSubmissionZip(pack, [good({ id: "a", videoId: "L01_V028.mp4" })]);
+      throw new Error("expected a refusal");
+    } catch (error) {
+      expect(error).toBeInstanceOf(SubmissionFormatError);
+      const problems = (error as SubmissionFormatError).problems;
+      expect(problems[0].questionId).toBe("query-1-kis");
+      expect((error as Error).message).toContain(".mp4");
+    }
+  });
+
+  it("lets a duplicate through — the spec does not forbid predicting twice", () => {
+    const rows = [good({ id: "a" }), good({ id: "b" })];
+    const audit = auditSubmission(pack, rows);
+    expect(audit.errors).toHaveLength(0);
+    expect(audit.warnings.map((w) => w.message).join(" ")).toContain("trùng");
+    expect(() => buildSubmissionZip(pack, rows)).not.toThrow();
   });
 });

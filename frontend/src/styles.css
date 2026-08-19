@@ -874,3 +874,7 @@ button { font-family: inherit; }
   border: 1px solid var(--accent); border-radius: 8px;
   background: var(--accent-weak); padding: 10px 12px; margin-bottom: 12px;
 }
+
+/* Blocking errors read differently from advisory warnings. */
+.submission-problems li.error { color: var(--bad); }
+.submission-problems li.warning { color: var(--warn); }

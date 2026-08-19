@@ -4,7 +4,12 @@ import { SubmissionPanel } from "./components/SubmissionPanel";
 import { SUBMISSION_VIEW, TabRail, type ActiveView, type ConsoleTab } from "./components/TabRail";
 import type { QueryType, RetrievalDatabase } from "./api/types";
 import { parseQuestionPack, type ImportedQuestion } from "./lib/questions";
-import { buildSubmissionZip, MAX_ROWS_PER_QUESTION, type SubmissionRow } from "./lib/submission";
+import {
+  buildSubmissionZip,
+  MAX_ROWS_PER_QUESTION,
+  SubmissionFormatError,
+  type SubmissionRow,
+} from "./lib/submission";
 import { useSharedSubmission } from "./hooks/useSharedSubmission";
 import { useSharedSession } from "./hooks/useSharedSession";
 import { defaultSessionName, packSummary } from "./lib/questionPack";
@@ -239,6 +244,12 @@ export default function Workspace(props: Props) {
       anchor.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch (error) {
+      // The builder refuses rather than writing a file the organiser's parser
+      // would reject; surface exactly which rows are in the way.
+      if (error instanceof SubmissionFormatError) {
+        setExportError(error.message);
+        return;
+      }
       setExportError(error instanceof Error ? error.message : "Export thất bại");
     }
   }, [questions, rows]);

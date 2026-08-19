@@ -1474,7 +1474,7 @@ describe("query pack + submission table", () => {
     expect(csv.textContent).toBe("K01_V001,0\r\nK01_V001,450");
   });
 
-  it("lets the operator edit a row and warns instead of locking it", async () => {
+  it("keeps a bad cell editable but refuses to export it", async () => {
     const user = userEvent.setup();
     render(<App />);
     await importPack();
@@ -1488,8 +1488,13 @@ describe("query pack + submission table", () => {
     await user.clear(videoCell);
     await user.type(videoCell, "L01_V028.mp4");
 
+    // The cell still accepts what was typed — nothing is locked mid-edit…
     expect(await screen.findByTestId("csv-query-p1-1-kis")).toHaveTextContent("L01_V028.mp4,0");
-    expect(screen.getByTestId("problems-query-p1-1-kis")).toBeInTheDocument();
+    expect(screen.getByTestId("errors-query-p1-1-kis")).toBeInTheDocument();
+    // …but a name the organiser's parser rejects must never reach a zip, and a
+    // rejected upload still costs one of the three attempts.
+    expect(screen.getByTestId("export-blocked")).toHaveTextContent(".mp4");
+    expect(screen.getByTestId("export-submission")).toBeDisabled();
   });
 
   it("checks the TRAKE event count of a row against its question", async () => {
@@ -1505,9 +1510,9 @@ describe("query pack + submission table", () => {
     const frameCell = within(row).getAllByRole("textbox")[1];
     await user.type(frameCell, "1200, 900");
 
-    expect(screen.getByTestId("problems-query-p1-3-trake")).toBeInTheDocument();
-    const problems = screen.getByTestId("submission-query-p1-3-trake");
-    expect(problems).toHaveTextContent(/tăng dần/);
+    expect(screen.getByTestId("errors-query-p1-3-trake")).toBeInTheDocument();
+    expect(screen.getByTestId("submission-query-p1-3-trake")).toHaveTextContent(/tăng dần/);
+    expect(screen.getByTestId("export-submission")).toBeDisabled();
   });
 
   it("exports a zip with the CSVs under submission/", async () => {
