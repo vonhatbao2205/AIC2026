@@ -57,6 +57,11 @@ Bộ lọc **📂 phạm vi** cạnh nút Search: bấm vào ra **danh sách che
 - **RRF (k=60)** trên `submit_keyframe_id`, có trọng số kênh; gom evidence mọi kênh.
 - **Group-by-video** với điểm chuẩn hoá **coverage-first**: `0.75·best + 0.15·mean_top3 + 0.10·cluster_support` (đều [0,1]); video có frame mạnh không bị video nhiều-frame-yếu chôn. Cờ **AMBIGUOUS** khi top frame tách cụm thời gian xa.
 - **2 chế độ xem**: **Group by video** (mở sẵn tất cả group, badge kênh, feedback) ⇄ **Flat top-K** (lưới phẳng theo điểm). Bù `pts_time`/`frame_idx`/`fps` bằng 1 lần Elastic `_mget`.
+- **Sắp xếp frame trong group theo thời gian**: mỗi video group có nút **⏱** (xếp frame tăng dần theo thời gian) và nút **↺** (hoàn tác về thứ tự độ liên quan). Thứ tự chỉ áp dụng cho **đúng group đó**, các group khác giữ nguyên; search mới thì reset.
+  - Xếp theo `pts_time`, thiếu thì `frame_idx`, thiếu nữa thì `keyframe_n` (cả 3 đều tăng theo thời gian trong 1 video). Frame không có thời gian nào thì **giữ nguyên thứ tự relevance ở cuối** — không biết vị trí thì không phải là vị trí 0.
+  - Ranking gốc **không bị đổi**: thứ tự hiển thị là view phái sinh, nên "hoàn tác" chỉ là bỏ id khỏi set (không có bản copy nào để bị stale).
+  - **Selection bám theo frame, không bám theo vị trí**: `selectedFrame` là chỉ số trong strip, nên khi đổi thứ tự thì con trỏ được trỏ lại đúng frame cũ — nếu không, Detail / timeline / submit guard sẽ mô tả một frame khác với frame đang được highlight.
+  - **TRAKE không có nút này**: ở TRAKE mỗi frame LÀ event thứ i, đổi thứ tự strip sẽ ngầm remap cả chuỗi.
 - **Channel attribution**: mỗi frame có badge kênh + "explain match" (evidence snippet, điểm, thời gian).
 - **Relevance feedback**: nút **More like this** (boost video) / **Exclude** (loại frame) → re-rank phiên search.
 

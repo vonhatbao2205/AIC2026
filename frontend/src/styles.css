@@ -641,6 +641,12 @@ button { font-family: inherit; }
   color: var(--fg-faint); font-size: 12px; line-height: 1; padding: 2px 3px;
 }
 .video-fb button:hover { color: var(--accent); }
+/* Frame-order controls: same affordance as the video feedback arrows next to
+   them, plus an "on" state because the sort stays applied until it is undone. */
+.order-fb button.on { color: var(--accent); }
+.order-fb button:disabled { opacity: .35; cursor: default; }
+.order-fb button:disabled:hover { color: var(--fg-faint); }
+.order-tag { color: var(--accent); font-size: 10.5px; font-weight: 700; white-space: nowrap; }
 .badge.similar { background: color-mix(in srgb, var(--e3) 18%, transparent); color: var(--e3); }
 
 /* ---- Neighbour keyframe browser (K) ------------------------------------- */

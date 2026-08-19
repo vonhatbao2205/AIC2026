@@ -45,6 +45,7 @@ import { TopBar } from "./components/TopBar";
 import { TrakePanel, type TrakeSlot } from "./components/TrakePanel";
 import { VideoViewer, type VideoViewerHandle } from "./components/VideoViewer";
 import { autoEvaluationId } from "./lib/dres";
+import { sortFramesByTime } from "./lib/media";
 import { findQaFrame, selectQaCandidateFrames } from "./lib/qa";
 import { kindForQueryType, type ImportedQuestion } from "./lib/questions";
 import { DEFAULT_SCOPE_MODE, orderCategories, scopeRequest } from "./lib/scope";
@@ -146,6 +147,10 @@ export default function FullConsole({
   const [scopeError, setScopeError] = useState<string | null>(null);
   const [appliedScope, setAppliedScope] = useState<ResolvedScope | null>(null);
   const [groups, setGroups] = useState<VideoGroup[]>([]);
+  // Videos whose frame strip is shown chronologically instead of by relevance.
+  // The retrieval ranking in `groups` is never mutated, so "undo" is just
+  // dropping the id — there is no saved copy that could go stale.
+  const [timeSorted, setTimeSorted] = useState<Set<string>>(new Set());
   const [latency, setLatency] = useState<LatencyBreakdown | null>(null);
   const [loading, setLoading] = useState(false);
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -224,15 +229,31 @@ export default function FullConsole({
   const viewerRef = useRef<VideoViewerHandle>(null);
   const timelineCache = useRef<Map<string, TimelineData>>(new Map());
 
-  const selectedGroup = groups[selectedVideo] ?? null;
+  // What the results column actually shows. Everything that resolves the
+  // selection reads THIS, not `groups`: `selectedFrame` is an index into the
+  // rendered strip, so a reordered strip and a selection indexing the original
+  // ranking would point at two different frames — including at submit time.
+  const displayGroups = useMemo(
+    () =>
+      timeSorted.size === 0
+        ? groups
+        : groups.map((group) =>
+            timeSorted.has(group.video_id)
+              ? { ...group, frames: sortFramesByTime(group.frames) }
+              : group,
+          ),
+    [groups, timeSorted],
+  );
+
+  const selectedGroup = displayGroups[selectedVideo] ?? null;
   const selectedFrameObj: FrameResult | null = selectedGroup?.frames[selectedFrame] ?? null;
   // Only the guard reads this. The detail panel always describes the selected
   // result keyframe, whether or not a raw frame is currently captured.
   const guardPausedFrame =
     queryType !== "TRAKE" && guardTarget === "paused" ? pausedFrame : null;
   const qaCandidateFrames = useMemo(
-    () => (queryType === "QA" ? selectQaCandidateFrames(groups, selectedFrameObj) : []),
-    [queryType, groups, selectedFrameObj],
+    () => (queryType === "QA" ? selectQaCandidateFrames(displayGroups, selectedFrameObj) : []),
+    [queryType, displayGroups, selectedFrameObj],
   );
   const qaCandidates = useMemo(() => qaCandidateFrames.map((frame) => ({
     submit_keyframe_id: frame.submit_keyframe_id,
@@ -567,6 +588,9 @@ export default function FullConsole({
     if (!query.trim() && hints.length === 0) return;
     setLoading(true);
     setAppliedTopK(topK);
+    // A new result set is a new ranking; carrying the old per-video sort into it
+    // would silently reorder groups the operator never asked to reorder.
+    setTimeSorted(new Set());
     setDuplicateId(null);
     setPausedFrame(null);
     setQaAnalysis(null);
@@ -655,6 +679,40 @@ export default function FullConsole({
   // are still running after an import kicked all of them off at once.
   useEffect(() => { onBusyChange(loading); }, [loading, onBusyChange]);
 
+  // ---- frame order inside one video group ----
+  /** Re-point the selection at the SAME frame after a reorder.
+   *
+   *  `selectedFrame` is a position, so reordering the strip under it would leave
+   *  the operator looking at one thumbnail while Detail, the timeline and the
+   *  submit guard describe another. Only the selected video can be affected. */
+  const keepSelectionThroughReorder = useCallback((videoId: string, willSort: boolean) => {
+    const group = groups[selectedVideo];
+    if (!group || group.video_id !== videoId) return;
+    const current = displayGroups[selectedVideo]?.frames[selectedFrame];
+    if (!current) return;
+    const nextFrames = willSort ? sortFramesByTime(group.frames) : group.frames;
+    const index = nextFrames.findIndex((f) => f.submit_keyframe_id === current.submit_keyframe_id);
+    if (index >= 0) setSelectedFrame(index);
+  }, [groups, displayGroups, selectedVideo, selectedFrame]);
+
+  const setFrameOrder = useCallback((videoId: string, byTime: boolean) => {
+    // Computed outside the state updater: it moves the selection too, and an
+    // updater that has side effects runs them twice under StrictMode.
+    if (timeSorted.has(videoId) === byTime) return;
+    const next = new Set(timeSorted);
+    if (byTime) next.add(videoId);
+    else next.delete(videoId);
+    keepSelectionThroughReorder(videoId, byTime);
+    setTimeSorted(next);
+  }, [timeSorted, keepSelectionThroughReorder]);
+
+  const sortFramesByTimeFor = useCallback(
+    (videoId: string) => setFrameOrder(videoId, true), [setFrameOrder],
+  );
+  const resetFrameOrderFor = useCallback(
+    (videoId: string) => setFrameOrder(videoId, false), [setFrameOrder],
+  );
+
   // ---- V-KIS canvas search ----
   // A separate entry point from the text query: the canvas is its own query, so
   // it never silently re-runs when the operator edits the text box (and vice
@@ -662,6 +720,7 @@ export default function FullConsole({
   // and submit guard behave exactly as they do for any other search.
   const runCanvasSearch = useCallback(async (canvas: CanvasSpec) => {
     setLoading(true);
+    setTimeSorted(new Set());
     setDuplicateId(null);
     setPausedFrame(null);
     try {
@@ -798,9 +857,9 @@ export default function FullConsole({
   }
 
   function focusQaEvidence(submitKeyframeId: string, showVideo = true) {
-    const location = findQaFrame(groups, submitKeyframeId);
+    const location = findQaFrame(displayGroups, submitKeyframeId);
     if (!location) return;
-    const group = groups[location.video];
+    const group = displayGroups[location.video];
     setSelectedVideo(location.video);
     setSelectedFrame(location.frame);
     setExpanded((current) => new Set(current).add(group.video_id));
@@ -960,7 +1019,7 @@ export default function FullConsole({
       submit_keyframe_id: f.submit_keyframe_id,
     }));
     setTrakeSlots(slots);
-    const gi = groups.indexOf(g);
+    const gi = displayGroups.indexOf(g);
     if (gi >= 0) { setSelectedVideo(gi); setSelectedFrame(0); }
     // Duplicate check against the new slots (state update is async).
     const key = `${slots[0]?.video_id}|${slots.map((s) => s?.frame_idx).join(",")}`;
@@ -1499,7 +1558,7 @@ export default function FullConsole({
           </div>
           <FeedbackBar feedback={feedback} onRemove={removeFeedback} onClear={clearFeedback} />
           <Results
-            groups={groups}
+            groups={displayGroups}
             viewMode={viewMode}
             trakeEventCount={queryType === "TRAKE" ? parsed?.trake?.events?.length : undefined}
             onTrakeQuickSubmit={queryType === "TRAKE" ? trakeQuickSubmit : undefined}
@@ -1519,6 +1578,9 @@ export default function FullConsole({
             }
             onFeedback={onFeedback}
             onVideoFeedback={onVideoFeedback}
+            timeSorted={timeSorted}
+            onSortByTime={sortFramesByTimeFor}
+            onResetOrder={resetFrameOrderFor}
             videoSlotVideoId={videoVisible || neighborsVisible ? activeVideoId : null}
             videoSlot={
               (videoVisible || neighborsVisible) && activeVideoId && selectedGroup

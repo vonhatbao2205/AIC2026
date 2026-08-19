@@ -16,6 +16,12 @@ interface Props {
   onToggleExpand: (videoId: string) => void;
   onFeedback: (frame: FrameResult, kind: "more" | "exclude") => void;
   onVideoFeedback: (videoId: string, kind: "prioritize" | "deprioritize") => void;
+  /** Video ids whose frames are shown in chronological order instead of by
+   *  relevance. The reordering itself happens upstream, so the selection index
+   *  and the strip on screen never disagree. */
+  timeSorted: Set<string>;
+  onSortByTime: (videoId: string) => void;
+  onResetOrder: (videoId: string) => void;
   loading: boolean;
   // Inline video player, rendered directly under the group it belongs to.
   videoSlot?: ReactNode;
@@ -87,6 +93,7 @@ export function Results(props: Props) {
         const filled = g.trake_filled ?? 0;
         const fullCover = n != null && g.frame_count >= n;
         const confident = fullCover && filled === 0; // every event from real retrieval
+        const sorted = props.timeSorted.has(g.video_id);
         return (
           <div key={g.video_id} className={`vgroup ${isSel ? "selected" : ""}`} data-testid="video-group">
             <div className="vgroup-head" onClick={() => { props.onSelectVideo(gi); props.onToggleExpand(g.video_id); }}>
@@ -133,6 +140,32 @@ export function Results(props: Props) {
                   onClick={(e) => { e.stopPropagation(); props.onVideoFeedback(g.video_id, "deprioritize"); }}
                 >⬇</button>
               </span>
+              {/* Chronological order is for reading a scene, not for ranking, so
+                  it lives per video and never touches the other groups. TRAKE is
+                  excluded on purpose: there each frame IS event i, so reordering
+                  the strip would silently remap the sequence. */}
+              {!props.trakeEventCount && (
+                <span className="fb video-fb order-fb">
+                  <button
+                    className={sorted ? "on" : ""}
+                    title="Sắp xếp frame trong video theo thời gian tăng dần"
+                    aria-pressed={sorted}
+                    data-testid="sort-frames-time"
+                    onClick={(e) => { e.stopPropagation(); props.onSortByTime(g.video_id); }}
+                  >⏱</button>
+                  <button
+                    title={sorted ? "Hoàn tác — trả về thứ tự theo độ liên quan" : "Đang theo thứ tự độ liên quan"}
+                    disabled={!sorted}
+                    data-testid="reset-frames-order"
+                    onClick={(e) => { e.stopPropagation(); props.onResetOrder(g.video_id); }}
+                  >↺</button>
+                </span>
+              )}
+              {!props.trakeEventCount && sorted && (
+                <span className="order-tag" data-testid="order-tag" title="Frame đang xếp theo thời gian tăng dần">
+                  theo thời gian
+                </span>
+              )}
               {!props.trakeEventCount && g.ambiguous && <span className="ambiguous-tag" title="Top frames split into distant time clusters">⚠ ambiguous</span>}
               {props.trakeEventCount && g.frame_count >= props.trakeEventCount && props.onTrakeQuickSubmit && (
                 <button
