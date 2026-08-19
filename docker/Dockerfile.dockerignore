@@ -1,0 +1,28 @@
+# BuildKit reads this file (named after the Dockerfile) instead of the context
+# root's .dockerignore. The context is the repository root, which also holds
+# multi-gigabyte corpus artifacts and real credentials, so: deny everything,
+# then re-admit only what the image is actually built from.
+*
+
+!backend/
+!frontend/
+
+# Secrets and local state must never reach a layer.
+backend/.env
+backend/data/
+API_KEY/
+
+# Supabase values arrive as explicit build args (see docker/Dockerfile). Letting
+# this file into the context would bake whatever a checkout happens to hold —
+# silently, and differently on every machine that builds.
+frontend/.env.local
+
+# Rebuilt inside the image, or irrelevant to it.
+backend/.venv/
+backend/.pytest_cache/
+backend/tests/
+frontend/node_modules/
+frontend/dist/
+frontend/tsconfig.tsbuildinfo
+**/__pycache__/
+**/*.pyc

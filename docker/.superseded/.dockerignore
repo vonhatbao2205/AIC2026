@@ -1,0 +1,21 @@
+# The build context is the repo root, which also holds multi-gigabyte corpus
+# artifacts and real credentials. Deny everything, then re-admit only what the
+# image is built from.
+*
+
+!backend/
+!frontend/
+
+# Secrets and local state must never reach a layer.
+backend/.env
+backend/data/
+API_KEY/
+
+# Rebuilt inside the image, or irrelevant to it.
+backend/.venv/
+backend/.pytest_cache/
+frontend/node_modules/
+frontend/dist/
+frontend/tsconfig.tsbuildinfo
+**/__pycache__/
+**/*.pyc

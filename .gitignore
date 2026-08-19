@@ -91,3 +91,11 @@ Thumbs.db
 /dist-app/
 /dist-app.zip
 /dist-app.tar.gz
+
+# ---- Packaged bundles ------------------------------------------------------
+# docker/build-bundle.sh embeds the team's real .env inside the zip, so the
+# archive is as sensitive as the credentials it carries. The `*.env` rule above
+# does not reach inside an archive.
+docker/dist/
+dist-app/
+dist-app.zip
