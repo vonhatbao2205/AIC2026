@@ -19,8 +19,8 @@ def test_heuristic_ocr_likely_on_digits_and_clock():
 
 
 def test_ocr_fold_matches_ingestion_for_vietnamese_d_stroke():
-    p = heuristic_parse("Đại học 2021")
-    assert p["channels"]["ocr"]["queries_folded"] == ["dai hoc 2021"]
+    p = heuristic_parse("dòng chữ Đại học 2021")
+    assert p["channels"]["ocr"]["queries_folded"] == ["dong chu dai hoc 2021"]
 
 
 def test_ocr_keeps_the_number_and_drops_the_prose_around_it():
@@ -43,9 +43,36 @@ def test_ocr_keeps_the_number_and_drops_the_prose_around_it():
 
 
 def test_ocr_keeps_a_short_query_as_literal_screen_text():
-    ocr = heuristic_parse("THPT 2021")["channels"]["ocr"]
-    assert ocr["queries_vi"] == ["THPT 2021"]
-    assert ocr["numbers"] == ["2021"]
+    ocr = heuristic_parse('chữ "THPT 2021" trên màn hình')["channels"]["ocr"]
+    assert ocr["enabled"] is True
+    assert ocr["exact_phrases"] == ["THPT 2021"]
+
+
+def test_digits_alone_no_longer_wake_the_ocr_channel():
+    """Counting words are not screen text.
+
+    "Có 1 người … giữa 2 người" used to route to OCR and put `1` and `2` — the
+    two commonest tokens in the whole OCR corpus — into a hard filter. Measured
+    against the live index that cost 2-16 s per search on a channel that could
+    not contribute anything to the answer.
+    """
+    scene = heuristic_parse(
+        "Có 1 người mặc áo trắng ngồi giữa 2 người mặc áo đen, phía sau là kệ sách"
+    )["channels"]["ocr"]
+    assert scene["enabled"] is False
+
+    # A bare code+year is no longer enough on its own either; quote it or say so.
+    assert heuristic_parse("THPT 2021")["channels"]["ocr"]["enabled"] is False
+
+
+def test_a_named_number_is_a_cue_but_a_counted_one_is_not():
+    named = heuristic_parse("xe mang số 69 về đích")["channels"]["ocr"]
+    assert named["enabled"] is True
+    assert named["numbers"] == ["69"]
+
+    # "một số" means "some" — the word is there, the meaning is not.
+    assert heuristic_parse("một số người đi bộ trên phố")["channels"]["ocr"]["enabled"] is False
+    assert heuristic_parse("có 2 con chó chạy trong công viên")["channels"]["ocr"]["enabled"] is False
 
 
 def test_ocr_quoted_span_wins_over_the_sentence_around_it():

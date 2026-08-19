@@ -20,7 +20,25 @@ from .config import Settings
 from .text_normalization import fold_vietnamese
 
 # ---- Heuristic signal lexicons (Vietnamese) ---------------------------
-_OCR_HINT_WORDS = ["chữ", "dòng chữ", "biển", "logo", "thương hiệu", "tiêu đề", "tên", "số điện thoại"]
+# Words that say the operator is describing text ON SCREEN. Matched on word
+# boundaries: plain `in` would fire "tên" inside unrelated words.
+_OCR_HINT_WORDS = [
+    "chữ", "dòng chữ", "hàng chữ", "chữ số", "biển", "biển số", "biển hiệu",
+    "logo", "thương hiệu", "nhãn hiệu", "tiêu đề", "tên", "số điện thoại",
+    "con số", "số hiệu", "hiển thị", "ghi", "đề",
+]
+_OCR_HINT_RE = re.compile(
+    r"(?<!\w)(?:" + "|".join(re.escape(word) for word in sorted(_OCR_HINT_WORDS, key=len, reverse=True)) + r")(?!\w)",
+    re.IGNORECASE | re.UNICODE,
+)
+# "số 69", "số 7" — a number the operator is naming, not counting with. Bare
+# "số" is excluded on purpose: "một số người" means "some people".
+_OCR_NUMBER_CUE_RE = re.compile(r"(?<!\w)số\s*\d", re.IGNORECASE | re.UNICODE)
+
+
+def has_ocr_cue(text: str) -> bool:
+    """Does the query claim there is readable text in the frame?"""
+    return bool(_OCR_HINT_RE.search(text) or _OCR_NUMBER_CUE_RE.search(text))
 _SPEECH_HINT_WORDS = ["nói", "phát biểu", "tuyên bố", "phỏng vấn", "trả lời", "nhắc đến", "thông báo", "đọc", "kể", "phóng viên", "dẫn chương trình"]
 _AUDIO_HINT_WORDS = ["tiếng", "âm thanh", "nhạc", "piano", "trống", "còi", "chuông", "nổ", "súng", "vỗ tay", "mưa", "sủa", "động cơ", "trực thăng"]
 _AUDIO_LABELS = {
@@ -126,10 +144,15 @@ def heuristic_parse(
     combined = " ".join([*previous_hints, query]).strip()
     low = combined.lower()
 
+    # A digit alone is NOT evidence of on-screen text. "Có 1 người mặc áo trắng
+    # ngồi giữa 2 người mặc áo đen" describes a scene, yet it used to put the
+    # two commonest tokens in the whole OCR corpus into a hard filter — measured
+    # at 2-16 s per search on a channel that could not contribute anything.
+    # OCR now needs an explicit signal: a quoted span, a cue word, a named
+    # number ("số 69"), or a broadcast clock.
     ocr_likely = (
-        any(w in low for w in _OCR_HINT_WORDS)
-        or bool(re.search(r"\d", combined))
-        or bool(re.search(r'["“”\']', combined))
+        has_ocr_cue(combined)
+        or bool(_QUOTED_RE.search(combined))
         or bool(_CLOCK_RE.search(combined))
     )
     speech_likely = any(w in low for w in _SPEECH_HINT_WORDS)
