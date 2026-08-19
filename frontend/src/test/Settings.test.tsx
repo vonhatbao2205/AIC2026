@@ -6,6 +6,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
+import { getDisplayName, setDisplayName, subscribeDisplayName } from "../lib/supabase";
 
 const GROUPS = [
   {
@@ -172,5 +173,59 @@ describe("configuration", () => {
 
     fireEvent.click(await screen.findByTestId("settings-btn"));
     expect(await screen.findByTestId("settings-modal")).toBeInTheDocument();
+  });
+});
+
+/**
+ * One packaged image serves the whole team, so `VITE_SUBMISSION_USER` cannot
+ * carry a per-person name — every operator would submit as the same string.
+ * The name is therefore set here and stored per machine.
+ */
+describe("operator name", () => {
+  it("stores the typed name so submitted rows are attributed", async () => {
+    configStatus = CONFIGURED;
+    render(<App />);
+    fireEvent.click(await screen.findByTestId("settings-btn"));
+    await screen.findByTestId("settings-identity");
+    const user = userEvent.setup();
+
+    await user.type(screen.getByTestId("settings-name-input"), "Bao");
+    await user.click(screen.getByTestId("settings-name-save"));
+
+    expect(await screen.findByTestId("settings-name-saved")).toBeInTheDocument();
+    expect(getDisplayName()).toBe("Bao");
+  });
+
+  it("keeps the name across a reopen of the modal", async () => {
+    configStatus = CONFIGURED;
+    setDisplayName("Huy");
+    render(<App />);
+
+    fireEvent.click(await screen.findByTestId("settings-btn"));
+    await screen.findByTestId("settings-identity");
+    expect(screen.getByTestId("settings-name-input")).toHaveValue("Huy");
+  });
+
+  it("trims surrounding whitespace rather than storing it", async () => {
+    configStatus = CONFIGURED;
+    render(<App />);
+    fireEvent.click(await screen.findByTestId("settings-btn"));
+    await screen.findByTestId("settings-identity");
+    const user = userEvent.setup();
+
+    await user.type(screen.getByTestId("settings-name-input"), "  Minh  ");
+    await user.click(screen.getByTestId("settings-name-save"));
+
+    expect(getDisplayName()).toBe("Minh");
+  });
+
+  it("notifies subscribers, so open views relabel without a reload", async () => {
+    const seen: string[] = [];
+    const unsubscribe = subscribeDisplayName(() => seen.push(getDisplayName()));
+    setDisplayName("Lan");
+    unsubscribe();
+    setDisplayName("Ignored");
+
+    expect(seen).toEqual(["Lan"]);
   });
 });

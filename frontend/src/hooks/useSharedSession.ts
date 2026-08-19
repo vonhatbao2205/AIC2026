@@ -9,7 +9,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   SUBMISSION_ROOM,
-  getDisplayName,
   getSupabase,
   isSupabaseConfigured,
 } from "../lib/supabase";
@@ -22,6 +21,7 @@ import {
   type SessionInfo,
 } from "../lib/questionPack";
 import type { ImportedQuestion } from "../lib/questions";
+import { useDisplayName } from "./useDisplayName";
 
 const CACHE_KEY = "aic26_question_pack";
 
@@ -103,7 +103,7 @@ export function useSharedSession(): SharedSession {
   );
   const [loading, setLoading] = useState(shared);
   const [error, setError] = useState<string | null>(null);
-  const user = useRef(getDisplayName() || "unknown");
+  const user = useDisplayName();
 
   const adopt = useCallback((info: SessionInfo, list: ImportedQuestion[]) => {
     setSession(info);
@@ -229,7 +229,7 @@ export function useSharedSession(): SharedSession {
         p_room: SUBMISSION_ROOM,
         p_name: name,
         p_pack_hash: hash,
-        p_published_by: user.current,
+        p_published_by: user,
         p_questions: canonicalQuestions(list),
       });
       if (publishError) throw publishError;

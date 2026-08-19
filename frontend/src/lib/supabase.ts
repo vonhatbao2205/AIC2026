@@ -48,15 +48,44 @@ export function getSupabase(): SupabaseClient | null {
 
 const USER_KEY = "aic26_submission_user";
 
-/** Display name shown next to a row. Asked for once, then remembered. */
+/** Display name shown next to a row. Asked for once, then remembered.
+ *
+ * localStorage outranks `VITE_SUBMISSION_USER` because the env var is baked at
+ * build time: one packaged image serves the whole team, so it cannot carry a
+ * per-person name. It stays as the default for a source checkout that sets it
+ * in `.env.local`, but a name typed into the settings screen has to win — a
+ * control that silently loses to a build constant is worse than no control.
+ */
 export function getDisplayName(): string {
-  const fromEnv = (env.VITE_SUBMISSION_USER ?? "").trim();
-  if (fromEnv) return fromEnv;
   try {
-    return localStorage.getItem(USER_KEY) ?? "";
+    const stored = (localStorage.getItem(USER_KEY) ?? "").trim();
+    if (stored) return stored;
   } catch {
-    return "";
+    /* private mode / disabled storage — fall through to the build default */
   }
+  // Vite loads `.env.local` for the test run too, and `test.env` in the Vitest
+  // config does not override a variable an env file already set. So without
+  // this the name tests would assert against whatever the developer running
+  // them happens to have configured, and pass on one machine while failing on
+  // the next. Same guard the Supabase credentials above use, for the same reason.
+  if (IS_TEST) return "";
+  return (env.VITE_SUBMISSION_USER ?? "").trim();
+}
+
+/** Notified whenever the name changes, so open views relabel themselves.
+ *
+ * The name is read once per hook instance, at mount. Without this the operator
+ * would set their name, keep working, and still submit rows tagged `unknown`
+ * until they thought to reload — during a timed contest, with no hint anything
+ * was wrong.
+ */
+const nameListeners = new Set<() => void>();
+
+export function subscribeDisplayName(listener: () => void): () => void {
+  nameListeners.add(listener);
+  return () => {
+    nameListeners.delete(listener);
+  };
 }
 
 export function setDisplayName(name: string): void {
@@ -65,4 +94,5 @@ export function setDisplayName(name: string): void {
   } catch {
     /* ignore */
   }
+  for (const listener of nameListeners) listener();
 }

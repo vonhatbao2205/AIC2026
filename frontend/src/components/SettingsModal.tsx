@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
 import type { ConfigImportResult, ConfigStatus } from "../api/types";
+import { getDisplayName, isSupabaseConfigured, setDisplayName } from "../lib/supabase";
 
 interface Props {
   open: boolean;
@@ -24,6 +25,8 @@ export function SettingsModal({ open, onClose, onApplied }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ConfigImportResult | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [name, setName] = useState(getDisplayName);
+  const [nameSaved, setNameSaved] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
@@ -35,7 +38,10 @@ export function SettingsModal({ open, onClose, onApplied }: Props) {
   }, []);
 
   useEffect(() => {
-    if (open) void refresh();
+    if (!open) return;
+    void refresh();
+    setName(getDisplayName());
+    setNameSaved(false);
   }, [open, refresh]);
 
   useEffect(() => {
@@ -82,6 +88,12 @@ export function SettingsModal({ open, onClose, onApplied }: Props) {
     }
   }
 
+  function saveName() {
+    setDisplayName(name);
+    setName(getDisplayName());
+    setNameSaved(true);
+  }
+
   if (!open) return null;
 
   const missing = status?.missing_required ?? [];
@@ -111,6 +123,51 @@ export function SettingsModal({ open, onClose, onApplied }: Props) {
               thật. Đặt <span className="mono">AIC26_MOCK_MODE=false</span> trong .env để dùng thật.
             </div>
           )}
+
+          <div className="cfg-group" data-testid="settings-identity">
+            <div className="cfg-group-head">
+              <span className="cfg-group-name">Tên của bạn</span>
+              <span className="cfg-group-sum">
+                Hiện cạnh mỗi dòng bạn nộp trong tab Submission.
+              </span>
+            </div>
+            <div className="cfg-name-row">
+              <input
+                className="cfg-name-input"
+                type="text"
+                value={name}
+                placeholder="ví dụ: Bao"
+                maxLength={40}
+                data-testid="settings-name-input"
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setNameSaved(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveName();
+                }}
+              />
+              <button
+                className="btn sm primary"
+                onClick={saveName}
+                data-testid="settings-name-save"
+              >
+                Lưu tên
+              </button>
+            </div>
+            <div className="cfg-name-hint">
+              {nameSaved ? (
+                <span className="cfg-name-ok" data-testid="settings-name-saved">
+                  Đã lưu{name.trim() ? "" : " — để trống thì các dòng của bạn hiện là “unknown”"}.
+                  Áp dụng ngay, không cần tải lại trang.
+                </span>
+              ) : isSupabaseConfigured() ? (
+                "Lưu trên máy này thôi — mỗi máy trong nhóm đặt tên riêng một lần."
+              ) : (
+                "Chưa bật đồng bộ Supabase, nên tên này chỉ dùng cho bảng nộp bài cục bộ."
+              )}
+            </div>
+          </div>
 
           <div
             className={`cfg-drop ${dragging ? "over" : ""}`}

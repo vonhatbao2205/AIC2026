@@ -55,6 +55,9 @@ vi.mock("../lib/supabase", () => ({
   getSupabase: () => client,
   getDisplayName: () => "Tester",
   setDisplayName: () => {},
+  // useDisplayName subscribes to name changes; the name never changes here, so
+  // an unsubscribe that does nothing is the whole contract.
+  subscribeDisplayName: () => () => {},
 }));
 
 const { useSharedSubmission } = await import("../hooks/useSharedSubmission");

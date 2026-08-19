@@ -15,7 +15,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   SUBMISSIONS_TABLE,
   SUBMISSION_ROOM,
-  getDisplayName,
   getSupabase,
   isSupabaseConfigured,
 } from "../lib/supabase";
@@ -31,6 +30,7 @@ import {
   type SubmissionRecord,
 } from "../lib/sharedSubmission";
 import type { SubmissionRow } from "../lib/submission";
+import { useDisplayName } from "./useDisplayName";
 
 const CACHE_KEY = "aic26_submission_rows";
 const RETRY_MS = 4000;
@@ -81,7 +81,7 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<string[]>([]);
   const [pending, setPending] = useState(0);
-  const user = useMemo(() => getDisplayName() || "unknown", []);
+  const user = useDisplayName();
   // Answers are scoped to the pack that defined their questions, so a rehearsal
   // and the real round never land in the same export.
   const sessionRef = useRef(sessionId);
