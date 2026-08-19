@@ -48,9 +48,18 @@ class TrakeService:
         # Use a wide candidate pool so the true video's frame for each event is
         # captured (the DP then finds the optimal ordered assignment per video).
         top_k = req.get("top_k") or 400
+        # One scope for the whole sequence: every event has to be found in the
+        # same video, so letting events resolve their own folders could only ever
+        # produce sequences that cannot be assembled.
+        scope = self.search.resolve_scope(req.get("scope"), query=query)
         # Run all events' retrieval concurrently.
         results = await asyncio.gather(
-            *(self.search.retrieve(self._event_to_parsed(parsed, ev), top_k=top_k) for ev in events)
+            *(
+                self.search.retrieve(
+                    self._event_to_parsed(parsed, ev), top_k=top_k, categories=scope.categories
+                )
+                for ev in events
+            )
         )
         event_frames = [[f for g in groups for f in g.frames] for groups, _ in results]
         per_event_meta = [
@@ -63,6 +72,8 @@ class TrakeService:
         ]
 
         # ---- Pass 2: targeted in-video fill for missing events ----
+        # No scope needed here: pass 2 searches inside videos pass 1 already
+        # returned, which are in scope by construction.
         await self._fill_missing_events(events, event_frames)
 
         fallback = (trake_cfg.get("fallback_policy") or "").startswith("allow_partial")
@@ -72,6 +83,7 @@ class TrakeService:
             "retrieval_database": self.s.retrieval_database,
             "query": query,
             "parsed": parsed,
+            "scope": scope.to_dict(),
             "events": per_event_meta,
             "sequences": [self._serialize_sequence(s) for s in sequences],
             "mode": "mock" if self.s.mock_mode else "live",

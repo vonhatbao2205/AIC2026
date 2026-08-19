@@ -10,6 +10,7 @@ from typing import Any
 
 from ..config import Settings
 from ..identity import parse_submit_keyframe_id
+from ..scope import milvus_filter_expr
 from .. import mock_data
 
 
@@ -50,23 +51,39 @@ class MilvusClient:
             return {"ok": False, "error": str(exc)}
 
     def search_image(
-        self, vector: list[float], *, top_k: int = 100, video_id: str | None = None
+        self,
+        vector: list[float],
+        *,
+        top_k: int = 100,
+        video_id: str | None = None,
+        categories: tuple[str, ...] = (),
     ) -> list[dict[str, Any]]:
         """Return image hits: submit_keyframe_id, video_id, keyframe_n, score (0..1).
 
         `video_id` restricts the search to one video (used by TRAKE pass-2 to find a
-        video's best frame for a specific event)."""
+        video's best frame for a specific event). `categories` restricts it to a set
+        of dataset folders — pushed into the Milvus filter so the top_k the operator
+        asked for is filled from INSIDE the scope, rather than retrieved globally
+        and then thinned out by a post-filter."""
         if self.mock:
-            return self._mock_image(top_k=top_k, video_id=video_id)
+            return self._mock_image(top_k=top_k, video_id=video_id, categories=categories)
 
         client = self._connect()
+        clauses = [
+            expr
+            for expr in (
+                f'video_id == "{video_id}"' if video_id else "",
+                milvus_filter_expr(categories),
+            )
+            if expr
+        ]
         results = client.search(
             collection_name=self.s.milvus_image_collection,
             data=[vector],
             limit=top_k,
             output_fields=["submit_keyframe_id", "video_id", "keyframe_n"],
             search_params={"metric_type": "COSINE"},
-            filter=f'video_id == "{video_id}"' if video_id else "",
+            filter=" and ".join(clauses),
         )
         out: list[dict[str, Any]] = []
         for hit in results[0]:
@@ -118,11 +135,13 @@ class MilvusClient:
             out[str(kf_id)] = [float(value) for value in vector]
         return out
 
-    def search_audio(self, vector: list[float], *, top_k: int = 100) -> list[dict[str, Any]]:
+    def search_audio(
+        self, vector: list[float], *, top_k: int = 100, categories: tuple[str, ...] = ()
+    ) -> list[dict[str, Any]]:
         """GLAP audio-vector search over `aic26_audio_glap_v1` (COSINE). Hits carry
         submit_keyframe_id / video_id / keyframe_n / top1_label (window-level)."""
         if self.mock:
-            return self._mock_audio(top_k=top_k)
+            return self._mock_audio(top_k=top_k, categories=categories)
         client = self._connect()
         results = client.search(
             collection_name=self.s.milvus_audio_collection,
@@ -130,6 +149,7 @@ class MilvusClient:
             limit=top_k,
             output_fields=["submit_keyframe_id", "video_id", "keyframe_n", "top1_label", "start", "end"],
             search_params={"metric_type": "COSINE"},
+            filter=milvus_filter_expr(categories),
         )
         out: list[dict[str, Any]] = []
         for hit in results[0]:
@@ -156,7 +176,9 @@ class MilvusClient:
             )
         return out
 
-    def _mock_image(self, *, top_k: int, video_id: str | None = None) -> list[dict[str, Any]]:
+    def _mock_image(
+        self, *, top_k: int, video_id: str | None = None, categories: tuple[str, ...] = ()
+    ) -> list[dict[str, Any]]:
         out = []
         rank = 0
         items = (
@@ -164,7 +186,7 @@ class MilvusClient:
             if video_id
             else list(mock_data.MOCK_KEYFRAMES.items())
         )
-        for video_id, frames in items:
+        for video_id, frames in _in_categories(items, categories):
             for f in frames[:8]:
                 out.append(
                     {
@@ -178,9 +200,9 @@ class MilvusClient:
         out.sort(key=lambda x: -x["score"])
         return out[:top_k]
 
-    def _mock_audio(self, *, top_k: int) -> list[dict[str, Any]]:
+    def _mock_audio(self, *, top_k: int, categories: tuple[str, ...] = ()) -> list[dict[str, Any]]:
         out, rank = [], 0
-        for video_id, frames in mock_data.MOCK_KEYFRAMES.items():
+        for video_id, frames in _in_categories(list(mock_data.MOCK_KEYFRAMES.items()), categories):
             for f in frames[:4]:
                 out.append(
                     {
@@ -197,3 +219,13 @@ class MilvusClient:
                 rank += 1
         out.sort(key=lambda x: -x["score"])
         return out[:top_k]
+
+
+def _in_categories(
+    items: list[tuple[str, list[dict[str, Any]]]], categories: tuple[str, ...]
+) -> list[tuple[str, list[dict[str, Any]]]]:
+    """Mock-mode stand-in for the Milvus category filter (same prefix rule)."""
+    if not categories:
+        return items
+    wanted = set(categories)
+    return [(vid, frames) for vid, frames in items if vid and vid.split("_")[0] in wanted]

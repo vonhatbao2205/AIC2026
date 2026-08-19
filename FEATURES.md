@@ -34,6 +34,18 @@ Toàn bộ tính năng hiện có của hệ thống truy hồi video AIC26 (bac
 - **Query expansion** (toggle **🔎 Expand**): model nhanh (`NVIDIA_FAST_MODEL`, vd `meta/llama-3.1-8b-instruct`) sinh 2-3 mô tả thị giác/ query → backend search từng biến thể, **fuse max-cosine** → tăng recall cho concept khó (vd "The Thing"). Lọc bỏ biến thể không phải tiếng Anh.
 - **Panel Query Understanding**: type+confidence, EN visual (clamp "xem thêm"), kênh được route, negations.
 
+## 5b. Phạm vi tìm kiếm (Search scope — lọc theo thư mục dữ liệu)
+Bộ lọc **📂 phạm vi** cạnh nút Search: bấm vào ra **danh sách checkbox** các thư mục dataset, tick nhiều thư mục tuỳ ý. Áp dụng cho lần Search **kế tiếp** (giống slider retrieval depth, không tự chạy lại).
+- **Danh mục theo profile**: `btc` = L21–L30 + K01–K20 (30 thư mục); `infoshotpp` = L21–L30 (10 thư mục — không có K nên không hiện). Đổi profile sẽ tự bỏ thư mục profile mới không có.
+- **3 chế độ**: **Tự động** (mặc định — heuristic chủ đề), **Tất cả**, **Tùy chọn** (đúng những gì đã tick). Tick 1 ô bất kỳ = chuyển sang Tùy chọn.
+- **Heuristic chủ đề** (`backend/app/scope.py`, giống query routing): mỗi thư mục là **một chương trình**, nên query nói về chủ đề gì thì đã chỉ ra thư mục — `đầu bếp / công thức / nước sốt` → L26, `đua xe đạp / tay đua / chặng đua` → L23, `múa lân / lân` → L24, `ôn thi / đề thi / trắc nghiệm` → L25, `làng nghề / nghệ nhân` → L27, `mekong / miền tây / chợ nổi` → L28+L29, `từ thiện / trao quà / lan tỏa` → L30, `thời sự / bản tin / 60 giây` → L21+L22+K01–K20.
+- **Chỉ dùng từ khoá về ĐỊNH DẠNG chương trình, không dùng từ về chủ thể**: `tôm`, `bánh`, `cá` bị loại khỏi từ điển vì bản tin thời sự cũng quay đồ ăn — để chúng vào làm heuristic chọn nhầm L26 cho 6 query K-side.
+- **Không bao giờ loại các thư mục "mọi chủ đề"** (L21, L22, L30, K01–K20): thời sự 60 giây đưa tin về nấu ăn/đua xe đạp/múa lân, L30 là clip ngắn tự gửi nên chứa mọi thứ. Đo trên 104 query ground truth (`TKIS/QA/TRAKE_queries.xlsx`): heuristic kích hoạt 22 lần, **thư mục chứa đáp án luôn nằm trong phạm vi**; bỏ luật này thì mất đáp án 6 lần.
+- **Match có dấu** khi query có dấu: fold cả 2 phía làm `vẫy tay đưa` trùng `tay đua` (L23) và `cụ lão` trùng `cù lao` (L28) → chọn nhầm. Query gõ không dấu (`nau an`) vẫn match qua fold.
+- **Nút "Chỉ L26"**: một click để bỏ luôn phần thời sự/L30 khi thao tác viên chắc chắn (chuyển sang Tùy chọn với đúng thư mục của chủ đề).
+- **Push-down, không phải lọc sau**: phạm vi đi thẳng vào Milvus (`video_id like "L26_%"`) và Elastic (`prefix` trên `video_id`, trong `filter` nên không đổi điểm), nên `top_k` được lấp **từ trong phạm vi** thay vì lấy toàn cục rồi bị gọt. Vẫn lọc lại sau fusion cho chắc. Áp dụng cho `/api/search`, `/api/search/trake`, `/api/search/canvas`, `/api/search/simple` — TRAKE dùng **một phạm vi cho cả chuỗi** (mọi event phải cùng 1 video).
+- Chọn hết = không lọc: backend chuẩn hoá về "không filter" để adapter không phải dựng mệnh đề vô nghĩa.
+
 ## 6. Kênh truy hồi (Retrieval channels)
 - **image_pe (VECTOR)**: PE-Core-G14 encode query → Milvus `aic26_image_peg14_v1` (COSINE). Hỗ trợ **multi-variant max-fusion** (query expansion).
 - **OCR**: Elastic `text_clean`/`text_nfc`/`text_clean_fold` (fuzzy) + filter `hour`/`clock`. Guard: query rỗng → trả rỗng (không match-all).
@@ -126,7 +138,8 @@ Toàn bộ tính năng hiện có của hệ thống truy hồi video AIC26 (bac
 |---|---|---|
 | GET | `/api/health` | trạng thái service + capabilities |
 | POST | `/api/query/parse` | routing JSON (heuristic/LLM) |
-| POST | `/api/search` | search đầy đủ (group-by-video) |
+| GET | `/api/search/scope` | danh mục thư mục của profile + gợi ý heuristic cho `query` |
+| POST | `/api/search` | search đầy đủ (group-by-video); nhận `scope`, trả lại `scope` đã áp dụng |
 | POST | `/api/search/simple` | vector-only flat top-K |
 | POST | `/api/search/trake` | chuỗi event (two-pass + DP) |
 | GET | `/api/canvas/palette` | vocabulary + 16 màu cho canvas V-KIS |

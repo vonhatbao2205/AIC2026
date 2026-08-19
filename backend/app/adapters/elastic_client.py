@@ -14,6 +14,7 @@ from typing import Any
 
 from .. import mock_data
 from ..config import Settings
+from ..scope import elastic_filter_clause
 from ..scoring import audio_score_multiplier, speech_score_multiplier
 from ..text_normalization import fold_vietnamese
 from .http_pool import PooledHttpClient
@@ -271,6 +272,16 @@ def _ocr_hits(data: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
+def _keep_categories(hits: list[dict[str, Any]], categories: tuple[str, ...]) -> list[dict[str, Any]]:
+    """Mock-mode stand-in for the pushed-down scope filter (same prefix rule)."""
+    if not categories:
+        return hits
+    wanted = set(categories)
+    return [
+        hit for hit in hits if str(hit.get("video_id") or "").split("_")[0] in wanted
+    ]
+
+
 class ElasticClient:
     def __init__(self, settings: Settings):
         self.s = settings
@@ -312,6 +323,7 @@ class ElasticClient:
         numbers: list[str] | None = None,
         hour: int | None = None,
         clock: str | None = None,
+        categories: tuple[str, ...] = (),
         size: int = 100,
     ) -> list[dict[str, Any]]:
         queries_vi = _unique_text(queries_vi)
@@ -330,14 +342,17 @@ class ElasticClient:
             return []
 
         if self.mock:
-            return self._mock_ocr(
-                queries_vi,
-                queries_folded,
-                exact_phrases=exact_phrases,
-                numbers=numbers or [],
-                hour=hour,
-                clock=clock,
-                size=size,
+            return _keep_categories(
+                self._mock_ocr(
+                    queries_vi,
+                    queries_folded,
+                    exact_phrases=exact_phrases,
+                    numbers=numbers or [],
+                    hour=hour,
+                    clock=clock,
+                    size=size,
+                ),
+                categories,
             )
 
         safe_numbers = _safe_numbers(
@@ -370,6 +385,10 @@ class ElasticClient:
             time_filters.append({"term": {"hour": hour}})
         if clock:
             time_filters.append({"term": {"clock": clock}})
+        # The scope constrains WHERE to look, never WHAT counts as a match, so it
+        # rides in `filter` (no scoring effect) and applies to the fuzzy pass too.
+        scope_clause = elastic_filter_clause(categories)
+        scope_filters = [scope_clause] if scope_clause else []
 
         if strict:
             must: list[dict] = [
@@ -385,12 +404,14 @@ class ElasticClient:
             ]
             # dis_max above only needs ONE clause to match; these keep every
             # number in the query required.
-            filt = [*time_filters, *numeric]
+            filt = [*time_filters, *numeric, *scope_filters]
         elif time_filters:
             # A bare broadcast-clock query. Scores are uniform, but the frames it
             # returns are exactly the matching ones and RRF consumes rank anyway.
+            # (A scope on its own never reaches here: it narrows a query, it is
+            # not one, so an empty query still returns nothing.)
             must = []
-            filt = time_filters
+            filt = [*time_filters, *scope_filters]
         else:
             return []  # never fall through to match_all on an empty query
 
@@ -411,7 +432,7 @@ class ElasticClient:
             return primary_hits[:size]
         fallback_body = {
             "size": size,
-            "query": {"bool": {"must": [fuzzy], "filter": [*time_filters, *numeric]}},
+            "query": {"bool": {"must": [fuzzy], "filter": [*time_filters, *numeric, *scope_filters]}},
         }
         fallback_hits = _ocr_hits(await self._search(self.s.idx_ocr, fallback_body))
         seen = {hit["submit_keyframe_id"] for hit in primary_hits}
@@ -431,21 +452,29 @@ class ElasticClient:
         queries_vi: list[str],
         *,
         exact_phrases: list[str] | None = None,
+        categories: tuple[str, ...] = (),
         size: int = 100,
     ) -> list[dict[str, Any]]:
         if not queries_vi and not (exact_phrases or []):
             return []
         if self.mock:
-            return self._mock_speech(queries_vi, size=size)
+            return _keep_categories(self._mock_speech(queries_vi, size=size), categories)
 
         should: list[dict] = [{"match": {"text": {"query": q}}} for q in queries_vi]
         for p in (exact_phrases or []):
             should.append({"match_phrase": {"text": {"query": p, "boost": 3.0}}})
         if not should:
             return []
+        scope_clause = elastic_filter_clause(categories)
         body = {
             "size": size,
-            "query": {"bool": {"should": should, "minimum_should_match": 1}},
+            "query": {
+                "bool": {
+                    "should": should,
+                    "minimum_should_match": 1,
+                    **({"filter": [scope_clause]} if scope_clause else {}),
+                }
+            },
         }
         data = await self._search(self.s.idx_speech, body)
         out = []
@@ -475,12 +504,15 @@ class ElasticClient:
         queries_en: list[str],
         sound_labels: list[str] | None = None,
         *,
+        categories: tuple[str, ...] = (),
         size: int = 100,
     ) -> list[dict[str, Any]]:
         if not queries_en and not (sound_labels or []):
             return []
         if self.mock:
-            return self._mock_audio(queries_en + (sound_labels or []), size=size)
+            return _keep_categories(
+                self._mock_audio(queries_en + (sound_labels or []), size=size), categories
+            )
 
         should: list[dict] = []
         for lbl in (sound_labels or []):
@@ -492,9 +524,16 @@ class ElasticClient:
             should.append({"match": {"tag_labels": {"query": q}}})
         if not should:
             return []
+        scope_clause = elastic_filter_clause(categories)
         body = {
             "size": size,
-            "query": {"bool": {"should": should, "minimum_should_match": 1}},
+            "query": {
+                "bool": {
+                    "should": should,
+                    "minimum_should_match": 1,
+                    **({"filter": [scope_clause]} if scope_clause else {}),
+                }
+            },
         }
         data = await self._search(self.s.idx_audio, body)
         wanted = {s.lower() for s in (sound_labels or [])}

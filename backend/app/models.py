@@ -10,6 +10,18 @@ QueryTypeHint = Literal["auto", "T-KIS", "QA", "V-KIS", "TRAKE"]
 RetrievalDatabase = Literal["btc", "infoshotpp"]
 
 
+class SearchScope(BaseModel):
+    """Which dataset folders a search may return frames from.
+
+    `all` searches the whole profile, `manual` exactly the ticked folders, `auto`
+    lets the topic heuristic in `app.scope` pick them from the query text. The
+    length cap is the full BTC catalogue (L21-L30 + K01-K20) with room to spare.
+    """
+
+    mode: Literal["all", "auto", "manual"] = "all"
+    categories: list[str] = Field(default_factory=list, max_length=64)
+
+
 class ManualOverrides(BaseModel):
     force_channels: list[str] = Field(default_factory=list)
     disable_channels: list[str] = Field(default_factory=list)
@@ -36,6 +48,7 @@ class SearchRequest(BaseModel):
     retrieval_database: RetrievalDatabase = "btc"
     query: str = ""
     query_type_hint: QueryTypeHint = "auto"
+    scope: SearchScope = Field(default_factory=SearchScope)
     previous_hints: list[str] = Field(default_factory=list)
     manual_overrides: ManualOverrides = Field(default_factory=ManualOverrides)
     parsed: dict[str, Any] | None = None  # reuse a prior parse to skip re-parsing
@@ -51,6 +64,7 @@ class SearchRequest(BaseModel):
 class SimpleSearchRequest(BaseModel):
     retrieval_database: RetrievalDatabase = "btc"
     query: str = ""
+    scope: SearchScope = Field(default_factory=SearchScope)
     top_k: int = 60
 
 
@@ -61,6 +75,7 @@ class TranslateRequest(BaseModel):
 class TrakeSearchRequest(BaseModel):
     retrieval_database: RetrievalDatabase = "btc"
     query: str = ""
+    scope: SearchScope = Field(default_factory=SearchScope)
     previous_hints: list[str] = Field(default_factory=list)
     manual_overrides: ManualOverrides = Field(default_factory=ManualOverrides)
     parsed: dict[str, Any] | None = None
@@ -101,6 +116,7 @@ class CanvasSpec(BaseModel):
 class CanvasSearchRequest(BaseModel):
     retrieval_database: RetrievalDatabase = "btc"
     canvas: CanvasSpec
+    scope: SearchScope = Field(default_factory=SearchScope)
     top_k: int = Field(default=100, ge=1, le=400)
     max_videos: int = Field(default=50, ge=1, le=200)
     candidate_pool: int = Field(default=400, ge=50, le=1000)

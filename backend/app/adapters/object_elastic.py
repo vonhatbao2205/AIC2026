@@ -19,6 +19,7 @@ from typing import Any
 from .. import mock_data
 from ..config import Settings
 from ..identity import make_submit_keyframe_id
+from ..scope import elastic_filter_clause
 from .http_pool import PooledHttpClient
 
 # Detection subfields the assignment needs. Fetching the full `detections` array
@@ -90,6 +91,7 @@ class ObjectElasticClient:
         colors: dict[str, str] | None = None,
         positions: dict[str, str] | None = None,
         exclude_labels: list[str] | None = None,
+        categories: tuple[str, ...] = (),
         size: int = 400,
         min_conf: float = 0.20,
         min_label_ratio: float = 0.5,
@@ -104,7 +106,11 @@ class ObjectElasticClient:
         if not labels:
             return []
         if self.mock:
-            return mock_data.object_frames(labels, size=size)
+            frames = mock_data.object_frames(labels, size=size)
+            if not categories:
+                return frames
+            wanted = set(categories)
+            return [f for f in frames if str(f.get("video_id") or "").split("_")[0] in wanted]
 
         required = max(1, int(len(labels) * min_label_ratio))
         # Frame-level `canonical_labels` gates candidates without paying for a
@@ -168,12 +174,18 @@ class ObjectElasticClient:
             }
         }
 
+        scope = elastic_filter_clause(categories)
         body = {
             "size": size,
             "track_total_hits": False,
             "timeout": "5s",
             "_source": _SOURCE_FIELDS,
-            "query": {"bool": {"filter": [{"term": {"status": "ok"}}, gate], "must": [nested]}},
+            "query": {
+                "bool": {
+                    "filter": [{"term": {"status": "ok"}}, gate, *([scope] if scope else [])],
+                    "must": [nested],
+                }
+            },
         }
         resp = await self._http.get().post(
             f"{self._base}/{self.s.idx_objects}/_search",

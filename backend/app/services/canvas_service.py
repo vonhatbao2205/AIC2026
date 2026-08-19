@@ -68,15 +68,22 @@ class CanvasService:
         queries_en = canvas_to_queries(canvas)
         top_k = int(req.get("top_k") or 100)
         pool = int(req.get("candidate_pool") or DEFAULT_CANDIDATE_POOL)
+        # The drawing is the query, so an auto scope has no text to read: only an
+        # explicit manual selection can narrow a canvas search.
+        scope = self.search_service.resolve_scope(req.get("scope"), query=canvas.action_text)
 
-        layout_task = asyncio.create_task(self._run_object_layout(canvas, pool=pool, top_k=top_k))
+        layout_task = asyncio.create_task(
+            self._run_object_layout(canvas, pool=pool, top_k=top_k, categories=scope.categories)
+        )
         pe_task = asyncio.create_task(
-            self.search_service._run_image_pe({"queries_en": queries_en}, top_k)
+            self.search_service._run_image_pe({"queries_en": queries_en}, top_k, scope.categories)
             if queries_en
             else _no_hits()
         )
         raster_task = asyncio.create_task(
-            self._run_canvas_image(canvas.image, top_k) if canvas.image else _no_hits()
+            self._run_canvas_image(canvas.image, top_k, scope.categories)
+            if canvas.image
+            else _no_hits()
         )
 
         latency: dict[str, Any] = {"channels": {}}
@@ -107,6 +114,7 @@ class CanvasService:
 
         return {
             "canvas": _canvas_echo(canvas, queries_en),
+            "scope": scope.to_dict(),
             "groups": [
                 self.search_service._serialize_group(group) for group in groups[: int(req.get("max_videos") or 50)]
             ],
@@ -116,7 +124,7 @@ class CanvasService:
         }
 
     async def _run_object_layout(
-        self, canvas: CanvasQuery, *, pool: int, top_k: int
+        self, canvas: CanvasQuery, *, pool: int, top_k: int, categories: tuple[str, ...] = ()
     ) -> tuple[list[ChannelHit], float]:
         """OD candidates → per-frame Hungarian assignment → ranked hits."""
         t0 = time.perf_counter()
@@ -129,6 +137,7 @@ class CanvasService:
             colors=colors,
             positions=positions,
             exclude_labels=canvas.exclude_labels,
+            categories=categories,
             size=pool,
         )
 
@@ -166,7 +175,9 @@ class CanvasService:
         return hits, (time.perf_counter() - t0) * 1000
 
 
-    async def _run_canvas_image(self, image: str, top_k: int) -> tuple[list[ChannelHit], float]:
+    async def _run_canvas_image(
+        self, image: str, top_k: int, categories: tuple[str, ...] = ()
+    ) -> tuple[list[ChannelHit], float]:
         """Rendered canvas → PE image embedding → Milvus kNN."""
         t0 = time.perf_counter()
         try:
@@ -178,7 +189,10 @@ class CanvasService:
         if not vectors:
             return [], (time.perf_counter() - t0) * 1000
         raw = await asyncio.to_thread(
-            self.search_service.milvus.search_image, vectors[0], top_k=top_k
+            self.search_service.milvus.search_image,
+            vectors[0],
+            top_k=top_k,
+            categories=categories,
         )
         hits = [
             ChannelHit(

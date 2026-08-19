@@ -18,7 +18,9 @@ import type {
   QaAnalyzeCandidate,
   QueryTypeHint,
   RetrievalDatabase,
+  ScopeCatalogue,
   SearchResponse,
+  SearchScope,
   SimpleSearchResponse,
   SnapResult,
   SubmitEntry,
@@ -119,10 +121,19 @@ export const api = {
 
   reloadConfig: () => request<ConfigStatus>("/api/config/reload", { method: "POST" }),
 
-  simpleSearch: (query: string, top_k: number, retrieval_database: RetrievalDatabase = "btc") =>
+  /** The folder catalogue for one profile (fixed per profile, so fetch once). */
+  searchScope: (retrieval_database: RetrievalDatabase = "btc") =>
+    request<ScopeCatalogue>(`/api/search/scope?retrieval_database=${retrieval_database}`),
+
+  simpleSearch: (
+    query: string,
+    top_k: number,
+    retrieval_database: RetrievalDatabase = "btc",
+    scope?: SearchScope,
+  ) =>
     request<SimpleSearchResponse>("/api/search/simple", {
       method: "POST",
-      body: JSON.stringify({ query, top_k, retrieval_database }),
+      body: JSON.stringify({ query, top_k, retrieval_database, ...(scope ? { scope } : {}) }),
     }),
 
   parse: (query: string, hint: QueryTypeHint, previous_hints: string[], overrides: ManualOverrides, use_llm = false) =>
@@ -135,6 +146,7 @@ export const api = {
     retrieval_database: RetrievalDatabase;
     query: string;
     query_type_hint: QueryTypeHint;
+    scope?: SearchScope;
     previous_hints: string[];
     manual_overrides: ManualOverrides;
     parsed?: ParsedQuery | null;
@@ -149,7 +161,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
-  searchTrake: (body: { retrieval_database: RetrievalDatabase; query: string; previous_hints: string[]; manual_overrides: ManualOverrides; use_llm?: boolean; expand?: boolean; top_k?: number }) =>
+  searchTrake: (body: { retrieval_database: RetrievalDatabase; query: string; scope?: SearchScope; previous_hints: string[]; manual_overrides: ManualOverrides; use_llm?: boolean; expand?: boolean; top_k?: number }) =>
     request<TrakeSearchResponse>("/api/search/trake", {
       method: "POST",
       body: JSON.stringify(body),
@@ -157,7 +169,7 @@ export const api = {
 
   canvasPalette: () => request<CanvasPalette>("/api/canvas/palette"),
 
-  searchCanvas: (body: { retrieval_database: RetrievalDatabase; canvas: CanvasSpec; top_k?: number; candidate_pool?: number }) =>
+  searchCanvas: (body: { retrieval_database: RetrievalDatabase; canvas: CanvasSpec; scope?: SearchScope; top_k?: number; candidate_pool?: number }) =>
     request<CanvasSearchResponse>("/api/search/canvas", {
       method: "POST",
       body: JSON.stringify(body),

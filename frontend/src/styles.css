@@ -830,6 +830,39 @@ button { font-family: inherit; }
 .topk-row .slider { flex: 1; min-width: 0; }
 .topk-value { font-size: 12px; color: var(--fg-dim); min-width: 34px; text-align: right; }
 
+/* ---- Search scope (dataset folder filter) ---- */
+.scope-filter { position: relative; display: inline-flex; }
+/* The menu overhangs the left column, which is narrow and scrolls: anchoring it
+   to the button and lifting it above the results keeps the whole list reachable
+   without widening the column. */
+.scope-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 40;
+  width: 320px; max-width: 78vw;
+  background: var(--bg-1); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-2, 0 10px 30px rgba(0, 0, 0, 0.35));
+  padding: 10px; display: flex; flex-direction: column; gap: 8px;
+}
+.scope-modes { align-self: flex-start; }
+.scope-reason {
+  font-size: 11px; line-height: 1.45; color: var(--fg-dim);
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.scope-reason.bad { color: var(--warn); }
+.scope-actions { display: flex; gap: 6px; }
+.scope-list { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.scope-group { display: flex; flex-direction: column; gap: 1px; }
+.scope-row {
+  display: flex; align-items: center; gap: 7px; padding: 3px 4px;
+  border-radius: 5px; cursor: pointer; font-size: 11.5px; color: var(--fg-dim);
+}
+.scope-row:hover { background: var(--bg-3); color: var(--fg); }
+.scope-row input { accent-color: var(--accent); flex: none; }
+.scope-group-head { color: var(--fg); font-weight: 600; }
+.scope-code { font-family: var(--mono); font-size: 11px; color: var(--fg); flex: none; }
+/* The programme name is the useful half but the longest; clamp it to one line so
+   thirty folders still fit in a scrollable list. */
+.scope-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ---- Question pack publish preview ---- */
 .pack-preview {
   border: 1px solid var(--accent); border-radius: 8px;

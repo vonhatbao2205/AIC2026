@@ -26,6 +26,11 @@ The repository contains two parts:
   - `audio` vector — **GLAP** audio↔text embeddings in Milvus, fused with the Elastic audio signal
 - **Query understanding** via NVIDIA Nemotron (OpenAI-compatible) with a
   deterministic heuristic fallback; VI→EN translation of the visual query.
+- **Search scope** — a checkbox filter over the dataset folders (L21–L30 +
+  K01–K20), pushed down into the Milvus/Elastic queries. Each folder is one
+  programme, so a topic heuristic reads the folders off the query the same way
+  the parser reads channels ("đầu bếp" → L26), while never excluding the
+  programmes that carry every subject (the 60-second bulletins and L30).
 - **TRAKE** temporal sequences assembled with an exact dynamic-programming
   maximum-weight increasing chain (globally optimal, not greedy).
 - **NVILA-8B QA copilot** — top-video-first candidate blocks, 3–5 visual

@@ -14,7 +14,10 @@ import type {
   ParsedQuery,
   QaAnalysisResponse,
   QueryType,
+  ResolvedScope,
   RetrievalDatabase,
+  ScopeCatalogue,
+  ScopeMode,
   SubmitEntry,
   SubmitPreview,
   Timeline as TimelineData,
@@ -32,6 +35,7 @@ import { QueryPanel } from "./components/QueryPanel";
 import { QueryUnderstanding } from "./components/QueryUnderstanding";
 import { QaAssistPanel } from "./components/QaAssistPanel";
 import { Results } from "./components/Results";
+import { ScopeFilter } from "./components/ScopeFilter";
 import { PausedFramePanel, type PausedFrame } from "./components/PausedFramePanel";
 import { ShortcutsModal } from "./components/ShortcutsModal";
 import { TaskHintPanel } from "./components/TaskHintPanel";
@@ -43,6 +47,7 @@ import { VideoViewer, type VideoViewerHandle } from "./components/VideoViewer";
 import { autoEvaluationId } from "./lib/dres";
 import { findQaFrame, selectQaCandidateFrames } from "./lib/qa";
 import { kindForQueryType, type ImportedQuestion } from "./lib/questions";
+import { DEFAULT_SCOPE_MODE, orderCategories, scopeRequest } from "./lib/scope";
 import { validateIncreasingOrder } from "./lib/snap";
 import { findDuplicate, rowToCsvLine, type SubmissionRow } from "./lib/submission";
 
@@ -131,6 +136,15 @@ export default function FullConsole({
   const [topK, setTopK] = useState(DEFAULT_TOP_K);
   const [appliedTopK, setAppliedTopK] = useState<number | null>(null);
   const [expand, setExpand] = useState(false);
+  // Search scope: which dataset folders may answer. `scopeMode` is the policy,
+  // `scopeSelection` the hand-picked list it uses in "manual", and `appliedScope`
+  // what the last search actually ran on (the backend resolves "auto", so only
+  // it can say). Like `topK`, none of them re-run a search on their own.
+  const [scopeMode, setScopeMode] = useState<ScopeMode>(DEFAULT_SCOPE_MODE);
+  const [scopeSelection, setScopeSelection] = useState<string[]>([]);
+  const [scopeCatalogue, setScopeCatalogue] = useState<ScopeCatalogue | null>(null);
+  const [scopeError, setScopeError] = useState<string | null>(null);
+  const [appliedScope, setAppliedScope] = useState<ResolvedScope | null>(null);
   const [groups, setGroups] = useState<VideoGroup[]>([]);
   const [latency, setLatency] = useState<LatencyBreakdown | null>(null);
   const [loading, setLoading] = useState(false);
@@ -517,6 +531,34 @@ export default function FullConsole({
     };
   }, [activeVideoId, retrievalDatabase]);
 
+  // ---- folder catalogue for the scope filter ----
+  // Fixed per profile, so it is fetched once per profile rather than per search.
+  // Switching profile also drops folders the new one does not hold (InfoShot++
+  // has no K-side), which otherwise would silently filter every search to zero.
+  useEffect(() => {
+    let cancelled = false;
+    setScopeError(null);
+    // The applied scope was resolved against the other profile's folders.
+    setAppliedScope(null);
+    api.searchScope(retrievalDatabase).then(
+      (body) => {
+        if (cancelled) return;
+        setScopeCatalogue(body);
+        const held = new Set(body.categories.map((item) => item.category));
+        setScopeSelection((current) => {
+          const kept = current.filter((category) => held.has(category));
+          return kept.length === current.length ? current : kept;
+        });
+      },
+      () => {
+        if (!cancelled) setScopeError("Không tải được danh sách thư mục — tạm thời tìm toàn bộ.");
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [retrievalDatabase]);
+
   // ---- search ----
   const runSearch = useCallback(async (overrideQuery?: string) => {
     // The override exists for the import-driven run, which fires in the same tick
@@ -534,8 +576,9 @@ export default function FullConsole({
     setCanvasQueries([]);
     try {
       if (queryType === "TRAKE") {
-        const res = await api.searchTrake({ retrieval_database: retrievalDatabase, query, previous_hints: hints, manual_overrides: overrides, use_llm: useLLM, expand, top_k: Math.max(topK, TRAKE_MIN_TOP_K) });
+        const res = await api.searchTrake({ retrieval_database: retrievalDatabase, query, scope: scopeRequest(scopeMode, scopeSelection), previous_hints: hints, manual_overrides: overrides, use_llm: useLLM, expand, top_k: Math.max(topK, TRAKE_MIN_TOP_K) });
         setParsed(res.parsed);
+        setAppliedScope(res.scope ?? null);
         const grp: VideoGroup[] = res.sequences.map((s) => ({
           video_id: s.video_id,
           video_score: s.score,
@@ -575,6 +618,7 @@ export default function FullConsole({
           retrieval_database: retrievalDatabase,
           query,
           query_type_hint: queryType,
+          scope: scopeRequest(scopeMode, scopeSelection),
           previous_hints: hints,
           manual_overrides: overrides,
           feedback,
@@ -589,6 +633,7 @@ export default function FullConsole({
         setParsed(res.parsed);
         setGroups(res.groups);
         setLatency(res.latency_ms);
+        setAppliedScope(res.scope ?? null);
         if (res.warnings?.length) {
           setToast({ msg: res.warnings.join(" · "), kind: "bad" });
         }
@@ -604,7 +649,7 @@ export default function FullConsole({
       setLoading(false);
     }
     // `topK` is read here, not watched: nothing re-runs a search when it moves.
-  }, [queryState, hints, overrides, queryType, feedback, useLLM, expand, retrievalDatabase, topK]);
+  }, [queryState, hints, overrides, queryType, feedback, useLLM, expand, retrievalDatabase, topK, scopeMode, scopeSelection]);
 
   // The tab rail shows a spinner per tab, so the parent has to know which tabs
   // are still running after an import kicked all of them off at once.
@@ -620,10 +665,15 @@ export default function FullConsole({
     setDuplicateId(null);
     setPausedFrame(null);
     try {
-      const res = await api.searchCanvas({ retrieval_database: retrievalDatabase, canvas });
+      const res = await api.searchCanvas({
+        retrieval_database: retrievalDatabase,
+        canvas,
+        scope: scopeRequest(scopeMode, scopeSelection),
+      });
       setParsed(null);
       setGroups(res.groups);
       setLatency(res.latency_ms);
+      setAppliedScope(res.scope ?? null);
       setCanvasQueries(res.canvas.queries_en ?? []);
       setSelectedVideo(0);
       setSelectedFrame(0);
@@ -637,7 +687,7 @@ export default function FullConsole({
     } finally {
       setLoading(false);
     }
-  }, [retrievalDatabase]);
+  }, [retrievalDatabase, scopeMode, scopeSelection]);
 
   // Moving the selection to a different video auto-hides the old inline video
   // (it will reload only when the operator presses 'v' on the new video).
@@ -1389,6 +1439,19 @@ export default function FullConsole({
             topK={topK}
             onTopK={setTopK}
             appliedTopK={appliedTopK}
+            scopeFilter={
+              <ScopeFilter
+                catalogue={scopeCatalogue}
+                mode={scopeMode}
+                onMode={setScopeMode}
+                selected={scopeSelection}
+                onSelected={(categories) =>
+                  setScopeSelection(orderCategories(categories, scopeCatalogue))
+                }
+                applied={appliedScope}
+                error={scopeError}
+              />
+            }
           />
           <ChannelControls retrievalDatabase={retrievalDatabase} parsed={parsed} overrides={overrides} onToggle={toggleChannel} />
           <QueryUnderstanding parsed={parsed} />

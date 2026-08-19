@@ -7,6 +7,7 @@ Endpoints:
   POST /api/config/import
   POST /api/config/reload
   POST /api/query/parse
+  GET  /api/search/scope
   POST /api/search
   POST /api/search/trake
   POST /api/qa/analyze
@@ -56,6 +57,7 @@ from .models import (
     TranslateRequest,
     TrakeSearchRequest,
 )
+from .scope import catalogue as scope_catalogue, match_topics
 from .translate import translate_vi_to_en
 from .services import config_service
 from .services.canvas_service import CanvasService
@@ -258,12 +260,32 @@ async def parse_query(req: ParseRequest):
     return parsed
 
 
+@app.get("/api/search/scope")
+async def search_scope(retrieval_database: RetrievalDatabase = "btc", query: str = ""):
+    """The folder catalogue this profile can search, plus what the topic heuristic
+    makes of `query` — the console draws its folder picker from this and previews
+    the auto selection while the operator is still typing."""
+    body = scope_catalogue(retrieval_database)
+    body["suggestion"] = (
+        search_services[retrieval_database]
+        .resolve_scope({"mode": "auto"}, query=query)
+        .to_dict()
+        if query.strip()
+        else None
+    )
+    body["topic_keywords"] = [
+        {"topic_id": match.topic_id, "keywords": list(match.keywords)}
+        for match in match_topics(query)
+    ]
+    return body
+
+
 @app.post("/api/search/simple")
 async def search_simple(req: SimpleSearchRequest):
     """Minimal vector-only search: flat keyframe list ordered by cosine."""
     try:
         return await search_services[req.retrieval_database].simple_image_search(
-            req.query, top_k=req.top_k
+            req.query, top_k=req.top_k, scope_spec=req.scope.model_dump()
         )
     except ServiceUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -275,6 +297,7 @@ async def search(req: SearchRequest):
     if req.feedback is not None:
         payload["feedback"] = req.feedback.model_dump()
     payload["manual_overrides"] = req.manual_overrides.model_dump()
+    payload["scope"] = req.scope.model_dump()
     return await search_services[req.retrieval_database].search(payload)
 
 
@@ -282,6 +305,7 @@ async def search(req: SearchRequest):
 async def search_trake(req: TrakeSearchRequest):
     payload = req.model_dump()
     payload["manual_overrides"] = req.manual_overrides.model_dump()
+    payload["scope"] = req.scope.model_dump()
     return await trake_services[req.retrieval_database].search_trake(payload)
 
 

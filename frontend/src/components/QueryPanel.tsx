@@ -23,10 +23,13 @@ interface Props {
   /** What the results on screen were actually fetched with, or null before the
    *  first search — used to tell the operator the slider is not live yet. */
   appliedTopK: number | null;
+  /** Folder-scope picker. Passed in rather than built here so the panel keeps
+   *  owning only the query text and the knobs that shape one search. */
+  scopeFilter?: React.ReactNode;
 }
 
 export function QueryPanel(props: Props) {
-  const { query, setQuery, hints, onAppendHint, onClearHints, onSearch, loading, parsed, queryType, inputRef, useLLM, onToggleLLM, expand, onToggleExpand, topK, onTopK, appliedTopK } = props;
+  const { query, setQuery, hints, onAppendHint, onClearHints, onSearch, loading, parsed, queryType, inputRef, useLLM, onToggleLLM, expand, onToggleExpand, topK, onTopK, appliedTopK, scopeFilter } = props;
   const [listening, setListening] = useState(false);
   const [voiceMsg, setVoiceMsg] = useState<string | null>(null);
   const [interim, setInterim] = useState("");
@@ -224,6 +227,7 @@ export function QueryPanel(props: Props) {
         >
           {expand ? "🔎 Expand on" : "Expand off"}
         </button>
+        {scopeFilter}
       </div>
 
       {/* Retrieval depth. Deliberately NOT live: moving it while a hundred

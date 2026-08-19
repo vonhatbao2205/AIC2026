@@ -6,6 +6,49 @@ export type QueryType = "T-KIS" | "QA" | "V-KIS" | "TRAKE";
 export type QueryTypeHint = "auto" | QueryType;
 export type RetrievalDatabase = "btc" | "infoshotpp";
 
+// ---- search scope (which dataset folders a search may return) --------------
+
+/** `all` = whole profile, `manual` = exactly the ticked folders, `auto` = let the
+ *  backend's topic heuristic read them off the query. */
+export type ScopeMode = "all" | "auto" | "manual";
+
+export interface SearchScope {
+  mode: ScopeMode;
+  categories: string[];
+}
+
+export interface ScopeTopicMatch {
+  topic_id: string;
+  label_vi: string;
+  keywords: string[];
+  categories: string[];
+}
+
+/** What a search actually applied, echoed back on every search response. */
+export interface ResolvedScope {
+  mode: ScopeMode;
+  categories: string[];
+  /** The narrower set the matched topics alone imply, offered as one click. */
+  strict_categories: string[];
+  active: boolean;
+  reason_vi: string;
+  matched_topics: ScopeTopicMatch[];
+}
+
+export interface ScopeCategory {
+  category: string;
+  label_vi: string;
+  /** True for programmes with no fixed subject (news bulletins, L30 shorts). */
+  open_subject: boolean;
+}
+
+export interface ScopeCatalogue {
+  retrieval_database: RetrievalDatabase;
+  categories: ScopeCategory[];
+  groups: { id: string; label_vi: string; categories: string[] }[];
+  topics: { topic_id: string; label_vi: string; categories: string[] }[];
+}
+
 export interface Evidence {
   type: Channel;
   score: number;
@@ -113,6 +156,7 @@ export interface SearchResponse {
   retrieval_database: RetrievalDatabase;
   query: string;
   parsed: ParsedQuery;
+  scope?: ResolvedScope;
   groups: VideoGroup[];
   latency_ms: LatencyBreakdown;
   warnings?: string[];
@@ -166,6 +210,7 @@ export interface CanvasLayoutEvidence extends Evidence {
 
 export interface CanvasSearchResponse {
   canvas: Omit<CanvasSpec, "image"> & { queries_en: string[]; has_image: boolean };
+  scope?: ResolvedScope;
   groups: VideoGroup[];
   latency_ms: LatencyBreakdown;
   warnings: string[];
@@ -298,6 +343,7 @@ export interface TrakeSearchResponse {
   retrieval_database: RetrievalDatabase;
   query: string;
   parsed: ParsedQuery;
+  scope?: ResolvedScope;
   events: { event_index: number; description_vi: string; candidate_count: number }[];
   sequences: TrakeSequence[];
   mode: string;
@@ -365,6 +411,7 @@ export interface SimpleSearchResponse {
   retrieval_database: RetrievalDatabase;
   query: string;
   translated_query?: string | null;
+  scope?: ResolvedScope;
   results: SimpleResult[];
   mode: "mock" | "live";
   latency_ms: number;

@@ -6,6 +6,7 @@ media URLs, channel attribution, evidence, and latency breakdown.
 from __future__ import annotations
 
 import asyncio
+import functools
 import time
 from typing import Any
 
@@ -16,6 +17,7 @@ from ..config import Settings
 from ..fusion import group_by_video, reciprocal_rank_fusion
 from ..media import MediaUrlBuilder
 from ..query_parser import QueryParser
+from ..scope import ResolvedScope, resolve_scope
 from ..types import Channel, ChannelHit, Evidence, FusedFrame, VideoGroup
 
 
@@ -39,7 +41,9 @@ class SearchService:
         self.media = MediaUrlBuilder(settings.keyframe_media_base_url, settings.video_media_base_url)
 
     # ---- channel runners ----------------------------------------------
-    async def _run_image_pe(self, cfg: dict[str, Any], top_k: int) -> tuple[list[ChannelHit], float]:
+    async def _run_image_pe(
+        self, cfg: dict[str, Any], top_k: int, categories: tuple[str, ...] = ()
+    ) -> tuple[list[ChannelHit], float]:
         """PE image search with QUERY EXPANSION: each query variant is searched
         separately and the results are fused by max cosine per frame (a frame
         matching ANY phrasing strongly is kept). One variant == plain search."""
@@ -48,12 +52,11 @@ class SearchService:
         if not queries:
             return [], 0.0
         vectors = await self.pe.encode_text(queries)
+        search = functools.partial(self.milvus.search_image, top_k=top_k, categories=categories)
         if self.milvus.mock:
-            raws = [self.milvus.search_image(vector, top_k=top_k) for vector in vectors]
+            raws = [search(vector) for vector in vectors]
         else:
-            raws = await asyncio.gather(
-                *(asyncio.to_thread(self.milvus.search_image, vector, top_k=top_k) for vector in vectors)
-            )
+            raws = await asyncio.gather(*(asyncio.to_thread(search, vector) for vector in vectors))
         # Union variants, keep the best (max) cosine per frame.
         best: dict[str, dict[str, Any]] = {}
         for raw in raws:
@@ -77,7 +80,7 @@ class SearchService:
         return hits, (time.perf_counter() - t0) * 1000
 
     async def _run_similar(
-        self, seed_ids: list[str], top_k: int
+        self, seed_ids: list[str], top_k: int, categories: tuple[str, ...] = ()
     ) -> tuple[list[ChannelHit], float]:
         """Image-to-image kNN seeded by the frames the operator marked.
 
@@ -95,7 +98,9 @@ class SearchService:
             return [], (time.perf_counter() - t0) * 1000
         raws = await asyncio.gather(
             *(
-                asyncio.to_thread(self.milvus.search_image, vector, top_k=top_k)
+                asyncio.to_thread(
+                    self.milvus.search_image, vector, top_k=top_k, categories=categories
+                )
                 for vector in vectors.values()
             )
         )
@@ -124,7 +129,9 @@ class SearchService:
         ]
         return hits, (time.perf_counter() - t0) * 1000
 
-    async def _run_ocr(self, cfg: dict[str, Any], top_k: int) -> tuple[list[ChannelHit], float]:
+    async def _run_ocr(
+        self, cfg: dict[str, Any], top_k: int, categories: tuple[str, ...] = ()
+    ) -> tuple[list[ChannelHit], float]:
         t0 = time.perf_counter()
         tf = cfg.get("time_filters") or {}
         raw = await self.elastic.search_ocr(
@@ -134,6 +141,7 @@ class SearchService:
             numbers=cfg.get("numbers") or [],
             hour=tf.get("hour"),
             clock=tf.get("clock"),
+            categories=categories,
             size=top_k,
         )
         hits = [
@@ -155,10 +163,15 @@ class SearchService:
         ]
         return hits, (time.perf_counter() - t0) * 1000
 
-    async def _run_speech(self, cfg: dict[str, Any], top_k: int) -> tuple[list[ChannelHit], float]:
+    async def _run_speech(
+        self, cfg: dict[str, Any], top_k: int, categories: tuple[str, ...] = ()
+    ) -> tuple[list[ChannelHit], float]:
         t0 = time.perf_counter()
         raw = await self.elastic.search_speech(
-            cfg.get("queries_vi") or [], exact_phrases=cfg.get("exact_phrases") or [], size=top_k
+            cfg.get("queries_vi") or [],
+            exact_phrases=cfg.get("exact_phrases") or [],
+            categories=categories,
+            size=top_k,
         )
         hits = [
             ChannelHit(
@@ -182,7 +195,9 @@ class SearchService:
         ]
         return hits, (time.perf_counter() - t0) * 1000
 
-    async def _run_audio(self, cfg: dict[str, Any], top_k: int) -> tuple[list[ChannelHit], float]:
+    async def _run_audio(
+        self, cfg: dict[str, Any], top_k: int, categories: tuple[str, ...] = ()
+    ) -> tuple[list[ChannelHit], float]:
         """Audio channel = Elastic tags/caption (BM25 + demotions) FUSED with GLAP
         audio-vector search (semantic sound match). The two ranked lists are merged
         by rank (RRF) so their different score scales don't compete."""
@@ -190,14 +205,16 @@ class SearchService:
         queries = cfg.get("queries_en") or []
         labels = cfg.get("sound_labels_en") or []
 
-        elastic_task = self.elastic.search_audio(queries, labels, size=top_k)
+        elastic_task = self.elastic.search_audio(queries, labels, categories=categories, size=top_k)
         glap_evidence: dict[str, Evidence] = {}
         glap_raw: list[dict[str, Any]] = []
         if self.glap is not None and not self.glap.mock and (queries or labels):
             try:
                 vectors = await self.glap.encode_text(queries or labels)
                 vec = vectors[0]
-                glap_raw = await asyncio.to_thread(self.milvus.search_audio, vec, top_k=top_k)
+                glap_raw = await asyncio.to_thread(
+                    self.milvus.search_audio, vec, top_k=top_k, categories=categories
+                )
             except Exception:  # noqa: BLE001 - GLAP optional; fall back to Elastic only
                 glap_raw = []
         raw = await elastic_task
@@ -250,7 +267,12 @@ class SearchService:
         *,
         top_k: int = 100,
         feedback: dict[str, Any] | None = None,
+        categories: tuple[str, ...] = (),
     ) -> tuple[list[VideoGroup], dict[str, Any]]:
+        """`categories` is the resolved search scope: the dataset folders this
+        search may return frames from. It is pushed into every channel's own
+        query (so top_k is filled from inside the scope) AND re-applied to the
+        hits, which is what keeps mock mode and any future channel honest."""
         channels_cfg = parsed.get("channels", {})
         filters = parsed.get("filters", {})
         unsupported = self.s.unsupported_channels
@@ -269,12 +291,14 @@ class SearchService:
         for name, runner in runners.items():
             cfg = channels_cfg.get(name, {})
             if cfg.get("enabled"):
-                tasks[name] = asyncio.create_task(runner(cfg, top_k))
+                tasks[name] = asyncio.create_task(runner(cfg, top_k, categories))
         # Feedback-driven, not parser-driven: it exists only while the operator
         # keeps frames marked.
         positive_frames = [str(kf) for kf in (feedback.get("positive_frames") or []) if kf]
         if positive_frames:
-            tasks["similar"] = asyncio.create_task(self._run_similar(positive_frames, top_k))
+            tasks["similar"] = asyncio.create_task(
+                self._run_similar(positive_frames, top_k, categories)
+            )
 
         latency: dict[str, Any] = {"channels": {}}
         channel_hits: dict[Channel, list[ChannelHit]] = {}
@@ -300,7 +324,7 @@ class SearchService:
             except Exception as exc:  # noqa: BLE001 - one dead channel must not kill the search
                 hits, ms = [], 0.0
                 warnings.append(f"{name} channel unavailable: {exc}")
-            channel_hits[name] = _apply_filters(hits, filters)
+            channel_hits[name] = _apply_filters(hits, filters, categories)
             latency["channels"][name] = round(ms, 1)
             weights[name] = float(channels_cfg.get(name, {}).get("weight") or 1.0)
         if warnings:
@@ -347,16 +371,20 @@ class SearchService:
                 frame.fps = rec.get("fps")
 
     # ---- simple flat vector search ------------------------------------
-    async def simple_image_search(self, query: str, top_k: int = 60) -> dict[str, Any]:
+    async def simple_image_search(
+        self, query: str, top_k: int = 60, scope_spec: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Pure PE→Milvus image search returning a FLAT keyframe list ordered by
         cosine similarity (no parser, no fusion, no group-by-video)."""
         t0 = time.perf_counter()
         query = (query or "").strip()
+        scope = self.resolve_scope(scope_spec, query=query)
         if not query:
             return {
                 "query": query,
                 "results": [],
                 "retrieval_database": self.s.retrieval_database,
+                "scope": scope.to_dict(),
                 "mode": "mock" if self.s.mock_mode else "live",
                 "latency_ms": 0,
             }
@@ -375,9 +403,11 @@ class SearchService:
             ) from exc
         try:
             raw = (
-                self.milvus.search_image(vectors[0], top_k=top_k)
+                self.milvus.search_image(vectors[0], top_k=top_k, categories=scope.categories)
                 if self.milvus.mock
-                else await asyncio.to_thread(self.milvus.search_image, vectors[0], top_k=top_k)
+                else await asyncio.to_thread(
+                    self.milvus.search_image, vectors[0], top_k=top_k, categories=scope.categories
+                )
             )
         except Exception as exc:  # noqa: BLE001
             raise ServiceUnavailable(f"Milvus image search failed: {exc}") from exc
@@ -396,11 +426,16 @@ class SearchService:
         return {
             "query": query,
             "retrieval_database": self.s.retrieval_database,
+            "scope": scope.to_dict(),
             "translated_query": search_text if search_text != query else None,
             "results": results,
             "mode": "mock" if self.s.mock_mode else "live",
             "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
         }
+
+    def resolve_scope(self, spec: dict[str, Any] | None, *, query: str) -> ResolvedScope:
+        """Resolve a request's scope spec against THIS profile's folder catalogue."""
+        return resolve_scope(spec, query=query, retrieval_database=self.s.retrieval_database)
 
     async def expand_image_queries(self, parsed: dict[str, Any]) -> None:
         """Append Nemotron-generated visual paraphrases to the image_pe channel
@@ -444,8 +479,12 @@ class SearchService:
         if req.get("expand"):
             await self.expand_image_queries(parsed)
 
+        scope = self.resolve_scope(req.get("scope"), query=query)
         groups, latency = await self.retrieve(
-            parsed, top_k=req.get("top_k", 100), feedback=req.get("feedback")
+            parsed,
+            top_k=req.get("top_k", 100),
+            feedback=req.get("feedback"),
+            categories=scope.categories,
         )
         latency["parse_ms"] = round(parse_ms, 1)
         latency["total_ms"] = round((time.perf_counter() - t_total) * 1000, 1)
@@ -454,6 +493,7 @@ class SearchService:
             "query": query,
             "retrieval_database": self.s.retrieval_database,
             "parsed": parsed,
+            "scope": scope.to_dict(),
             "groups": [self._serialize_group(g) for g in groups[: req.get("max_videos", 50)]],
             "latency_ms": latency,
             "warnings": latency.get("warnings", []),
@@ -493,16 +533,28 @@ class SearchService:
         }
 
 
-def _apply_filters(hits: list[ChannelHit], filters: dict[str, Any]) -> list[ChannelHit]:
+def _apply_filters(
+    hits: list[ChannelHit], filters: dict[str, Any], scope_categories: tuple[str, ...] = ()
+) -> list[ChannelHit]:
+    """Post-filter by the parser's own filters and by the resolved search scope.
+
+    Both narrow to categories, and they are intersected rather than merged: the
+    parser's `filters.categories` is what the query itself asked for, the scope is
+    what the operator (or the topic heuristic) allowed, and a frame has to satisfy
+    both."""
     video_ids = set(filters.get("video_ids") or [])
     categories = set(filters.get("categories") or [])
-    if not video_ids and not categories:
+    scope = set(scope_categories)
+    if not video_ids and not categories and not scope:
         return hits
     out = []
     for h in hits:
         if video_ids and h.video_id not in video_ids:
             continue
-        if categories and h.submit_keyframe_id.split("/")[0] not in categories:
+        category = h.submit_keyframe_id.split("/")[0]
+        if categories and category not in categories:
+            continue
+        if scope and category not in scope:
             continue
         out.append(h)
     return out

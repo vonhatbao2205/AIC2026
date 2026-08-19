@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api/client";
-import type { RetrievalDatabase, SimpleResult } from "./api/types";
+import type {
+  ResolvedScope,
+  RetrievalDatabase,
+  ScopeCatalogue,
+  ScopeMode,
+  SimpleResult,
+} from "./api/types";
+import { ScopeFilter } from "./components/ScopeFilter";
+import { DEFAULT_SCOPE_MODE, orderCategories, scopeRequest } from "./lib/scope";
 import { ThemeToggle } from "./components/ThemeToggle";
 
 // Minimal vector-only view: one query box + slider + keyframe grid.
@@ -23,11 +31,41 @@ export default function SimpleSearch({
   const [mode, setMode] = useState<string>("");
   const [latency, setLatency] = useState<number | null>(null);
   const [translated, setTranslated] = useState<string | null>(null);
+  const [scopeMode, setScopeMode] = useState<ScopeMode>(DEFAULT_SCOPE_MODE);
+  const [scopeSelection, setScopeSelection] = useState<string[]>([]);
+  const [scopeCatalogue, setScopeCatalogue] = useState<ScopeCatalogue | null>(null);
+  const [scopeError, setScopeError] = useState<string | null>(null);
+  const [appliedScope, setAppliedScope] = useState<ResolvedScope | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // The folder catalogue is per profile; switching profile also drops folders
+  // the new one does not hold, which would otherwise filter every search to zero.
+  useEffect(() => {
+    let cancelled = false;
+    setScopeError(null);
+    setAppliedScope(null);
+    api.searchScope(retrievalDatabase).then(
+      (body) => {
+        if (cancelled) return;
+        setScopeCatalogue(body);
+        const held = new Set(body.categories.map((item) => item.category));
+        setScopeSelection((current) => {
+          const kept = current.filter((category) => held.has(category));
+          return kept.length === current.length ? current : kept;
+        });
+      },
+      () => {
+        if (!cancelled) setScopeError("Không tải được danh sách thư mục — tạm thời tìm toàn bộ.");
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [retrievalDatabase]);
 
   async function runSearch() {
     const q = query.trim();
@@ -35,11 +73,14 @@ export default function SimpleSearch({
     setLoading(true);
     setError(null);
     try {
-      const res = await api.simpleSearch(q, topK, retrievalDatabase);
+      const res = await api.simpleSearch(
+        q, topK, retrievalDatabase, scopeRequest(scopeMode, scopeSelection),
+      );
       setResults(res.results);
       setMode(res.mode);
       setLatency(res.latency_ms);
       setTranslated(res.translated_query ?? null);
+      setAppliedScope(res.scope ?? null);
     } catch (e) {
       let msg = "Search failed — backend không chạy? (kiểm tra http://localhost:8000/api/health)";
       if (e instanceof ApiError) {
@@ -108,6 +149,15 @@ export default function SimpleSearch({
             data-testid="topk-slider"
             onChange={(e) => setTopK(Number(e.target.value))}
             className="slider"
+          />
+          <ScopeFilter
+            catalogue={scopeCatalogue}
+            mode={scopeMode}
+            onMode={setScopeMode}
+            selected={scopeSelection}
+            onSelected={(categories) => setScopeSelection(orderCategories(categories, scopeCatalogue))}
+            applied={appliedScope}
+            error={scopeError}
           />
           {latency != null && <span className="latency-mini">{latency} ms</span>}
           {results.length > 0 && <span className="latency-mini">· {results.length} kết quả</span>}
