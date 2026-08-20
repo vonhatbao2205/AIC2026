@@ -36,6 +36,14 @@ The repository contains two parts:
 - **NVILA-8B QA copilot** — top-video-first candidate blocks, 3–5 visual
   hypotheses and answer alternatives, DeepSeek web-search grounding, then a
   third NVILA visual-consistency pass before explicit human verification.
+- **100-answer generator** — the preliminary round scores
+  `Final = (R@1 + R@5 + R@20 + R@50 + R@100) / 5` over up to 100 answers per query,
+  so the answer list is a rank-budget problem, not a top-100 dump. Each position
+  goes to whichever candidate adds the most new chance of a hit
+  (`U = π_B(video) × evidence × novelty`), with temporal NMS turning the fused
+  frames into distinct hypotheses and a data-calibrated `±ε` ladder covering the
+  case where the retrieved keyframe sits just outside the accepted window. One
+  button in the Submission tab fills the whole question pack.
 - **Submit guard** — duplicate detection, evidence preview, and the exact DRES v2
   `answerSets` body previewed before it is sent (media item + ms window for KIS/TRAKE,
   text for QA); the open task name and evaluation run come live from DRES.
@@ -78,7 +86,9 @@ The broader design/strategy is in **[AIC26_Pipeline.md](AIC26_Pipeline.md)**.
 
 | Path | What it is |
 |---|---|
-| `backend/` | FastAPI service — adapters (Elastic/Milvus/PE/GLAP), query parser, fusion, TRAKE, submit. See `backend/app/`. |
+| `backend/` | FastAPI service — adapters (Elastic/Milvus/PE/GLAP), query parser, fusion, TRAKE, answer generation, submit. See `backend/app/`. |
+| `backend/app/answer_gen.py` | The ordered 100-answer generator (rank-budget allocator). Parameters fitted by `benchmarks/run_answer_gen.py`. |
+| `benchmarks/` | Ground-truth evaluation: retrieval benchmarks, answer-generator scoring and parameter fitting. See `benchmarks/README.md`. |
 | `frontend/` | Vite + React + TypeScript operator console. See `frontend/src/`. |
 | `Dockerfile`, `docker-compose.yml` | The packaged single-container app (console + API on one port). |
 | `scripts/package.sh`, `scripts/dist/` | Builds the downloadable bundle and the files shipped inside it. |
@@ -234,7 +244,8 @@ NVIDIA NIM (Nemotron) · Whisper (voice input).
 ## Status
 
 Implemented: multi-channel retrieval + RRF fusion, group-by-video, TRAKE DP,
-query parser (LLM + heuristic), NVILA-8B assisted QA, submit guard, mock mode,
+query parser (LLM + heuristic), NVILA-8B assisted QA, the 100-answer generator
+and its bulk button in the Submission tab, submit guard, mock mode,
 audio vector search. Planned (clean seams left in place — see
 RETRIEVAL_APP_HANDOFF.md §8): general-purpose VLM reranking,
 object–scene–action tag filters, and a custom Vietnamese analyzer.

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import { buildZipBytes } from "../lib/zip";
+import { buildSubmissionFiles } from "../lib/submission";
 
 /** A query pack shaped like the organiser's: one .txt per question, type in the name. */
 const PACK = [
@@ -388,6 +389,8 @@ let keyframeLookups: string[] = [];
 let historyStore: any[] = [];
 let canvasRequests: any[] = [];
 
+let answerGenRequests: any[] = [];
+
 function mockFetch(historySeed: any[] = []) {
   historyStore = historySeed;
   return vi.fn(async (url: string, init?: RequestInit) => {
@@ -449,6 +452,34 @@ function mockFetch(historySeed: any[] = []) {
       }
       return json({ history: historyStore });
     }
+    if (path.endsWith("/api/answers/generate")) {
+      const body = JSON.parse((init?.body as string) || "{}");
+      answerGenRequests.push(body);
+      const limit = body.limit ?? 100;
+      const events = body.query_type_hint === "TRAKE" ? 2 : 1;
+      return json({
+        query: body.query,
+        query_type: body.query_type_hint,
+        retrieval_database: body.retrieval_database,
+        reused_results: false,
+        scope: null,
+        params: { pool_depth: 100 },
+        answers: Array.from({ length: limit }, (_, i) => ({
+          rank: i + 1,
+          video_id: "K01_V001",
+          frames: Array.from({ length: events }, (_, e) => 1000 + i * 10 + e * 500),
+          keyframe_ids: Array.from({ length: events }, () => (i === 0 ? "K01/K01_V001/001" : null)),
+          pts_times: Array.from({ length: events }, () => null),
+          answer: body.answer_text ?? "",
+          kind: i === 0 ? "anchor" : "offset",
+          offset_frames: i * 10,
+        })),
+        diagnostics: { n_videos_in_pool: 1 },
+        warnings: [],
+        latency_ms: { answer_gen_ms: 3 },
+        mode: "mock",
+      });
+    }
     if (path.endsWith("/api/search/trake")) return json(TRAKE_RESPONSE);
     if (path.endsWith("/api/search")) return json(SEARCH_RESPONSE);
     if (path.endsWith("/api/query/parse")) return json(SEARCH_RESPONSE.parsed);
@@ -496,6 +527,7 @@ afterEach(() => {
   historyStore = [];
   canvasRequests = [];
   keyframeLookups = [];
+  answerGenRequests = [];
 });
 
 describe("V-KIS canvas", () => {
@@ -1182,6 +1214,281 @@ describe("query pack + submission table", () => {
     render(<App />);
     expect(screen.getByTestId("query-input")).toBeInTheDocument();
     expect(screen.getAllByTestId(/^rail-tab-\d+$/)).toHaveLength(1);
+  });
+
+  it("fills the whole pack from the answer generator", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByTestId("autogen-toggle"));
+
+    // Small limit so the assertions read as counts rather than "100 of them".
+    fireEvent.change(screen.getByTestId("autogen-limit"), { target: { value: "3" } });
+    await user.click(screen.getByTestId("autogen-start"));
+
+    await waitFor(() => expect(answerGenRequests).toHaveLength(PACK.length));
+    expect(answerGenRequests.map((r) => r.query)).toEqual(PACK.map((p) => p.text));
+    expect(answerGenRequests.map((r) => r.query_type_hint)).toEqual(["T-KIS", "QA", "TRAKE"]);
+    expect(answerGenRequests.every((r) => r.limit === 3)).toBe(true);
+    // The statement decides how many frames a TRAKE row carries, so the width
+    // travels with the request: the backend uses it to refuse chains that
+    // located fewer moments, which would be written as rows the export rejects.
+    expect(answerGenRequests[2].event_count).toBe(2);
+    expect(answerGenRequests[0].event_count).toBeUndefined();
+
+    // The rows land in the table, in the order the generator produced them.
+    const block = await screen.findByTestId("submission-query-p1-1-kis");
+    await waitFor(() =>
+      expect(within(block).getAllByTestId(/^row-query-p1-1-kis-\d+$/)).toHaveLength(3),
+    );
+    expect(screen.getByTestId("csv-query-p1-1-kis")).toHaveTextContent("K01_V001,1000");
+    // A TRAKE row carries one frame per event.
+    expect(screen.getByTestId("csv-query-p1-3-trake")).toHaveTextContent("K01_V001,1000,1500");
+  });
+
+  it("keeps a hand-picked answer at the top and only fills what is missing", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+
+    // Hand-pick one answer first.
+    await user.click(screen.getByText("query-p1-1-kis +"));
+    const row = await screen.findByTestId("row-query-p1-1-kis-0");
+    await user.type(within(row).getAllByRole("textbox")[0], "L26_V001");
+
+    await user.click(screen.getByTestId("autogen-toggle"));
+    fireEvent.change(screen.getByTestId("autogen-limit"), { target: { value: "3" } });
+    await user.click(screen.getByTestId("autogen-start"));
+
+    // The question is no longer skipped — it still wants its insurance tail —
+    // and the row already there costs a position rather than being destroyed.
+    await waitFor(() => expect(answerGenRequests).toHaveLength(PACK.length));
+    expect(answerGenRequests.map((r) => r.query)).toContain(PACK[0].text);
+
+    const block = await screen.findByTestId("submission-query-p1-1-kis");
+    await waitFor(() =>
+      expect(within(block).getAllByTestId(/^row-query-p1-1-kis-\d+$/)).toHaveLength(3),
+    );
+    // The hand-picked row survived AND still leads: at rank 1 a verified frame
+    // scores the whole query, at rank 100 only a fifth of it.
+    expect(within(await screen.findByTestId("row-query-p1-1-kis-0")).getAllByRole("textbox")[0])
+      .toHaveValue("L26_V001");
+  });
+
+  it("replaces only its own rows when run a second time", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByText("query-p1-1-kis +"));
+    const row = await screen.findByTestId("row-query-p1-1-kis-0");
+    await user.type(within(row).getAllByRole("textbox")[0], "L26_V001");
+
+    await user.click(screen.getByTestId("autogen-toggle"));
+    fireEvent.change(screen.getByTestId("autogen-limit"), { target: { value: "3" } });
+    await user.click(screen.getByTestId("autogen-start"));
+    const block = await screen.findByTestId("submission-query-p1-1-kis");
+    await waitFor(() =>
+      expect(within(block).getAllByTestId(/^row-query-p1-1-kis-\d+$/)).toHaveLength(3),
+    );
+
+    // Run it again on that one question: the generated pair is swapped out, the
+    // hand-picked row is not, and the question does not grow past its budget.
+    await user.click(screen.getByTestId("autogen-one-query-p1-1-kis"));
+    await waitFor(() => expect(answerGenRequests.length).toBeGreaterThan(PACK.length));
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId("submission-query-p1-1-kis")).getAllByTestId(
+          /^row-query-p1-1-kis-\d+$/,
+        ),
+      ).toHaveLength(3),
+    );
+    expect(within(await screen.findByTestId("row-query-p1-1-kis-0")).getAllByRole("textbox")[0])
+      .toHaveValue("L26_V001");
+  });
+
+  it("says what it will keep and what it will replace before running", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByText("query-p1-1-kis +"));
+
+    await user.click(screen.getByTestId("autogen-toggle"));
+    const panel = screen.getByTestId("autogen-panel");
+    expect(panel).toHaveTextContent("giữ nguyên 1 dòng bạn đã chấm");
+    // Nothing generated yet, so there is nothing to replace.
+    expect(screen.queryByTestId("autogen-regenerate-note")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId("autogen-limit"), { target: { value: "2" } });
+    await user.click(screen.getByTestId("autogen-start"));
+    await waitFor(() => expect(answerGenRequests).toHaveLength(PACK.length));
+
+    // Now every question holds generated rows, so a second run says so — and
+    // says the hand-picked row is not part of what gets replaced.
+    await user.click(screen.getByTestId("autogen-only-empty"));
+    await waitFor(() =>
+      expect(screen.getByTestId("autogen-regenerate-note")).toHaveTextContent("3 câu"),
+    );
+    expect(screen.getByTestId("autogen-regenerate-note")).toHaveTextContent("giữ nguyên");
+  });
+
+  it("regenerates one question without touching the rest", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByText("query-p1-2-qa +"));
+
+    const row = await screen.findByTestId("row-query-p1-2-qa-0");
+    await user.type(within(row).getAllByRole("textbox")[2], "năm người");
+    await user.click(screen.getByTestId("autogen-one-query-p1-2-qa"));
+
+    await waitFor(() => expect(answerGenRequests).toHaveLength(1));
+    expect(answerGenRequests[0].query).toBe(PACK[1].text);
+    // The Q&A text the operator wrote is carried into every generated row —
+    // the generator ranks where to look, it does not invent the answer.
+    expect(answerGenRequests[0].answer_text).toBe("năm người");
+    await waitFor(() =>
+      expect(screen.getByTestId("csv-query-p1-2-qa")).toHaveTextContent("K01_V001,1000,năm người"),
+    );
+  });
+
+  it("fills every generated Q&A row from one answer box", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByTestId("autogen-toggle"));
+    fireEvent.change(screen.getByTestId("autogen-limit"), { target: { value: "3" } });
+    await user.click(screen.getByTestId("autogen-start"));
+
+    const block = await screen.findByTestId("submission-query-p1-2-qa");
+    await waitFor(() =>
+      expect(within(block).getAllByTestId(/^row-query-p1-2-qa-\d+$/)).toHaveLength(3),
+    );
+    // Generated frames carry no answer: the generator ranks where to look, the
+    // text is a human judgement. One question-level error, not one per row.
+    expect(within(block).getByTestId("qa-needs-answer-query-p1-2-qa")).toBeInTheDocument();
+    expect(screen.getByTestId("export-blocked")).toHaveTextContent("chưa có answer");
+    expect(screen.getByTestId("export-blocked")).toHaveTextContent("cả 3 dòng sẽ bị chặn");
+
+    await user.type(within(block).getByTestId("qa-answer-input"), "năm người");
+    await user.click(within(block).getByTestId("qa-answer-apply"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("csv-query-p1-2-qa")).toHaveTextContent("K01_V001,1000,năm người"),
+    );
+    // All three rows, and the export is no longer blocked by this question.
+    expect(screen.getByTestId("csv-query-p1-2-qa").textContent?.match(/năm người/g)).toHaveLength(3);
+    expect(within(block).queryByTestId("qa-needs-answer-query-p1-2-qa")).not.toBeInTheDocument();
+  });
+
+  it("imports a previously exported submission.zip back into the table", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+
+    // A zip shaped exactly like the one the export button writes.
+    const files = buildSubmissionFiles(
+      [
+        { id: "query-p1-1-kis", order: 1, kind: "kis", queryType: "T-KIS", text: "", eventCount: null },
+        { id: "query-p1-2-qa", order: 2, kind: "qa", queryType: "QA", text: "", eventCount: null },
+      ],
+      [
+        { id: "a", questionId: "query-p1-1-kis", videoId: "L26_V056", frames: [6400], answer: "" },
+        { id: "b", questionId: "query-p1-2-qa", videoId: "L30_V072", frames: [1776], answer: "Giang Ly" },
+      ],
+    );
+    const zip = new File(
+      [buildZipBytes(files) as BlobPart],
+      "submission.zip",
+      { type: "application/zip" },
+    );
+    fireEvent.change(screen.getByTestId("answer-import-input"), { target: { files: [zip] } });
+
+    // Nothing is written until the operator has seen the plan.
+    const preview = await screen.findByTestId("answer-import-preview");
+    expect(preview).toHaveTextContent("2 câu");
+    expect(screen.getByTestId("answer-import-plan")).toHaveTextContent("Sẽ ghi 2 dòng");
+    expect(screen.queryByTestId("row-query-p1-1-kis-0")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("answer-import-apply"));
+    await waitFor(() =>
+      expect(screen.getByTestId("csv-query-p1-1-kis")).toHaveTextContent("L26_V056,6400"),
+    );
+    expect(screen.getByTestId("csv-query-p1-2-qa")).toHaveTextContent("L30_V072,1776,Giang Ly");
+  });
+
+  it("refuses to destroy answers on import without being told to", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+
+    // One answer already on screen for the question the archive also covers.
+    await user.click(screen.getByText("query-p1-1-kis +"));
+    const row = await screen.findByTestId("row-query-p1-1-kis-0");
+    await user.type(within(row).getAllByRole("textbox")[0], "L30_V999");
+
+    const files = buildSubmissionFiles(
+      [{ id: "query-p1-1-kis", order: 1, kind: "kis", queryType: "T-KIS", text: "", eventCount: null }],
+      [{ id: "a", questionId: "query-p1-1-kis", videoId: "L26_V056", frames: [6400], answer: "" }],
+    );
+    const zip = new File([buildZipBytes(files) as BlobPart], "submission.zip", { type: "application/zip" });
+    fireEvent.change(screen.getByTestId("answer-import-input"), { target: { files: [zip] } });
+    await screen.findByTestId("answer-import-preview");
+
+    // Default mode leaves an answered question alone, so there is nothing to write.
+    expect(screen.getByTestId("answer-import-plan")).toHaveTextContent("Sẽ ghi 0 dòng");
+    expect(screen.getByTestId("answer-import-apply")).toBeDisabled();
+    expect(screen.queryByTestId("answer-import-replace-warning")).not.toBeInTheDocument();
+
+    // Choosing to replace states the cost first, in rows.
+    await user.click(screen.getByTestId("answer-import-mode-replace"));
+    expect(screen.getByTestId("answer-import-replace-warning")).toHaveTextContent("1 dòng");
+    await user.click(screen.getByTestId("answer-import-apply"));
+    await waitFor(() =>
+      expect(screen.getByTestId("csv-query-p1-1-kis")).toHaveTextContent("L26_V056,6400"),
+    );
+  });
+
+  it("says when the zip is a question pack rather than answers", async () => {
+    render(<App />);
+    await importPack();
+    fireEvent.click(screen.getByTestId("open-submission"));
+    const zip = new File([buildZipBytes(PACK) as BlobPart], "pack.zip", { type: "application/zip" });
+    fireEvent.change(screen.getByTestId("answer-import-input"), { target: { files: [zip] } });
+    expect(await screen.findByTestId("answer-import-error")).toHaveTextContent("gói CÂU HỎI");
+  });
+
+  it("exports generated answers in the rank the generator chose", async () => {
+    // The whole algorithm is an ORDER — rank 1 scores the query, rank 100 scores
+    // a fifth of it. A batch used to share one timestamp, so the CSV came out in
+    // random-uuid order and the ranking was thrown away before anyone saw it.
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByTestId("autogen-toggle"));
+    fireEvent.change(screen.getByTestId("autogen-limit"), { target: { value: "12" } });
+    await user.click(screen.getByTestId("autogen-start"));
+
+    const block = await screen.findByTestId("submission-query-p1-1-kis");
+    await waitFor(() =>
+      expect(within(block).getAllByTestId(/^row-query-p1-1-kis-\d+$/)).toHaveLength(12),
+    );
+    // The stub answers frame 1000 + rank*10, so rank order is frame order.
+    const frames = screen
+      .getByTestId("csv-query-p1-1-kis")
+      .textContent!.trim()
+      .split(/\r?\n/)
+      .map((line) => Number(line.split(",")[1]));
+    expect(frames).toEqual([...frames].sort((a, b) => a - b));
+    expect(frames[0]).toBe(1000);
   });
 
   it("keeps a comma while a multi-event TRAKE row is being typed", async () => {

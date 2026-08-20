@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FullConsole, { type SubmissionDraft } from "./FullConsole";
-import { SubmissionPanel } from "./components/SubmissionPanel";
+import { SubmissionPanel, type AutoGenOptions } from "./components/SubmissionPanel";
 import { SUBMISSION_VIEW, TabRail, type ActiveView, type ConsoleTab } from "./components/TabRail";
 import type { QueryType, RetrievalDatabase } from "./api/types";
 import { parseQuestionPack, type ImportedQuestion } from "./lib/questions";
@@ -13,6 +13,13 @@ import {
 import { useSharedSubmission } from "./hooks/useSharedSubmission";
 import { useSharedSession } from "./hooks/useSharedSession";
 import { defaultSessionName, packSummary } from "./lib/questionPack";
+import { generateAll, type AnswerGenProgress } from "./lib/answerGen";
+import {
+  parseSubmissionPack,
+  planImport,
+  type ImportMode,
+  type ImportedSubmission,
+} from "./lib/submissionImport";
 import { newRowId } from "./lib/sharedSubmission";
 import { readZipTextFiles, ZipError } from "./lib/zip";
 
@@ -62,6 +69,15 @@ export default function Workspace(props: Props) {
   const [importError, setImportError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [busyTabs, setBusyTabs] = useState<Set<string>>(new Set());
+  const [genRunning, setGenRunning] = useState(false);
+  const [genProgress, setGenProgress] = useState<AnswerGenProgress | null>(null);
+  const [genLog, setGenLog] = useState<AnswerGenProgress[]>([]);
+  const [genError, setGenError] = useState<string | null>(null);
+  const genAbort = useRef<AbortController | null>(null);
+  /** A parsed `submission.zip` waiting for the operator to choose how to apply it. */
+  const [pendingAnswers, setPendingAnswers] = useState<ImportedSubmission | null>(null);
+  const [answerImporting, setAnswerImporting] = useState(false);
+  const [answerImportError, setAnswerImportError] = useState<string | null>(null);
 
   const questionById = useMemo(
     () => new Map(questions.map((question) => [question.id, question])),
@@ -231,6 +247,137 @@ export default function Workspace(props: Props) {
     [shared],
   );
 
+  const fillAnswer = useCallback(
+    (questionId: string, answer: string) => shared.setAnswerForQuestion(questionId, answer),
+    [shared],
+  );
+
+  // ---- bulk answer generation ----
+  /** Fill the submission table from the answer generator.
+   *
+   *  The generator replaces exactly its OWN rows and nothing else. A frame a
+   *  person verified by eye keeps the head of the list, because `R@k` is a max
+   *  over the first k answers: that frame at rank 1 scores the whole query, and
+   *  the same frame at rank 100 scores 0.2 of it. It also costs a position, so
+   *  the generated block shrinks to keep the question at 100 rows. */
+  const startAutoGen = useCallback(
+    async (options: AutoGenOptions) => {
+      const targets = options.questionIds.length
+        ? questions.filter((question) => options.questionIds.includes(question.id))
+        : questions;
+      if (!targets.length || genRunning) return;
+      const controller = new AbortController();
+      genAbort.current = controller;
+      setGenRunning(true);
+      setGenError(null);
+      setGenLog([]);
+      setGenProgress(null);
+      const rowsFor = (questionId: string) => rows.filter((row) => row.questionId === questionId);
+      const isGenerated = (row: SubmissionRow) => row.source === "generated";
+      try {
+        const outcomes = await generateAll(
+          {
+            questions: targets,
+            retrievalDatabase: props.retrievalDatabase,
+            limit: options.limit,
+            keptRows: (questionId) => rowsFor(questionId).filter((row) => !isGenerated(row)),
+            // Only the generator's own work counts as "already done": a question
+            // holding nothing but hand-picked rows still wants its insurance tail.
+            skip: (questionId) =>
+              options.onlyEmpty && rowsFor(questionId).some(isGenerated),
+            // A Q&A row still needs its answer text; the generator only ranks
+            // where to look. Carry over the text the operator already wrote for
+            // this question rather than emitting a hundred blank answers.
+            answerText: (questionId) =>
+              rowsFor(questionId).find((row) => row.answer.trim())?.answer.trim() ?? "",
+          },
+          (progress) => {
+            setGenProgress(progress);
+            if (progress.status !== "running") {
+              setGenLog((current) => [...current, progress]);
+            }
+          },
+          controller.signal,
+        );
+        if (controller.signal.aborted) return;
+        const fresh = outcomes.filter((outcome) => outcome.rows.length > 0);
+        // Only the previous generated block goes; the hand-picked rows stay put,
+        // and their older `createdAt` is what keeps them ahead of the new ones.
+        shared.deleteRows(
+          fresh.flatMap((outcome) =>
+            rowsFor(outcome.questionId).filter(isGenerated).map((row) => row.id),
+          ),
+        );
+        shared.addRows(
+          fresh.flatMap((outcome) =>
+            outcome.rows.slice(0, MAX_ROWS_PER_QUESTION).map((row) => ({ ...row, id: newRowId() })),
+          ),
+        );
+        const failures = outcomes.filter((outcome) => outcome.error);
+        if (failures.length) {
+          setGenError(
+            `${failures.length}/${targets.length} câu không sinh được đáp án: ` +
+              failures.map((failure) => `${failure.questionId} (${failure.error})`).join("; "),
+          );
+        }
+      } catch (error) {
+        setGenError(error instanceof Error ? error.message : "Sinh đáp án thất bại");
+      } finally {
+        genAbort.current = null;
+        setGenRunning(false);
+        setGenProgress(null);
+      }
+    },
+    [questions, rows, shared, genRunning, props.retrievalDatabase],
+  );
+
+  const cancelAutoGen = useCallback(() => {
+    genAbort.current?.abort();
+    genAbort.current = null;
+    setGenRunning(false);
+    setGenProgress(null);
+  }, []);
+
+  // ---- import a previously exported submission.zip ----
+  const pickAnswerPack = useCallback(
+    async (file: File) => {
+      setAnswerImporting(true);
+      setAnswerImportError(null);
+      setPendingAnswers(null);
+      try {
+        setPendingAnswers(parseSubmissionPack(await readZipTextFiles(file), questions));
+      } catch (error) {
+        setAnswerImportError(error instanceof Error ? error.message : "Đọc file thất bại");
+      } finally {
+        setAnswerImporting(false);
+      }
+    },
+    [questions],
+  );
+
+  /** Answers cannot be recomputed, so the write only happens on this call — after
+   *  the operator has seen how many rows it replaces. */
+  const applyAnswerPack = useCallback(
+    (mode: ImportMode) => {
+      if (!pendingAnswers) return;
+      const plan = planImport(pendingAnswers, rows, mode);
+      const targets = new Set(plan.write.map((file) => file.questionId));
+      shared.deleteRows(rows.filter((row) => targets.has(row.questionId)).map((row) => row.id));
+      shared.addRows(
+        plan.write.flatMap((file) =>
+          file.rows.slice(0, MAX_ROWS_PER_QUESTION).map((row) => ({
+            ...row,
+            id: newRowId(),
+            retrievalDatabase: props.retrievalDatabase,
+          })),
+        ),
+      );
+      setPendingAnswers(null);
+      setAnswerImportError(null);
+    },
+    [pendingAnswers, rows, shared, props.retrievalDatabase],
+  );
+
   const exportZip = useCallback(() => {
     setExportError(null);
     try {
@@ -328,6 +475,7 @@ export default function Workspace(props: Props) {
               onAddRow={addBlankRow}
               onCloneRow={cloneRow}
               onClearQuestion={clearQuestion}
+              onFillAnswer={fillAnswer}
               onExport={exportZip}
               onJumpToQuestion={jumpToQuestion}
               exportError={exportError}
@@ -357,6 +505,25 @@ export default function Workspace(props: Props) {
                 origin: pack.origin,
                 loading: pack.loading,
                 error: pack.error,
+              }}
+              answerImport={{
+                pending: pendingAnswers,
+                importing: answerImporting,
+                error: answerImportError,
+                onPick: pickAnswerPack,
+                onApply: applyAnswerPack,
+                onCancel: () => {
+                  setPendingAnswers(null);
+                  setAnswerImportError(null);
+                },
+              }}
+              autoGen={{
+                running: genRunning,
+                progress: genProgress,
+                log: genLog,
+                error: genError,
+                onStart: startAutoGen,
+                onCancel: cancelAutoGen,
               }}
               sync={{
                 shared: shared.shared,

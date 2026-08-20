@@ -8,10 +8,14 @@ import {
   MAX_ROWS_PER_QUESTION,
   auditSubmission,
   findDuplicate,
+  qaAnswerMissingEverywhere,
   questionCsv,
   validateRows,
   type SubmissionRow,
 } from "../lib/submission";
+import type { AnswerGenProgress } from "../lib/answerGen";
+import type { ImportMode, ImportedSubmission } from "../lib/submissionImport";
+import { planImport } from "../lib/submissionImport";
 import { SubmissionFrameEditor, type CommitMode, type FrameEdit } from "./SubmissionFrameEditor";
 
 export interface PackInfo {
@@ -22,6 +26,36 @@ export interface PackInfo {
   origin: "server" | "cache" | "local" | "none";
   loading: boolean;
   error: string | null;
+}
+
+/** What the bulk answer generator asks for, and what it reports back. */
+export interface AutoGenOptions {
+  limit: number;
+  /** Leave questions that already have answers alone. */
+  onlyEmpty: boolean;
+  /** Restrict to these questions; empty means the whole pack. */
+  questionIds: string[];
+}
+
+export interface AutoGenInfo {
+  running: boolean;
+  progress: AnswerGenProgress | null;
+  /** One entry per finished question, newest last. */
+  log: AnswerGenProgress[];
+  error: string | null;
+  onStart: (options: AutoGenOptions) => void;
+  onCancel: () => void;
+}
+
+/** Restoring answers from a previously exported `submission.zip`. */
+export interface AnswerImportInfo {
+  /** Parsed and waiting for the operator to choose how to apply it. */
+  pending: ImportedSubmission | null;
+  importing: boolean;
+  error: string | null;
+  onPick: (file: File) => void;
+  onApply: (mode: ImportMode) => void;
+  onCancel: () => void;
 }
 
 export interface SubmissionSyncInfo {
@@ -44,6 +78,8 @@ interface Props {
   /** Copy a row (with an edited frame) into a new answer for the same question. */
   onCloneRow: (row: SubmissionRow) => void;
   onClearQuestion: (questionId: string) => void;
+  /** Write one Q&A answer into every row of a question, in a single write. */
+  onFillAnswer: (questionId: string, answer: string) => void;
   onExport: () => void;
   onJumpToQuestion: (questionId: string) => void;
   exportError: string | null;
@@ -64,6 +100,8 @@ interface Props {
   pack: PackInfo;
   /** Used for rows that predate the per-row profile field. */
   defaultRetrievalDatabase: RetrievalDatabase;
+  autoGen: AutoGenInfo;
+  answerImport: AnswerImportInfo;
 }
 
 function framesToText(frames: number[]): string {
@@ -174,12 +212,311 @@ function FramePreview(props: {
   );
 }
 
+/** The bulk-generation control: how many answers, which questions, and progress.
+ *
+ *  Deliberately explicit about what it will overwrite. Generation replaces a
+ *  question's whole answer list, and an operator who spent ten minutes hand-picking
+ *  three frames must not lose them to a mis-click — hence "chỉ câu chưa có đáp án"
+ *  on by default and a count of exactly what is about to be rewritten. */
+function AutoGenPanel(props: {
+  questions: ImportedQuestion[];
+  byQuestion: Map<string, SubmissionRow[]>;
+  autoGen: AutoGenInfo;
+  limit: number;
+  onLimit: (limit: number) => void;
+  onlyEmpty: boolean;
+  onOnlyEmpty: (value: boolean) => void;
+  onClose: () => void;
+}) {
+  const { autoGen } = props;
+  const rowsOf = (questionId: string) => props.byQuestion.get(questionId) ?? [];
+  const hasGenerated = (questionId: string) =>
+    rowsOf(questionId).some((row) => row.source === "generated");
+  const notGeneratedYet = props.questions.filter((question) => !hasGenerated(question.id)).length;
+  const targets = props.onlyEmpty ? notGeneratedYet : props.questions.length;
+  const regenerated = props.onlyEmpty ? 0 : props.questions.length - notGeneratedYet;
+  // What the generator will leave alone, stated up front: this is the number the
+  // operator is really asking about when they hesitate over the button.
+  const kept = props.questions.reduce(
+    (total, question) =>
+      total + rowsOf(question.id).filter((row) => row.source !== "generated").length,
+    0,
+  );
+  const done = autoGen.log.filter((entry) => entry.status !== "running").length;
+  const failed = autoGen.log.filter((entry) => entry.status === "failed");
+
+  return (
+    <div className="pack-preview" data-testid="autogen-panel">
+      <div>
+        <b>✨ Tự sinh đáp án</b> — mỗi câu được truy xuất lại rồi xếp thành danh sách đáp án
+        có thứ tự (thuật toán phân bổ ngân sách theo mốc R@1/5/20/50/100).
+      </div>
+      <div className="hint-text" style={{ margin: 0 }}>
+        Đáp án bạn tự chấm <b>không bị đụng tới</b> và luôn đứng trước; máy chỉ điền phần còn
+        thiếu cho đủ số dòng. Bấm lại chỉ thay các dòng do máy sinh lần trước.
+      </div>
+      <div className="row" style={{ gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+        <label className="row" style={{ gap: 6, alignItems: "center" }}>
+          <span className="dres-dim">tổng số dòng / câu</span>
+          <input
+            className="cell-input mono"
+            style={{ width: 64 }}
+            type="number"
+            min={1}
+            max={MAX_ROWS_PER_QUESTION}
+            value={props.limit}
+            data-testid="autogen-limit"
+            onChange={(event) =>
+              props.onLimit(
+                Math.max(1, Math.min(MAX_ROWS_PER_QUESTION, Math.round(Number(event.target.value) || 1))),
+              )
+            }
+          />
+        </label>
+        <label className="row" style={{ gap: 6, alignItems: "center" }}>
+          <input
+            type="checkbox"
+            checked={props.onlyEmpty}
+            data-testid="autogen-only-empty"
+            onChange={(event) => props.onOnlyEmpty(event.target.checked)}
+          />
+          <span className="dres-dim">chỉ câu máy chưa sinh ({notGeneratedYet})</span>
+        </label>
+        <span className="dres-dim">
+          sẽ chạy {targets} câu
+          {kept > 0 ? ` · giữ nguyên ${kept} dòng bạn đã chấm` : ""}
+          {regenerated > 0 ? ` · sinh lại ${regenerated} câu` : ""}
+        </span>
+      </div>
+      {regenerated > 0 && (
+        <div className="hint-text" data-testid="autogen-regenerate-note">
+          ↻ {regenerated} câu đã có dòng máy sinh — các dòng đó sẽ được thay bằng danh sách mới.
+          Dòng bạn tự chấm vẫn giữ nguyên.
+        </div>
+      )}
+      <div className="row" style={{ gap: 8, marginTop: 6 }}>
+        <button
+          className="btn primary"
+          data-testid="autogen-start"
+          disabled={autoGen.running || targets === 0}
+          onClick={() =>
+            autoGen.onStart({ limit: props.limit, onlyEmpty: props.onlyEmpty, questionIds: [] })
+          }
+        >
+          {autoGen.running ? "Đang chạy…" : `⚙ Sinh đáp án cho ${targets} câu`}
+        </button>
+        {autoGen.running ? (
+          <button className="btn ghost" data-testid="autogen-cancel" onClick={autoGen.onCancel}>
+            Dừng
+          </button>
+        ) : (
+          <button className="btn ghost" onClick={props.onClose}>
+            Đóng
+          </button>
+        )}
+      </div>
+      {(autoGen.running || autoGen.log.length > 0) && (
+        <div className="hint-text" data-testid="autogen-progress" style={{ marginTop: 6 }}>
+          {autoGen.progress
+            ? `[${autoGen.progress.index + 1}/${autoGen.progress.total}] ${autoGen.progress.questionId} — ${
+                autoGen.progress.status === "running" ? "đang truy xuất…" : autoGen.progress.status
+              }`
+            : `xong ${done} câu`}
+          {failed.length > 0 && (
+            <ul className="submission-problems">
+              {failed.slice(0, 8).map((entry) => (
+                <li key={entry.questionId} className="error">
+                  ⛔ {entry.questionId}: {entry.error}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      {autoGen.error && <div className="dup-warn">⚠ {autoGen.error}</div>}
+    </div>
+  );
+}
+
+/** What an imported `submission.zip` would do, before it does it.
+ *
+ *  Answers are the one thing in this app that cannot be recomputed, so importing
+ *  them is never a single click: the archive is parsed, counted against what is
+ *  already on screen, and applied only once the operator picks how. */
+function AnswerImportPreview(props: {
+  parsed: ImportedSubmission;
+  rows: SubmissionRow[];
+  onApply: (mode: ImportMode) => void;
+  onCancel: () => void;
+}) {
+  const [mode, setMode] = useState<ImportMode>("fill");
+  const plan = useMemo(
+    () => planImport(props.parsed, props.rows, mode),
+    [props.parsed, props.rows, mode],
+  );
+  const problems = [
+    ...props.parsed.problems,
+    ...props.parsed.files.flatMap((file) => file.problems),
+  ];
+  const incoming = plan.write.reduce((total, file) => total + file.rows.length, 0);
+
+  return (
+    <div className="pack-preview" data-testid="answer-import-preview">
+      <div>
+        <b>⭳ Import đáp án</b> — {props.parsed.files.length} câu ·{" "}
+        {props.parsed.totalRows} dòng trong file
+      </div>
+      <div className="row" style={{ gap: 14, flexWrap: "wrap", alignItems: "center" }}>
+        <label className="row" style={{ gap: 6, alignItems: "center" }}>
+          <input
+            type="radio"
+            checked={mode === "fill"}
+            data-testid="answer-import-mode-fill"
+            onChange={() => setMode("fill")}
+          />
+          <span className="dres-dim">chỉ điền câu đang trống</span>
+        </label>
+        <label className="row" style={{ gap: 6, alignItems: "center" }}>
+          <input
+            type="radio"
+            checked={mode === "replace"}
+            data-testid="answer-import-mode-replace"
+            onChange={() => setMode("replace")}
+          />
+          <span className="dres-dim">thay thế đáp án của các câu có trong file</span>
+        </label>
+      </div>
+      <div className="hint-text" style={{ margin: 0 }} data-testid="answer-import-plan">
+        Sẽ ghi {incoming} dòng vào {plan.write.length} câu
+        {plan.skipped.length > 0 ? ` · bỏ qua ${plan.skipped.length} câu` : ""}
+        {plan.replacedRows > 0 ? ` · XOÁ ${plan.replacedRows} dòng đang có` : ""}
+      </div>
+      {plan.replacedRows > 0 && (
+        <div className="dup-warn" data-testid="answer-import-replace-warning">
+          ⚠ {plan.replacedRows} dòng đáp án hiện tại sẽ bị xoá và thay bằng nội dung trong file.
+        </div>
+      )}
+      {props.parsed.orphanIds.length > 0 && (
+        <div className="dup-warn" data-testid="answer-import-orphans">
+          ⚠ {props.parsed.orphanIds.length} câu trong file không có trong gói câu hỏi đang mở
+          ({props.parsed.orphanIds.slice(0, 4).join(", ")}
+          {props.parsed.orphanIds.length > 4 ? "…" : ""}) — nạp vào vẫn được nhưng sẽ KHÔNG
+          được export. Có thể bạn đang mở nhầm gói câu hỏi.
+        </div>
+      )}
+      {problems.length > 0 && (
+        <ul className="submission-problems" data-testid="answer-import-problems">
+          {problems.slice(0, 10).map((problem, index) => (
+            <li key={index} className="error">⛔ {problem}</li>
+          ))}
+          {problems.length > 10 && <li>… và {problems.length - 10} dòng lỗi nữa</li>}
+        </ul>
+      )}
+      <div className="row" style={{ gap: 8, marginTop: 6 }}>
+        <button
+          className="btn primary"
+          data-testid="answer-import-apply"
+          disabled={plan.write.length === 0}
+          onClick={() => props.onApply(mode)}
+        >
+          ⇩ Nạp {incoming} dòng
+        </button>
+        <button className="btn ghost" data-testid="answer-import-cancel" onClick={props.onCancel}>
+          Huỷ
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** One answer, typed once, written into every row of a Q&A question.
+ *
+ *  The generator ranks WHERE to look; the text is a human judgement, so it is not
+ *  something the generated rows can carry. Without this the normal state after
+ *  generating is a hundred rows sharing one blank — a hundred export-blocking
+ *  errors for a single missing decision.
+ *
+ *  A button rather than live binding: every keystroke would otherwise rewrite a
+ *  hundred rows, and each rewrite is a write to the shared store. */
+function QaAnswerFill(props: {
+  rows: SubmissionRow[];
+  onFill: (answer: string) => void;
+}) {
+  const { rows } = props;
+  // Prefill with the answer already shared by every row, so editing an existing
+  // one is a correction rather than retyping. Rows deliberately disagreeing (a
+  // second guess on the same frame is a legitimate Q&A tactic) start blank.
+  const common = useMemo(() => {
+    const answers = new Set(rows.map((row) => row.answer.trim()).filter(Boolean));
+    return answers.size === 1 && rows.every((row) => row.answer.trim()) ? [...answers][0] : "";
+  }, [rows]);
+  const [text, setText] = useState(common);
+  const lastCommon = useRef(common);
+  useEffect(() => {
+    // Re-sync only when the rows changed underneath, never over live typing.
+    if (lastCommon.current !== common) {
+      lastCommon.current = common;
+      setText(common);
+    }
+  }, [common]);
+
+  const missing = rows.filter((row) => !row.answer.trim()).length;
+  const tooLong = text.trim().length > MAX_ANSWER_LENGTH;
+  const apply = () => {
+    if (!text.trim() || tooLong) return;
+    props.onFill(text.trim());
+  };
+
+  return (
+    <div className="qa-answer-fill" data-testid="qa-answer-fill">
+      <span className="dres-dim">answer cho cả câu</span>
+      <input
+        className="cell-input"
+        value={text}
+        maxLength={MAX_ANSWER_LENGTH * 2}
+        placeholder="ví dụ: 5 · màu xanh · Giang Ly"
+        data-testid="qa-answer-input"
+        onChange={(event) => setText(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            apply();
+          }
+        }}
+      />
+      <button
+        className="btn sm"
+        disabled={!text.trim() || tooLong || rows.length === 0}
+        onClick={apply}
+        data-testid="qa-answer-apply"
+        title="Ghi đáp án này vào tất cả các dòng của câu"
+      >
+        Điền vào {rows.length} dòng
+      </button>
+      {tooLong && (
+        <span className="dres-warn" data-testid="qa-answer-too-long">
+          ⛔ {text.trim().length}/{MAX_ANSWER_LENGTH} ký tự
+        </span>
+      )}
+      {!tooLong && missing > 0 && (
+        <span className="dres-warn" data-testid="qa-answer-missing">
+          ⚠ {missing}/{rows.length} dòng chưa có answer — sẽ bị chặn khi export
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function SubmissionPanel(props: Props) {
-  const { questions, rows, sync } = props;
+  const { questions, rows, sync, autoGen } = props;
   const fileRef = useRef<HTMLInputElement>(null);
+  const answerFileRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<{ rowId: string; slot: number } | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [genOpen, setGenOpen] = useState(false);
+  const [genLimit, setGenLimit] = useState(MAX_ROWS_PER_QUESTION);
+  const [genOnlyEmpty, setGenOnlyEmpty] = useState(true);
 
   const byQuestion = useMemo(() => {
     const map = new Map<string, SubmissionRow[]>();
@@ -349,6 +686,16 @@ export function SubmissionPanel(props: Props) {
           }}
         />
         <button
+          className="btn sm"
+          onClick={() => setGenOpen((open) => !open)}
+          disabled={questions.length === 0}
+          data-testid="autogen-toggle"
+          aria-expanded={genOpen}
+          title="Sinh sẵn danh sách đáp án có thứ tự cho từng câu hỏi"
+        >
+          {autoGen.running ? "Đang sinh đáp án…" : "✨ Tự sinh đáp án"}
+        </button>
+        <button
           className="btn sm ghost"
           onClick={props.onSearchAll}
           disabled={questions.length === 0 || props.searchingAll}
@@ -364,6 +711,27 @@ export function SubmissionPanel(props: Props) {
           data-testid="submission-import"
         >
           {props.importing ? "Đang import…" : "⭳ Import câu hỏi"}
+        </button>
+        <input
+          ref={answerFileRef}
+          type="file"
+          accept=".zip,application/zip"
+          style={{ display: "none" }}
+          data-testid="answer-import-input"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) props.answerImport.onPick(file);
+          }}
+        />
+        <button
+          className="btn sm"
+          onClick={() => answerFileRef.current?.click()}
+          disabled={props.answerImport.importing}
+          data-testid="answer-import"
+          title="Nạp lại submission.zip đã export trước đó"
+        >
+          {props.answerImport.importing ? "Đang đọc…" : "⭳ Import đáp án"}
         </button>
         <button
           className="btn primary"
@@ -384,6 +752,33 @@ export function SubmissionPanel(props: Props) {
         ↑↓ chọn dòng · ←→ chọn sự kiện (TRAKE) · <b>P</b> xem ảnh keyframe · <b>V</b> mở video để
         đổi frame · <b>Delete</b> xoá dòng · <b>Ctrl+E</b> export
       </div>
+
+      {genOpen && (
+        <AutoGenPanel
+          questions={questions}
+          byQuestion={byQuestion}
+          autoGen={autoGen}
+          limit={genLimit}
+          onLimit={setGenLimit}
+          onlyEmpty={genOnlyEmpty}
+          onOnlyEmpty={setGenOnlyEmpty}
+          onClose={() => setGenOpen(false)}
+        />
+      )}
+
+      {props.answerImport.pending && (
+        <AnswerImportPreview
+          parsed={props.answerImport.pending}
+          rows={rows}
+          onApply={props.answerImport.onApply}
+          onCancel={props.answerImport.onCancel}
+        />
+      )}
+      {props.answerImport.error && (
+        <div className="dup-warn" data-testid="answer-import-error">
+          ⚠ {props.answerImport.error}
+        </div>
+      )}
 
       {props.pendingPack && (() => {
         const summary = packSummary(props.pendingPack);
@@ -514,6 +909,11 @@ export function SubmissionPanel(props: Props) {
               <span className="dres-dim">
                 {questionRows.length}/{MAX_ROWS_PER_QUESTION} dòng
               </span>
+              {qaAnswerMissingEverywhere(questionRows, question) && (
+                <span className="dres-warn" data-testid={`qa-needs-answer-${question.id}`}>
+                  ⚠ chưa có answer
+                </span>
+              )}
               {problems.some((problem) => problem.severity === "error") && (
                 <span className="dres-warn" data-testid={`errors-${question.id}`}>
                   ⛔ {problems.filter((problem) => problem.severity === "error").length} lỗi
@@ -525,6 +925,17 @@ export function SubmissionPanel(props: Props) {
                 </span>
               )}
               <div className="spacer" />
+              <button
+                className="btn sm ghost"
+                disabled={autoGen.running}
+                onClick={() =>
+                  autoGen.onStart({ limit: genLimit, onlyEmpty: false, questionIds: [question.id] })
+                }
+                title="Xoá đáp án hiện có của câu này rồi sinh lại"
+                data-testid={`autogen-one-${question.id}`}
+              >
+                ✨ sinh lại
+              </button>
               <button className="btn sm ghost" onClick={() => props.onAddRow(question.id)}>
                 + dòng
               </button>
@@ -532,6 +943,13 @@ export function SubmissionPanel(props: Props) {
                 xoá hết
               </button>
             </div>
+
+            {question.kind === "qa" && questionRows.length > 0 && (
+              <QaAnswerFill
+                rows={questionRows}
+                onFill={(answer) => props.onFillAnswer(question.id, answer)}
+              />
+            )}
 
             <table className="submission-table">
               <thead>
@@ -643,14 +1061,25 @@ export function SubmissionPanel(props: Props) {
           </div>
           <div className="submission-empty-list">
             {empty.map((question) => (
-              <button
-                key={question.id}
-                className="btn sm ghost"
-                onClick={() => props.onAddRow(question.id)}
-                title={question.text.slice(0, 200)}
-              >
-                {question.id} +
-              </button>
+              <span key={question.id} className="empty-question">
+                <button
+                  className="btn sm ghost"
+                  onClick={() => props.onAddRow(question.id)}
+                  title={question.text.slice(0, 200)}
+                >
+                  {question.id} +
+                </button>
+                <button
+                  className="btn sm ghost"
+                  disabled={autoGen.running}
+                  onClick={() =>
+                    autoGen.onStart({ limit: genLimit, onlyEmpty: true, questionIds: [question.id] })
+                  }
+                  title="Tự sinh đáp án cho riêng câu này"
+                >
+                  ✨
+                </button>
+              </span>
             ))}
           </div>
         </div>

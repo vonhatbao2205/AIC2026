@@ -22,8 +22,9 @@ export interface SubmissionRow {
   /** One frame for kis/qa; one per event for trake. */
   frames: number[];
   answer: string;
-  /** Filled when the row came from a submit action rather than a manual edit. */
-  source?: "submit" | "manual";
+  /** Where the row came from. `generated` is the one the answer generator owns:
+   *  regenerating replaces those and leaves everything a person picked alone. */
+  source?: "submit" | "manual" | "generated";
 
   // ---- shared-submission metadata (see supabase/migrations/001_*.sql) ----
   // `frames` stays the only value the CSV is built from. The two arrays below
@@ -47,12 +48,23 @@ export interface SubmissionRow {
   syncState?: "synced" | "pending" | "local";
 }
 
+/** Video + frames, ignoring any answer text.
+ *
+ *  Two rows sharing this predict the same instant. In Q&A they can still be two
+ *  different guesses, but a GENERATED row carries no answer yet, so one landing
+ *  on an instant a person already picked is pure waste — it becomes an exact
+ *  duplicate the moment the question's answer is filled in. */
+export function frameKey(row: Pick<SubmissionRow, "videoId" | "frames">): string {
+  return `${row.videoId.trim()}|${row.frames.join(",")}`;
+}
+
 /** Identity used for the duplicate warning — the exact tuple the CSV will hold. */
 export function rowKey(row: Pick<SubmissionRow, "videoId" | "frames" | "answer">, kind: QuestionKind): string {
-  const base = `${row.videoId.trim()}|${row.frames.join(",")}`;
   // In Q&A the same frame with a different answer is a different guess, so the
   // text is part of the identity; elsewhere it is not part of the row at all.
-  return kind === "qa" ? `${base}|${row.answer.trim().replace(/\s+/g, " ").toLowerCase()}` : base;
+  return kind === "qa"
+    ? `${frameKey(row)}|${row.answer.trim().replace(/\s+/g, " ").toLowerCase()}`
+    : frameKey(row);
 }
 
 export function findDuplicate(
@@ -126,12 +138,35 @@ export class SubmissionFormatError extends Error {
   }
 }
 
+/** True when a Q&A question is missing its answer text everywhere.
+ *
+ *  This is a property of the QUESTION, not of any one row: the answer generator
+ *  fills a hundred frames and the text is typed once for all of them, so the
+ *  usual state is a hundred rows with the same blank. Reported per row it is a
+ *  hundred identical errors that bury every other problem in the panel — and it
+ *  is one action to fix, not a hundred. */
+export function qaAnswerMissingEverywhere(
+  rows: SubmissionRow[],
+  question: ImportedQuestion,
+): boolean {
+  return (
+    question.kind === "qa" &&
+    rows.length > 1 &&
+    rows.every((row) => !row.answer.trim())
+  );
+}
+
 /** Everything that would make the organiser's parser reject or misread a row. */
 export function validateRows(rows: SubmissionRow[], question: ImportedQuestion): RowProblem[] {
   const problems: RowProblem[] = [];
   const seen = new Map<string, string>();
   const fail = (rowId: string, message: string) =>
     problems.push({ rowId, message, severity: "error" });
+  // Still an error — the organisers require an answer — just stated once.
+  const collapsedAnswer = qaAnswerMissingEverywhere(rows, question);
+  if (collapsedAnswer) {
+    fail(rows[0].id, `chưa có answer — cả ${rows.length} dòng sẽ bị chặn`);
+  }
   rows.forEach((row, index) => {
     const where = `dòng ${index + 1}`;
     if (!row.videoId.trim()) {
@@ -149,8 +184,11 @@ export function validateRows(rows: SubmissionRow[], question: ImportedQuestion):
       fail(row.id, `${where}: frame phải tăng dần theo thời gian`);
     }
     if (question.kind === "qa") {
-      if (!row.answer.trim()) fail(row.id, `${where}: thiếu answer`);
-      else if (row.answer.length > MAX_ANSWER_LENGTH) {
+      // Itemised only once SOME rows have an answer: then which ones are blank
+      // is real per-row information rather than the same sentence repeated.
+      if (!row.answer.trim()) {
+        if (!collapsedAnswer) fail(row.id, `${where}: thiếu answer`);
+      } else if (row.answer.length > MAX_ANSWER_LENGTH) {
         fail(row.id, `${where}: answer dài ${row.answer.length} > ${MAX_ANSWER_LENGTH} ký tự`);
       }
     }

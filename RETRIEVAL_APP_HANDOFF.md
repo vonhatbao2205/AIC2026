@@ -102,6 +102,7 @@ All endpoints are under `/api`. Responses are JSON.
 | POST | `/api/query/parse` | `{query, query_type_hint, previous_hints[], manual_overrides}` → routing JSON |
 | POST | `/api/search` | `{query, query_type_hint, previous_hints[], manual_overrides, parsed?, feedback?, top_k, max_videos}` |
 | POST | `/api/search/trake` | `{query, previous_hints[], manual_overrides}` → ordered sequences |
+| POST | `/api/answers/generate` | `{query, query_type_hint, scope?, limit<=100, params?, answer_text?, event_count?, groups?/sequences?}` → the ordered answer list (§10). Pass `groups`/`sequences` to rank a result already on screen instead of searching again; `event_count` is the TRAKE row width taken from the statement |
 | GET | `/api/canvas/palette` | V-KIS canvas vocabulary: 16 OD colours + canonical labels (+ `colorable`) |
 | POST | `/api/search/canvas` | `{canvas{objects[{label,bbox,color,required}], action_text, mode}}` → same group shape, plus `object_layout` evidence |
 | POST | `/api/qa/analyze` | `{question, candidates[{submit_keyframe_id,...}], max_answers}` → grounded answers + hotspots |
@@ -303,6 +304,8 @@ backend/app/
   media.py             R2 keyframe/video URL builders
   scoring.py           speech/audio demotion multipliers
   fusion.py            RRF + group-by-video + ambiguous detection
+  answer_gen.py        the ordered 100-answer list: temporal NMS -> anchors,
+                       eps ladder -> coverage probes, pi x E x N rank budget
   trake.py             sequence assembly, order validation, keyframe snapping
   canvas.py            V-KIS canvas: palette, zones, PE text, Hungarian matching
   query_parser.py      Nemotron + heuristic routing, manual overrides
@@ -311,16 +314,73 @@ backend/app/
                        object_elastic (OD frames), dres_client (DRES v2 session),
                        http_pool (+ mock paths)
   services/            search_service, trake_service, canvas_service,
-                       timeline_service, submit_service
+                       timeline_service, submit_service, answer_service
   main.py              FastAPI routes
 frontend/src/
   api/                 client.ts, types.ts
-  lib/                 media, identity, snap, qa, canvas, dres, constants
+  lib/                 media, identity, snap, qa, canvas, dres, constants,
+                       submission (CSV pack), answerGen (bulk generation)
   components/          TopBar, DresBar, QueryPanel, ChannelControls, QueryUnderstanding,
                        Results, DetailPanel, VideoViewer, Timeline, TrakePanel,
                        CanvasPanel, SubmitGuard, HistorySidebar, Badges
   App.tsx              state, keyboard, orchestration
 ```
+
+---
+
+## 10. Answer generation (the ordered 100-answer list)
+
+The preliminary round scores `Final = (R@1 + R@5 + R@20 + R@50 + R@100) / 5` over
+at most 100 answers per query, so the answer list is a **rank-budget** problem,
+not a top-100 dump: position `r` goes to whichever candidate adds the most NEW
+chance of a hit, `U_r(V,c) = pi_B(V) * E(c|V) * N(c|A_V)`.
+
+- `pi_B(V)` — softmax over the group score at the current cutoff's temperature.
+  `T` rises 1 -> 5 -> 20 -> 50 -> 100, which turns exploitation into hedging
+  without any hard per-video quota.
+- `E(c|V)` — temporal evidence WITHIN the video. Anchors (what survives temporal
+  NMS over the fused frames) keep their retrieval score; offsets `a +/- eps`
+  inherit it, decayed per ladder rung.
+- `N(c|A_V)` — novelty, a Gaussian penalty per already-picked answer of the same
+  video. A covered region loses value, so a strong video yields once it has
+  nothing new to say.
+
+Two details are load-bearing and were measured, not assumed:
+
+1. **Offsets snap onto real keyframes** (`snap_offsets`). On the dev set the
+   median `|nearest retrieved frame - ground truth|` is **0** — most ground-truth
+   frames ARE extracted keyframes. Snapping is worth **+0.052 Final**, the largest
+   single effect in the parameter grid.
+2. **No position is ever left empty.** `R@k` is a max, so a wrong answer at rank
+   90 costs nothing while an empty rank 90 forfeits its chance. When a band's
+   frontier is exhausted the gate is dropped for that position, and when the whole
+   candidate space is too thin the eps ladder densifies (halving gaps, never
+   marching past the end of the video) until 100 can be filled.
+
+For TRAKE the candidate is a whole chain, and a row is only a row when it is
+**complete**: `<video>,<f1>..<fN>` with N fixed by the statement, strictly
+increasing. The assembler emits partial chains deliberately and ranks by
+confident coverage, so a 3-of-4 chain outranks a complete one — on the dev
+queries 45 of 50 chains were partial and up to 55 of 100 generated rows had the
+wrong width, plus 13 out of chronological order from shifting one event past its
+neighbour. Every one of those is rejected by the organiser's parser, and one
+rejected row blocks the whole submission. N therefore comes from the statement
+(`event_count` on the request), never inferred from the chains; when nothing is
+complete the answer list is empty and says why.
+
+`ambiguous` never demotes a video; it says the uncertainty is temporal, so that
+video opens more anchors and fewer offsets. **The fitted default turns this off**
+(bonus 0 / penalty 0): on 21 dev queries it has no measurable effect either way
+(0.004-0.006, smaller than one query moving one band). The mechanism is kept and
+stays settable per request.
+
+Parameters live in `AnswerGenParams` and are fitted by
+`benchmarks/run_answer_gen.py` against the organisers' own scoring formula, on
+the L21-L30 ground-truth queries (InfoShot++ profile). The objective averages
+Final over tolerances {0, 12, 25, 50, 100} frames because the width of the
+accepted window `[s, e]` is not knowable in advance — fitting at one tolerance
+picks a strategy for that assumption alone. Honest generalisation from 3-fold x 2
+cross-validation: **0.515 tuned vs 0.484 untuned** on held-out queries.
 
 ---
 

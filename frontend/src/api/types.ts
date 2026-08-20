@@ -163,6 +163,68 @@ export interface SearchResponse {
   mode: "mock" | "live";
 }
 
+// ---- answer generation (the ordered 100-answer list) -----------------------
+
+/** Tuning knobs of the rank-budget allocator. Every field is optional: the
+ *  backend fills in the values fitted on the L21-L30 ground-truth queries and
+ *  clamps whatever is sent, so a partial object is always valid. */
+export interface AnswerGenParams {
+  pool_depth?: number;
+  max_videos?: number;
+  dedup_radius_s?: number;
+  max_anchors_per_video?: number;
+  anchor_support_weight?: number;
+  temperatures?: number[];
+  offsets?: number[];
+  offset_decay?: number;
+  novelty_sigma_s?: number;
+  novelty_floor?: number;
+  novelty_mode?: "product" | "min";
+  band_anchors?: number[];
+  band_offsets?: number[];
+  ambiguous_anchor_bonus?: number;
+  ambiguous_offset_penalty?: number;
+  min_answer_gap_frames?: number;
+  tail_margin_frames?: number;
+  snap_offsets?: boolean;
+  snap_radius_frames?: number;
+}
+
+export interface GeneratedAnswer {
+  rank: number;
+  video_id: string;
+  /** One frame for KIS/QA, one per event for TRAKE. This is what the CSV holds. */
+  frames: number[];
+  keyframe_ids: (string | null)[];
+  pts_times: (number | null)[];
+  answer: string;
+  /** `anchor`/`sequence` = a retrieved frame; `offset` = a +/-eps probe around it. */
+  kind: "anchor" | "offset" | "sequence";
+  offset_frames: number;
+  /** Why this answer sits at this rank; debugging only, never submitted. */
+  utility?: number;
+  video_weight?: number;
+  evidence?: number;
+  novelty?: number;
+  keyframe_url?: string | null;
+  video_url?: string;
+}
+
+export interface AnswerGenerateResponse {
+  query: string;
+  query_type: QueryType;
+  retrieval_database: RetrievalDatabase;
+  /** True when the backend ranked a result the client passed in rather than searching. */
+  reused_results: boolean;
+  scope?: ResolvedScope | null;
+  params: Required<AnswerGenParams>;
+  answers: GeneratedAnswer[];
+  diagnostics: Record<string, number>;
+  warnings: string[];
+  latency_ms: Record<string, number>;
+  mode: "mock" | "live";
+}
+
 // ---- V-KIS canvas ----------------------------------------------------------
 
 export interface CanvasObjectSpec {

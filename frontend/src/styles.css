@@ -211,7 +211,17 @@ button { font-family: inherit; }
 }
 .cell-input:focus { outline: none; border-color: var(--accent); }
 .submission-problems { margin: 6px 10px; padding-left: 16px; font-size: 11px; color: var(--bad); }
+/* One answer for a whole Q&A question: the frames come from the generator, the
+   text is typed once here rather than into every row. */
+.qa-answer-fill {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 6px 10px; border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-2) 55%, transparent);
+}
+.qa-answer-fill .cell-input { flex: 1 1 220px; min-width: 160px; max-width: 420px; }
 .submission-empty-list { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 10px; }
+/* Question id and its "generate" shortcut read as one control, not two. */
+.empty-question { display: inline-flex; align-items: center; gap: 1px; }
 
 /* ---- App grid ---- */
 .app { display: grid; grid-template-rows: auto auto 1fr; height: 100vh; overflow: hidden; }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { QueryType } from "../api/types";
+import type { ImportedQuestion } from "../lib/questions";
 import {
   parseQuestionEntry,
   parseQuestionPack,
@@ -9,19 +10,30 @@ import {
 import {
   SubmissionFormatError,
   auditSubmission,
+  buildSubmissionFiles,
   buildSubmissionZip,
   buildSubmissionZipBytes,
   csvField,
   findDuplicate,
+  MAX_ANSWER_LENGTH,
+  MAX_ROWS_PER_QUESTION,
+  qaAnswerMissingEverywhere,
   questionCsv,
   rowKey,
   rowToCsvLine,
   validateRows,
   type SubmissionRow,
 } from "../lib/submission";
-import { buildZipBytes, crc32 } from "../lib/zip";
+import { buildZipBytes, crc32, ZipError } from "../lib/zip";
+import {
+  parseAnswerCsv,
+  parseCsvLine,
+  parseSubmissionPack,
+  planImport,
+} from "../lib/submissionImport";
 import {
   canonicalQuestions,
+  normalizeQuestions,
   packHash,
   packSummary,
   recordsToQuestions,
@@ -32,6 +44,7 @@ import {
   isMissingTableError,
   mergeRow,
   newRowId,
+  nextCreatedAt,
   recordToRow,
   rowToRecord,
   sortRows,
@@ -72,6 +85,42 @@ describe("query pack parsing", () => {
       trakeEventCount("E1: bột vào tô.\nE2: chạm dầu.\nE3: rời chảo.\nE4: nằm trên dĩa."),
     ).toBe(4);
     expect(trakeEventCount("không có sự kiện nào")).toBeNull();
+  });
+
+  it("counts the descriptions, not the numbers written on them", () => {
+    // Regression, from a real pack: the labels run E1, E2, E2, E4 but there are
+    // four moments to find. Counting distinct indices gave 3, and every correct
+    // four-frame row was then rejected at export for being the wrong width.
+    const misnumbered = [
+      "Trong đoạn video nấu ăn một món ăn về nấm, gồm các khoảnh khắc sơ chế:",
+      "E1: Khoảnh khắc đầu tiên thấy cắt nấm.",
+      "E2: Khoảnh khắc đầu tiên cắt củ năng.",
+      "E2: Khoảnh khắc đầu tiên cắt đậu hủ.",
+      "E4: Khoảnh khắc chảo đặt lên bếp, đầu bếp mở lửa và thấy lửa bắt đầu xuất hiện",
+    ].join("\n");
+    expect(trakeEventCount(misnumbered)).toBe(4);
+
+    // A skipped number is the mirror image: three descriptions, three frames —
+    // so the highest index would have been just as wrong as the distinct count.
+    expect(trakeEventCount("E1: a.\nE2: b.\nE4: c.")).toBe(3);
+  });
+
+  it("accepts the marker spellings the backend event splitter accepts", () => {
+    expect(trakeEventCount("Sự kiện 1: chạy đà.\nSự kiện 2: giậm nhảy.")).toBe(2);
+    expect(trakeEventCount("Event 1) take-off.\nEvent 2) landing.")).toBe(2);
+    expect(trakeEventCount("E1 - vào bếp.\nE2 - ra món.")).toBe(2);
+    // Two events written on one line still count as two.
+    expect(trakeEventCount("E1: bột vào tô. E2: chạm dầu.")).toBe(2);
+  });
+
+  it("does not mistake prose for event markers", () => {
+    // Nothing here is a marker: no "E<n>" follows a word boundary, and a bare
+    // numbered list is deliberately not counted (null skips the width check
+    // rather than blocking the export on a guess).
+    expect(trakeEventCount("Cảnh quay phase 2: người đàn ông bước vào lúc 18:30.")).toBeNull();
+    expect(trakeEventCount("1) chạy đà.\n2) giậm nhảy.\n3) tiếp đất.")).toBeNull();
+    // One marker is not a sequence.
+    expect(trakeEventCount("E1: chỉ có một khoảnh khắc.")).toBeNull();
   });
 
   it("keeps the organiser's numeric order, not lexicographic order", () => {
@@ -251,6 +300,70 @@ describe("shared submission records", () => {
   });
 });
 
+describe("answer order survives the store", () => {
+  const at = (createdAt: string, id: string): SubmissionRow => ({
+    id, questionId: "q", videoId: "L01_V028", frames: [1], answer: "", createdAt,
+  });
+
+  it("hands out a strictly later stamp every time", () => {
+    // A hundred rows inserted together used to share one stamp, which dropped
+    // the whole block onto the random-uuid tiebreak.
+    const stamps = Array.from({ length: 200 }, () => nextCreatedAt());
+    expect(new Set(stamps).size).toBe(stamps.length);
+    expect([...stamps].sort()).toEqual(stamps);
+  });
+
+  it("keeps a generated batch in the order it was generated", () => {
+    const batch = Array.from({ length: 100 }, (_, rank) => at(nextCreatedAt(), `row-${rank}`));
+    // Shuffled by id, exactly the way the uuid tiebreak used to shuffle them.
+    const scrambled = [...batch].sort((a, b) => a.id.localeCompare(b.id));
+    expect(sortRows(scrambled).map((row) => row.id)).toEqual(batch.map((row) => row.id));
+  });
+
+  it("orders by instant, not by how the timestamp happens to be spelled", () => {
+    // PostgREST drops the fraction when the microseconds are zero, so the same
+    // moment can come back as `…T19:04:00+00:00`. Compared as text that sorts
+    // AFTER `…T19:04:00.500Z` — half a second later than it actually is.
+    const early = "2026-08-20T19:04:00+00:00";
+    const late = "2026-08-20T19:04:00.500Z";
+    expect(early.localeCompare(late)).toBeGreaterThan(0); // the trap
+    expect(Date.parse(early)).toBeLessThan(Date.parse(late)); // the truth
+    expect(sortRows([at(late, "b"), at(early, "a")]).map((row) => row.id)).toEqual(["a", "b"]);
+  });
+
+  it("normalises a server timestamp to one canonical spelling", () => {
+    const row = recordToRow({
+      id: "a", room: "aic26", session_id: null, question_id: "q",
+      retrieval_database: "btc", video_id: "L01_V028", frames: [1],
+      keyframe_ids: [null], pts_times: [null], answer: "", submitted_by: "bao",
+      source: "generated", revision: 1, created_at: "2026-08-20T19:04:00.123456+00:00",
+    });
+    expect(row.createdAt).toBe("2026-08-20T19:04:00.123Z");
+  });
+
+  it("sends created_at so a bulk insert is not stamped all at once", () => {
+    // `created_at` defaults to now(), which is the TRANSACTION time and so is
+    // identical for every row of one multi-row INSERT.
+    const row = at("2026-08-20T19:04:00.123Z", "a");
+    expect(rowToRecord(row, "aic26", "bao", null).created_at).toBe("2026-08-20T19:04:00.123Z");
+  });
+
+  it("round-trips a batch through the record shape without reordering", () => {
+    const batch = Array.from({ length: 20 }, (_, rank) => at(nextCreatedAt(), `row-${rank}`));
+    const back = batch.map((row) =>
+      recordToRow({
+        ...rowToRecord(row, "aic26", "bao", null),
+        id: row.id,
+        room: "aic26",
+        // PostgREST's rendering of the very same instant.
+        created_at: new Date(row.createdAt!).toISOString().replace("Z", "+00:00"),
+      }),
+    );
+    const scrambled = [...back].sort((a, b) => a.id.localeCompare(b.id));
+    expect(sortRows(scrambled).map((row) => row.id)).toEqual(batch.map((row) => row.id));
+  });
+});
+
 describe("supabase error reporting", () => {
   it("reads a PostgREST error object instead of stringifying it", () => {
     // Regression: PostgREST rejects with a plain object, so the usual
@@ -288,10 +401,15 @@ describe("supabase error reporting", () => {
 describe("question pack as shared state", () => {
   const pack = (over: Partial<{ order: number; text: string }> = {}) => [
     { id: "query-p1-1-kis", order: 1, kind: "kis" as const, queryType: "T-KIS" as const, text: "a", eventCount: null },
-    {
-      id: "query-p1-4-trake", order: over.order ?? 4, kind: "trake" as const,
-      queryType: "TRAKE" as const, text: over.text ?? "E1: x\nE2: y", eventCount: 2,
-    },
+    (() => {
+      const text = over.text ?? "E1: x\nE2: y";
+      return {
+        id: "query-p1-4-trake", order: over.order ?? 4, kind: "trake" as const,
+        // Derived, like a real import — a helper that hardcoded the count would
+        // hide exactly the bug the round-trip is supposed to catch.
+        queryType: "TRAKE" as const, text, eventCount: trakeEventCount(text),
+      };
+    })(),
   ];
 
   it("fingerprints the same pack identically whatever order it arrives in", () => {
@@ -315,8 +433,224 @@ describe("question pack as shared state", () => {
     expect(recordsToQuestions(canonical)).toEqual(pack());
   });
 
+  it("re-derives the TRAKE event count instead of trusting the stored column", () => {
+    // A pack published before the counting fix carries the stale number. The
+    // count is a pure function of the statement, so reading it back recomputes:
+    // otherwise the whole team would validate rows against 3 for the rest of the
+    // round, with no way to correct it short of re-publishing the pack.
+    const stale = canonicalQuestions(pack({ text: "E1: a.\nE2: b.\nE2: c.\nE4: d." }));
+    expect(stale[1].event_count).toBe(4);
+    stale[1].event_count = 3;
+    expect(recordsToQuestions(stale)[1].eventCount).toBe(4);
+  });
+
+  it("re-derives a stale event count held only in the local cache", () => {
+    // The path that kept the wrong number on screen after the parser was fixed.
+    // `refresh()` skips re-downloading a pack whose fingerprint it already holds,
+    // so the cached copy is the only thing that ever renders — nothing on that
+    // machine would recompute the count, for the rest of the round.
+    const cached = [
+      {
+        id: "query-p1-18-trake",
+        order: 18,
+        kind: "trake" as const,
+        queryType: "TRAKE" as const,
+        text: "E1: cắt nấm.\nE2: cắt củ năng.\nE2: cắt đậu hủ.\nE4: chảo lên bếp.",
+        eventCount: 3,
+      },
+    ];
+    expect(normalizeQuestions(cached)[0].eventCount).toBe(4);
+    // Non-TRAKE questions are untouched, and an already-correct pack is returned
+    // as-is so a reload does not churn every object identity.
+    const fresh = pack();
+    expect(normalizeQuestions(fresh)).toEqual(fresh);
+  });
+
   it("summarises a pack for the publish confirmation", () => {
     expect(packSummary(pack())).toEqual({ total: 2, byKind: { kis: 1, qa: 0, trake: 1 } });
+  });
+});
+
+describe("Q&A answer text", () => {
+  const question = {
+    id: "query-p1-2-qa", order: 2, kind: "qa" as const,
+    queryType: "QA" as const, text: "xã này tên là gì?", eventCount: null,
+  };
+  const row = (id: string, answer: string): SubmissionRow => ({
+    id, questionId: question.id, videoId: "L30_V072", frames: [1776], answer,
+  });
+
+  it("states a missing answer once for the question, not once per row", () => {
+    // The generator fills a hundred frames and the text is one decision, so the
+    // usual state is a hundred rows sharing one blank. Reported per row that is
+    // a hundred identical errors burying everything else in the panel.
+    const rows = Array.from({ length: 100 }, (_, i) => row(`r${i}`, ""));
+    const problems = validateRows(rows, question);
+    const answerProblems = problems.filter((p) => p.message.includes("answer"));
+    expect(answerProblems).toHaveLength(1);
+    expect(answerProblems[0].message).toContain("cả 100 dòng sẽ bị chặn");
+    // Still blocks the export — the organisers require an answer.
+    expect(answerProblems[0].severity).toBe("error");
+    expect(auditSubmission([question], rows).errors.length).toBe(1);
+  });
+
+  it("itemises per row once some rows do have an answer", () => {
+    // Now WHICH rows are blank is real information rather than one repeated
+    // sentence, so the collapse stops.
+    const rows = [row("a", "5"), row("b", ""), row("c", "")];
+    const messages = validateRows(rows, question)
+      .filter((p) => p.message.includes("answer"))
+      .map((p) => p.message);
+    expect(messages).toEqual(["dòng 2: thiếu answer", "dòng 3: thiếu answer"]);
+  });
+
+  it("knows when a question is missing its answer everywhere", () => {
+    expect(qaAnswerMissingEverywhere([row("a", ""), row("b", "")], question)).toBe(true);
+    expect(qaAnswerMissingEverywhere([row("a", ""), row("b", "5")], question)).toBe(false);
+    // A single blank row is already legible as one error; nothing to collapse.
+    expect(qaAnswerMissingEverywhere([row("a", "")], question)).toBe(false);
+    // Never applies outside Q&A: no other row shape carries an answer at all.
+    const trake = { ...question, kind: "trake" as const, queryType: "TRAKE" as const };
+    expect(qaAnswerMissingEverywhere([row("a", ""), row("b", "")], trake)).toBe(false);
+  });
+
+  it("still rejects an over-long answer per row", () => {
+    const rows = [row("a", "x".repeat(MAX_ANSWER_LENGTH + 1))];
+    expect(validateRows(rows, question).map((p) => p.message)).toContain(
+      `dòng 1: answer dài ${MAX_ANSWER_LENGTH + 1} > ${MAX_ANSWER_LENGTH} ký tự`,
+    );
+  });
+});
+
+describe("importing an exported submission.zip", () => {
+  const questions: ImportedQuestion[] = [
+    { id: "query-p1-1-kis", order: 1, kind: "kis", queryType: "T-KIS", text: "a", eventCount: null },
+    { id: "query-p1-2-qa", order: 2, kind: "qa", queryType: "QA", text: "b", eventCount: null },
+    { id: "query-p1-3-trake", order: 3, kind: "trake", queryType: "TRAKE", text: "c", eventCount: 2 },
+  ];
+  const row = (over: Partial<SubmissionRow>): SubmissionRow => ({
+    id: over.id ?? "r", questionId: "query-p1-1-kis", videoId: "L01_V028",
+    frames: [1200], answer: "", ...over,
+  });
+
+  it("reads back exactly what the exporter wrote", () => {
+    // The round trip is the specification: anything the writer can emit, the
+    // reader has to take — including an answer holding the delimiter.
+    const rows = [
+      row({ id: "a", questionId: "query-p1-1-kis", frames: [25300] }),
+      row({ id: "b", questionId: "query-p1-2-qa", frames: [3450], answer: "5, sáu" }),
+      row({ id: "c", questionId: "query-p1-2-qa", frames: [3460], answer: 'nói "vâng"' }),
+      row({ id: "d", questionId: "query-p1-3-trake", frames: [1200, 1850] }),
+    ];
+    const files = buildSubmissionFiles(questions, rows);
+    const parsed = parseSubmissionPack(
+      files.map((file) => ({ name: file.name, text: file.text })),
+      questions,
+    );
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.totalRows).toBe(4);
+    const flat = parsed.files.flatMap((file) => file.rows);
+    expect(flat.map((r) => [r.questionId, r.videoId, r.frames, r.answer])).toEqual([
+      ["query-p1-1-kis", "L01_V028", [25300], ""],
+      ["query-p1-2-qa", "L01_V028", [3450], "5, sáu"],
+      ["query-p1-2-qa", "L01_V028", [3460], 'nói "vâng"'],
+      ["query-p1-3-trake", "L01_V028", [1200, 1850], ""],
+    ]);
+    // Somebody's earlier work: the generator must keep it, not replace it.
+    expect(flat.every((r) => r.source === "manual")).toBe(true);
+  });
+
+  it("splits a quoted answer containing the delimiter", () => {
+    expect(parseCsvLine('L01_V028,3450,"5, sáu"')).toEqual(["L01_V028", "3450", "5, sáu"]);
+    expect(parseCsvLine('a,"say ""hi""",b')).toEqual(["a", 'say "hi"', "b"]);
+    expect(parseCsvLine("a,,b")).toEqual(["a", "", "b"]);
+  });
+
+  it("needs the kind to tell a TRAKE row from an answered Q&A row", () => {
+    // `L01_V028,1200,5` is both shapes at once; only the question says which.
+    const line = "L01_V028,1200,5";
+    expect(parseAnswerCsv(line, "q", "trake").rows[0].frames).toEqual([1200, 5]);
+    const qa = parseAnswerCsv(line, "q", "qa").rows[0];
+    expect(qa.frames).toEqual([1200]);
+    expect(qa.answer).toBe("5");
+  });
+
+  it("falls back to the file-name suffix for a question not in the pack", () => {
+    const parsed = parseSubmissionPack(
+      [{ name: "submission/query-p9-9-trake.csv", text: "L01_V028,1200,1850" }],
+      questions,
+    );
+    expect(parsed.files[0].kind).toBe("trake");
+    expect(parsed.files[0].inPack).toBe(false);
+    expect(parsed.orphanIds).toEqual(["query-p9-9-trake"]);
+    expect(parsed.files[0].rows[0].frames).toEqual([1200, 1850]);
+  });
+
+  it("reports a malformed line instead of importing a broken row", () => {
+    const parsed = parseSubmissionPack(
+      [{ name: "submission/query-p1-1-kis.csv", text: "L01_V028,1200\n,1300\nL01_V028,abc\nL01_V028" }],
+      questions,
+    );
+    const file = parsed.files[0];
+    expect(file.rows).toHaveLength(1);
+    expect(file.problems).toEqual([
+      "query-p1-1-kis dòng 2: thiếu tên video",
+      'query-p1-1-kis dòng 3: "abc" không phải frame hợp lệ',
+      "query-p1-1-kis dòng 4: không có frame nào",
+    ]);
+  });
+
+  it("ignores the empty CSV an unanswered question exports as", () => {
+    const parsed = parseSubmissionPack(
+      [{ name: "submission/query-p1-1-kis.csv", text: "" }],
+      questions,
+    );
+    expect(parsed.files[0].rows).toEqual([]);
+    expect(parsed.problems).toEqual([]);
+  });
+
+  it("says so when the zip is a question pack rather than answers", () => {
+    // The two archives sit next to each other on disk and look identical.
+    expect(() =>
+      parseSubmissionPack([{ name: "query-p1-1-kis.txt", text: "bản tin" }], questions),
+    ).toThrow(ZipError);
+    expect(() =>
+      parseSubmissionPack([{ name: "query-p1-1-kis.txt", text: "x" }], questions),
+    ).toThrow(/gói CÂU HỎI/);
+  });
+
+  it("caps a question at a hundred rows and says it did", () => {
+    const text = Array.from({ length: 105 }, (_, i) => `L01_V028,${1000 + i}`).join("\r\n");
+    const parsed = parseSubmissionPack(
+      [{ name: "submission/query-p1-1-kis.csv", text }],
+      questions,
+    );
+    expect(parsed.files[0].rows).toHaveLength(MAX_ROWS_PER_QUESTION);
+    expect(parsed.files[0].problems[0]).toContain("105 dòng");
+  });
+
+  it("plans the write against what is already on screen", () => {
+    const parsed = parseSubmissionPack(
+      [
+        { name: "submission/query-p1-1-kis.csv", text: "L01_V028,25300" },
+        { name: "submission/query-p1-2-qa.csv", text: "L01_V028,3450,5" },
+      ],
+      questions,
+    );
+    const held = [row({ id: "x", questionId: "query-p1-1-kis" })];
+
+    // `fill` never destroys: a question already holding answers is left alone.
+    const fill = planImport(parsed, held, "fill");
+    expect(fill.write.map((f) => f.questionId)).toEqual(["query-p1-2-qa"]);
+    expect(fill.replacedRows).toBe(0);
+
+    // `replace` states the cost up front instead of discovering it afterwards.
+    const replace = planImport(parsed, held, "replace");
+    expect(replace.write.map((f) => f.questionId)).toEqual([
+      "query-p1-1-kis",
+      "query-p1-2-qa",
+    ]);
+    expect(replace.replacedRows).toBe(1);
   });
 });
 

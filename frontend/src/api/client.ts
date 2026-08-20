@@ -1,6 +1,8 @@
 // Thin fetch wrapper around the backend. The frontend only ever talks to the
 // backend — it never holds Elastic/Milvus/NVIDIA credentials.
 import type {
+  AnswerGenerateResponse,
+  AnswerGenParams,
   AnswerMode,
   CanvasPalette,
   CanvasSearchResponse,
@@ -27,6 +29,8 @@ import type {
   SubmitPreview,
   Timeline,
   TrakeSearchResponse,
+  TrakeSequence,
+  VideoGroup,
 } from "./types";
 
 const BASE = import.meta.env.VITE_API_BASE_URL || "";
@@ -165,6 +169,37 @@ export const api = {
     request<TrakeSearchResponse>("/api/search/trake", {
       method: "POST",
       body: JSON.stringify(body),
+    }),
+
+  /** The ordered answer list for one query.
+   *
+   *  Pass `groups`/`sequences` to rank a result already on screen (keeping the
+   *  operator's scope, feedback and channel overrides); omit them to let the
+   *  backend run its own retrieval, which is what bulk generation does. */
+  generateAnswers: (body: {
+    retrieval_database: RetrievalDatabase;
+    query: string;
+    query_type_hint: QueryTypeHint;
+    scope?: SearchScope;
+    previous_hints?: string[];
+    manual_overrides?: ManualOverrides;
+    feedback?: FeedbackState;
+    use_llm?: boolean;
+    expand?: boolean;
+    top_k?: number;
+    max_videos?: number;
+    limit?: number;
+    params?: AnswerGenParams;
+    answer_text?: string;
+    /** TRAKE: frames per row, taken from the statement. */
+    event_count?: number;
+    groups?: VideoGroup[];
+    sequences?: TrakeSequence[];
+  }, signal?: AbortSignal) =>
+    request<AnswerGenerateResponse>("/api/answers/generate", {
+      method: "POST",
+      body: JSON.stringify(body),
+      signal,
     }),
 
   canvasPalette: () => request<CanvasPalette>("/api/canvas/palette"),
