@@ -40,13 +40,29 @@ export interface ImportedQuestion {
 
 const NAME_RE = /^(?:.*\/)?([^/]*?-(\d+)-(kis|qa|trake|vkis))\.txt$/i;
 
-/** Count the `E1:`…`EN:` markers a TRAKE statement lists. */
+/** How many frames one TRAKE row must carry — i.e. how many moments the
+ *  statement asks the operator to locate.
+ *
+ *  Counts the marked DESCRIPTIONS, not the distinct numbers written on them.
+ *  Statements are typed by hand and the numbering is not reliable: a real pack
+ *  shipped `E1 / E2 / E2 / E4` for four events. Counting distinct indices gave 3
+ *  there, so every correct four-frame row was rejected at export as the wrong
+ *  width. Taking the highest index instead would be wrong the other way round,
+ *  on a statement that merely skips a number.
+ *
+ *  Markers deliberately mirror `_split_trake_events` in the backend parser: that
+ *  runs one retrieval per event while this validates the row width, and the two
+ *  disagreeing means generated rows get rejected by the very export they were
+ *  generated for.
+ *
+ *  A bare numbered list ("1) … 2) …") is NOT counted, unlike in the backend. A
+ *  wrong split there only costs some retrieval quality; a wrong count here blocks
+ *  the export outright, and `null` degrades safely — the width check is skipped
+ *  and the operator types the frames they mean. */
 export function trakeEventCount(text: string): number | null {
-  const indices = new Set<number>();
-  for (const match of text.matchAll(/^\s*E\s*(\d+)\s*[:.)]/gim)) {
-    indices.add(Number(match[1]));
-  }
-  return indices.size >= 2 ? indices.size : null;
+  const marker = /(?:^|[\s,;(\[])(?:sự\s*kiện|event|e)\s*\d+\s*[:.)–—-]/gi;
+  const count = [...text.matchAll(marker)].length;
+  return count >= 2 ? count : null;
 }
 
 export function parseQuestionEntry(entry: ZipTextEntry): ImportedQuestion | null {

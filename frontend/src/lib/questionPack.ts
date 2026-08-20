@@ -4,7 +4,7 @@
  *  themselves against can be tested directly.
  */
 import type { QueryType } from "../api/types";
-import type { ImportedQuestion, QuestionKind } from "./questions";
+import { trakeEventCount, type ImportedQuestion, type QuestionKind } from "./questions";
 
 export interface SessionInfo {
   id: string;
@@ -63,14 +63,38 @@ export function packHash(questions: ImportedQuestion[]): string {
   return salted.toString(16).padStart(8, "0");
 }
 
+/** Re-derive everything that is a pure function of the statement text.
+ *
+ *  Applied wherever a pack ENTERS the app — Supabase rows and the localStorage
+ *  cache alike. `eventCount` is derived from the text, so a pack published
+ *  before a counting fix carries a stale number that would otherwise outlive the
+ *  fix entirely: the cache is what renders on mount, and `refresh()` deliberately
+ *  skips re-downloading a pack whose fingerprint it already holds — so without
+ *  this nothing on a machine that already has the pack ever recomputes it. */
+export function normalizeQuestion(question: ImportedQuestion): ImportedQuestion {
+  if (question.kind !== "trake") return question;
+  const eventCount = trakeEventCount(question.text ?? "");
+  return eventCount === question.eventCount ? question : { ...question, eventCount };
+}
+
+export function normalizeQuestions(questions: ImportedQuestion[]): ImportedQuestion[] {
+  return questions.map(normalizeQuestion);
+}
+
 export function recordToQuestion(record: QuestionRecord): ImportedQuestion {
+  const kind = record.kind as QuestionKind;
+  const text = record.text ?? "";
   return {
     id: record.question_id,
     order: Number(record.ordinal),
-    kind: record.kind as QuestionKind,
+    kind,
     queryType: record.query_type as QueryType,
-    text: record.text ?? "",
-    eventCount: record.event_count ?? null,
+    text,
+    // Re-derived from the statement rather than trusted from the column. The
+    // count is a pure function of the text, so the column is a cache — and a
+    // pack published before a counting fix would otherwise keep its stale value
+    // for the whole round, rejecting every correctly-sized TRAKE row at export.
+    eventCount: kind === "trake" ? trakeEventCount(text) : record.event_count ?? null,
   };
 }
 

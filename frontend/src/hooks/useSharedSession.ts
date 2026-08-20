@@ -15,6 +15,7 @@ import {
 import { describeSupabaseError } from "../lib/sharedSubmission";
 import {
   canonicalQuestions,
+  normalizeQuestions,
   packHash,
   recordsToQuestions,
   type QuestionRecord,
@@ -59,15 +60,20 @@ function loadCache(): CachedPack | null {
     const parsed = JSON.parse(raw);
     // The pre-session cache was a bare array of questions.
     if (Array.isArray(parsed)) {
+      const questions = normalizeQuestions(parsed as ImportedQuestion[]);
       return {
         sessionId: null,
         sessionName: null,
-        packHash: packHash(parsed as ImportedQuestion[]),
-        questions: parsed as ImportedQuestion[],
+        packHash: packHash(questions),
+        questions,
         origin: "local",
       };
     }
-    return parsed as CachedPack;
+    const pack = parsed as CachedPack;
+    // `packHash` stays whatever the server said: normalising a derived field
+    // locally must not make this client believe it holds a different pack from
+    // the rest of the team.
+    return { ...pack, questions: normalizeQuestions(pack.questions ?? []) };
   } catch {
     return null;
   }
