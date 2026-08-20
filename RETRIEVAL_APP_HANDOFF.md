@@ -368,6 +368,22 @@ rejected row blocks the whole submission. N therefore comes from the statement
 (`event_count` on the request), never inferred from the chains; when nothing is
 complete the answer list is empty and says why.
 
+Answers already at the head of a question's list are passed in as `taken`. The
+list is graded as a whole, so a position already spent on an instant is coverage:
+the generator does not repeat it, does not spend more positions covering it, and
+**continues the band schedule after it**. The first answer following six
+hand-picked ones is rank 7 — already in the diversifying band — not rank 1, where
+the policy is to bet everything on the single strongest hypothesis. Generating a
+tail this way is lossless: it reproduces exactly what a full run would have put at
+those positions (0.5905 at every head size, against 0.5848 at head=6 before).
+
+`taken_video_penalty` discounts a video by how many positions it already holds.
+It is shipped at **0**, and that is a measured result, not an oversight: on the
+dev set with a simulated hand-picked head it is worth +0.002 at head=1 (below the
+0.0095 one-query quantum) and is monotonically worse at head=3 and head=6. The
+idea that a video a person already bet on is a poor bet for the next position did
+not survive contact with the data. The knob stays for whoever measures it next.
+
 `ambiguous` never demotes a video; it says the uncertainty is temporal, so that
 video opens more anchors and fewer offsets. **The fitted default turns this off**
 (bonus 0 / penalty 0): on 21 dev queries it has no measurable effect either way

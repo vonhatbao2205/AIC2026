@@ -193,6 +193,8 @@ export const api = {
     answer_text?: string;
     /** TRAKE: frames per row, taken from the statement. */
     event_count?: number;
+    /** Answers already at the head of this question's list. */
+    taken?: { video_id: string; frames: number[] }[];
     groups?: VideoGroup[];
     sequences?: TrakeSequence[];
   }, signal?: AbortSignal) =>

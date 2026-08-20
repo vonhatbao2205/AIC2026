@@ -138,6 +138,17 @@ class AnswerGenParams:
     ambiguous_offset_penalty: int = 0
 
     # ---- output guards ----------------------------------------------------
+    #: How much a video already holding answers is discounted, per answer it
+    #: holds: pi'(V) = pi(V) / (1 + penalty * taken(V)).
+    #:
+    #: Novelty already handles coverage WITHIN a video, but not the video-level
+    #: bet. Positions spent on a video only pay off in the world where that video
+    #: is right, and in that world the answers already there are likely to have
+    #: caught it — so the marginal position is worth less than the first one was.
+    #: This is what lets a second video reach the R@5 band when a person has
+    #: already claimed rank 1: measured on a real submission, 18 of 24 questions
+    #: put all five top positions in one video. 0 disables it.
+    taken_video_penalty: float = 0.0
     #: Answers in one video closer than this (frames) are dropped outright.
     #: 0 leaves the job entirely to the novelty term.
     min_answer_gap_frames: int = 0
@@ -181,6 +192,7 @@ class AnswerGenParams:
             band_offsets=offs[: len(BANDS)],
             ambiguous_anchor_bonus=max(0, int(self.ambiguous_anchor_bonus)),
             ambiguous_offset_penalty=max(0, int(self.ambiguous_offset_penalty)),
+            taken_video_penalty=max(0.0, float(self.taken_video_penalty)),
             min_answer_gap_frames=max(0, int(self.min_answer_gap_frames)),
             tail_margin_frames=max(0, int(self.tail_margin_frames)),
             snap_offsets=bool(self.snap_offsets),
@@ -204,6 +216,7 @@ class AnswerGenParams:
             "band_offsets": list(self.band_offsets),
             "ambiguous_anchor_bonus": self.ambiguous_anchor_bonus,
             "ambiguous_offset_penalty": self.ambiguous_offset_penalty,
+            "taken_video_penalty": self.taken_video_penalty,
             "min_answer_gap_frames": self.min_answer_gap_frames,
             "tail_margin_frames": self.tail_margin_frames,
             "snap_offsets": self.snap_offsets,
@@ -588,10 +601,13 @@ def generate_answers(
     params: AnswerGenParams | None = None,
     *,
     limit: int = MAX_ANSWERS,
+    taken: Sequence[tuple[str, int]] = (),
 ) -> list[GeneratedAnswer]:
     """The ordered answer list. Position order IS the result — it decides R@k."""
     params = (params or DEFAULT_PARAMS).validated()
-    return generate_from_pools(build_pools(groups, params), params, limit=limit)
+    return generate_from_pools(
+        build_pools(groups, params), params, limit=limit, taken=taken
+    )
 
 
 def generate_from_pools(
@@ -599,9 +615,20 @@ def generate_from_pools(
     params: AnswerGenParams | None = None,
     *,
     limit: int = MAX_ANSWERS,
+    taken: Sequence[tuple[str, int]] = (),
 ) -> list[GeneratedAnswer]:
     """`generate_answers` on an already-built pool, for callers that also want to
-    report on the pool itself and should not pay to build it twice."""
+    report on the pool itself and should not pay to build it twice.
+
+    `taken` is the answers that already occupy the head of the list — the ones a
+    person picked by hand. They are not re-generated, and they are not ignored
+    either: the list is scored as a whole, so a position already spent on an
+    instant is coverage the generator must account for rather than duplicate,
+    and the band schedule continues from where they end. The first answer after
+    six hand-picked ones is rank 7 — deep enough that its band should already be
+    diversifying — not rank 1, where the policy is to bet everything on the single
+    strongest hypothesis.
+    """
     params = (params or DEFAULT_PARAMS).validated()
     limit = max(0, min(int(limit), MAX_ANSWERS))
     if not pools or limit == 0:
@@ -627,9 +654,37 @@ def generate_from_pools(
     c_novelty = [1.0] * n
     c_alive = [True] * n
 
+    # ---- fold the answers already in the list into the coverage state -----
+    by_video = {pool.video_id: i for i, pool in enumerate(pools)}
+    taken_count: dict[int, int] = {}
+    for video_id, frame_idx in taken:
+        p_i = by_video.get(video_id)
+        if p_i is None:
+            # A video nothing retrieved: it still spent a position, so it still
+            # counts against the budget, but there is no candidate to suppress.
+            continue
+        taken_count[p_i] = taken_count.get(p_i, 0) + 1
+        _suppress(
+            p_i,
+            int(frame_idx),
+            int(frame_idx) / (pools[p_i].fps or FALLBACK_FPS),
+            params,
+            c_pool, c_frame, c_time, c_novelty, c_alive,
+        )
+
     video_scores = [p.video_score for p in pools]
     # pi is constant inside a band, so it is computed five times, not 100.
     pi_by_band = [_softmax(video_scores, t) for t in params.temperatures]
+    if params.taken_video_penalty and taken_count:
+        # A per-video rescale, so it genuinely changes which video wins a
+        # position; a uniform one would cancel out of the argmax.
+        pi_by_band = [
+            [
+                weight / (1.0 + params.taken_video_penalty * taken_count.get(i, 0))
+                for i, weight in enumerate(band)
+            ]
+            for band in pi_by_band
+        ]
 
     # Frontier limits per (pool, band): anchors opened, and eps levels opened.
     anchors_open: list[list[int]] = []
@@ -640,16 +695,14 @@ def generate_from_pools(
         anchors_open.append([min(len(pool.anchors), a + a_bonus) for a in params.band_anchors])
         offsets_open.append([max(0, o - o_penalty) for o in params.band_offsets])
 
-    sigma = params.novelty_sigma_s
-    floor = params.novelty_floor
-    use_min = params.novelty_mode == "min"
-    gap = params.min_answer_gap_frames
-
     picked: list[GeneratedAnswer] = []
     last_band = -1
-    pi: list[float] = pi_by_band[0]
+    # Positions the caller already spent; the bands are defined on the position
+    # in the FINAL list, not on how many answers this call happens to produce.
+    offset = len(taken)
+    pi: list[float] = pi_by_band[band_index(min(MAX_ANSWERS, offset + 1))]
 
-    for rank in range(1, limit + 1):
+    for rank in range(offset + 1, min(MAX_ANSWERS, offset + limit) + 1):
         band = band_index(rank)
         if band != last_band:
             pi = pi_by_band[band]
@@ -704,19 +757,45 @@ def generate_from_pools(
 
         # Only the chosen video's candidates change; everything else keeps its
         # novelty, which is what makes the loop linear rather than quadratic.
-        chosen_t = c_time[best_i]
-        chosen_frame = c_frame[best_i]
-        for i in range(n):
-            if not c_alive[i] or c_pool[i] != p_i:
-                continue
-            if c_frame[i] == chosen_frame or (gap and abs(c_frame[i] - chosen_frame) < gap):
-                c_alive[i] = False
-                continue
-            d = (c_time[i] - chosen_t) / sigma
-            penalty = 1.0 - (1.0 - floor) * math.exp(-d * d)
-            c_novelty[i] = min(c_novelty[i], penalty) if use_min else c_novelty[i] * penalty
+        _suppress(
+            p_i, c_frame[best_i], c_time[best_i], params,
+            c_pool, c_frame, c_time, c_novelty, c_alive,
+        )
 
     return picked
+
+
+def _suppress(
+    p_i: int,
+    frame_idx: int,
+    at_time: float,
+    params: AnswerGenParams,
+    c_pool: list[int],
+    c_frame: list[int],
+    c_time: list[float],
+    c_novelty: list[float],
+    c_alive: list[bool],
+) -> None:
+    """Mark one instant of one video as covered.
+
+    Shared by the selection loop and by the pre-seeding of `taken`, on purpose:
+    an answer a person put at rank 1 has to age the candidate pool exactly the
+    way an answer the generator put there does, or the two halves of the list
+    would be reasoning about different states.
+    """
+    sigma = params.novelty_sigma_s
+    floor = params.novelty_floor
+    use_min = params.novelty_mode == "min"
+    gap = params.min_answer_gap_frames
+    for i in range(len(c_pool)):
+        if not c_alive[i] or c_pool[i] != p_i:
+            continue
+        if c_frame[i] == frame_idx or (gap and abs(c_frame[i] - frame_idx) < gap):
+            c_alive[i] = False
+            continue
+        d = (c_time[i] - at_time) / sigma
+        penalty = 1.0 - (1.0 - floor) * math.exp(-d * d)
+        c_novelty[i] = min(c_novelty[i], penalty) if use_min else c_novelty[i] * penalty
 
 
 @dataclass
@@ -825,6 +904,7 @@ def generate_trake_answers(
     *,
     limit: int = MAX_ANSWERS,
     event_count: int | None = None,
+    taken: Sequence[tuple[str, tuple[int, ...]]] = (),
 ) -> list[GeneratedSequence]:
     """The same rank-budget idea, with a whole ordered chain as the candidate.
 
@@ -888,10 +968,17 @@ def generate_trake_answers(
 
     # `_flatten_sequences` already made every (sequence, frames) pair unique, so
     # one pass per position needs no second dedup here.
+    already = {(video, tuple(frames)) for video, frames in taken}
+    if already:
+        for i, (s_i, frames, _, _, _) in enumerate(cand):
+            if (str(seqs[s_i].get("video_id") or ""), frames) in already:
+                alive[i] = False
+
     picked: list[GeneratedSequence] = []
     last_band = -1
-    pi = pi_by_band[0]
-    for rank in range(1, limit + 1):
+    offset = len(taken)  # see the frame generator: bands run on the final list
+    pi = pi_by_band[band_index(min(MAX_ANSWERS, offset + 1))]
+    for rank in range(offset + 1, min(MAX_ANSWERS, offset + limit) + 1):
         band = band_index(rank)
         if band != last_band:
             pi = pi_by_band[band]
@@ -942,11 +1029,12 @@ def generate_trake_rows(
     *,
     limit: int = MAX_ANSWERS,
     event_count: int | None = None,
+    taken: Sequence[tuple[str, tuple[int, ...]]] = (),
 ) -> list[dict[str, Any]]:
     return [
         s.to_dict()
         for s in generate_trake_answers(
-            sequences, params, limit=limit, event_count=event_count
+            sequences, params, limit=limit, event_count=event_count, taken=taken
         )
     ]
 

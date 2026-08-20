@@ -169,16 +169,58 @@ def score_query(record: dict[str, Any], params: AnswerGenParams, tols: Sequence[
     }
 
 
+def score_query_with_head(
+    record: dict[str, Any], params: AnswerGenParams, tols: Sequence[int], head: int
+) -> dict[str, Any]:
+    """Chấm khi `head` vị trí đầu đã bị người chấm tay chiếm.
+
+    Mô phỏng đúng luồng thật: người thao tác chọn frame họ tin, rồi bộ sinh điền
+    phần còn lại. Lấy chính top-`head` của bộ sinh làm phần chấm tay là mô phỏng
+    sát nhất — đo trên bài nộp thật, frame người chọn thường trùng đúng thứ bộ
+    sinh xếp đầu.
+
+    Ý nghĩa của phép đo nằm ở thế giới "người chọn SAI": lúc đó mọi dòng cùng
+    video với họ đều vô giá trị, và câu hỏi là danh sách còn lại có thoát ra
+    video khác đủ nhanh không.
+    """
+    groups = record.get("groups") or []
+    plain = generate_answers(groups, params)
+    picked = plain[:head]
+    rest = generate_answers(
+        groups,
+        params,
+        limit=max(0, 100 - len(picked)),
+        taken=[(a.video_id, a.frame_idx) for a in picked],
+    )
+    answers = [*picked, *rest]
+    gt = [(v, int(f)) for v, f in (record.get("gt") or [])]
+    per_tol = {tol: kis_rscores(answers, gt, tol) for tol in tols}
+    return {
+        "query_id": record.get("query_id"),
+        "kind": record.get("kind"),
+        "n_answers": len(answers),
+        "final": {tol: final_from_rscores(r) for tol, r in per_tol.items()},
+        "first_hit": {tol: first_hit_rank(r) for tol, r in per_tol.items()},
+        "best_rscore": {tol: (max(r) if r else 0.0) for tol, r in per_tol.items()},
+        "top": [{"video_id": a.video_id, "frame_idx": a.frame_idx, "kind": a.kind} for a in answers[:3]],
+        "videos_at_5": len({a.video_id for a in answers[:5]}),
+        "videos_at_20": len({a.video_id for a in answers[:20]}),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Đánh giá cả tập
 # ---------------------------------------------------------------------------
 
 _RECORDS: list[dict[str, Any]] = []
+#: >0 means "score with this many positions already spent by a person".
+_HEAD = 0
 
 
-def _init_worker(records: list[dict[str, Any]]) -> None:
-    global _RECORDS
+def _init_worker(records: list[dict[str, Any]], head: int = 0) -> None:
+    global _RECORDS, _HEAD
     _RECORDS = records
+    _HEAD = head
 
 
 def evaluate(
@@ -213,7 +255,10 @@ def _sweep_task(args: tuple[dict[str, Any], tuple[int, ...]]) -> float:
     """
     params_dict, tols = args
     params = AnswerGenParams.from_dict(params_dict)
-    scored = [score_query(r, params, tols) for r in _RECORDS]
+    scored = [
+        score_query_with_head(r, params, tols, _HEAD) if _HEAD else score_query(r, params, tols)
+        for r in _RECORDS
+    ]
     if not scored:
         return 0.0
     return statistics.mean(
@@ -613,7 +658,7 @@ def print_table(result: dict[str, Any], tols: Sequence[int]) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--cache", default=str(CACHE_DIR / "pools_infoshotpp_L_auto.json"))
-    ap.add_argument("--mode", default="eval", choices=["eval", "sweep", "calib", "cv"])
+    ap.add_argument("--mode", default="eval", choices=["eval", "sweep", "calib", "cv", "taken"])
     ap.add_argument("--kinds", default="kis")
     ap.add_argument(
         "--tol",
@@ -624,6 +669,7 @@ def main() -> None:
     ap.add_argument("--passes", type=int, default=6)
     ap.add_argument("--restarts", type=int, default=0, help="số điểm khởi đầu ngẫu nhiên")
     ap.add_argument("--seed", type=int, default=20260820)
+    ap.add_argument("--head", type=int, default=0, help="số vị trí đầu do người chấm tay chiếm")
     ap.add_argument("--workers", type=int, default=10)
     ap.add_argument("--params", default="", help="file JSON tham số khởi điểm")
     ap.add_argument("--out", default="")
@@ -643,6 +689,24 @@ def main() -> None:
         print(json.dumps({k: v for k, v in result.items() if k != "detail"}, ensure_ascii=False, indent=2))
         for d in result["detail"]:
             print(" ", json.dumps(d, ensure_ascii=False))
+        return
+
+    if args.mode == "taken":
+        head = max(1, args.head)
+        print(f"Mô phỏng {head} vị trí đầu do người chấm tay chiếm.\n")
+        print(f"{'phạt video đã chiếm':>20} {'objective':>10}  " +
+              "  ".join(f"F@{t}" for t in TOLERANCES) + "   v@5")
+        for penalty in (0.0, 0.25, 0.5, 1.0, 2.0, 4.0):
+            trial = replace(params, taken_video_penalty=penalty).validated()
+            scored = [score_query_with_head(r, trial, TOLERANCES, head) for r in records]
+            obj = statistics.mean(
+                statistics.mean(q["final"][t] for q in scored) for t in tols
+            )
+            cells = "  ".join(
+                f"{statistics.mean(q['final'][t] for q in scored):.3f}" for t in TOLERANCES
+            )
+            v5 = statistics.mean(q["videos_at_5"] for q in scored)
+            print(f"{penalty:>20} {obj:>10.4f}  {cells}   {v5:.2f}")
         return
 
     if args.mode == "cv":

@@ -63,6 +63,9 @@ backend/.venv/bin/python benchmarks/run_answer_gen.py --mode sweep --restarts 30
 
 # 5. Kiểm chứng chéo: bộ tham số có tổng quát hoá không hay chỉ vừa khít 21 câu
 backend/.venv/bin/python benchmarks/run_answer_gen.py --mode cv --restarts 4
+
+# 6. Mô phỏng đầu danh sách do người chấm tay, quét phạt video đã chiếm chỗ
+backend/.venv/bin/python benchmarks/run_answer_gen.py --mode taken --head 3
 ```
 
 **Dung sai chấm điểm.** Ground truth của nhóm là các frame rời rạc, không phải

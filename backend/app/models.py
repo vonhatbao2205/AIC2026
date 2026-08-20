@@ -86,6 +86,13 @@ class TrakeSearchRequest(BaseModel):
     top_k: int = Field(default=400, ge=1, le=1000)
 
 
+class TakenAnswer(BaseModel):
+    """One answer already in the list: a video and its frame(s)."""
+
+    video_id: str = Field(min_length=1, max_length=64)
+    frames: list[int] = Field(min_length=1, max_length=32)
+
+
 class AnswerGenerateRequest(BaseModel):
     """Ask for the ordered answer list of ONE query.
 
@@ -115,6 +122,11 @@ class AnswerGenerateRequest(BaseModel):
     #: Q&A: the text written into every generated row (the frames are ranked the
     #: same way as T-KIS; only the answer column differs).
     answer_text: str = Field(default="", max_length=200)
+    #: Answers already occupying the head of this question's list — the ones a
+    #: person picked by hand. The generator does not re-emit them, does not spend
+    #: positions re-covering the instants they already cover, and continues the
+    #: band schedule after them instead of restarting at rank 1.
+    taken: list[TakenAnswer] = Field(default_factory=list, max_length=100)
     #: TRAKE: how many events the statement asks for, so a chain that located
     #: fewer can never become a row. The statement is the authority here, which is
     #: why the client sends it; without it the backend falls back to the number of

@@ -47,6 +47,11 @@ class AnswerService:
         limit = max(1, min(int(req.get("limit") or MAX_ANSWERS), MAX_ANSWERS))
         query_type = str(req.get("query_type_hint") or "T-KIS")
         answer_text = (req.get("answer_text") or "").strip()
+        taken = [
+            (str(t.get("video_id") or ""), [int(f) for f in (t.get("frames") or [])])
+            for t in (req.get("taken") or [])
+        ]
+        taken = [(video, frames) for video, frames in taken if video and frames]
 
         groups = req.get("groups")
         sequences = req.get("sequences")
@@ -70,7 +75,11 @@ class AnswerService:
                 event_count = max((len(s.get("frames") or []) for s in sequences), default=0)
             usable = complete_sequences(sequences, event_count)
             rows = generate_trake_rows(
-                sequences, params, limit=limit, event_count=event_count
+                sequences,
+                params,
+                limit=limit,
+                event_count=event_count,
+                taken=[(video, tuple(frames)) for video, frames in taken],
             )
             answers = [self._decorate_sequence(row, answer_text) for row in rows]
             diagnostics = {
@@ -101,7 +110,13 @@ class AnswerService:
             pools = build_pools(groups or [], params.validated())
             answers = [
                 self._decorate(a.to_dict(), answer_text)
-                for a in generate_from_pools(pools, params, limit=limit)
+                for a in generate_from_pools(
+                    pools,
+                    params,
+                    limit=limit,
+                    # One frame per answer outside TRAKE, so the first is the one.
+                    taken=[(video, frames[0]) for video, frames in taken],
+                )
             ]
             diagnostics = {
                 "n_videos_in_pool": len(pools),
@@ -109,6 +124,7 @@ class AnswerService:
                 "anchor_budget": anchor_budget(params.validated()),
                 "ambiguous_videos": sum(1 for p in pools if p.ambiguous),
                 "videos_used": len({a["video_id"] for a in answers}),
+                "taken": len(taken),
             }
 
         if len(answers) < limit:

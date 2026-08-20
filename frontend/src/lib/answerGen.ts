@@ -56,6 +56,9 @@ export async function generateForQuestion(
     limit: number;
     params?: AnswerGenParams;
     answerText?: string;
+    /** Answers already at the head of the list, so the generator neither repeats
+     *  them nor re-covers the instants they already cover. */
+    taken?: SubmissionRow[];
     signal?: AbortSignal;
   },
 ): Promise<AnswerGenOutcome> {
@@ -71,6 +74,13 @@ export async function generateForQuestion(
       // the backend uses it to refuse chains that located fewer moments, which
       // would otherwise be written as rows the export rejects.
       ...(question.eventCount ? { event_count: question.eventCount } : {}),
+      ...(options.taken?.length
+        ? {
+            taken: options.taken
+              .filter((row) => row.videoId.trim() && row.frames.length)
+              .map((row) => ({ video_id: row.videoId.trim(), frames: row.frames })),
+          }
+        : {}),
       ...(options.params ? { params: options.params } : {}),
       ...(options.answerText ? { answer_text: options.answerText } : {}),
     },
@@ -128,16 +138,16 @@ export async function generateAll(
       const outcome = await generateForQuestion(question, {
         retrievalDatabase: request.retrievalDatabase,
         scope: request.scope,
-        // Ask for the kept rows back on top of the budget: the generator very
-        // often ranks the operator's own frame first, and that overlap would
-        // otherwise come straight out of the budget as a wasted position.
-        limit: Math.min(MAX_ROWS_PER_QUESTION, budget + kept.length),
+        limit: budget,
         params: request.params,
         answerText: request.answerText?.(question.id),
+        taken: kept,
         signal,
       });
-      const taken = new Set(kept.map(frameKey));
-      outcome.rows = outcome.rows.filter((row) => !taken.has(frameKey(row))).slice(0, budget);
+      // The backend already drops anything the kept rows cover, but the CSV is
+      // what gets graded: a duplicate row here is a position spent twice.
+      const seen = new Set(kept.map(frameKey));
+      outcome.rows = outcome.rows.filter((row) => !seen.has(frameKey(row))).slice(0, budget);
       outcomes.push(outcome);
       onProgress({
         questionId: question.id,

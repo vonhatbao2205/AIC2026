@@ -1257,6 +1257,7 @@ describe("query pack + submission table", () => {
     await user.click(screen.getByText("query-p1-1-kis +"));
     const row = await screen.findByTestId("row-query-p1-1-kis-0");
     await user.type(within(row).getAllByRole("textbox")[0], "L26_V001");
+    await user.type(within(row).getAllByRole("textbox")[1], "6400");
 
     await user.click(screen.getByTestId("autogen-toggle"));
     fireEvent.change(screen.getByTestId("autogen-limit"), { target: { value: "3" } });
@@ -1275,6 +1276,13 @@ describe("query pack + submission table", () => {
     // scores the whole query, at rank 100 only a fifth of it.
     expect(within(await screen.findByTestId("row-query-p1-1-kis-0")).getAllByRole("textbox")[0])
       .toHaveValue("L26_V001");
+
+    // It also travels WITH the request, so the generator neither repeats it nor
+    // spends positions re-covering the instant it already covers — and so the
+    // band schedule continues after it instead of restarting at rank 1.
+    const request = answerGenRequests.find((r) => r.query === PACK[0].text);
+    expect(request.taken).toEqual([{ video_id: "L26_V001", frames: [6400] }]);
+    expect(request.limit).toBe(2); // 3 tổng − 1 dòng đã có
   });
 
   it("replaces only its own rows when run a second time", async () => {

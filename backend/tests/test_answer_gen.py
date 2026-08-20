@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.answer_gen import (
     BANDS,
+    DEFAULT_PARAMS,
     AnswerGenParams,
     anchor_budget,
     band_index,
@@ -310,6 +311,74 @@ def test_pool_depth_bounds_the_hypotheses_globally(groups):
     assert len(shallow) <= len(deep)
 
 
+# ---- answers already at the head of the list ------------------------------
+
+
+def test_taken_answers_are_never_re_emitted(groups):
+    answers = generate_answers(groups, limit=20, taken=[("L26_V001", 5000)])
+    assert ("L26_V001", 5000) not in {(a.video_id, a.frame_idx) for a in answers}
+
+
+def test_taken_answers_age_the_pool_the_way_picked_ones_do(groups):
+    """A position already spent on an instant is coverage, not a blank. Without
+    this the generator hands back the frames right next to a hand-picked one —
+    same acceptance window, so the same answer twice."""
+    near = generate_answers(groups, limit=3, taken=[("L26_V001", 5000)])
+    plain = generate_answers(groups, limit=3)
+    gap = lambda answers: min(  # noqa: E731
+        abs(a.frame_idx - 5000) for a in answers if a.video_id == "L26_V001"
+    )
+    assert gap(near) > gap(plain)
+
+
+def test_taken_head_leaves_the_rest_of_the_list_unchanged(groups):
+    """Generating the tail after k taken answers must produce exactly what the
+    full run would have produced at those positions — the bands are defined on
+    the position in the FINAL list, so a tail that restarts at rank 1 re-runs the
+    "bet everything on one hypothesis" policy in the middle of the list."""
+    full = generate_answers(groups, limit=40)
+    for head in (1, 3, 6):
+        rest = generate_answers(
+            groups,
+            limit=40 - head,
+            taken=[(a.video_id, a.frame_idx) for a in full[:head]],
+        )
+        assert [(a.video_id, a.frame_idx) for a in rest] == [
+            (a.video_id, a.frame_idx) for a in full[head:]
+        ], f"head={head}"
+        # Ranks are absolute, so an answer knows where it really sits.
+        assert rest[0].rank == head + 1
+
+
+def test_taken_video_penalty_is_off_by_default():
+    """Measured on the 21 dev queries with a simulated hand-picked head, the
+    discount is noise at head=1 (+0.002, under the 0.0095 one-query quantum) and
+    monotonically WORSE at head=3 and head=6 — the hypothesis that a video a
+    person already bet on is a bad bet for the next position did not survive
+    contact with the data. Kept as a knob, shipped off."""
+    assert DEFAULT_PARAMS.taken_video_penalty == 0.0
+
+
+def test_taken_video_penalty_moves_weight_off_the_occupied_video():
+    """It is off by default, not broken: the mechanism still has to work for the
+    next person who measures it."""
+    pool = [dense_group("L26_V001", 1.0, 5000), dense_group("L26_V002", 0.98, 12000)]
+    taken = [("L26_V001", 5000)]
+    first_rival = lambda p: next(  # noqa: E731
+        (a.rank for a in generate_answers(pool, p, limit=40, taken=taken)
+         if a.video_id == "L26_V002"),
+        999,
+    )
+    assert first_rival(AnswerGenParams(taken_video_penalty=4.0).validated()) < first_rival(
+        AnswerGenParams(taken_video_penalty=0.0).validated()
+    )
+
+
+def test_a_taken_video_outside_the_pool_is_ignored_not_crashed(groups):
+    answers = generate_answers(groups, limit=5, taken=[("L99_V999", 1234)])
+    assert len(answers) == 5
+
+
 # ---- TRAKE ----------------------------------------------------------------
 
 
@@ -413,6 +482,15 @@ def test_trake_rows_keep_the_event_count_and_lead_with_the_best_chain():
     assert rows[0]["frames"] == [4707, 5120, 5425, 5870]
     assert len({(r["video_id"], tuple(r["frames"])) for r in rows}) == len(rows)
     assert all(f >= 0 for r in rows for f in r["frames"])
+
+
+def test_trake_does_not_re_emit_a_chain_already_in_the_list():
+    seqs = [sequence("L26_V194", 0.06, [4707, 5120, 5425, 5870])]
+    rows = generate_trake_rows(
+        seqs, limit=10, event_count=4, taken=[("L26_V194", (4707, 5120, 5425, 5870))]
+    )
+    assert [4707, 5120, 5425, 5870] not in [r["frames"] for r in rows]
+    assert rows[0]["rank"] == 2  # the taken row is rank 1
 
 
 def test_trake_without_sequences_yields_nothing():
