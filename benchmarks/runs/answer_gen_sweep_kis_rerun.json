@@ -1,0 +1,1908 @@
+{
+  "timestamp": "2026-08-20T16:00:20",
+  "cache": "/home/bao/Projects/AIC2026/benchmarks/cache/pools_infoshotpp_L_auto.json",
+  "kinds": [
+    "kis"
+  ],
+  "tolerances": [
+    0,
+    12,
+    25,
+    50,
+    100
+  ],
+  "best_final": 0.5942857142857143,
+  "params": {
+    "pool_depth": 100,
+    "max_videos": 40,
+    "dedup_radius_s": 0.6,
+    "max_anchors_per_video": 64,
+    "anchor_support_weight": 0.5,
+    "temperatures": [
+      0.02,
+      0.02,
+      0.05,
+      0.1,
+      0.2
+    ],
+    "offsets": [
+      25,
+      75,
+      150,
+      300
+    ],
+    "offset_decay": 0.5,
+    "novelty_sigma_s": 2.0,
+    "novelty_floor": 0.1,
+    "novelty_mode": "product",
+    "band_anchors": [
+      1,
+      2,
+      3,
+      5,
+      8
+    ],
+    "band_offsets": [
+      0,
+      1,
+      3,
+      5,
+      7
+    ],
+    "ambiguous_anchor_bonus": 0,
+    "ambiguous_offset_penalty": 0,
+    "min_answer_gap_frames": 0,
+    "tail_margin_frames": 750,
+    "snap_offsets": true,
+    "snap_radius_frames": 60
+  },
+  "robust_params": {
+    "pool_depth": 100,
+    "max_videos": 100,
+    "dedup_radius_s": 0.6,
+    "max_anchors_per_video": 64,
+    "anchor_support_weight": 0.5,
+    "temperatures": [
+      0.02,
+      0.02,
+      0.05,
+      0.1,
+      0.2
+    ],
+    "offsets": [
+      25,
+      75,
+      150,
+      300
+    ],
+    "offset_decay": 0.4,
+    "novelty_sigma_s": 5.0,
+    "novelty_floor": 0.1,
+    "novelty_mode": "product",
+    "band_anchors": [
+      1,
+      2,
+      3,
+      5,
+      8
+    ],
+    "band_offsets": [
+      0,
+      2,
+      4,
+      6,
+      7
+    ],
+    "ambiguous_anchor_bonus": 0,
+    "ambiguous_offset_penalty": 1,
+    "min_answer_gap_frames": 0,
+    "tail_margin_frames": 750,
+    "snap_offsets": true,
+    "snap_radius_frames": 60
+  },
+  "robust_final": 0.5580952380952381,
+  "marginal": {
+    "pool_depth": {
+      "chosen": 100,
+      "mean": 0.5809,
+      "n": 382,
+      "alternatives": [
+        {
+          "value": 100,
+          "mean": 0.5809,
+          "n": 382
+        },
+        {
+          "value": 200,
+          "mean": 0.5746,
+          "n": 3
+        },
+        {
+          "value": 300,
+          "mean": 0.5746,
+          "n": 3
+        },
+        {
+          "value": 400,
+          "mean": 0.5746,
+          "n": 3
+        }
+      ]
+    },
+    "max_videos": {
+      "chosen": 100,
+      "mean": 0.5819,
+      "n": 97,
+      "alternatives": [
+        {
+          "value": 100,
+          "mean": 0.5819,
+          "n": 97
+        },
+        {
+          "value": 60,
+          "mean": 0.581,
+          "n": 26
+        },
+        {
+          "value": 40,
+          "mean": 0.5806,
+          "n": 185
+        },
+        {
+          "value": 20,
+          "mean": 0.5792,
+          "n": 92
+        }
+      ]
+    },
+    "dedup_radius_s": {
+      "chosen": 0.6,
+      "mean": 0.582,
+      "n": 238,
+      "alternatives": [
+        {
+          "value": 0.6,
+          "mean": 0.582,
+          "n": 238
+        },
+        {
+          "value": 0.3,
+          "mean": 0.5786,
+          "n": 161
+        },
+        {
+          "value": 1.0,
+          "mean": 0.5771,
+          "n": 1
+        }
+      ]
+    },
+    "anchor_support_weight": {
+      "chosen": 0.5,
+      "mean": 0.5842,
+      "n": 122,
+      "alternatives": [
+        {
+          "value": 0.5,
+          "mean": 0.5842,
+          "n": 122
+        },
+        {
+          "value": 1.0,
+          "mean": 0.581,
+          "n": 58
+        },
+        {
+          "value": 0.25,
+          "mean": 0.5787,
+          "n": 146
+        },
+        {
+          "value": 0.1,
+          "mean": 0.578,
+          "n": 74
+        }
+      ]
+    },
+    "offset_decay": {
+      "chosen": 0.4,
+      "mean": 0.5848,
+      "n": 46,
+      "alternatives": [
+        {
+          "value": 0.4,
+          "mean": 0.5848,
+          "n": 46
+        },
+        {
+          "value": 0.5,
+          "mean": 0.5833,
+          "n": 67
+        },
+        {
+          "value": 0.72,
+          "mean": 0.581,
+          "n": 121
+        },
+        {
+          "value": 0.6,
+          "mean": 0.579,
+          "n": 45
+        }
+      ]
+    },
+    "novelty_sigma_s": {
+      "chosen": 5.0,
+      "mean": 0.5839,
+      "n": 39,
+      "alternatives": [
+        {
+          "value": 8.0,
+          "mean": 0.5905,
+          "n": 1
+        },
+        {
+          "value": 5.0,
+          "mean": 0.5839,
+          "n": 39
+        },
+        {
+          "value": 2.0,
+          "mean": 0.5832,
+          "n": 113
+        },
+        {
+          "value": 12.0,
+          "mean": 0.5819,
+          "n": 2
+        }
+      ]
+    },
+    "novelty_floor": {
+      "chosen": 0.1,
+      "mean": 0.5823,
+      "n": 125,
+      "alternatives": [
+        {
+          "value": 0.1,
+          "mean": 0.5823,
+          "n": 125
+        },
+        {
+          "value": 0.25,
+          "mean": 0.5812,
+          "n": 120
+        },
+        {
+          "value": 0.0,
+          "mean": 0.5787,
+          "n": 126
+        },
+        {
+          "value": 0.02,
+          "mean": 0.5787,
+          "n": 29
+        }
+      ]
+    },
+    "novelty_mode": {
+      "chosen": "product",
+      "mean": 0.581,
+      "n": 278,
+      "alternatives": [
+        {
+          "value": "product",
+          "mean": 0.581,
+          "n": 278
+        },
+        {
+          "value": "min",
+          "mean": 0.5796,
+          "n": 122
+        }
+      ]
+    },
+    "ambiguous_anchor_bonus": {
+      "chosen": 0,
+      "mean": 0.5828,
+      "n": 203,
+      "alternatives": [
+        {
+          "value": 0,
+          "mean": 0.5828,
+          "n": 203
+        },
+        {
+          "value": 2,
+          "mean": 0.5808,
+          "n": 49
+        },
+        {
+          "value": 1,
+          "mean": 0.5781,
+          "n": 59
+        },
+        {
+          "value": 4,
+          "mean": 0.5771,
+          "n": 89
+        }
+      ]
+    },
+    "ambiguous_offset_penalty": {
+      "chosen": 1,
+      "mean": 0.5808,
+      "n": 89,
+      "alternatives": [
+        {
+          "value": 1,
+          "mean": 0.5808,
+          "n": 89
+        },
+        {
+          "value": 0,
+          "mean": 0.5806,
+          "n": 306
+        },
+        {
+          "value": 2,
+          "mean": 0.5771,
+          "n": 5
+        }
+      ]
+    },
+    "min_answer_gap_frames": {
+      "chosen": 0,
+      "mean": 0.5814,
+      "n": 311,
+      "alternatives": [
+        {
+          "value": 0,
+          "mean": 0.5814,
+          "n": 311
+        },
+        {
+          "value": 5,
+          "mean": 0.58,
+          "n": 16
+        },
+        {
+          "value": 10,
+          "mean": 0.5771,
+          "n": 73
+        }
+      ]
+    },
+    "snap_offsets": {
+      "chosen": true,
+      "mean": 0.5806,
+      "n": 400,
+      "alternatives": [
+        {
+          "value": true,
+          "mean": 0.5806,
+          "n": 400
+        }
+      ]
+    },
+    "snap_radius_frames": {
+      "chosen": 60,
+      "mean": 0.5814,
+      "n": 329,
+      "alternatives": [
+        {
+          "value": 60,
+          "mean": 0.5814,
+          "n": 329
+        },
+        {
+          "value": 30,
+          "mean": 0.5771,
+          "n": 31
+        },
+        {
+          "value": 10,
+          "mean": 0.5765,
+          "n": 33
+        },
+        {
+          "value": 20,
+          "mean": 0.5762,
+          "n": 4
+        }
+      ]
+    },
+    "temperatures": {
+      "chosen": [
+        0.02,
+        0.02,
+        0.05,
+        0.1,
+        0.2
+      ],
+      "mean": 0.5825,
+      "n": 164,
+      "alternatives": [
+        {
+          "value": [
+            0.02,
+            0.02,
+            0.05,
+            0.1,
+            0.2
+          ],
+          "mean": 0.5825,
+          "n": 164
+        },
+        {
+          "value": [
+            0.01,
+            0.03,
+            0.08,
+            0.2,
+            0.6
+          ],
+          "mean": 0.5814,
+          "n": 74
+        },
+        {
+          "value": [
+            0.02,
+            0.05,
+            0.15,
+            0.35,
+            1.0
+          ],
+          "mean": 0.5799,
+          "n": 7
+        },
+        {
+          "value": [
+            0.1,
+            0.1,
+            0.2,
+            0.4,
+            0.8
+          ],
+          "mean": 0.579,
+          "n": 6
+        }
+      ]
+    },
+    "band_anchors": {
+      "chosen": [
+        1,
+        2,
+        3,
+        5,
+        8
+      ],
+      "mean": 0.5836,
+      "n": 183,
+      "alternatives": [
+        {
+          "value": [
+            1,
+            2,
+            3,
+            5,
+            8
+          ],
+          "mean": 0.5836,
+          "n": 183
+        },
+        {
+          "value": [
+            1,
+            2,
+            4,
+            7,
+            10
+          ],
+          "mean": 0.5806,
+          "n": 6
+        },
+        {
+          "value": [
+            1,
+            4,
+            8,
+            12,
+            20
+          ],
+          "mean": 0.5786,
+          "n": 128
+        },
+        {
+          "value": [
+            1,
+            3,
+            8,
+            20,
+            40
+          ],
+          "mean": 0.5781,
+          "n": 4
+        }
+      ]
+    },
+    "band_offsets": {
+      "chosen": [
+        0,
+        2,
+        4,
+        6,
+        7
+      ],
+      "mean": 0.5826,
+      "n": 65,
+      "alternatives": [
+        {
+          "value": [
+            0,
+            2,
+            4,
+            6,
+            7
+          ],
+          "mean": 0.5826,
+          "n": 65
+        },
+        {
+          "value": [
+            1,
+            1,
+            2,
+            4,
+            7
+          ],
+          "mean": 0.582,
+          "n": 7
+        },
+        {
+          "value": [
+            0,
+            1,
+            3,
+            5,
+            7
+          ],
+          "mean": 0.5815,
+          "n": 184
+        },
+        {
+          "value": [
+            0,
+            1,
+            2,
+            3,
+            5
+          ],
+          "mean": 0.5804,
+          "n": 7
+        }
+      ]
+    },
+    "offsets": {
+      "chosen": [
+        25,
+        75,
+        150,
+        300
+      ],
+      "mean": 0.5823,
+      "n": 226,
+      "alternatives": [
+        {
+          "value": [
+            25,
+            75,
+            150,
+            300
+          ],
+          "mean": 0.5823,
+          "n": 226
+        },
+        {
+          "value": [
+            25,
+            60,
+            120,
+            240,
+            480
+          ],
+          "mean": 0.5792,
+          "n": 124
+        },
+        {
+          "value": [
+            50,
+            125,
+            250,
+            500,
+            1000
+          ],
+          "mean": 0.5771,
+          "n": 1
+        },
+        {
+          "value": [
+            5,
+            10,
+            20,
+            40,
+            80,
+            160,
+            320
+          ],
+          "mean": 0.5765,
+          "n": 23
+        }
+      ]
+    }
+  },
+  "n_configs_scored": 7651,
+  "trail": [
+    {
+      "pass": 1,
+      "param": "pool_depth",
+      "from": 600,
+      "to": 100,
+      "final": 0.3676190476190476,
+      "delta": 0.051428571428571435
+    },
+    {
+      "pass": 1,
+      "param": "max_videos",
+      "from": 20,
+      "to": 40,
+      "final": 0.36952380952380953,
+      "delta": 0.001904761904761909
+    },
+    {
+      "pass": 1,
+      "param": "dedup_radius_s",
+      "from": 8.0,
+      "to": 0.6,
+      "final": 0.46095238095238095,
+      "delta": 0.09142857142857141
+    },
+    {
+      "pass": 1,
+      "param": "offset_decay",
+      "from": 0.95,
+      "to": 0.72,
+      "final": 0.4704761904761905,
+      "delta": 0.009523809523809545
+    },
+    {
+      "pass": 1,
+      "param": "novelty_sigma_s",
+      "from": 8.0,
+      "to": 0.5,
+      "final": 0.49333333333333335,
+      "delta": 0.022857142857142854
+    },
+    {
+      "pass": 1,
+      "param": "ambiguous_anchor_bonus",
+      "from": 0,
+      "to": 1,
+      "final": 0.49523809523809526,
+      "delta": 0.001904761904761909
+    },
+    {
+      "pass": 1,
+      "param": "ambiguous_offset_penalty",
+      "from": 2,
+      "to": 0,
+      "final": 0.49714285714285716,
+      "delta": 0.001904761904761909
+    },
+    {
+      "pass": 1,
+      "param": "min_answer_gap_frames",
+      "from": 25,
+      "to": 0,
+      "final": 0.5257142857142857,
+      "delta": 0.028571428571428525
+    },
+    {
+      "pass": 1,
+      "param": "snap_radius_frames",
+      "from": 20,
+      "to": 30,
+      "final": 0.5295238095238095,
+      "delta": 0.003809523809523818
+    },
+    {
+      "pass": 1,
+      "param": "temperatures",
+      "from": [
+        0.01,
+        0.03,
+        0.08,
+        0.2,
+        0.6
+      ],
+      "to": [
+        0.02,
+        0.02,
+        0.05,
+        0.1,
+        0.2
+      ],
+      "final": 0.5390476190476191,
+      "delta": 0.009523809523809601
+    },
+    {
+      "pass": 1,
+      "param": "band_anchors",
+      "from": [
+        1,
+        2,
+        3,
+        5,
+        8
+      ],
+      "to": [
+        1,
+        3,
+        6,
+        10,
+        14
+      ],
+      "final": 0.5466666666666666,
+      "delta": 0.007619047619047525
+    },
+    {
+      "pass": 1,
+      "param": "band_offsets",
+      "from": [
+        0,
+        0,
+        0,
+        2,
+        5
+      ],
+      "to": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "final": 0.5561904761904762,
+      "delta": 0.009523809523809601
+    },
+    {
+      "pass": 1,
+      "param": "offsets",
+      "from": [
+        50,
+        125,
+        250,
+        500,
+        1000
+      ],
+      "to": [
+        25,
+        75,
+        150,
+        300
+      ],
+      "final": 0.5580952380952381,
+      "delta": 0.0019047619047618536
+    },
+    {
+      "pass": 2,
+      "param": "anchor_support_weight",
+      "from": 0.5,
+      "to": 0.1,
+      "final": 0.5657142857142857,
+      "delta": 0.007619047619047636
+    },
+    {
+      "pass": 2,
+      "param": "offset_decay",
+      "from": 0.72,
+      "to": 0.4,
+      "final": 0.5695238095238095,
+      "delta": 0.003809523809523818
+    },
+    {
+      "pass": 2,
+      "param": "ambiguous_anchor_bonus",
+      "from": 1,
+      "to": 0,
+      "final": 0.5714285714285714,
+      "delta": 0.0019047619047618536
+    },
+    {
+      "pass": 2,
+      "param": "snap_radius_frames",
+      "from": 30,
+      "to": 60,
+      "final": 0.5752380952380952,
+      "delta": 0.003809523809523818
+    },
+    {
+      "pass": 2,
+      "param": "band_anchors",
+      "from": [
+        1,
+        3,
+        6,
+        10,
+        14
+      ],
+      "to": [
+        1,
+        2,
+        3,
+        5,
+        8
+      ],
+      "final": 0.5828571428571429,
+      "delta": 0.007619047619047636
+    },
+    {
+      "pass": 2,
+      "param": "band_offsets",
+      "from": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "to": [
+        0,
+        1,
+        3,
+        5,
+        7
+      ],
+      "final": 0.5885714285714285,
+      "delta": 0.005714285714285672
+    },
+    {
+      "pass": 3,
+      "param": "anchor_support_weight",
+      "from": 0.1,
+      "to": 0.5,
+      "final": 0.5904761904761905,
+      "delta": 0.0019047619047619646
+    },
+    {
+      "pass": 3,
+      "param": "novelty_sigma_s",
+      "from": 0.5,
+      "to": 2.0,
+      "final": 0.5923809523809523,
+      "delta": 0.0019047619047618536
+    },
+    {
+      "pass": 4,
+      "param": "offset_decay",
+      "from": 0.4,
+      "to": 0.5,
+      "final": 0.5942857142857143,
+      "delta": 0.0019047619047619646
+    }
+  ],
+  "result": {
+    "n": 21,
+    "per_query": [
+      {
+        "query_id": "query-p1-1-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.0,
+          "12": 0.6,
+          "25": 0.6,
+          "50": 0.8,
+          "100": 0.8,
+          "200": 0.8
+        },
+        "first_hit": {
+          "0": null,
+          "12": 17,
+          "25": 15,
+          "50": 5,
+          "100": 5,
+          "200": 5
+        },
+        "best_rscore": {
+          "0": 0.0,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "top": [
+          {
+            "video_id": "L21_V024",
+            "frame_idx": 20586,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L21_V024",
+            "frame_idx": 20542,
+            "kind": "offset"
+          },
+          {
+            "video_id": "L21_V024",
+            "frame_idx": 20593,
+            "kind": "offset"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p1-2-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.0,
+          "12": 0.0,
+          "25": 0.0,
+          "50": 0.0,
+          "100": 0.0,
+          "200": 0.0
+        },
+        "first_hit": {
+          "0": null,
+          "12": null,
+          "25": null,
+          "50": null,
+          "100": null,
+          "200": null
+        },
+        "best_rscore": {
+          "0": 0.0,
+          "12": 0.0,
+          "25": 0.0,
+          "50": 0.0,
+          "100": 0.0,
+          "200": 0.0
+        },
+        "top": [
+          {
+            "video_id": "L21_V019",
+            "frame_idx": 828,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L21_V019",
+            "frame_idx": 8746,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L21_V017",
+            "frame_idx": 5416,
+            "kind": "anchor"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p1-5-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.0,
+          "12": 0.0,
+          "25": 0.0,
+          "50": 0.0,
+          "100": 0.0,
+          "200": 0.0
+        },
+        "first_hit": {
+          "0": null,
+          "12": null,
+          "25": null,
+          "50": null,
+          "100": null,
+          "200": null
+        },
+        "best_rscore": {
+          "0": 0.0,
+          "12": 0.0,
+          "25": 0.0,
+          "50": 0.0,
+          "100": 0.0,
+          "200": 0.0
+        },
+        "top": [
+          {
+            "video_id": "L30_V054",
+            "frame_idx": 781,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L30_V032",
+            "frame_idx": 1183,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L30_V054",
+            "frame_idx": 843,
+            "kind": "anchor"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p1-6-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.0,
+          "12": 0.0,
+          "25": 0.0,
+          "50": 0.0,
+          "100": 0.0,
+          "200": 0.0
+        },
+        "first_hit": {
+          "0": null,
+          "12": null,
+          "25": null,
+          "50": null,
+          "100": null,
+          "200": null
+        },
+        "best_rscore": {
+          "0": 0.0,
+          "12": 0.0,
+          "25": 0.0,
+          "50": 0.0,
+          "100": 0.0,
+          "200": 0.0
+        },
+        "top": [
+          {
+            "video_id": "L22_V027",
+            "frame_idx": 7844,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L22_V027",
+            "frame_idx": 7866,
+            "kind": "offset"
+          },
+          {
+            "video_id": "L26_V454",
+            "frame_idx": 845,
+            "kind": "anchor"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p1-7-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.8,
+          "12": 0.8,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "first_hit": {
+          "0": 4,
+          "12": 2,
+          "25": 1,
+          "50": 1,
+          "100": 1,
+          "200": 1
+        },
+        "best_rscore": {
+          "0": 1.0,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "top": [
+          {
+            "video_id": "L29_V023",
+            "frame_idx": 24933,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L29_V023",
+            "frame_idx": 24968,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L29_V023",
+            "frame_idx": 24988,
+            "kind": "offset"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p1-8-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 1.0,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "first_hit": {
+          "0": 1,
+          "12": 1,
+          "25": 1,
+          "50": 1,
+          "100": 1,
+          "200": 1
+        },
+        "best_rscore": {
+          "0": 1.0,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "top": [
+          {
+            "video_id": "L22_V030",
+            "frame_idx": 18327,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L22_V030",
+            "frame_idx": 18398,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L22_V030",
+            "frame_idx": 18295,
+            "kind": "offset"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p1-9-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.8,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "first_hit": {
+          "0": 4,
+          "12": 1,
+          "25": 1,
+          "50": 1,
+          "100": 1,
+          "200": 1
+        },
+        "best_rscore": {
+          "0": 1.0,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "top": [
+          {
+            "video_id": "L27_V013",
+            "frame_idx": 5060,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L27_V013",
+            "frame_idx": 5143,
+            "kind": "offset"
+          },
+          {
+            "video_id": "L27_V013",
+            "frame_idx": 5129,
+            "kind": "offset"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p1-10-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.0,
+          "12": 0.8,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "first_hit": {
+          "0": null,
+          "12": 5,
+          "25": 1,
+          "50": 1,
+          "100": 1,
+          "200": 1
+        },
+        "best_rscore": {
+          "0": 0.0,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "top": [
+          {
+            "video_id": "L30_V017",
+            "frame_idx": 2995,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L30_V017",
+            "frame_idx": 3035,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L30_V017",
+            "frame_idx": 2966,
+            "kind": "offset"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p1-11-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.0,
+          "12": 0.0,
+          "25": 0.2,
+          "50": 0.4,
+          "100": 0.4,
+          "200": 0.6
+        },
+        "first_hit": {
+          "0": null,
+          "12": null,
+          "25": 96,
+          "50": 26,
+          "100": 26,
+          "200": 15
+        },
+        "best_rscore": {
+          "0": 0.0,
+          "12": 0.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "top": [
+          {
+            "video_id": "L30_V057",
+            "frame_idx": 2520,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L30_V057",
+            "frame_idx": 3428,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L30_V057",
+            "frame_idx": 3455,
+            "kind": "offset"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p1-13-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.8,
+          "12": 0.8,
+          "25": 0.8,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "first_hit": {
+          "0": 4,
+          "12": 2,
+          "25": 2,
+          "50": 1,
+          "100": 1,
+          "200": 1
+        },
+        "best_rscore": {
+          "0": 1.0,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "top": [
+          {
+            "video_id": "L30_V095",
+            "frame_idx": 2779,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L30_V095",
+            "frame_idx": 2818,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L30_V095",
+            "frame_idx": 2772,
+            "kind": "offset"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p1-14-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.6,
+          "12": 0.6,
+          "25": 0.8,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "first_hit": {
+          "0": 14,
+          "12": 12,
+          "25": 5,
+          "50": 1,
+          "100": 1,
+          "200": 1
+        },
+        "best_rscore": {
+          "0": 1.0,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "top": [
+          {
+            "video_id": "L21_V027",
+            "frame_idx": 20274,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L21_V027",
+            "frame_idx": 26943,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L21_V027",
+            "frame_idx": 20303,
+            "kind": "offset"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p1-17-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.8,
+          "12": 0.8,
+          "25": 0.8,
+          "50": 0.8,
+          "100": 0.8,
+          "200": 0.8
+        },
+        "first_hit": {
+          "0": 4,
+          "12": 4,
+          "25": 4,
+          "50": 2,
+          "100": 2,
+          "200": 2
+        },
+        "best_rscore": {
+          "0": 1.0,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "top": [
+          {
+            "video_id": "L30_V092",
+            "frame_idx": 4183,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L30_V092",
+            "frame_idx": 2518,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L30_V092",
+            "frame_idx": 4160,
+            "kind": "offset"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p1-20-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.0,
+          "12": 0.4,
+          "25": 0.4,
+          "50": 0.6,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "first_hit": {
+          "0": null,
+          "12": 35,
+          "25": 35,
+          "50": 6,
+          "100": 1,
+          "200": 1
+        },
+        "best_rscore": {
+          "0": 0.0,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "top": [
+          {
+            "video_id": "L26_V004",
+            "frame_idx": 5498,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L26_V004",
+            "frame_idx": 6052,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L26_V004",
+            "frame_idx": 6068,
+            "kind": "offset"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p1-23-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.0,
+          "12": 0.6,
+          "25": 0.6,
+          "50": 0.6,
+          "100": 0.6,
+          "200": 1.0
+        },
+        "first_hit": {
+          "0": null,
+          "12": 7,
+          "25": 7,
+          "50": 7,
+          "100": 7,
+          "200": 1
+        },
+        "best_rscore": {
+          "0": 0.0,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "top": [
+          {
+            "video_id": "L22_V022",
+            "frame_idx": 16809,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L22_V022",
+            "frame_idx": 16779,
+            "kind": "offset"
+          },
+          {
+            "video_id": "L22_V022",
+            "frame_idx": 16834,
+            "kind": "offset"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p1-24-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.6,
+          "12": 0.8,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "first_hit": {
+          "0": 11,
+          "12": 3,
+          "25": 1,
+          "50": 1,
+          "100": 1,
+          "200": 1
+        },
+        "best_rscore": {
+          "0": 1.0,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "top": [
+          {
+            "video_id": "L23_V007",
+            "frame_idx": 3268,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L23_V007",
+            "frame_idx": 9691,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L23_V007",
+            "frame_idx": 3255,
+            "kind": "offset"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p1-25-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.0,
+          "12": 0.0,
+          "25": 0.0,
+          "50": 0.0,
+          "100": 0.0,
+          "200": 0.0
+        },
+        "first_hit": {
+          "0": null,
+          "12": null,
+          "25": null,
+          "50": null,
+          "100": null,
+          "200": null
+        },
+        "best_rscore": {
+          "0": 0.0,
+          "12": 0.0,
+          "25": 0.0,
+          "50": 0.0,
+          "100": 0.0,
+          "200": 0.0
+        },
+        "top": [
+          {
+            "video_id": "L23_V015",
+            "frame_idx": 6693,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L23_V005",
+            "frame_idx": 5712,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L23_V015",
+            "frame_idx": 6663,
+            "kind": "offset"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p2-11-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.0,
+          "12": 0.4,
+          "25": 0.6,
+          "50": 0.6,
+          "100": 0.6,
+          "200": 0.6
+        },
+        "first_hit": {
+          "0": null,
+          "12": 30,
+          "25": 17,
+          "50": 17,
+          "100": 14,
+          "200": 14
+        },
+        "best_rscore": {
+          "0": 0.0,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "top": [
+          {
+            "video_id": "L29_V007",
+            "frame_idx": 9403,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L30_V027",
+            "frame_idx": 5145,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L30_V027",
+            "frame_idx": 5710,
+            "kind": "anchor"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p2-18-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.8,
+          "12": 0.8,
+          "25": 0.8,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "first_hit": {
+          "0": 3,
+          "12": 3,
+          "25": 3,
+          "50": 1,
+          "100": 1,
+          "200": 1
+        },
+        "best_rscore": {
+          "0": 1.0,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "top": [
+          {
+            "video_id": "L30_V040",
+            "frame_idx": 1035,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L30_V040",
+            "frame_idx": 1280,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L30_V040",
+            "frame_idx": 1009,
+            "kind": "offset"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p2-19-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.0,
+          "12": 0.8,
+          "25": 0.8,
+          "50": 0.8,
+          "100": 0.8,
+          "200": 0.8
+        },
+        "first_hit": {
+          "0": null,
+          "12": 2,
+          "25": 2,
+          "50": 2,
+          "100": 2,
+          "200": 2
+        },
+        "best_rscore": {
+          "0": 0.0,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "top": [
+          {
+            "video_id": "L22_V011",
+            "frame_idx": 13746,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L22_V011",
+            "frame_idx": 12999,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L22_V011",
+            "frame_idx": 13719,
+            "kind": "offset"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p3-2-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.8,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "first_hit": {
+          "0": 4,
+          "12": 1,
+          "25": 1,
+          "50": 1,
+          "100": 1,
+          "200": 1
+        },
+        "best_rscore": {
+          "0": 1.0,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "top": [
+          {
+            "video_id": "L29_V020",
+            "frame_idx": 16989,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L29_V020",
+            "frame_idx": 17172,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L29_V020",
+            "frame_idx": 17018,
+            "kind": "offset"
+          }
+        ]
+      },
+      {
+        "query_id": "query-p3-31-kis",
+        "kind": "kis",
+        "n_answers": 100,
+        "final": {
+          "0": 0.6,
+          "12": 0.8,
+          "25": 0.8,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "first_hit": {
+          "0": 17,
+          "12": 2,
+          "25": 2,
+          "50": 1,
+          "100": 1,
+          "200": 1
+        },
+        "best_rscore": {
+          "0": 1.0,
+          "12": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0,
+          "200": 1.0
+        },
+        "top": [
+          {
+            "video_id": "L30_V009",
+            "frame_idx": 5551,
+            "kind": "anchor"
+          },
+          {
+            "video_id": "L30_V009",
+            "frame_idx": 5503,
+            "kind": "offset"
+          },
+          {
+            "video_id": "L30_V009",
+            "frame_idx": 5572,
+            "kind": "offset"
+          }
+        ]
+      }
+    ],
+    "tol0": {
+      "final": 0.3619047619047619,
+      "hit@1": 0.047619047619047616,
+      "hit@5": 0.3333333333333333,
+      "hit@20": 0.47619047619047616,
+      "hit@100": 0.47619047619047616
+    },
+    "tol12": {
+      "final": 0.5714285714285714,
+      "hit@1": 0.14285714285714285,
+      "hit@5": 0.5238095238095238,
+      "hit@20": 0.6666666666666666,
+      "hit@100": 0.7619047619047619
+    },
+    "tol25": {
+      "final": 0.6285714285714286,
+      "hit@1": 0.2857142857142857,
+      "hit@5": 0.5714285714285714,
+      "hit@20": 0.7142857142857143,
+      "hit@100": 0.8095238095238095
+    },
+    "tol50": {
+      "final": 0.6952380952380952,
+      "hit@1": 0.47619047619047616,
+      "hit@5": 0.6190476190476191,
+      "hit@20": 0.7619047619047619,
+      "hit@100": 0.8095238095238095
+    },
+    "tol100": {
+      "final": 0.7142857142857143,
+      "hit@1": 0.5238095238095238,
+      "hit@5": 0.6666666666666666,
+      "hit@20": 0.7619047619047619,
+      "hit@100": 0.8095238095238095
+    },
+    "tol200": {
+      "final": 0.7428571428571429,
+      "hit@1": 0.5714285714285714,
+      "hit@5": 0.7142857142857143,
+      "hit@20": 0.8095238095238095,
+      "hit@100": 0.8095238095238095
+    }
+  }
+}

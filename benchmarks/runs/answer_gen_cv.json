@@ -1,0 +1,327 @@
+{
+  "folds": [
+    {
+      "repeat": 0,
+      "fold": 0,
+      "n_train": 14,
+      "n_test": 7,
+      "train_objective": 0.6285714285714286,
+      "test_tuned": 0.45714285714285713,
+      "test_default": 0.4228571428571428,
+      "params": {
+        "pool_depth": 100,
+        "max_videos": 40,
+        "dedup_radius_s": 0.6,
+        "max_anchors_per_video": 64,
+        "anchor_support_weight": 0.1,
+        "temperatures": [
+          0.01,
+          0.03,
+          0.08,
+          0.2,
+          0.6
+        ],
+        "offsets": [
+          25,
+          75,
+          150,
+          300
+        ],
+        "offset_decay": 0.85,
+        "novelty_sigma_s": 8.0,
+        "novelty_floor": 0.25,
+        "novelty_mode": "min",
+        "band_anchors": [
+          2,
+          3,
+          5,
+          8,
+          12
+        ],
+        "band_offsets": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "ambiguous_anchor_bonus": 0,
+        "ambiguous_offset_penalty": 0,
+        "min_answer_gap_frames": 0,
+        "tail_margin_frames": 750,
+        "snap_offsets": true,
+        "snap_radius_frames": 30
+      }
+    },
+    {
+      "repeat": 0,
+      "fold": 1,
+      "n_train": 14,
+      "n_test": 7,
+      "train_objective": 0.4828571428571429,
+      "test_tuned": 0.7314285714285714,
+      "test_default": 0.72,
+      "params": {
+        "pool_depth": 100,
+        "max_videos": 60,
+        "dedup_radius_s": 0.6,
+        "max_anchors_per_video": 64,
+        "anchor_support_weight": 0.5,
+        "temperatures": [
+          0.02,
+          0.02,
+          0.05,
+          0.1,
+          0.2
+        ],
+        "offsets": [
+          25,
+          75,
+          150,
+          300
+        ],
+        "offset_decay": 0.72,
+        "novelty_sigma_s": 1.0,
+        "novelty_floor": 0.02,
+        "novelty_mode": "product",
+        "band_anchors": [
+          1,
+          2,
+          3,
+          5,
+          8
+        ],
+        "band_offsets": [
+          0,
+          1,
+          2,
+          3,
+          5
+        ],
+        "ambiguous_anchor_bonus": 0,
+        "ambiguous_offset_penalty": 1,
+        "min_answer_gap_frames": 0,
+        "tail_margin_frames": 750,
+        "snap_offsets": true,
+        "snap_radius_frames": 30
+      }
+    },
+    {
+      "repeat": 0,
+      "fold": 2,
+      "n_train": 14,
+      "n_test": 7,
+      "train_objective": 0.6714285714285714,
+      "test_tuned": 0.36,
+      "test_default": 0.30857142857142855,
+      "params": {
+        "pool_depth": 100,
+        "max_videos": 60,
+        "dedup_radius_s": 0.6,
+        "max_anchors_per_video": 64,
+        "anchor_support_weight": 0.1,
+        "temperatures": [
+          0.02,
+          0.02,
+          0.05,
+          0.1,
+          0.2
+        ],
+        "offsets": [
+          25,
+          60,
+          120,
+          240,
+          480
+        ],
+        "offset_decay": 0.95,
+        "novelty_sigma_s": 0.5,
+        "novelty_floor": 0.02,
+        "novelty_mode": "product",
+        "band_anchors": [
+          1,
+          2,
+          3,
+          5,
+          8
+        ],
+        "band_offsets": [
+          0,
+          1,
+          3,
+          5,
+          7
+        ],
+        "ambiguous_anchor_bonus": 0,
+        "ambiguous_offset_penalty": 0,
+        "min_answer_gap_frames": 0,
+        "tail_margin_frames": 750,
+        "snap_offsets": true,
+        "snap_radius_frames": 120
+      }
+    },
+    {
+      "repeat": 1,
+      "fold": 0,
+      "n_train": 14,
+      "n_test": 7,
+      "train_objective": 0.54,
+      "test_tuned": 0.6514285714285715,
+      "test_default": 0.6171428571428572,
+      "params": {
+        "pool_depth": 100,
+        "max_videos": 20,
+        "dedup_radius_s": 0.3,
+        "max_anchors_per_video": 64,
+        "anchor_support_weight": 0.25,
+        "temperatures": [
+          0.05,
+          0.1,
+          0.2,
+          0.4,
+          0.8
+        ],
+        "offsets": [
+          25,
+          75,
+          150,
+          300
+        ],
+        "offset_decay": 0.85,
+        "novelty_sigma_s": 1.0,
+        "novelty_floor": 0.0,
+        "novelty_mode": "product",
+        "band_anchors": [
+          1,
+          3,
+          8,
+          20,
+          40
+        ],
+        "band_offsets": [
+          0,
+          2,
+          4,
+          6,
+          7
+        ],
+        "ambiguous_anchor_bonus": 0,
+        "ambiguous_offset_penalty": 1,
+        "min_answer_gap_frames": 0,
+        "tail_margin_frames": 750,
+        "snap_offsets": true,
+        "snap_radius_frames": 20
+      }
+    },
+    {
+      "repeat": 1,
+      "fold": 1,
+      "n_train": 14,
+      "n_test": 7,
+      "train_objective": 0.56,
+      "test_tuned": 0.5828571428571429,
+      "test_default": 0.5428571428571429,
+      "params": {
+        "pool_depth": 100,
+        "max_videos": 60,
+        "dedup_radius_s": 0.6,
+        "max_anchors_per_video": 64,
+        "anchor_support_weight": 0.1,
+        "temperatures": [
+          0.02,
+          0.02,
+          0.05,
+          0.1,
+          0.2
+        ],
+        "offsets": [
+          25,
+          75,
+          150,
+          300
+        ],
+        "offset_decay": 0.72,
+        "novelty_sigma_s": 0.5,
+        "novelty_floor": 0.02,
+        "novelty_mode": "product",
+        "band_anchors": [
+          1,
+          2,
+          4,
+          7,
+          10
+        ],
+        "band_offsets": [
+          0,
+          1,
+          2,
+          3,
+          5
+        ],
+        "ambiguous_anchor_bonus": 0,
+        "ambiguous_offset_penalty": 1,
+        "min_answer_gap_frames": 10,
+        "tail_margin_frames": 750,
+        "snap_offsets": true,
+        "snap_radius_frames": 30
+      }
+    },
+    {
+      "repeat": 1,
+      "fold": 2,
+      "n_train": 14,
+      "n_test": 7,
+      "train_objective": 0.6942857142857143,
+      "test_tuned": 0.3085714285714286,
+      "test_default": 0.2914285714285714,
+      "params": {
+        "pool_depth": 100,
+        "max_videos": 60,
+        "dedup_radius_s": 0.6,
+        "max_anchors_per_video": 64,
+        "anchor_support_weight": 0.1,
+        "temperatures": [
+          0.05,
+          0.05,
+          0.1,
+          0.2,
+          0.4
+        ],
+        "offsets": [
+          25,
+          60,
+          120,
+          240,
+          480
+        ],
+        "offset_decay": 0.72,
+        "novelty_sigma_s": 0.5,
+        "novelty_floor": 0.25,
+        "novelty_mode": "product",
+        "band_anchors": [
+          1,
+          3,
+          6,
+          10,
+          14
+        ],
+        "band_offsets": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "ambiguous_anchor_bonus": 2,
+        "ambiguous_offset_penalty": 0,
+        "min_answer_gap_frames": 0,
+        "tail_margin_frames": 750,
+        "snap_offsets": true,
+        "snap_radius_frames": 30
+      }
+    }
+  ],
+  "mean_test_tuned": 0.5152380952380953,
+  "mean_test_default": 0.4838095238095238,
+  "mean_train": 0.5961904761904762
+}

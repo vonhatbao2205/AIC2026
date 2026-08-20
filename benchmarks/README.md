@@ -42,6 +42,59 @@ backend/.venv/bin/python benchmarks/report_metrics.py
 
 Kết quả ghi vào `benchmarks/runs/*.json`.
 
+## Bộ sinh 100 đáp án
+
+Chấm theo đúng công thức của vòng sơ tuyển
+(`Final = (R@1 + R@5 + R@20 + R@50 + R@100) / 5`), tách làm hai bước để việc dò
+tham số không phải gọi lại Milvus/Elastic hàng nghìn lần.
+
+```bash
+# 1. Chụp kho ứng viên live một lần cho mọi truy vấn có GT ở phía L21-L30
+backend/.venv/bin/python benchmarks/cache_pools.py --profile infoshotpp --side L --scope auto
+
+# 2. Đọc thang epsilon ra từ phân bố sai số truy xuất-GT (đừng đặt theo cảm tính)
+backend/.venv/bin/python benchmarks/run_answer_gen.py --mode calib
+
+# 3. Chấm bộ tham số đang ship
+backend/.venv/bin/python benchmarks/run_answer_gen.py --mode eval
+
+# 4. Dò tham số: leo đồi từng toạ độ, nhiều điểm khởi đầu ngẫu nhiên
+backend/.venv/bin/python benchmarks/run_answer_gen.py --mode sweep --restarts 30 --passes 6
+
+# 5. Kiểm chứng chéo: bộ tham số có tổng quát hoá không hay chỉ vừa khít 21 câu
+backend/.venv/bin/python benchmarks/run_answer_gen.py --mode cv --restarts 4
+```
+
+**Dung sai chấm điểm.** Ground truth của nhóm là các frame rời rạc, không phải
+đoạn `[s, e]` mà BTC dùng để chấm. Vì vậy mọi bảng đều in nhiều mức dung sai, và
+mục tiêu tối ưu mặc định là **trung bình Final trên tol = {0, 12, 25, 50, 100}
+frame** thay vì một mức duy nhất. Lý do rất thực tế: tối ưu ở tol = 0 dạy thuật
+toán liệt kê keyframe, tối ưu ở tol = 200 dạy nó rải epsilon thật thưa — mà
+không ai biết trước đoạn chấp nhận của BTC rộng bao nhiêu. Đổi bằng `--tol`.
+
+**Cực trị địa phương là có thật.** Leo đồi một lần từ tham số mặc định dừng lại
+sau hai vòng ở 0,5600; ba mươi điểm khởi đầu ngẫu nhiên rải từ 0,539 đến 0,590.
+Chênh 0,01 trên 21 câu chỉ là **một câu nhảy một mốc**, nên `--mode sweep` không
+lấy thẳng cấu hình cao nhất: nó khử trùng lặp toàn bộ log rồi chọn từng tham số
+theo điểm trung bình trong nhóm cấu hình dẫn đầu, và chỉ dùng kết quả đó khi nó
+không kém hơn cấu hình cao nhất.
+
+**Đừng đuổi theo phần chênh dưới ngưỡng nhiễu.** Chạy lại toàn bộ quá trình dò
+sau khi sửa thuật toán cho ra một cấu hình khác đạt 0,5943 so với 0,5905 của bộ
+tham số đang ship (`runs/answer_gen_sweep_kis_rerun.json`). Chênh 0,0038 nhỏ hơn
+**một nửa** bước lượng tử của thước đo (một câu nhảy một mốc = 0,0095), và cấu
+hình mới đổi phần hơn ở tol 50-200 lấy phần kém ở tol 12-25 — đúng vùng chứa ví
+dụ đoạn `[500, 510]` (11 frame) mà BTC đưa trong thể lệ. Vì vậy bộ tham số cũ
+được giữ nguyên. Kiểm chứng chéo mới là căn cứ để đổi tham số, không phải một
+con số in-sample cao hơn.
+
+| File kết quả | Nội dung |
+|---|---|
+| `runs/answer_gen_eval_shipped.json` | Điểm của bộ tham số đang ship, chi tiết từng câu |
+| `runs/answer_gen_cv.json` | Kiểm chứng chéo 3-fold × 2: tuned 0,515 vs mặc định 0,484 trên phần held-out |
+| `runs/answer_gen_sweep_kis_rerun.json` | Lần dò lại sau khi sửa thuật toán (0,5943 — trong ngưỡng nhiễu, không dùng) |
+| `runs/answer_gen_sweep_kis_wide.json` | Dò chỉ trên tol 25-200: cho thấy tối ưu một mức làm sập tol 0 xuống 0,029 |
+
 ## Các file
 
 | File | Việc |
@@ -52,6 +105,8 @@ Kết quả ghi vào `benchmarks/runs/*.json`.
 | `run_routing_ablation.py` | Chạy lại các query bị gán nhãn sai với `query_type_hint` ép sẵn |
 | `run_latency.py` | Đo độ trễ theo từng cấu hình kênh |
 | `report_metrics.py` | Tính đúng các bảng số trong chương Thực nghiệm của báo cáo |
+| `cache_pools.py` | Chụp kho ứng viên (frame đã fuse + chuỗi TRAKE) của mọi truy vấn có GT xuống `benchmarks/cache/` |
+| `run_answer_gen.py` | Chấm / dò tham số / kiểm chứng chéo bộ sinh 100 đáp án (`app/answer_gen.py`) |
 
 ## Tập đánh giá chính
 

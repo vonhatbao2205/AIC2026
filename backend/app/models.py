@@ -86,6 +86,46 @@ class TrakeSearchRequest(BaseModel):
     top_k: int = Field(default=400, ge=1, le=1000)
 
 
+class AnswerGenerateRequest(BaseModel):
+    """Ask for the ordered answer list of ONE query.
+
+    Two ways in. Without `groups`/`sequences` the backend runs the retrieval
+    itself, which is what the Submission tab's bulk button does. With them it
+    ranks the result the operator already has on screen, so their scope, feedback
+    and channel overrides are not silently discarded by a fresh search.
+    """
+
+    retrieval_database: RetrievalDatabase = "btc"
+    query: str = ""
+    query_type_hint: QueryTypeHint = "T-KIS"
+    scope: SearchScope = Field(default_factory=SearchScope)
+    previous_hints: list[str] = Field(default_factory=list)
+    manual_overrides: ManualOverrides = Field(default_factory=ManualOverrides)
+    parsed: dict[str, Any] | None = None
+    feedback: FeedbackState | None = None
+    use_llm: bool = False
+    expand: bool = False
+    top_k: int = Field(default=400, ge=1, le=1000)
+    max_videos: int = Field(default=100, ge=1, le=500)
+    #: 100 is the organisers' hard cap on answers per query.
+    limit: int = Field(default=100, ge=1, le=100)
+    #: Answer-generator parameter overrides; unknown keys are ignored and every
+    #: value is clamped, so this cannot put the generator in an invalid state.
+    params: dict[str, Any] | None = None
+    #: Q&A: the text written into every generated row (the frames are ranked the
+    #: same way as T-KIS; only the answer column differs).
+    answer_text: str = Field(default="", max_length=200)
+    #: TRAKE: how many events the statement asks for, so a chain that located
+    #: fewer can never become a row. The statement is the authority here, which is
+    #: why the client sends it; without it the backend falls back to the number of
+    #: events its own parser found.
+    event_count: int | None = Field(default=None, ge=1, le=32)
+    #: Rank an existing on-screen result instead of searching again. The caps are
+    #: the console's own limits, so a legitimate client always fits.
+    groups: list[dict[str, Any]] | None = Field(default=None, max_length=500)
+    sequences: list[dict[str, Any]] | None = Field(default=None, max_length=500)
+
+
 class SnapRequest(BaseModel):
     retrieval_database: RetrievalDatabase = "btc"
     raw_time: float

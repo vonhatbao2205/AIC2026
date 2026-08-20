@@ -10,6 +10,7 @@ Endpoints:
   GET  /api/search/scope
   POST /api/search
   POST /api/search/trake
+  POST /api/answers/generate
   POST /api/qa/analyze
   GET  /api/keyframes/{submit_keyframe_id:path}
   GET  /api/videos/{video_id}/timeline
@@ -46,6 +47,7 @@ from .config import Settings, get_settings
 from .identity import canonical_submit_keyframe_id, parse_submit_keyframe_id
 from .media import MediaUrlBuilder
 from .models import (
+    AnswerGenerateRequest,
     CanvasSearchRequest,
     ParseRequest,
     QaAnalyzeRequest,
@@ -60,6 +62,7 @@ from .models import (
 from .scope import catalogue as scope_catalogue, match_topics
 from .translate import translate_vi_to_en
 from .services import config_service
+from .services.answer_service import AnswerService
 from .services.canvas_service import CanvasService
 from .services.search_service import SearchService, ServiceUnavailable
 from .services.submit_service import DuplicateSubmitError, SubmitFormatError, SubmitService
@@ -87,6 +90,7 @@ def build_runtime() -> Settings:
     """
     global settings, search_service, trake_service, canvas_service, timeline_service
     global search_services, trake_services, timeline_services, media_builders, profile_settings
+    global answer_services
     global dres_client, submit_service, media, nvila_qa, web_grounding_client
 
     get_settings.cache_clear()
@@ -102,6 +106,10 @@ def build_runtime() -> Settings:
     media_builders = {
         name: MediaUrlBuilder(cfg.keyframe_media_base_url, cfg.video_media_base_url)
         for name, cfg in profile_settings.items()
+    }
+    answer_services = {
+        name: AnswerService(profile_settings[name], search_services[name], trake_services[name])
+        for name in profile_settings
     }
     # Backward-compatible aliases used by tests and a few internal call sites.
     search_service = search_services["btc"]
@@ -307,6 +315,24 @@ async def search_trake(req: TrakeSearchRequest):
     payload["manual_overrides"] = req.manual_overrides.model_dump()
     payload["scope"] = req.scope.model_dump()
     return await trake_services[req.retrieval_database].search_trake(payload)
+
+
+@app.post("/api/answers/generate")
+async def generate_answers(req: AnswerGenerateRequest):
+    """The ordered list of up to 100 answers for one query.
+
+    Ranking policy in `app.answer_gen`; the parameters shipped as defaults were
+    fitted on the L21-L30 ground-truth queries (`benchmarks/run_answer_gen.py`).
+    """
+    payload = req.model_dump()
+    payload["manual_overrides"] = req.manual_overrides.model_dump()
+    payload["scope"] = req.scope.model_dump()
+    if req.feedback is not None:
+        payload["feedback"] = req.feedback.model_dump()
+    try:
+        return await answer_services[req.retrieval_database].generate(payload)
+    except ServiceUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.get("/api/canvas/palette")

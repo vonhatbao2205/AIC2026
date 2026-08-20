@@ -40,6 +40,14 @@ build/
 venv/
 env/
 .uv-cache/
+# Candidate pools captured from the live services by benchmarks/cache_pools.py.
+# Derived data: regenerate it rather than committing a snapshot of the indices.
+benchmarks/cache/
+
+# Submission packs written by the console's export button. They are contest
+# output, not source, and a new one lands next to the last on every attempt.
+/submission.zip
+/submission (*).zip
 
 # ---- Node / frontend --------------------------------------------------------
 node_modules/
