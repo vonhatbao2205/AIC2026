@@ -24,6 +24,7 @@ import {
   isMissingTableError,
   mergeRow,
   newRowId,
+  nextCreatedAt,
   recordToRow,
   rowToRecord,
   sortRows,
@@ -49,14 +50,28 @@ export interface SharedSubmission {
   room: string;
   user: string;
   addRow: (row: SubmissionRow) => void;
+  /** Insert many rows as one write. The answer generator produces up to 100 rows
+   *  per question; queueing them one by one would put thousands of round trips
+   *  in the outbox and take minutes to drain over a contest network. */
+  addRows: (rows: SubmissionRow[]) => void;
   updateRow: (id: string, patch: Partial<SubmissionRow>) => void;
+  /** Write one Q&A answer into every row of a question, as a single write.
+   *  The generator produces the frames; the text is a human judgement typed
+   *  once, so per-row edits would be 100 round trips for one decision. */
+  setAnswerForQuestion: (questionId: string, answer: string) => void;
   deleteRow: (id: string) => void;
+  /** Remove many rows as one write — regenerating a question replaces up to a
+   *  hundred of them at once. */
+  deleteRows: (ids: string[]) => void;
   clearQuestion: (questionId: string) => void;
   dismissConflict: (id: string) => void;
 }
 
 type Op =
   | { kind: "insert"; row: SubmissionRow }
+  | { kind: "insert_many"; rows: SubmissionRow[] }
+  | { kind: "answer_many"; ids: string[]; answer: string }
+  | { kind: "delete_many"; ids: string[] }
   // The edited row travels WITH the op. Reading it back from a ref at flush
   // time raced React: `flush()` runs in the same tick as the optimistic
   // `setRows`, so the ref still held the pre-edit row, the old values were sent,
@@ -117,6 +132,33 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
             setRows((current) =>
               current.map((row) => (row.id === op.row.id ? { ...row, syncState: "synced" } : row)),
             );
+          } else if (op.kind === "insert_many") {
+            const records = op.rows.map((row) =>
+              rowToRecord(row, SUBMISSION_ROOM, user, sessionRef.current),
+            );
+            const { error: insertError } = await supabase.from(SUBMISSIONS_TABLE).insert(records);
+            if (insertError) throw insertError;
+            const ids = new Set(op.rows.map((row) => row.id));
+            setRows((current) =>
+              current.map((row) => (ids.has(row.id) ? { ...row, syncState: "synced" } : row)),
+            );
+          } else if (op.kind === "answer_many") {
+            const { data, error: answerError } = await supabase
+              .from(SUBMISSIONS_TABLE)
+              .update({ answer: op.answer })
+              .in("id", op.ids)
+              .select();
+            if (answerError) throw answerError;
+            // Deliberately no per-row `revision` guard: the operator is asserting
+            // one answer for the whole question, and checking a hundred revisions
+            // would mean a hundred round trips for one decision. The server rows
+            // are merged straight back so every revision stays current — without
+            // that, the next single-row edit would send a stale revision and be
+            // reported as a conflict nobody caused.
+            const fresh = ((data ?? []) as SubmissionRecord[]).map(recordToRow);
+            if (fresh.length) {
+              setRows((current) => sortRows(fresh.reduce(mergeRow, current)));
+            }
           } else if (op.kind === "update") {
             {
               const record = rowToRecord(op.row, SUBMISSION_ROOM, user, sessionRef.current);
@@ -145,6 +187,12 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
                 setRows((current) => sortRows(mergeRow(current, fresh)));
               }
             }
+          } else if (op.kind === "delete_many") {
+            const { error: deleteError } = await supabase
+              .from(SUBMISSIONS_TABLE)
+              .delete()
+              .in("id", op.ids);
+            if (deleteError) throw deleteError;
           } else {
             const { error: deleteError } = await supabase
               .from(SUBMISSIONS_TABLE)
@@ -256,13 +304,49 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
         sessionId: row.sessionId ?? sessionRef.current,
         submittedBy: row.submittedBy || user,
         revision: 1,
-        createdAt: row.createdAt ?? new Date().toISOString(),
+        createdAt: row.createdAt ?? nextCreatedAt(),
         syncState: shared ? "pending" : "local",
       };
       setRows((current) => sortRows([...current, complete]));
       enqueue({ kind: "insert", row: complete });
     },
     [enqueue, shared, user],
+  );
+
+  const addRows = useCallback(
+    (incoming: SubmissionRow[]) => {
+      if (!incoming.length) return;
+      // One stamp per row, in the order they arrive: this array IS the ranking
+      // the answer generator produced, and `created_at` is what preserves it.
+      const complete = incoming.map((row) => ({
+        ...row,
+        sessionId: row.sessionId ?? sessionRef.current,
+        submittedBy: row.submittedBy || user,
+        revision: 1,
+        createdAt: row.createdAt ?? nextCreatedAt(),
+        syncState: (shared ? "pending" : "local") as SubmissionRow["syncState"],
+      }));
+      setRows((current) => sortRows([...current, ...complete]));
+      enqueue({ kind: "insert_many", rows: complete });
+    },
+    [enqueue, shared, user],
+  );
+
+  const setAnswerForQuestion = useCallback(
+    (questionId: string, answer: string) => {
+      const targets = rowsRef.current.filter((row) => row.questionId === questionId);
+      if (!targets.length) return;
+      const text = answer.trim();
+      setRows((current) =>
+        current.map((row) =>
+          row.questionId === questionId
+            ? { ...row, answer: text, syncState: shared ? "pending" : "local" }
+            : row,
+        ),
+      );
+      enqueue({ kind: "answer_many", ids: targets.map((row) => row.id), answer: text });
+    },
+    [enqueue, shared],
   );
 
   const updateRow = useCallback(
@@ -303,6 +387,16 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
     [enqueue],
   );
 
+  const deleteRows = useCallback(
+    (ids: string[]) => {
+      if (!ids.length) return;
+      const doomed = new Set(ids);
+      setRows((current) => current.filter((row) => !doomed.has(row.id)));
+      enqueue({ kind: "delete_many", ids: [...doomed] });
+    },
+    [enqueue],
+  );
+
   const clearQuestion = useCallback(
     (questionId: string) => {
       const doomed = rowsRef.current.filter((row) => row.questionId === questionId);
@@ -326,8 +420,11 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
     room: SUBMISSION_ROOM,
     user,
     addRow,
+    addRows,
+    setAnswerForQuestion,
     updateRow,
     deleteRow,
+    deleteRows,
     clearQuestion,
     dismissConflict,
   };

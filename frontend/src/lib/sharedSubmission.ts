@@ -42,6 +42,28 @@ function align<T>(values: readonly T[] | undefined, length: number): (T | null)[
   return out;
 }
 
+/** Milliseconds of the last stamp handed out, so the next one is never equal. */
+let lastStampMs = 0;
+
+/** A creation timestamp that is strictly later than the previous one.
+ *
+ *  `created_at` IS the ordering key of the answer list, and the answer list is
+ *  scored by position — so two rows sharing a timestamp is not a cosmetic tie,
+ *  it is a coin flip over which one gets rank 1. That is what used to happen to
+ *  every generated batch: a hundred rows took one `Date.now()` on the client and
+ *  one transaction `now()` on the server (a multi-row INSERT is a single
+ *  statement), so the whole block fell through to the random-uuid tiebreak and
+ *  the generator's ranking was replaced by a shuffle. Measured on a real
+ *  submission, the strongest video sat at mean rank 50 of 100 — exactly chance.
+ *
+ *  Stepping 1 ms per row puts a batch of a hundred at most 100 ms ahead of the
+ *  clock, which nothing here reads as a duration. */
+export function nextCreatedAt(): string {
+  const now = Date.now();
+  lastStampMs = now > lastStampMs ? now : lastStampMs + 1;
+  return new Date(lastStampMs).toISOString();
+}
+
 export function rowToRecord(
   row: SubmissionRow,
   room: string,
@@ -63,6 +85,10 @@ export function rowToRecord(
     submitted_by: row.submittedBy || user || "unknown",
     source: row.source ?? "submit",
     revision: row.revision ?? 1,
+    // Sent explicitly: the column defaults to `now()`, which is the TRANSACTION
+    // time and therefore identical for every row of a bulk insert. Letting the
+    // default win is what erased the order the rows were generated in.
+    ...(row.createdAt ? { created_at: row.createdAt } : {}),
   };
 }
 
@@ -75,7 +101,12 @@ export function recordToRow(record: SubmissionRecord): SubmissionRow {
     videoId: record.video_id ?? "",
     frames,
     answer: record.answer ?? "",
-    source: record.source === "manual" ? "manual" : "submit",
+    // Must round-trip exactly: a `generated` row read back as `submit` would
+    // look hand-picked, and the generator would then refuse to ever replace it.
+    source:
+      record.source === "manual" || record.source === "generated"
+        ? record.source
+        : "submit",
     keyframeIds: align(record.keyframe_ids, frames.length),
     ptsTimes: align(record.pts_times, frames.length).map((value) =>
       value == null ? null : Number(value),
@@ -85,7 +116,12 @@ export function recordToRow(record: SubmissionRecord): SubmissionRow {
       : "btc") as RetrievalDatabase,
     submittedBy: record.submitted_by ?? "unknown",
     revision: record.revision ?? 1,
-    createdAt: record.created_at,
+    // Normalised, because the two sides format the same instant differently:
+    // the client writes `…T19:04:00.123Z`, PostgREST returns
+    // `…T19:04:00.123456+00:00`, and when the microseconds are zero it drops
+    // the fraction entirely (`…T19:04:00+00:00`). Kept as text, that last form
+    // sorts AFTER `…T19:04:00.500Z` — half a second later than it really is.
+    createdAt: record.created_at ? new Date(record.created_at).toISOString() : undefined,
     updatedAt: record.updated_at,
     syncState: "synced",
   };
@@ -110,10 +146,19 @@ export function mergeRow(rows: SubmissionRow[], incoming: SubmissionRow): Submis
  * Deliberately keyed on creation, not update: ordering by `updated_at` would
  * make editing a frame move that answer to the bottom of its own CSV, silently
  * re-ranking the team's guesses. */
+function createdMs(row: SubmissionRow): number {
+  const parsed = Date.parse(row.createdAt ?? "");
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
 export function sortRows(rows: SubmissionRow[]): SubmissionRow[] {
-  return [...rows].sort(
-    (a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? "") || a.id.localeCompare(b.id),
-  );
+  // By instant rather than by text. `recordToRow` normalises what comes back
+  // from the server, but a row that never round-tripped is still in the client's
+  // own format, and mixed formats do not compare as text: `…:00+00:00` sorts
+  // after `…:00.500Z` even though it is half a second earlier. The uuid tiebreak
+  // is a last resort for rows genuinely sharing a millisecond — `nextCreatedAt`
+  // makes sure the ones we write never do.
+  return [...rows].sort((a, b) => createdMs(a) - createdMs(b) || a.id.localeCompare(b.id));
 }
 
 /** Turn whatever Supabase rejected with into something an operator can act on.
