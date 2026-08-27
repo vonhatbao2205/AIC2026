@@ -260,7 +260,23 @@ def heuristic_parse(
     }
 
 
-_EVENT_MARKER = re.compile(r"(?:^|[\s,;])(?:E\s*\d+|[Ss]ự\s*kiện\s*\d+|[Ee]vent\s*\d+|\d+)\s*[:.)]", re.IGNORECASE)
+# An event marker is a label ("E2", "sự kiện 2", "event 2") or a bare list index
+# ("2)"). The label form does NOT require punctuation after the number: a real
+# organiser pack ships `E1 Khoảnh khắc…` with nothing but a space, and demanding
+# a colon there found zero markers, so the splitter fell through to the connector
+# fallback and cut "Khoảnh khắc đầu tiên …" on every "đầu tiên"/"sau khi" — five
+# mid-sentence fragments for a three-event statement.
+#
+# A bare index still requires its punctuation. Without it every quantity in the
+# prose ("hai con rồng", "2 người") would open a new event.
+_EVENT_MARKER = re.compile(
+    r"(?:^|[\s,;(\[])"
+    r"(?:"
+    r"(?:sự\s*kiện|event|e)\s*\d+(?:\s*[:.)\]–—-]|(?=\s))"
+    r"|\d+\s*[:.)]"
+    r")",
+    re.IGNORECASE,
+)
 
 
 def _split_trake_events(query: str) -> list[str]:

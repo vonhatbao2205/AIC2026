@@ -113,6 +113,21 @@ describe("query pack parsing", () => {
     expect(trakeEventCount("E1: bột vào tô. E2: chạm dầu.")).toBe(2);
   });
 
+  it("reads markers that carry no punctuation after the number", () => {
+    // Regression, from a real organiser pack: "E1 Khoảnh khắc…" with a space and
+    // no colon. Requiring punctuation matched nothing, the count came back null,
+    // and the width check below quietly switched itself off on the one question
+    // whose rows are the easiest to get wrong.
+    const statement = [
+      "Đoạn video bắt đầu bằng ảnh cận đầu một con lân trắng, mũi đỏ, bên cạnh lá cờ trắng viền đỏ.",
+      "E1 Khoảnh khắc đầu tiên xuất hiện đầy đủ hai con rồng vàng đang xoay vòng.",
+      "E2 Khoảnh khắc đầu tiên con lân hoàn tất cú xoay người trên các thanh trụ (thời điểm đâu tiên các chân của lân đặt trên trụ sau khi xoay).",
+      "E3 Khoảnh khắc đầu tiên dùi chạm vào kẻng đồng múa lân.",
+    ].join("\n");
+    expect(trakeEventCount(statement)).toBe(3);
+    expect(trakeEventCount("Sự kiện 1 chạy đà.\nSự kiện 2 giậm nhảy.")).toBe(2);
+  });
+
   it("does not mistake prose for event markers", () => {
     // Nothing here is a marker: no "E<n>" follows a word boundary, and a bare
     // numbered list is deliberately not counted (null skips the width check
@@ -204,6 +219,31 @@ describe("row validation", () => {
     expect(
       validateRows([row({ answer: "x".repeat(101) })], qa).some((p) => p.message.includes("> 100")),
     ).toBe(true);
+  });
+
+  it("says so when the event count could not be read, instead of going quiet", () => {
+    const unknown = { ...trake, eventCount: null };
+    const problems = validateRows([row({ frames: [1, 2, 3] })], unknown);
+    const notice = problems.find((p) => p.message.includes("không đọc được số sự kiện"));
+    expect(notice?.severity).toBe("warning");
+  });
+
+  it("blocks TRAKE rows of differing width when the event count is unknown", () => {
+    // One frame per event means every row of a question carries the same count.
+    // Which of them is wrong cannot be known, but that they disagree can.
+    const unknown = { ...trake, eventCount: null };
+    const problems = validateRows(
+      [row({ id: "a", frames: [1, 2, 3] }), row({ id: "b", frames: [4, 5] })],
+      unknown,
+    );
+    const blocker = problems.find((p) => p.message.includes("không đồng nhất"));
+    expect(blocker?.severity).toBe("error");
+    expect(blocker?.message).toContain("2 / 3");
+    // Rows that agree are left alone — the count is unverifiable, not wrong.
+    expect(
+      validateRows([row({ id: "a", frames: [1, 2] }), row({ id: "b", frames: [4, 5] })], unknown)
+        .some((p) => p.severity === "error"),
+    ).toBe(false);
   });
 
   it("flags a video name that still has its .mp4 extension", () => {

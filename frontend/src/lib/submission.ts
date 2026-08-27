@@ -201,6 +201,27 @@ export function validateRows(rows: SubmissionRow[], question: ImportedQuestion):
       seen.set(key, String(index + 1));
     }
   });
+  // A statement whose event count could not be read turns the width check above
+  // into a no-op, and silence is the dangerous outcome: row width is precisely
+  // what the organiser's parser rejects. Say the net is off, and hold the rows
+  // to each other instead — one frame per event means every row of a question
+  // carries the same count, whatever that count turns out to be. Rows that
+  // disagree are malformed for certain, so that half blocks; not knowing the
+  // number is a heuristic miss, so that half only warns.
+  if (question.kind === "trake" && !question.eventCount && rows.length > 0) {
+    const widths = [...new Set(rows.map((row) => row.frames.length))].sort((a, b) => a - b);
+    problems.push({
+      rowId: rows[0].id,
+      message: "không đọc được số sự kiện từ đề — hãy tự kiểm tra số frame mỗi dòng",
+      severity: "warning",
+    });
+    if (widths.length > 1) {
+      fail(
+        rows[0].id,
+        `số frame không đồng nhất giữa các dòng (${widths.join(" / ")}) — mỗi dòng TRAKE phải có đúng một frame cho mỗi sự kiện`,
+      );
+    }
+  }
   if (rows.length > MAX_ROWS_PER_QUESTION) {
     fail(rows[MAX_ROWS_PER_QUESTION]?.id ?? "", `quá ${MAX_ROWS_PER_QUESTION} dòng (đang có ${rows.length})`);
   }

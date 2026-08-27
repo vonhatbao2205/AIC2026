@@ -1,4 +1,5 @@
 from app.query_parser import (
+    _split_trake_events,
     apply_manual_overrides,
     ensure_image_pe,
     heuristic_parse,
@@ -118,6 +119,39 @@ def test_heuristic_trake_splits_events():
     assert p["query_type"] == "TRAKE"
     assert p["trake"]["enabled"] is True
     assert len(p["trake"]["events"]) >= 2
+
+
+def test_trake_marker_needs_no_punctuation_after_the_number():
+    # Regression, from a real organiser pack: the statement labels its events
+    # "E1 Khoảnh khắc…" with a space and no colon. Requiring punctuation matched
+    # nothing, so the splitter fell through to the connector fallback and cut the
+    # text on every "đầu tiên"/"sau khi" — five mid-sentence fragments, each sent
+    # off as its own retrieval, for a three-event statement.
+    query = (
+        "Đoạn video bắt đầu bằng ảnh cận đầu một con lân trắng, mũi đỏ, "
+        "bên cạnh lá cờ trắng viền đỏ.\n"
+        "E1 Khoảnh khắc đầu tiên xuất hiện đầy đủ hai con rồng vàng đang xoay vòng.\n"
+        "E2 Khoảnh khắc đầu tiên con lân hoàn tất cú xoay người trên các thanh trụ "
+        "(thời điểm đâu tiên các chân của lân đặt trên trụ sau khi xoay).\n"
+        "E3 Khoảnh khắc đầu tiên dùi chạm vào kẻng đồng múa lân."
+    )
+    events = _split_trake_events(query)
+    assert len(events) == 3
+    assert events[0].startswith("Khoảnh khắc đầu tiên xuất hiện")
+    assert events[2].startswith("Khoảnh khắc đầu tiên dùi chạm")
+    # The preamble is context, not an event, and must not become one.
+    assert not any("lá cờ trắng viền đỏ" in event for event in events)
+
+
+def test_trake_bare_number_still_requires_its_punctuation():
+    # Dropping the punctuation requirement for labelled markers must not drop it
+    # for bare indices too: every quantity in the prose would open an event.
+    events = _split_trake_events(
+        "Có 2 con rồng vàng và 3 người múa lân, cảnh quay 1 góc rộng"
+    )
+    assert events == ["Có 2 con rồng vàng và 3 người múa lân, cảnh quay 1 góc rộng"]
+    # A real numbered list is still split.
+    assert len(_split_trake_events("1) chạy đà. 2) giậm nhảy. 3) tiếp đất.")) == 3
 
 
 def test_heuristic_qa_detection():

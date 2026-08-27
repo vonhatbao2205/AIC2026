@@ -55,12 +55,17 @@ const NAME_RE = /^(?:.*\/)?([^/]*?-(\d+)-(kis|qa|trake|vkis))\.txt$/i;
  *  disagreeing means generated rows get rejected by the very export they were
  *  generated for.
  *
+ *  Punctuation after the number is OPTIONAL. A real organiser pack ships
+ *  `E1 Khoảnh khắc…` with nothing but a space, and requiring a colon there
+ *  matched nothing: the statement came back with `null` events, so this width
+ *  check silently switched itself off on exactly the question it exists for.
+ *
  *  A bare numbered list ("1) … 2) …") is NOT counted, unlike in the backend. A
  *  wrong split there only costs some retrieval quality; a wrong count here blocks
- *  the export outright, and `null` degrades safely — the width check is skipped
- *  and the operator types the frames they mean. */
+ *  the export outright, and `null` degrades safely — the width check is skipped,
+ *  the audit warns that it was, and the operator types the frames they mean. */
 export function trakeEventCount(text: string): number | null {
-  const marker = /(?:^|[\s,;(\[])(?:sự\s*kiện|event|e)\s*\d+\s*[:.)–—-]/gi;
+  const marker = /(?:^|[\s,;(\[])(?:sự\s*kiện|event|e)\s*\d+(?:\s*[:.)\]–—-]|(?=\s))/gi;
   const count = [...text.matchAll(marker)].length;
   return count >= 2 ? count : null;
 }
