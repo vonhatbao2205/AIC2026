@@ -503,10 +503,14 @@ class SearchService:
             }
         # Translate VI→EN so the English-centric PE encoder gets an English query.
         search_text = query
+        translation_failed = False
         if self.s.translate_to_en and not self.s.mock_mode:
-            from ..translate import translate_vi_to_en
+            from ..translate import translate_vi_to_en_status
 
-            search_text = await translate_vi_to_en(query)
+            search_text, translated_ok = await translate_vi_to_en_status(
+                query, settings=self.s
+            )
+            translation_failed = not translated_ok
         try:
             vectors = await self.pe.encode_text([search_text])
         except Exception as exc:  # noqa: BLE001
@@ -559,6 +563,14 @@ class SearchService:
             "mode": "mock" if self.s.mock_mode else "live",
             "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
         }
+        if rerank_info:
+            body["reranker"] = rerank_info
+        if translation_failed:
+            body["warnings"] = [
+                "Không dịch được query sang tiếng Anh — PE đang nhận tiếng Việt "
+                "nên kết quả sẽ kém. Bật LLM hoặc kiểm tra mạng."
+            ]
+        return body
 
     def resolve_scope(self, spec: dict[str, Any] | None, *, query: str) -> ResolvedScope:
         """Resolve a request's scope spec against THIS profile's folder catalogue."""
@@ -612,7 +624,13 @@ class SearchService:
             top_k=req.get("top_k", 100),
             feedback=req.get("feedback"),
             categories=scope.categories,
+            rerank=bool(req.get("rerank")),
         )
+        if parsed.get("translation_failed"):
+            latency.setdefault("warnings", []).append(
+                "Không dịch được query sang tiếng Anh — PE đang nhận tiếng Việt nên "
+                "keyframe trả về sẽ không khớp. Bật LLM hoặc kiểm tra mạng."
+            )
         latency["parse_ms"] = round(parse_ms, 1)
         latency["total_ms"] = round((time.perf_counter() - t_total) * 1000, 1)
 

@@ -529,17 +529,22 @@ class QueryParser:
     async def _apply_translation(self, parsed: dict[str, Any]) -> None:
         """Translate the Vietnamese query to English for the image_pe channel.
         OCR/speech keep the Vietnamese text; only the visual query is translated."""
-        from .translate import translate_vi_to_en
+        from .translate import translate_vi_to_en, translate_vi_to_en_status
 
         q_vi = parsed.get("normalized_vi") or parsed.get("original_query") or ""
         if not q_vi.strip():
             return
-        en = await translate_vi_to_en(q_vi)
+        en, ok = await translate_vi_to_en_status(q_vi, settings=self.s)
         if en and en.strip() and en.strip().lower() != q_vi.strip().lower():
             parsed["translated_en_visual"] = en
             img = parsed.get("channels", {}).get("image_pe")
             if img is not None:
                 img["queries_en"] = [en]
+        elif not ok:
+            # PE-Core is English-centric: searching with the Vietnamese text
+            # returns plausible-looking frames that do not match the query. Say
+            # so, rather than letting the operator debug the ranking instead.
+            parsed["translation_failed"] = True
         # TRAKE: translate each event's visual query so per-event PE search is English.
         trake = parsed.get("trake") or {}
         if trake.get("enabled"):
