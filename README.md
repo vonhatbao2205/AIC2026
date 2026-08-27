@@ -26,6 +26,12 @@ The repository contains two parts:
   - `audio` vector — **GLAP** audio↔text embeddings in Milvus, fused with the Elastic audio signal
 - **Query understanding** via NVIDIA Nemotron (OpenAI-compatible) with a
   deterministic heuristic fallback; VI→EN translation of the visual query.
+- **Qwen3-VL visual reranker** (opt-in, off by default) — a **Rerank** tick box in the
+  query panel widens the PE candidate pool to `QWEN_RERANKER_CANDIDATES` and has
+  Qwen3-VL-Reranker-8B rescore each `(query, keyframe)` pair at frame level, before RRF
+  so a low visual score cannot overrule the OCR/speech/audio channels. Fail-open: if the
+  worker is unreachable the PE order is kept and the panel says so. Serve it with
+  `aic26_qwen3vl_reranker8b_colab_server.ipynb`; the box is hidden when no worker answers.
 - **Search scope** — a checkbox filter over the dataset folders (L21–L30 +
   K01–K20), pushed down into the Milvus/Elastic queries. Each folder is one
   programme, so a topic heuristic reads the folders off the query the same way
@@ -97,6 +103,7 @@ The broader design/strategy is in **[AIC26_Pipeline.md](AIC26_Pipeline.md)**.
 | `milvus_upload.py` | Upload PE-Core-G14 image vectors into Milvus. |
 | `aic26_query_factory_qwen3vl8b_t4x2.ipynb` | Kaggle T4×2 workflow dùng Qwen3-VL-8B, PE-G14/Milvus visual hard negatives, critic, review và export benchmark T-KIS/QA/TRAKE/V-KIS. |
 | `aic26_nvila8b_qa_colab_server.ipynb` | Colab A100 worker chạy NVILA-8B BF16: QA hotspot prediction → grounded answer suggestions qua FastAPI/Cloudflare tunnel. |
+| `aic26_qwen3vl_reranker8b_colab_server.ipynb` | Colab A100 worker chạy Qwen3-VL-Reranker-8B BF16: rerank cặp (query, keyframe) ở frame level trước RRF, qua FastAPI/Cloudflare tunnel. |
 | `*.ipynb` | Pipeline notebooks: `audio_pipeline`, `speech_pipeline`, `cloudflareR2`, `model-setup-backend`, `glap-encoder-kaggle`, `ui-streamlit`. |
 | `*_PIPELINE.md`, `*_HANDOFF.md`, `FEATURES.md` | Per-stage documentation (audio, speech, OCR, Elastic, Milvus, R2). |
 | `instruction.md` | Official DRES v2 submission protocol (BTC). |

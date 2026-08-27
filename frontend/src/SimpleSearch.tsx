@@ -5,6 +5,7 @@ import type {
   RetrievalDatabase,
   ScopeCatalogue,
   ScopeMode,
+  RerankerReport,
   SimpleResult,
 } from "./api/types";
 import { ScopeFilter } from "./components/ScopeFilter";
@@ -31,6 +32,10 @@ export default function SimpleSearch({
   const [mode, setMode] = useState<string>("");
   const [latency, setLatency] = useState<number | null>(null);
   const [translated, setTranslated] = useState<string | null>(null);
+  // Qwen3-VL reranking, default off — same opt-in contract as the console.
+  const [rerank, setRerank] = useState(false);
+  const [rerankAvailable, setRerankAvailable] = useState(false);
+  const [rerankReport, setRerankReport] = useState<RerankerReport | null>(null);
   const [scopeMode, setScopeMode] = useState<ScopeMode>(DEFAULT_SCOPE_MODE);
   const [scopeSelection, setScopeSelection] = useState<string[]>([]);
   const [scopeCatalogue, setScopeCatalogue] = useState<ScopeCatalogue | null>(null);
@@ -67,6 +72,26 @@ export default function SimpleSearch({
     };
   }, [retrievalDatabase]);
 
+  // The tick box only appears when a rerank worker can actually answer; a
+  // control that silently does nothing is worse than no control.
+  useEffect(() => {
+    let cancelled = false;
+    api.health(retrievalDatabase).then(
+      (body) => {
+        if (cancelled) return;
+        const available = Boolean(body.capabilities.visual_rerank);
+        setRerankAvailable(available);
+        if (!available) setRerank(false);
+      },
+      () => {
+        if (!cancelled) setRerankAvailable(false);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [retrievalDatabase]);
+
   async function runSearch() {
     const q = query.trim();
     if (!q) return;
@@ -74,13 +99,14 @@ export default function SimpleSearch({
     setError(null);
     try {
       const res = await api.simpleSearch(
-        q, topK, retrievalDatabase, scopeRequest(scopeMode, scopeSelection),
+        q, topK, retrievalDatabase, scopeRequest(scopeMode, scopeSelection), rerank,
       );
       setResults(res.results);
       setMode(res.mode);
       setLatency(res.latency_ms);
       setTranslated(res.translated_query ?? null);
       setAppliedScope(res.scope ?? null);
+      setRerankReport(res.reranker ?? null);
     } catch (e) {
       let msg = "Search failed — backend không chạy? (kiểm tra http://localhost:8000/api/health)";
       if (e instanceof ApiError) {
@@ -88,6 +114,7 @@ export default function SimpleSearch({
       }
       setError(msg);
       setResults([]);
+      setRerankReport(null);
     } finally {
       setLoading(false);
     }
@@ -159,6 +186,31 @@ export default function SimpleSearch({
             applied={appliedScope}
             error={scopeError}
           />
+          {rerankAvailable && (
+            <label
+              className="check-toggle"
+              data-testid="rerank-toggle"
+              title="Qwen3-VL chấm lại từng cặp (query, keyframe) trên tập ứng viên PE mở rộng. Chính xác hơn nhưng chậm hơn vài giây; worker lỗi thì giữ nguyên thứ tự PE."
+            >
+              <input
+                type="checkbox"
+                checked={rerank}
+                data-testid="rerank-checkbox"
+                onChange={(event) => setRerank(event.target.checked)}
+              />
+              <span>Rerank</span>
+            </label>
+          )}
+          {rerankReport && (
+            <span
+              className={`latency-mini ${rerankReport.ok ? "" : "warn"}`}
+              data-testid="rerank-report"
+            >
+              {rerankReport.ok
+                ? `· ↕ rerank ${rerankReport.reranked}/${rerankReport.candidates} · ${Math.round(rerankReport.ms)} ms`
+                : "· ⚠ rerank lỗi, giữ thứ tự PE"}
+            </span>
+          )}
           {latency != null && <span className="latency-mini">{latency} ms</span>}
           {results.length > 0 && <span className="latency-mini">· {results.length} kết quả</span>}
           {translated && (

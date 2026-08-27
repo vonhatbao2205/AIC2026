@@ -124,6 +124,20 @@ class Settings:
     nvila_token: str | None = None
     nvila_timeout_seconds: float = 240.0
     nvila_max_candidates: int = 12
+    # Qwen3-VL-Reranker worker (aic26_qwen3vl_reranker8b_colab_server.ipynb).
+    # Off by default: it is an opt-in refinement the operator ticks per search,
+    # and it costs a second GPU session that is not always running.
+    qwen_reranker_url: str | None = None
+    qwen_reranker_token: str | None = None
+    qwen_reranker_enabled: bool = True
+    # A cold rerank downloads every candidate keyframe on the worker before it
+    # can score anything, so the first request of a session is far slower than
+    # the rest. 30s timed out in practice on a 200-candidate pool.
+    qwen_reranker_timeout_seconds: float = 120.0
+    # Candidates retrieved from Milvus BEFORE reranking. Must exceed the result
+    # depth the operator asked for, or the reranker can only shuffle what PE
+    # already ranked highly (see reranker.md §7).
+    qwen_reranker_candidates: int = 200
     # DeepSeek model with the server-side web_search tool, used to resolve
     # external facts after NVILA has extracted visual/ASR clues. The tool is only
     # available on the Responses API and only for deepseek-v4-flash.
@@ -286,6 +300,12 @@ class Settings:
         return bool(self.nvila_base_url and self.nvila_token)
 
     @property
+    def has_qwen_reranker(self) -> bool:
+        # Like the NVILA worker, the rerank service always requires Bearer auth;
+        # a URL without its token is incomplete, not "almost configured".
+        return bool(self.qwen_reranker_url and self.qwen_reranker_token)
+
+    @property
     def has_web_grounding(self) -> bool:
         return bool(self.deepseek_grounding_enabled and self.deepseek_api_key)
 
@@ -338,6 +358,16 @@ def get_settings() -> Settings:
         nvila_max_candidates = int(_env("NVILA_MAX_CANDIDATES", "12") or "12")
     except ValueError:
         nvila_max_candidates = 12
+    reranker_env = (_env("QWEN_RERANKER_ENABLED", "true") or "true").lower()
+    qwen_reranker_enabled = reranker_env in {"1", "true", "yes", "on"}
+    try:
+        qwen_reranker_timeout_seconds = float(_env("QWEN_RERANKER_TIMEOUT_SECONDS", "120") or "120")
+    except ValueError:
+        qwen_reranker_timeout_seconds = 120.0
+    try:
+        qwen_reranker_candidates = int(_env("QWEN_RERANKER_CANDIDATES", "200") or "200")
+    except ValueError:
+        qwen_reranker_candidates = 200
     grounding_env = (_env("DEEPSEEK_GROUNDING_ENABLED", "true") or "true").lower()
     deepseek_grounding_enabled = grounding_env in {"1", "true", "yes", "on"}
     try:
@@ -419,6 +449,12 @@ def get_settings() -> Settings:
         nvila_token=_env("NVILA_TOKEN") or file_default("nvila_token.txt"),
         nvila_timeout_seconds=max(30.0, nvila_timeout_seconds),
         nvila_max_candidates=min(24, max(1, nvila_max_candidates)),
+        qwen_reranker_url=(_env("QWEN_RERANKER_URL") or "").rstrip("/") or None,
+        qwen_reranker_token=_env("QWEN_RERANKER_TOKEN") or file_default("qwen_reranker_token.txt"),
+        qwen_reranker_enabled=qwen_reranker_enabled,
+        qwen_reranker_timeout_seconds=max(5.0, qwen_reranker_timeout_seconds),
+        # The worker itself caps a request at 400 documents.
+        qwen_reranker_candidates=min(400, max(10, qwen_reranker_candidates)),
         deepseek_api_key=_env("DEEPSEEK_API_KEY") or file_default("deepseek_apikey.txt"),
         deepseek_grounding_model=_env("DEEPSEEK_GROUNDING_MODEL") or "deepseek-v4-flash",
         deepseek_grounding_base_url=(_env("DEEPSEEK_GROUNDING_BASE_URL") or "https://api.deepseek.com").rstrip("/"),

@@ -55,6 +55,10 @@ class SearchRequest(BaseModel):
     feedback: FeedbackState | None = None
     use_llm: bool = False
     expand: bool = False  # Nemotron query expansion (extra visual paraphrases)
+    # Qwen3-VL rescoring of the PE candidate pool. Off by default: it needs a
+    # second GPU worker and costs seconds, so it is the operator's call per
+    # search rather than something the console does behind their back.
+    rerank: bool = False
     # Bounded so a malformed client cannot ask for an unbounded fusion; 1000 is
     # what the console's retrieval-depth slider tops out at.
     top_k: int = Field(default=100, ge=1, le=1000)
@@ -66,6 +70,7 @@ class SimpleSearchRequest(BaseModel):
     query: str = ""
     scope: SearchScope = Field(default_factory=SearchScope)
     top_k: int = 60
+    rerank: bool = False
 
 
 class TranslateRequest(BaseModel):

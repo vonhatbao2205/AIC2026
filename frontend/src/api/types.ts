@@ -145,11 +145,22 @@ export interface TrakeEventSpec {
   image_pe_queries_en?: string[];
 }
 
+/** What the Qwen3-VL rerank stage did for one search.
+ *  `ok: false` means the worker was unreachable and the PE order was kept. */
+export interface RerankerReport {
+  ok: boolean;
+  candidates: number;
+  reranked: number;
+  ms: number;
+  error?: string;
+}
+
 export interface LatencyBreakdown {
   parse_ms?: number;
   fusion_ms?: number;
   total_ms?: number;
   channels?: Record<string, number>;
+  reranker?: RerankerReport;
 }
 
 export interface SearchResponse {
@@ -465,6 +476,8 @@ export interface SimpleResult {
   video_id: string;
   keyframe_n: number;
   score: number;
+  /** Qwen3-VL relevance, present only when the search was reranked. */
+  rerank_score?: number | null;
   keyframe_url: string;
   video_url: string;
 }
@@ -477,6 +490,7 @@ export interface SimpleSearchResponse {
   results: SimpleResult[];
   mode: "mock" | "live";
   latency_ms: number;
+  reranker?: RerankerReport;
 }
 
 export interface HealthResponse {

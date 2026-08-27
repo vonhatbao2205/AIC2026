@@ -134,10 +134,17 @@ export const api = {
     top_k: number,
     retrieval_database: RetrievalDatabase = "btc",
     scope?: SearchScope,
+    rerank = false,
   ) =>
     request<SimpleSearchResponse>("/api/search/simple", {
       method: "POST",
-      body: JSON.stringify({ query, top_k, retrieval_database, ...(scope ? { scope } : {}) }),
+      body: JSON.stringify({
+        query,
+        top_k,
+        retrieval_database,
+        rerank,
+        ...(scope ? { scope } : {}),
+      }),
     }),
 
   parse: (query: string, hint: QueryTypeHint, previous_hints: string[], overrides: ManualOverrides, use_llm = false) =>
@@ -157,6 +164,8 @@ export const api = {
     feedback?: FeedbackState;
     use_llm?: boolean;
     expand?: boolean;
+    /** Qwen3-VL rescoring of the PE candidate pool (operator tick box). */
+    rerank?: boolean;
     top_k?: number;
     max_videos?: number;
   }) =>

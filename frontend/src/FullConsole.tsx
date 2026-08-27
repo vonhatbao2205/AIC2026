@@ -137,6 +137,9 @@ export default function FullConsole({
   const [topK, setTopK] = useState(DEFAULT_TOP_K);
   const [appliedTopK, setAppliedTopK] = useState<number | null>(null);
   const [expand, setExpand] = useState(false);
+  // Qwen3-VL reranking. Default OFF: it needs a second GPU worker running
+  // and costs seconds per search, so the operator opts in per query.
+  const [rerank, setRerank] = useState(false);
   // Search scope: which dataset folders may answer. `scopeMode` is the policy,
   // `scopeSelection` the hand-picked list it uses in "manual", and `appliedScope`
   // what the last search actually ran on (the backend resolves "auto", so only
@@ -329,6 +332,12 @@ export default function FullConsole({
     api.health(retrievalDatabase).then(setHealth).catch(() => setHealth(null));
     refreshHistory();
   }, [configVersion, retrievalDatabase]);
+
+  // A worker that went away takes its tick box with it; untick so the state the
+  // operator can no longer see does not keep riding along on every request.
+  useEffect(() => {
+    if (health && !health.capabilities.visual_rerank) setRerank(false);
+  }, [health]);
 
   useEffect(() => {
     timelineCache.current.clear();
@@ -648,6 +657,7 @@ export default function FullConsole({
           feedback,
           use_llm: useLLM,
           expand,
+          rerank,
           top_k: topK,
           // Results are grouped by video and the backend then keeps only the
           // first `max_videos` groups. Left at its default of 50, a deep search
@@ -673,7 +683,7 @@ export default function FullConsole({
       setLoading(false);
     }
     // `topK` is read here, not watched: nothing re-runs a search when it moves.
-  }, [queryState, hints, overrides, queryType, feedback, useLLM, expand, retrievalDatabase, topK, scopeMode, scopeSelection]);
+  }, [queryState, hints, overrides, queryType, feedback, useLLM, expand, rerank, retrievalDatabase, topK, scopeMode, scopeSelection]);
 
   // The tab rail shows a spinner per tab, so the parent has to know which tabs
   // are still running after an import kicked all of them off at once.
@@ -1495,6 +1505,10 @@ export default function FullConsole({
             onToggleLLM={() => setUseLLM((v) => !v)}
             expand={expand}
             onToggleExpand={() => setExpand((v) => !v)}
+            rerank={rerank}
+            onToggleRerank={setRerank}
+            rerankAvailable={Boolean(health?.capabilities.visual_rerank)}
+            rerankReport={latency?.reranker ?? null}
             topK={topK}
             onTopK={setTopK}
             appliedTopK={appliedTopK}

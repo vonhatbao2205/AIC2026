@@ -111,6 +111,17 @@ GROUPS: tuple[ConfigGroup, ...] = (
         ),
     ),
     ConfigGroup(
+        "Visual reranker (optional)",
+        "Qwen3-VL-Reranker worker rescoring PE candidates; ticked per search.",
+        (
+            ConfigKey("QWEN_RERANKER_URL", "Colab worker URL"),
+            ConfigKey("QWEN_RERANKER_TOKEN", "Worker bearer token", secret=True),
+            ConfigKey("QWEN_RERANKER_ENABLED", "Allow the rerank tick box (true/false)"),
+            ConfigKey("QWEN_RERANKER_CANDIDATES", "Candidates retrieved before reranking"),
+            ConfigKey("QWEN_RERANKER_TIMEOUT_SECONDS", "Request timeout"),
+        ),
+    ),
+    ConfigGroup(
         "Index names",
         "Override only if the corpus was re-uploaded under a new prefix.",
         (

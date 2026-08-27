@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
-import type { ParsedQuery, QueryType } from "../api/types";
+import type { ParsedQuery, QueryType, RerankerReport } from "../api/types";
 
 interface Props {
   query: string;
@@ -17,6 +17,15 @@ interface Props {
   onToggleLLM: () => void;
   expand: boolean;
   onToggleExpand: () => void;
+  /** Qwen3-VL rescoring of the PE candidates. Default off: it needs a second GPU
+   *  worker and adds seconds, so it is a deliberate per-search choice. */
+  rerank: boolean;
+  onToggleRerank: (next: boolean) => void;
+  /** False when no rerank worker can answer — the box is then hidden rather than
+   *  offered as a setting that silently does nothing. */
+  rerankAvailable: boolean;
+  /** Last search's rerank outcome, so a failed refinement is visible. */
+  rerankReport?: RerankerReport | null;
   /** Keyframes to retrieve. Applied on the NEXT search, never on change. */
   topK: number;
   onTopK: (value: number) => void;
@@ -29,7 +38,7 @@ interface Props {
 }
 
 export function QueryPanel(props: Props) {
-  const { query, setQuery, hints, onAppendHint, onClearHints, onSearch, loading, parsed, queryType, inputRef, useLLM, onToggleLLM, expand, onToggleExpand, topK, onTopK, appliedTopK, scopeFilter } = props;
+  const { query, setQuery, hints, onAppendHint, onClearHints, onSearch, loading, parsed, queryType, inputRef, useLLM, onToggleLLM, expand, onToggleExpand, rerank, onToggleRerank, rerankAvailable, rerankReport, topK, onTopK, appliedTopK, scopeFilter } = props;
   const [listening, setListening] = useState(false);
   const [voiceMsg, setVoiceMsg] = useState<string | null>(null);
   const [interim, setInterim] = useState("");
@@ -227,8 +236,36 @@ export function QueryPanel(props: Props) {
         >
           {expand ? "🔎 Expand on" : "Expand off"}
         </button>
+        {rerankAvailable && (
+          <label
+            className="check-toggle"
+            data-testid="rerank-toggle"
+            title="Qwen3-VL chấm lại từng cặp (query, keyframe) trên tập ứng viên PE mở rộng trước khi fuse. Chính xác hơn nhưng chậm hơn vài giây; nếu worker lỗi thì giữ nguyên thứ tự PE."
+          >
+            <input
+              type="checkbox"
+              checked={rerank}
+              data-testid="rerank-checkbox"
+              onChange={(event) => onToggleRerank(event.target.checked)}
+            />
+            <span>Rerank</span>
+          </label>
+        )}
         {scopeFilter}
       </div>
+
+      {/* A refinement that quietly failed is worse than one that never ran, so
+          the outcome of the last rerank is stated rather than left to latency. */}
+      {rerankReport && (
+        <div
+          className={`hint-text ${rerankReport.ok ? "" : "warn"}`}
+          data-testid="rerank-report"
+        >
+          {rerankReport.ok
+            ? `↕ Rerank: ${rerankReport.reranked}/${rerankReport.candidates} keyframe · ${Math.round(rerankReport.ms)} ms`
+            : `⚠ Rerank lỗi sau ${Math.round(rerankReport.ms)} ms — giữ nguyên thứ tự PE: ${rerankReport.error ?? "không rõ"}`}
+        </div>
+      )}
 
       {/* Retrieval depth. Deliberately NOT live: moving it while a hundred
           results are on screen would re-run every channel on every drag. */}

@@ -132,11 +132,12 @@ build_runtime()
 async def health(retrieval_database: RetrievalDatabase = "btc"):
     selected = search_services[retrieval_database]
     selected_settings = profile_settings[retrieval_database]
-    elastic, milvus, pe, nvila, grounding, dres = await asyncio.gather(
+    elastic, milvus, pe, nvila, reranker, grounding, dres = await asyncio.gather(
         selected.elastic.health(),
         selected.milvus.health(),
         selected.pe.health(),
         nvila_qa.health(),
+        selected.reranker.health(),
         web_grounding_client.health(),
         dres_client.health(),
     )
@@ -150,6 +151,7 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
         "milvus": milvus,
         "pe_encoder": pe,
         "nvila_qa": nvila,
+        "qwen_reranker": reranker,
         "web_grounding": grounding,
         "object_index": objects,
         "dres": dres,
@@ -179,6 +181,10 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
             # NVILA currently reranks/grounds only the QA candidate pack; it is
             # not a general reranker for T-KIS/V-KIS/TRAKE retrieval results.
             "vlm_rerank": False,
+            # Qwen3-VL-Reranker over the PE candidate pool. The console only
+            # offers the tick box when a worker can actually answer, so the
+            # operator never turns on a refinement that silently does nothing.
+            "visual_rerank": bool(reranker.get("ok")),
             # The worker returns short verification reasons, never hidden or
             # free-form chain-of-thought traces.
             "vlm_cot": False,
@@ -293,7 +299,10 @@ async def search_simple(req: SimpleSearchRequest):
     """Minimal vector-only search: flat keyframe list ordered by cosine."""
     try:
         return await search_services[req.retrieval_database].simple_image_search(
-            req.query, top_k=req.top_k, scope_spec=req.scope.model_dump()
+            req.query,
+            top_k=req.top_k,
+            scope_spec=req.scope.model_dump(),
+            rerank=req.rerank,
         )
     except ServiceUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

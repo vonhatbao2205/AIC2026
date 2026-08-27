@@ -331,6 +331,24 @@ button { font-family: inherit; }
 .btn.danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
 .btn.sm { padding: 5px 9px; font-size: 11.5px; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Inline tick box sitting in the same row as the .btn.sm toggles. Reads as a
+   checkbox (it is one) rather than as another pressed-state button, because it
+   selects a mode for the NEXT search instead of acting immediately. */
+.check-toggle {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  padding: 5px 9px; font-size: 11.5px; border-radius: var(--radius-sm);
+  border: 1px solid var(--line); background: transparent; color: var(--fg-dim);
+  user-select: none; white-space: nowrap;
+}
+.check-toggle:hover { background: var(--bg-3); color: var(--fg); }
+.check-toggle:has(input:checked) {
+  color: var(--accent-fg); border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.check-toggle input { accent-color: var(--accent); margin: 0; cursor: pointer; }
+.hint-text.warn { color: var(--warn); }
+.latency-mini.warn { color: var(--warn); }
 .kbd {
   font-family: var(--mono); font-size: 10px; background: color-mix(in srgb, var(--fg) 8%, transparent);
   border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; color: var(--fg-dim);

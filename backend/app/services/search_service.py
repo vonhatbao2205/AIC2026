@@ -13,6 +13,7 @@ from typing import Any
 from ..adapters.elastic_client import ElasticClient
 from ..adapters.milvus_client import MilvusClient
 from ..adapters.pe_encoder import GlapEncoderClient, PeEncoderClient
+from ..adapters.qwen_reranker import QwenRerankerClient
 from ..config import Settings
 from ..fusion import group_by_video, reciprocal_rank_fusion
 from ..media import MediaUrlBuilder
@@ -37,22 +38,41 @@ class SearchService:
         self.milvus = MilvusClient(settings)
         self.pe = PeEncoderClient(settings)
         self.glap = GlapEncoderClient(settings)
+        self.reranker = QwenRerankerClient(settings)
         self.parser = QueryParser(settings)
         self.media = MediaUrlBuilder(settings.keyframe_media_base_url, settings.video_media_base_url)
 
     # ---- channel runners ----------------------------------------------
     async def _run_image_pe(
-        self, cfg: dict[str, Any], top_k: int, categories: tuple[str, ...] = ()
+        self,
+        cfg: dict[str, Any],
+        top_k: int,
+        categories: tuple[str, ...] = (),
+        *,
+        rerank: bool = False,
+        rerank_info: dict[str, Any] | None = None,
     ) -> tuple[list[ChannelHit], float]:
         """PE image search with QUERY EXPANSION: each query variant is searched
         separately and the results are fused by max cosine per frame (a frame
-        matching ANY phrasing strongly is kept). One variant == plain search."""
+        matching ANY phrasing strongly is kept). One variant == plain search.
+
+        With `rerank`, Milvus is asked for a WIDER candidate pool than the caller
+        wants and Qwen3-VL rescores it before the list is cut back to `top_k`.
+        The reranker judges `(query, image)` pairs, so it has to run here — at
+        frame level, on the PE candidate union — rather than after RRF, where a
+        low visual score would overrule the OCR/speech/audio channels on frames
+        whose evidence is not visual at all.
+        """
         t0 = time.perf_counter()
         queries = [q for q in (cfg.get("queries_en") or []) if q and q.strip()]
         if not queries:
             return [], 0.0
+        rerank_on = bool(rerank and self.reranker.enabled)
+        candidate_k = max(top_k, self.reranker.candidate_k) if rerank_on else top_k
         vectors = await self.pe.encode_text(queries)
-        search = functools.partial(self.milvus.search_image, top_k=top_k, categories=categories)
+        search = functools.partial(
+            self.milvus.search_image, top_k=candidate_k, categories=categories
+        )
         if self.milvus.mock:
             raws = [search(vector) for vector in vectors]
         else:
@@ -64,7 +84,10 @@ class SearchService:
                 kf = r["submit_keyframe_id"]
                 if kf not in best or r["score"] > best[kf]["score"]:
                     best[kf] = r
-        fused = sorted(best.values(), key=lambda r: -r["score"])[:top_k]
+        fused = sorted(best.values(), key=lambda r: -r["score"])[:candidate_k]
+        if rerank_on:
+            fused = await self._rerank_frames(queries[0], fused, rerank_info)
+        fused = fused[:top_k]
         hits = [
             ChannelHit(
                 channel="image_pe",
@@ -73,11 +96,78 @@ class SearchService:
                 keyframe_n=int(r["keyframe_n"]),
                 score=float(r["score"]),
                 rank=i,
-                evidence=Evidence(type="image_pe", score=float(r["score"])),
+                evidence=Evidence(
+                    type="image_pe",
+                    score=float(r["score"]),
+                    extra=(
+                        {"rerank_score": round(float(r["rerank_score"]), 4)}
+                        if r.get("rerank_score") is not None
+                        else {}
+                    ),
+                ),
             )
             for i, r in enumerate(fused)
         ]
         return hits, (time.perf_counter() - t0) * 1000
+
+    async def _rerank_frames(
+        self,
+        query: str,
+        rows: list[dict[str, Any]],
+        info: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Reorder PE candidates by Qwen3-VL relevance. FAIL-OPEN.
+
+        `retrieve()` turns any channel exception into an empty channel, so letting
+        a rerank failure escape would delete the whole PE result the moment the
+        Colab tunnel drops. A refinement is not allowed to cost more than it adds:
+        every failure path here returns the PE order untouched.
+
+        Only the FIRST query variant is sent. Reranking each expansion paraphrase
+        would triple the GPU cost to answer a question the operator did not ask —
+        the reranker judges candidates against the real query.
+        """
+        started = time.perf_counter()
+        report = info if info is not None else {}
+        if not rows or not query.strip():
+            return rows
+        documents = [
+            {
+                "id": r["submit_keyframe_id"],
+                "image": self.media.keyframe_url(r["video_id"], int(r["keyframe_n"])),
+            }
+            for r in rows
+        ]
+        try:
+            ranked = await self.reranker.rerank(query, documents)
+        except Exception as exc:  # noqa: BLE001 - the whole point is to stay open
+            report.update({
+                "ok": False,
+                "candidates": len(rows),
+                "reranked": 0,
+                "ms": round((time.perf_counter() - started) * 1000, 1),
+                "error": str(exc)[:300],
+            })
+            return rows
+        by_id = {r["submit_keyframe_id"]: r for r in rows}
+        ordered: list[dict[str, Any]] = []
+        for item in ranked:
+            row = by_id.pop(item["id"], None)
+            if row is None:
+                continue
+            row["rerank_score"] = item["score"]
+            ordered.append(row)
+        # Frames the worker could not score (unreachable keyframe image, or cut by
+        # its own top_k) keep their PE order behind the reranked ones — dropping
+        # them would lose recall PE had already paid for.
+        ordered.extend(by_id.values())
+        report.update({
+            "ok": True,
+            "candidates": len(rows),
+            "reranked": len(ordered) - len(by_id),
+            "ms": round((time.perf_counter() - started) * 1000, 1),
+        })
+        return ordered
 
     async def _run_similar(
         self, seed_ids: list[str], top_k: int, categories: tuple[str, ...] = ()
@@ -268,6 +358,7 @@ class SearchService:
         top_k: int = 100,
         feedback: dict[str, Any] | None = None,
         categories: tuple[str, ...] = (),
+        rerank: bool = False,
     ) -> tuple[list[VideoGroup], dict[str, Any]]:
         """`categories` is the resolved search scope: the dataset folders this
         search may return frames from. It is pushed into every channel's own
@@ -276,10 +367,17 @@ class SearchService:
         channels_cfg = parsed.get("channels", {})
         filters = parsed.get("filters", {})
         unsupported = self.s.unsupported_channels
+        # Per-call, so two concurrent searches never write each other's report.
+        rerank_info: dict[str, Any] = {}
         runners = {
             name: runner
             for name, runner in (
-                ("image_pe", self._run_image_pe),
+                (
+                    "image_pe",
+                    functools.partial(
+                        self._run_image_pe, rerank=rerank, rerank_info=rerank_info
+                    ),
+                ),
                 ("ocr", self._run_ocr),
                 ("speech", self._run_speech),
                 ("audio", self._run_audio),
@@ -327,6 +425,13 @@ class SearchService:
             channel_hits[name] = _apply_filters(hits, filters, categories)
             latency["channels"][name] = round(ms, 1)
             weights[name] = float(channels_cfg.get(name, {}).get("weight") or 1.0)
+        if rerank_info:
+            latency["reranker"] = rerank_info
+            if not rerank_info.get("ok"):
+                warnings.append(
+                    "Reranker không dùng được, giữ nguyên thứ tự PE: "
+                    + str(rerank_info.get("error") or "unknown")
+                )
         if warnings:
             latency["warnings"] = warnings
 
@@ -372,10 +477,18 @@ class SearchService:
 
     # ---- simple flat vector search ------------------------------------
     async def simple_image_search(
-        self, query: str, top_k: int = 60, scope_spec: dict[str, Any] | None = None
+        self,
+        query: str,
+        top_k: int = 60,
+        scope_spec: dict[str, Any] | None = None,
+        rerank: bool = False,
     ) -> dict[str, Any]:
         """Pure PE→Milvus image search returning a FLAT keyframe list ordered by
-        cosine similarity (no parser, no fusion, no group-by-video)."""
+        cosine similarity (no parser, no fusion, no group-by-video).
+
+        Simple Search is the second visual code path; hooking only the full search
+        would leave this tab silently on plain PE while its tick box says otherwise.
+        """
         t0 = time.perf_counter()
         query = (query or "").strip()
         scope = self.resolve_scope(scope_spec, query=query)
@@ -401,16 +514,25 @@ class SearchService:
                 f"PE text-encoder unreachable ({self.s.pe_encoder_url}). "
                 f"Restart the Kaggle PE server and update PE_ENCODER_URL. Detail: {exc}"
             ) from exc
+        rerank_on = bool(rerank and self.reranker.enabled)
+        candidate_k = max(top_k, self.reranker.candidate_k) if rerank_on else top_k
         try:
             raw = (
-                self.milvus.search_image(vectors[0], top_k=top_k, categories=scope.categories)
+                self.milvus.search_image(vectors[0], top_k=candidate_k, categories=scope.categories)
                 if self.milvus.mock
                 else await asyncio.to_thread(
-                    self.milvus.search_image, vectors[0], top_k=top_k, categories=scope.categories
+                    self.milvus.search_image,
+                    vectors[0],
+                    top_k=candidate_k,
+                    categories=scope.categories,
                 )
             )
         except Exception as exc:  # noqa: BLE001
             raise ServiceUnavailable(f"Milvus image search failed: {exc}") from exc
+        rerank_info: dict[str, Any] = {}
+        if rerank_on:
+            raw = await self._rerank_frames(search_text, list(raw), rerank_info)
+        raw = raw[:top_k]
         results = [
             {
                 "image_id": r["submit_keyframe_id"],
@@ -418,12 +540,17 @@ class SearchService:
                 "video_id": r["video_id"],
                 "keyframe_n": int(r["keyframe_n"]),
                 "score": round(float(r["score"]), 6),
+                "rerank_score": (
+                    round(float(r["rerank_score"]), 4)
+                    if r.get("rerank_score") is not None
+                    else None
+                ),
                 "keyframe_url": self.media.keyframe_url(r["video_id"], int(r["keyframe_n"])),
                 "video_url": self.media.video_url(r["video_id"]),
             }
             for r in raw
         ]
-        return {
+        body: dict[str, Any] = {
             "query": query,
             "retrieval_database": self.s.retrieval_database,
             "scope": scope.to_dict(),
