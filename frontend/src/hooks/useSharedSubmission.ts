@@ -38,6 +38,33 @@ const RETRY_MS = 4000;
 
 export type SyncStatus = "offline" | "connecting" | "live" | "error";
 
+/** One reversible action, stated as the state it has to put back.
+ *
+ *  Undo here is not "rewind": the table is shared, so undoing is one more write
+ *  that everybody sees. A step therefore carries the DATA to restore rather than
+ *  a pointer into history — the rows as they were, byte for byte, including the
+ *  `id` and `createdAt` that decide where a row sits in the exported CSV. */
+export interface UndoStep {
+  label: string;
+  /** Questions this step touches, so clearing one can drop its steps. */
+  questionIds: string[];
+  /** Rows that existed before and must come back exactly as they were. */
+  restore: SubmissionRow[];
+  /** Ids of rows this action created, which must go away again. */
+  remove: string[];
+  /** Bulk answer writes, put back one request per distinct previous value
+   *  rather than one per row. */
+  answers: { answer: string; ids: string[] }[];
+  /** Consecutive steps sharing a key collapse into the first one. Typing in a
+   *  cell fires an update per keystroke; without this, Ctrl+Z would walk back
+   *  one character at a time. */
+  coalesceKey?: string;
+}
+
+/** Deepest history kept. A regeneration step holds up to 100 rows, so this is a
+ *  few thousand rows at worst — cheap next to what it protects. */
+const UNDO_DEPTH = 20;
+
 export interface SharedSubmission {
   rows: SubmissionRow[];
   status: SyncStatus;
@@ -65,6 +92,19 @@ export interface SharedSubmission {
   deleteRows: (ids: string[]) => void;
   clearQuestion: (questionId: string) => void;
   dismissConflict: (id: string) => void;
+  /** Bundle several mutations into ONE undo step — regenerating a question is a
+   *  delete plus an insert, and undoing half of that is worse than not undoing.
+   *  `run` must be synchronous; the mutators it calls are. */
+  transaction: (label: string, run: () => void) => void;
+  /** Put the last action back. Returns its label, or null when nothing is left.
+   *
+   *  NOT available for "xoá hết": that deletes by question on the server on
+   *  purpose, so this client never holds the rows a teammate added seconds ago
+   *  and could only restore a subset — silently dropping their work. Clearing a
+   *  question therefore discards the undo steps that touch it. */
+  undo: () => string | null;
+  /** Label of the action Ctrl+Z would put back, for the button. */
+  undoLabel: string | null;
 }
 
 type Op =
@@ -343,6 +383,65 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
     };
   }, [flush, sessionId]);
 
+  const [undoStack, setUndoStack] = useState<UndoStep[]>([]);
+  // Non-null while inside `transaction`: everything recorded lands in this step
+  // instead of becoming a step of its own.
+  const recording = useRef<UndoStep | null>(null);
+  // True while an undo is being applied, so putting rows back is not itself
+  // recorded as an action to undo.
+  const applying = useRef(false);
+
+  const record = useCallback((label: string, part: Partial<UndoStep>) => {
+    if (applying.current) return;
+    const restore = part.restore ?? [];
+    const remove = part.remove ?? [];
+    const answers = part.answers ?? [];
+    if (!restore.length && !remove.length && !answers.length) return;
+    const questionIds = [
+      ...new Set([
+        ...(part.questionIds ?? []),
+        ...restore.map((row) => row.questionId),
+      ]),
+    ];
+    const open = recording.current;
+    if (open) {
+      open.restore.push(...restore);
+      open.remove.push(...remove);
+      open.answers.push(...answers);
+      open.questionIds = [...new Set([...open.questionIds, ...questionIds])];
+      return;
+    }
+    setUndoStack((current) => {
+      const last = current[current.length - 1];
+      // The earlier step already holds the value from before the whole edit.
+      if (part.coalesceKey && last?.coalesceKey === part.coalesceKey) return current;
+      return [
+        ...current,
+        { label, questionIds, restore, remove, answers, coalesceKey: part.coalesceKey },
+      ].slice(-UNDO_DEPTH);
+    });
+  }, []);
+
+  const transaction = useCallback((label: string, run: () => void) => {
+    if (recording.current) {
+      run();
+      return;
+    }
+    const step: UndoStep = { label, questionIds: [], restore: [], remove: [], answers: [] };
+    recording.current = step;
+    try {
+      run();
+    } finally {
+      recording.current = null;
+      // Pushed even when it changed nothing. A transaction is an action the
+      // operator deliberately took, and it has to be what the next Ctrl+Z lands
+      // on: a regeneration that produced no rows used to leave no step at all,
+      // so the press reached past it and reverted an earlier edit instead —
+      // blanking a row somebody had typed by hand.
+      setUndoStack((current) => [...current, step].slice(-UNDO_DEPTH));
+    }
+  }, []);
+
   const addRow = useCallback(
     (row: SubmissionRow) => {
       const complete: SubmissionRow = {
@@ -353,10 +452,11 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
         createdAt: row.createdAt ?? nextCreatedAt(),
         syncState: shared ? "pending" : "local",
       };
+      record("thêm dòng", { questionIds: [complete.questionId], remove: [complete.id] });
       setRows((current) => sortRows([...current, complete]));
       enqueue({ kind: "insert", row: complete });
     },
-    [enqueue, shared, user],
+    [enqueue, record, shared, user],
   );
 
   const addRows = useCallback(
@@ -372,10 +472,33 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
         createdAt: row.createdAt ?? nextCreatedAt(),
         syncState: (shared ? "pending" : "local") as SubmissionRow["syncState"],
       }));
+      record(`thêm ${complete.length} dòng`, {
+        questionIds: complete.map((row) => row.questionId),
+        remove: complete.map((row) => row.id),
+      });
       setRows((current) => sortRows([...current, ...complete]));
       enqueue({ kind: "insert_many", rows: complete });
     },
-    [enqueue, shared, user],
+    [enqueue, record, shared, user],
+  );
+
+  /** Write one answer onto a named set of rows, as a single request. Undo needs
+   *  this too: putting a bulk fill back means one write per distinct previous
+   *  answer, not one per row. */
+  const applyAnswer = useCallback(
+    (ids: string[], answer: string) => {
+      if (!ids.length) return;
+      const targets = new Set(ids);
+      setRows((current) =>
+        current.map((row) =>
+          targets.has(row.id)
+            ? { ...row, answer, syncState: shared ? "pending" : "local" }
+            : row,
+        ),
+      );
+      enqueue({ kind: "answer_many", ids: [...targets], answer });
+    },
+    [enqueue, shared],
   );
 
   const setAnswerForQuestion = useCallback(
@@ -383,16 +506,24 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
       const targets = rowsRef.current.filter((row) => row.questionId === questionId);
       if (!targets.length) return;
       const text = answer.trim();
-      setRows((current) =>
-        current.map((row) =>
-          row.questionId === questionId
-            ? { ...row, answer: text, syncState: shared ? "pending" : "local" }
-            : row,
-        ),
+      // Rows may not have shared one answer before this — group by what each
+      // held so undo restores every one of them, still in one write per value.
+      const groups = new Map<string, string[]>();
+      for (const row of targets) {
+        const ids = groups.get(row.answer);
+        if (ids) ids.push(row.id);
+        else groups.set(row.answer, [row.id]);
+      }
+      record(`điền answer cho ${questionId}`, {
+        questionIds: [questionId],
+        answers: [...groups].map(([previous, ids]) => ({ answer: previous, ids })),
+      });
+      applyAnswer(
+        targets.map((row) => row.id),
+        text,
       );
-      enqueue({ kind: "answer_many", ids: targets.map((row) => row.id), answer: text });
     },
-    [enqueue, shared],
+    [applyAnswer, record],
   );
 
   const updateRow = useCallback(
@@ -404,6 +535,7 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
         ...patch,
         syncState: shared ? "pending" : "local",
       };
+      record("sửa dòng", { restore: [current], coalesceKey: `update:${id}` });
       rowsRef.current = rowsRef.current.map((row) => (row.id === id ? next : row));
       setRows((rows) => rows.map((row) => (row.id === id ? next : row)));
       if (!shared) return;
@@ -422,25 +554,29 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
       }
       enqueue({ kind: "update", id, row: next, expectedRevision: current.revision ?? 1 });
     },
-    [enqueue, flush, shared],
+    [enqueue, flush, record, shared],
   );
 
   const deleteRow = useCallback(
     (id: string) => {
+      const doomed = rowsRef.current.find((row) => row.id === id);
+      if (doomed) record("xoá dòng", { restore: [doomed] });
       setRows((current) => current.filter((row) => row.id !== id));
       enqueue({ kind: "delete", id });
     },
-    [enqueue],
+    [enqueue, record],
   );
 
   const deleteRows = useCallback(
     (ids: string[]) => {
       if (!ids.length) return;
       const doomed = new Set(ids);
+      const before = rowsRef.current.filter((row) => doomed.has(row.id));
+      record(`xoá ${before.length} dòng`, { restore: before });
       setRows((current) => current.filter((row) => !doomed.has(row.id)));
       enqueue({ kind: "delete_many", ids: [...doomed] });
     },
-    [enqueue],
+    [enqueue, record],
   );
 
   const clearQuestion = useCallback(
@@ -449,11 +585,47 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
       // sequential round trips: the table looks cleared instantly while the
       // outbox is still draining, and closing the tab in that window leaves the
       // rest on the server to reappear on the next load.
+      // Not undoable, and the steps that touch this question must go with it: a
+      // later Ctrl+Z would otherwise resurrect part of a question the operator
+      // just cleared — the part this client happened to know about.
+      setUndoStack((current) =>
+        current.filter((step) => !step.questionIds.includes(questionId)),
+      );
       setRows((current) => current.filter((row) => row.questionId !== questionId));
       enqueue({ kind: "delete_question", questionId, sessionId: sessionRef.current });
     },
     [enqueue],
   );
+
+  const undo = useCallback((): string | null => {
+    const step = undoStack[undoStack.length - 1];
+    if (!step) return null;
+    setUndoStack((current) => current.slice(0, -1));
+    if (!step.restore.length && !step.remove.length && !step.answers.length) {
+      return `${step.label} — thao tác này không đổi gì`;
+    }
+    applying.current = true;
+    try {
+      if (step.remove.length) deleteRows(step.remove);
+      if (step.restore.length) {
+        // A row still on screen is an edit to put back; one that is gone was
+        // deleted and has to be re-inserted. Routing them separately also gets
+        // the mixed case right — an edited row a teammate has since deleted.
+        const present = new Set(rowsRef.current.map((row) => row.id));
+        const gone = step.restore.filter((row) => !present.has(row.id));
+        // `addRows` keeps the id and createdAt it is given, so a restored row
+        // lands back at its old rank rather than at the end of the list.
+        if (gone.length) addRows(gone);
+        for (const row of step.restore) {
+          if (present.has(row.id)) updateRow(row.id, row);
+        }
+      }
+      for (const group of step.answers) applyAnswer(group.ids, group.answer);
+    } finally {
+      applying.current = false;
+    }
+    return step.label;
+  }, [addRows, applyAnswer, deleteRows, undoStack, updateRow]);
 
   const dismissConflict = useCallback((id: string) => {
     setConflicts((current) => current.filter((item) => item !== id));
@@ -476,6 +648,9 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
     deleteRows,
     clearQuestion,
     dismissConflict,
+    transaction,
+    undo,
+    undoLabel: undoStack[undoStack.length - 1]?.label ?? null,
   };
 }
 

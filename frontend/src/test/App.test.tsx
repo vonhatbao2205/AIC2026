@@ -1257,7 +1257,8 @@ describe("query pack + submission table", () => {
     await user.click(screen.getByText("query-p1-1-kis +"));
     const row = await screen.findByTestId("row-query-p1-1-kis-0");
     await user.type(within(row).getAllByRole("textbox")[0], "L26_V001");
-    await user.type(within(row).getAllByRole("textbox")[1], "6400");
+    // Enter sends the whole row once, rather than a write per keystroke.
+    await user.type(within(row).getAllByRole("textbox")[1], "6400{Enter}");
 
     await user.click(screen.getByTestId("autogen-toggle"));
     fireEvent.change(screen.getByTestId("autogen-limit"), { target: { value: "3" } });
@@ -1351,7 +1352,7 @@ describe("query pack + submission table", () => {
     await user.click(screen.getByText("query-p1-2-qa +"));
 
     const row = await screen.findByTestId("row-query-p1-2-qa-0");
-    await user.type(within(row).getAllByRole("textbox")[2], "năm người");
+    await user.type(within(row).getAllByRole("textbox")[2], "năm người{Enter}");
     await user.click(screen.getByTestId("autogen-one-query-p1-2-qa"));
 
     await waitFor(() => expect(answerGenRequests).toHaveLength(1));
@@ -1524,6 +1525,34 @@ describe("query pack + submission table", () => {
     expect(rows()).toHaveLength(10);
   });
 
+  it("undoes a whole generation with one press, not one question at a time", async () => {
+    // Regenerating is a delete plus an insert across every question in the pack.
+    // Undo has to reverse the pair as one step, or the table keeps both sets.
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByTestId("autogen-toggle"));
+    fireEvent.change(screen.getByTestId("autogen-limit"), { target: { value: "12" } });
+    await user.click(screen.getByTestId("autogen-start"));
+
+    const block = await screen.findByTestId("submission-query-p1-1-kis");
+    await waitFor(() =>
+      expect(within(block).getAllByTestId(/^row-query-p1-1-kis-\d+$/)).toHaveLength(10),
+    );
+
+    const undo = screen.getByTestId("submission-undo");
+    expect(undo).toBeEnabled();
+    await user.click(undo);
+
+    await waitFor(() =>
+      expect(screen.queryByTestId("submission-query-p1-1-kis")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("undo-toast")).toHaveTextContent("sinh lại");
+    // Nothing left to undo, so the button goes back to being unavailable.
+    expect(screen.getByTestId("submission-undo")).toBeDisabled();
+  });
+
   it("does not leave the selection on a row that collapsing hid", async () => {
     // P / V / Delete all act on the selection, and Delete would drop a row the
     // operator can no longer see.
@@ -1564,7 +1593,149 @@ describe("query pack + submission table", () => {
     await user.type(frameCell, "1200, 1850");
 
     expect(frameCell).toHaveValue("1200, 1850");
+    // Nothing has been sent yet: typing edits a local draft, and the table the
+    // team shares still holds the previous value.
+    expect(screen.getByTestId("csv-query-p1-3-trake")).not.toHaveTextContent(",1200,1850");
+    expect(screen.getByTestId("unsent-banner")).toBeInTheDocument();
+
+    await user.type(frameCell, "{Enter}");
     expect(screen.getByTestId("csv-query-p1-3-trake")).toHaveTextContent(",1200,1850");
+    expect(screen.queryByTestId("unsent-banner")).not.toBeInTheDocument();
+  });
+
+  it("sends a hand-typed row once, on confirm, not on every keystroke", async () => {
+    // Five operators share this table. Writing through on each character made
+    // "L30_V046" eight writes, and because the cell was driven off the shared
+    // row, anything arriving from Postgres mid-word replaced what was on screen
+    // and ate the rest of it.
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByText("query-p1-1-kis +"));
+
+    const row = await screen.findByTestId("row-query-p1-1-kis-0");
+    await user.type(within(row).getAllByRole("textbox")[0], "L30_V046");
+    await user.type(within(row).getAllByRole("textbox")[1], "6644");
+
+    // Still local: the shared table has neither value.
+    const csv = () => screen.getByTestId("csv-query-p1-1-kis").textContent ?? "";
+    expect(csv()).not.toContain("L30_V046");
+    expect(screen.getByTestId("unsent-banner")).toHaveTextContent("1 dòng");
+
+    // One confirm carries the whole row — video id and frames together, rather
+    // than racing each other into the table as separate writes.
+    await user.click(screen.getByTestId("commit-query-p1-1-kis-0"));
+    expect(csv()).toContain("L30_V046,6644");
+    expect(screen.queryByTestId("unsent-banner")).not.toBeInTheDocument();
+  });
+
+  it("throws the draft away on Escape", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByText("query-p1-1-kis +"));
+
+    const row = await screen.findByTestId("row-query-p1-1-kis-0");
+    const videoCell = within(row).getAllByRole("textbox")[0];
+    await user.type(videoCell, "L30_V04");
+    expect(screen.getByTestId("unsent-banner")).toBeInTheDocument();
+
+    await user.type(videoCell, "{Escape}");
+    expect(videoCell).toHaveValue("");
+    expect(screen.queryByTestId("unsent-banner")).not.toBeInTheDocument();
+  });
+
+  it("confirms every pending row from the banner", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByText("query-p1-1-kis +"));
+    // The "+" shortcut only exists while a question is unanswered; a second row
+    // comes from the block's own button.
+    const block = await screen.findByTestId("submission-query-p1-1-kis");
+    await user.click(within(block).getByText("+ dòng"));
+
+    const first = await screen.findByTestId("row-query-p1-1-kis-0");
+    const second = await screen.findByTestId("row-query-p1-1-kis-1");
+    await user.type(within(first).getAllByRole("textbox")[0], "L30_V046");
+    await user.type(within(second).getAllByRole("textbox")[0], "L21_V003");
+    expect(screen.getByTestId("unsent-banner")).toHaveTextContent("2 dòng");
+
+    await user.click(screen.getByTestId("commit-all"));
+    const csv = screen.getByTestId("csv-query-p1-1-kis").textContent ?? "";
+    expect(csv).toContain("L30_V046");
+    expect(csv).toContain("L21_V003");
+    expect(screen.queryByTestId("unsent-banner")).not.toBeInTheDocument();
+  });
+
+  it("undo after a regeneration gives the hand-typed rows back", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByText("query-p1-1-kis +"));
+    const block = await screen.findByTestId("submission-query-p1-1-kis");
+    await user.click(within(block).getByText("+ dòng"));
+
+    const first = await screen.findByTestId("row-query-p1-1-kis-0");
+    const second = await screen.findByTestId("row-query-p1-1-kis-1");
+    await user.type(within(first).getAllByRole("textbox")[0], "L21_V005");
+    await user.type(within(first).getAllByRole("textbox")[1], "2315{Enter}");
+    await user.type(within(second).getAllByRole("textbox")[0], "L30_V046");
+    await user.type(within(second).getAllByRole("textbox")[1], "6644{Enter}");
+    expect(screen.getByTestId("csv-query-p1-1-kis")).toHaveTextContent("L21_V005,2315");
+
+    await user.click(screen.getByTestId("autogen-one-query-p1-1-kis"));
+    await waitFor(() => expect(answerGenRequests).toHaveLength(1));
+    await waitFor(() =>
+      expect(within(block).getAllByTestId(/^row-query-p1-1-kis-\d+$/).length).toBeGreaterThan(2),
+    );
+
+    await user.click(screen.getByTestId("submission-undo"));
+
+    const csv = screen.getByTestId("csv-query-p1-1-kis").textContent ?? "";
+    expect(csv).toContain("L21_V005,2315");
+    expect(csv).toContain("L30_V046,6644");
+    expect(csv.trim().split(/\r?\n/)).toHaveLength(2);
+  });
+
+  it("a regeneration that produces nothing must not let Ctrl+Z hit an older action", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByText("query-p1-1-kis +"));
+    const block = await screen.findByTestId("submission-query-p1-1-kis");
+    await user.click(within(block).getByText("+ dòng"));
+
+    const first = await screen.findByTestId("row-query-p1-1-kis-0");
+    const second = await screen.findByTestId("row-query-p1-1-kis-1");
+    await user.type(within(first).getAllByRole("textbox")[0], "L21_V005");
+    await user.type(within(first).getAllByRole("textbox")[1], "2315{Enter}");
+    await user.type(within(second).getAllByRole("textbox")[0], "L30_V046");
+    await user.type(within(second).getAllByRole("textbox")[1], "6644{Enter}");
+
+    // Budget = limit - kept = 0, so the generator is skipped and the question
+    // ends the run exactly as it started.
+    await user.click(screen.getByTestId("autogen-toggle"));
+    fireEvent.change(screen.getByTestId("autogen-limit"), { target: { value: "2" } });
+    await user.click(screen.getByTestId("autogen-one-query-p1-1-kis"));
+    await waitFor(() =>
+      expect(within(block).getAllByTestId(/^row-query-p1-1-kis-\d+$/)).toHaveLength(2),
+    );
+
+    await user.click(screen.getByTestId("submission-undo"));
+
+    // The hand-typed values must still be there: the press cannot silently
+    // reach past the action the operator just took and blank a row instead.
+    const csv = screen.getByTestId("csv-query-p1-1-kis").textContent ?? "";
+    expect(csv).toContain("L21_V005,2315");
+    expect(csv).toContain("L30_V046,6644");
+    // And it says why nothing came back, rather than looking like a dud press.
+    expect(screen.getByTestId("undo-toast")).toHaveTextContent("không đổi gì");
   });
 
   it("can get back to the search UI and import from the submission view", async () => {
@@ -1852,7 +2023,7 @@ describe("query pack + submission table", () => {
     const row = await screen.findByTestId("row-query-p1-1-kis-0");
     const videoCell = within(row).getAllByRole("textbox")[0];
     await user.clear(videoCell);
-    await user.type(videoCell, "L01_V028.mp4");
+    await user.type(videoCell, "L01_V028.mp4{Enter}");
 
     // The cell still accepts what was typed — nothing is locked mid-edit…
     expect(await screen.findByTestId("csv-query-p1-1-kis")).toHaveTextContent("L01_V028.mp4,0");
@@ -1874,7 +2045,7 @@ describe("query pack + submission table", () => {
     await user.click(screen.getByText("query-p1-3-trake +"));
     const row = await screen.findByTestId("row-query-p1-3-trake-0");
     const frameCell = within(row).getAllByRole("textbox")[1];
-    await user.type(frameCell, "1200, 900");
+    await user.type(frameCell, "1200, 900{Enter}");
 
     expect(screen.getByTestId("errors-query-p1-3-trake")).toBeInTheDocument();
     expect(screen.getByTestId("submission-query-p1-3-trake")).toHaveTextContent(/tăng dần/);

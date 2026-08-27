@@ -210,6 +210,20 @@ button { font-family: inherit; }
   border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; font-size: 12px;
 }
 .cell-input:focus { outline: none; border-color: var(--accent); }
+/* A row typed but not yet sent. Nothing leaves this machine until the tick is
+   pressed, so the state has to be visible rather than assumed. */
+.submission-table tr.draft-row { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.cell-commit {
+  background: transparent; border: none; cursor: pointer; padding: 0 4px;
+  color: var(--accent); font-size: 13px; line-height: 1;
+}
+.cell-commit:hover { color: var(--fg); }
+.submission-unsent {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  border: 1px solid var(--accent); border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-1));
+  padding: 6px 10px; margin-bottom: 8px; font-size: 11.5px;
+}
 .submission-more {
   display: block; width: 100%; padding: 5px 0; border: none; border-top: 1px solid var(--bg-3);
   background: transparent; color: var(--fg-faint); font: inherit; font-size: 11px; cursor: pointer;

@@ -303,21 +303,42 @@ export default function Workspace(props: Props) {
         const fresh = outcomes.filter((outcome) => outcome.rows.length > 0);
         // Only the previous generated block goes; the hand-picked rows stay put,
         // and their older `createdAt` is what keeps them ahead of the new ones.
-        shared.deleteRows(
-          fresh.flatMap((outcome) =>
-            rowsFor(outcome.questionId).filter(isGenerated).map((row) => row.id),
-          ),
-        );
-        shared.addRows(
-          fresh.flatMap((outcome) =>
-            outcome.rows.slice(0, MAX_ROWS_PER_QUESTION).map((row) => ({ ...row, id: newRowId() })),
-          ),
+        // One undo step, not two: putting back the rows the generator replaced
+        // without also removing the ones it wrote would leave the question with
+        // both sets.
+        shared.transaction(
+          fresh.length === 1 ? `sinh lại ${fresh[0].questionId}` : `sinh lại ${fresh.length} câu`,
+          () => {
+            shared.deleteRows(
+              fresh.flatMap((outcome) =>
+                rowsFor(outcome.questionId).filter(isGenerated).map((row) => row.id),
+              ),
+            );
+            shared.addRows(
+              fresh.flatMap((outcome) =>
+                outcome.rows
+                  .slice(0, MAX_ROWS_PER_QUESTION)
+                  .map((row) => ({ ...row, id: newRowId() })),
+              ),
+            );
+          },
         );
         const failures = outcomes.filter((outcome) => outcome.error);
         if (failures.length) {
           setGenError(
             `${failures.length}/${targets.length} câu không sinh được đáp án: ` +
               failures.map((failure) => `${failure.questionId} (${failure.error})`).join("; "),
+          );
+        } else if (!fresh.length) {
+          // Silence here reads as "it worked". It did not: the budget is the
+          // limit minus the rows already there, so a question that already holds
+          // that many is skipped and the click changes nothing.
+          const skipped = outcomes.filter((outcome) => outcome.skipped).length;
+          setGenError(
+            skipped === outcomes.length
+              ? `Không sinh thêm dòng nào: ${skipped} câu đã đủ ${options.limit} dòng. ` +
+                "Tăng giới hạn hoặc xoá bớt dòng rồi thử lại."
+              : "Không sinh thêm dòng nào — hệ thống không trả về đáp án nào mới.",
           );
         }
       } catch (error) {
@@ -362,16 +383,20 @@ export default function Workspace(props: Props) {
       if (!pendingAnswers) return;
       const plan = planImport(pendingAnswers, rows, mode);
       const targets = new Set(plan.write.map((file) => file.questionId));
-      shared.deleteRows(rows.filter((row) => targets.has(row.questionId)).map((row) => row.id));
-      shared.addRows(
-        plan.write.flatMap((file) =>
-          file.rows.slice(0, MAX_ROWS_PER_QUESTION).map((row) => ({
-            ...row,
-            id: newRowId(),
-            retrievalDatabase: props.retrievalDatabase,
-          })),
-        ),
-      );
+      // Same shape as regeneration, and the same reason to be one step: undoing
+      // only the delete would leave both the old and the imported rows.
+      shared.transaction(`import đáp án ${targets.size} câu`, () => {
+        shared.deleteRows(rows.filter((row) => targets.has(row.questionId)).map((row) => row.id));
+        shared.addRows(
+          plan.write.flatMap((file) =>
+            file.rows.slice(0, MAX_ROWS_PER_QUESTION).map((row) => ({
+              ...row,
+              id: newRowId(),
+              retrievalDatabase: props.retrievalDatabase,
+            })),
+          ),
+        );
+      });
       setPendingAnswers(null);
       setAnswerImportError(null);
     },
@@ -497,6 +522,8 @@ export default function Workspace(props: Props) {
               onCancelPack={() => setPendingPack(null)}
               onSearchAll={searchAllQuestions}
               searchingAll={busyTabs.size > 0}
+              onUndo={shared.undo}
+              undoLabel={shared.undoLabel}
               pack={{
                 shared: pack.shared,
                 sessionName: pack.session?.name ?? null,

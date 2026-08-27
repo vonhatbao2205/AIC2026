@@ -40,11 +40,29 @@ function makeBuilder() {
     },
     update: (payload: Record<string, unknown>) => {
       updates.push(payload);
+      // Echo one row per targeted id, the way PostgREST does. Replying with a
+      // single fixed row let a bulk write appear to land on rows it never
+      // named, which hid what the merge would really do.
+      let targets: string[] | null = null;
       const tail: Record<string, unknown> = {
-        eq: () => tail,
-        in: () => tail,
+        eq: (column: string, value: unknown) => {
+          if (column === "id") targets = [String(value)];
+          return tail;
+        },
+        in: (_column: string, values: string[]) => {
+          targets = values;
+          return tail;
+        },
         select: () =>
-          Promise.resolve({ data: [{ ...serverRow, ...payload, revision: 2 }], error: null }),
+          Promise.resolve({
+            data: (targets ?? [serverRow.id as string]).map((id) => ({
+              ...serverRow,
+              id,
+              ...payload,
+              revision: 2,
+            })),
+            error: null,
+          }),
       };
       return tail;
     },
@@ -250,5 +268,137 @@ describe("switching to a different question pack", () => {
     const { result } = renderHook(() => useSharedSubmission("new-session"));
     await waitFor(() => expect(selectRanges.length).toBeGreaterThan(0));
     expect(result.current.rows.map((row) => row.id)).toEqual(["cached-1"]);
+  });
+});
+
+describe("undo", () => {
+  const second = { ...baseRow, id: "22222222-2222-4222-8222-222222222222", frames: [900] };
+
+  it("puts a deleted row back with its id and its rank", async () => {
+    // `created_at` IS the position in the exported CSV, and rank is score. A
+    // restore that stamped a fresh timestamp would quietly move a hand-picked
+    // answer from rank 1 to the end of the list.
+    const { result } = renderHook(() => useSharedSubmission());
+    const row = { ...baseRow, createdAt: "2026-08-21T10:00:00.000Z" };
+    await act(async () => result.current.addRow(row));
+    await waitFor(() => expect(inserts).toHaveLength(1));
+
+    await act(async () => result.current.deleteRow(row.id));
+    expect(result.current.rows).toHaveLength(0);
+
+    await act(async () => {
+      result.current.undo();
+    });
+    expect(result.current.rows).toHaveLength(1);
+    expect(result.current.rows[0].id).toBe(row.id);
+    expect(result.current.rows[0].createdAt).toBe("2026-08-21T10:00:00.000Z");
+    await waitFor(() => expect(inserts).toHaveLength(2));
+    expect(inserts[1].id).toBe(row.id);
+    expect(inserts[1].created_at).toBe("2026-08-21T10:00:00.000Z");
+  });
+
+  it("undoes a regeneration as ONE step, not as a delete and an insert", async () => {
+    // Regenerating is deleteRows + addRows. Undoing half of it would leave the
+    // question holding both the old rows and the new ones.
+    const { result } = renderHook(() => useSharedSubmission());
+    await act(async () => result.current.addRows([{ ...baseRow }, { ...second }]));
+    await waitFor(() => expect(inserts).toHaveLength(2));
+    const fresh = { ...baseRow, id: "33333333-3333-4333-8333-333333333333", frames: [77] };
+
+    await act(async () => {
+      result.current.transaction("sinh lại", () => {
+        result.current.deleteRows([baseRow.id, second.id]);
+        result.current.addRows([fresh]);
+      });
+    });
+    expect(result.current.rows.map((row) => row.id)).toEqual([fresh.id]);
+
+    let label: string | null = null;
+    await act(async () => {
+      label = result.current.undo();
+    });
+    expect(label).toBe("sinh lại");
+    expect(result.current.rows.map((row) => row.id).sort()).toEqual(
+      [baseRow.id, second.id].sort(),
+    );
+  });
+
+  it("gives every row back its OWN previous answer", async () => {
+    // A bulk fill overwrites rows that did not all hold the same text. Undo has
+    // to restore each one, and still in one write per distinct value rather
+    // than one per row.
+    const { result } = renderHook(() => useSharedSubmission());
+    await act(async () =>
+      result.current.addRows([
+        { ...baseRow, answer: "37.05" },
+        { ...second, answer: "" },
+      ]),
+    );
+    await waitFor(() => expect(inserts).toHaveLength(2));
+
+    await act(async () => result.current.setAnswerForQuestion(baseRow.questionId, "Tà Pứa"));
+    expect(result.current.rows.map((row) => row.answer)).toEqual(["Tà Pứa", "Tà Pứa"]);
+
+    updates.length = 0;
+    await act(async () => {
+      result.current.undo();
+    });
+    const byId = new Map(result.current.rows.map((row) => [row.id, row.answer]));
+    expect(byId.get(baseRow.id)).toBe("37.05");
+    expect(byId.get(second.id)).toBe("");
+    await waitFor(() => expect(updates.length).toBeGreaterThan(0));
+    // Two distinct previous values -> two writes, not one per row.
+    expect(updates).toHaveLength(2);
+  });
+
+  it("treats a burst of keystrokes in one cell as a single undo", async () => {
+    const { result } = renderHook(() => useSharedSubmission());
+    await act(async () => result.current.addRow({ ...baseRow, videoId: "L27_V013" }));
+    await waitFor(() => expect(inserts).toHaveLength(1));
+
+    await act(async () => {
+      result.current.updateRow(baseRow.id, { videoId: "L" });
+      result.current.updateRow(baseRow.id, { videoId: "L3" });
+      result.current.updateRow(baseRow.id, { videoId: "L30" });
+    });
+    expect(result.current.rows[0].videoId).toBe("L30");
+
+    await act(async () => {
+      result.current.undo();
+    });
+    expect(result.current.rows[0].videoId).toBe("L27_V013");
+  });
+
+  it("forgets the steps of a question that was cleared", async () => {
+    // "xoá hết" deletes BY QUESTION on the server, so this client cannot know
+    // every row that went. A later Ctrl+Z must not resurrect the subset it did
+    // know about, into a question the operator just emptied.
+    const { result } = renderHook(() => useSharedSubmission("session-1"));
+    await act(async () => result.current.addRows([{ ...baseRow }, { ...second }]));
+    await waitFor(() => expect(inserts).toHaveLength(2));
+    await act(async () => result.current.deleteRow(second.id));
+    expect(result.current.undoLabel).not.toBeNull();
+
+    await act(async () => result.current.clearQuestion(baseRow.questionId));
+    expect(result.current.undoLabel).toBeNull();
+
+    let label: string | null = "unset";
+    await act(async () => {
+      label = result.current.undo();
+    });
+    expect(label).toBeNull();
+    expect(result.current.rows).toHaveLength(0);
+  });
+
+  it("removes rows that the undone action created", async () => {
+    const { result } = renderHook(() => useSharedSubmission());
+    await act(async () => result.current.addRows([{ ...baseRow }, { ...second }]));
+    await waitFor(() => expect(inserts).toHaveLength(2));
+
+    await act(async () => {
+      result.current.undo();
+    });
+    expect(result.current.rows).toHaveLength(0);
+    expect(result.current.undoLabel).toBeNull();
   });
 });

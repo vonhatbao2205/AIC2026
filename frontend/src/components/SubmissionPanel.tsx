@@ -100,6 +100,10 @@ interface Props {
   onCancelPack: () => void;
   onSearchAll: () => void;
   searchingAll: boolean;
+  /** Put the last action back; returns its label, or null when nothing is left. */
+  onUndo: () => string | null;
+  /** Label of the action Ctrl+Z would put back — null disables the button. */
+  undoLabel: string | null;
   pack: PackInfo;
   /** Used for rows that predate the per-row profile field. */
   defaultRetrievalDatabase: RetrievalDatabase;
@@ -121,36 +125,29 @@ function parseFrames(text: string): number[] {
     .map((value) => Math.round(value));
 }
 
-/** Frame cell that keeps what was typed rather than what parses.
+/** What has been typed into a row but not sent yet.
  *
- *  Driving the input straight off `number[]` swallows a separator the moment it
- *  is typed — "1200," re-renders as "1200" — which makes a multi-event TRAKE row
- *  impossible to enter. The raw text lives here; the parsed frames go up. */
-function FramesInput(props: { value: number[]; onChange: (frames: number[]) => void; placeholder: string }) {
-  const [text, setText] = useState(() => framesToText(props.value));
-  const mine = useRef(text);
+ *  Every cell used to write straight through to the shared table on each
+ *  keystroke: typing "L30_V046" was nine writes, and the input was driven off
+ *  the shared row, so anything arriving from Postgres mid-word — a teammate's
+ *  edit, or this client's own echo — replaced what was on screen and ate the
+ *  rest of the word. Held here instead, and sent once, as one write for the
+ *  whole row. */
+interface RowDraft {
+  videoId?: string;
+  /** Raw text, not `number[]`: a trailing separator must survive being typed. */
+  frames?: string;
+  answer?: string;
+}
 
-  useEffect(() => {
-    // Re-sync only when the change came from somewhere other than this input.
-    if (parseFrames(mine.current).join(",") !== props.value.join(",")) {
-      const next = framesToText(props.value);
-      mine.current = next;
-      setText(next);
-    }
-  }, [props.value]);
-
-  return (
-    <input
-      className="cell-input mono"
-      value={text}
-      placeholder={props.placeholder}
-      onChange={(event) => {
-        mine.current = event.target.value;
-        setText(event.target.value);
-        props.onChange(parseFrames(event.target.value));
-      }}
-    />
-  );
+function draftDiffers(row: SubmissionRow, draft: RowDraft | undefined): boolean {
+  if (!draft) return false;
+  if (draft.videoId !== undefined && draft.videoId !== row.videoId) return true;
+  if (draft.answer !== undefined && draft.answer !== row.answer) return true;
+  if (draft.frames !== undefined && parseFrames(draft.frames).join(",") !== row.frames.join(",")) {
+    return true;
+  }
+  return false;
 }
 
 /** Lazily resolved keyframe picture for exactly one row.
@@ -523,6 +520,59 @@ export function SubmissionPanel(props: Props) {
   const [genOpen, setGenOpen] = useState(false);
   const [genLimit, setGenLimit] = useState(MAX_ROWS_PER_QUESTION);
   const [genOnlyEmpty, setGenOnlyEmpty] = useState(true);
+  // What the last Ctrl+Z put back. Undo is a write the whole team sees, so
+  // saying which action it reversed matters more here than in a solo editor.
+  const [undone, setUndone] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, RowDraft>>({});
+
+  const editDraft = useCallback((rowId: string, patch: RowDraft) => {
+    setDrafts((current) => ({ ...current, [rowId]: { ...current[rowId], ...patch } }));
+  }, []);
+
+  const discardDraft = useCallback((rowId: string) => {
+    setDrafts((current) => {
+      if (!(rowId in current)) return current;
+      const { [rowId]: _dropped, ...rest } = current;
+      return rest;
+    });
+  }, []);
+
+  /** Send a whole row at once. One write per row rather than per field keeps a
+   *  hand-typed video id and its frames from racing each other into the table. */
+  const commitDraft = useCallback(
+    (row: SubmissionRow) => {
+      const draft = draftsRef.current[row.id];
+      discardDraft(row.id);
+      if (!draft) return;
+      const patch: Partial<SubmissionRow> = {};
+      if (draft.videoId !== undefined && draft.videoId !== row.videoId) patch.videoId = draft.videoId;
+      if (draft.answer !== undefined && draft.answer !== row.answer) patch.answer = draft.answer;
+      if (draft.frames !== undefined) {
+        const frames = parseFrames(draft.frames);
+        if (frames.join(",") !== row.frames.join(",")) patch.frames = frames;
+      }
+      if (Object.keys(patch).length) props.onChangeRow(row.id, patch);
+    },
+    [discardDraft, props],
+  );
+
+  const draftsRef = useRef(drafts);
+  draftsRef.current = drafts;
+
+  const onCellKey = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>, row: SubmissionRow) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commitDraft(row);
+      } else if (event.key === "Escape") {
+        // The panel closes the preview on Escape; inside a cell it must mean
+        // "throw away what I typed" instead.
+        event.stopPropagation();
+        discardDraft(row.id);
+      }
+    },
+    [commitDraft, discardDraft],
+  );
 
   const byQuestion = useMemo(() => {
     const map = new Map<string, SubmissionRow[]>();
@@ -537,6 +587,15 @@ export function SubmissionPanel(props: Props) {
   const answered = questions.filter((question) => (byQuestion.get(question.id) ?? []).length > 0);
   const empty = questions.filter((question) => (byQuestion.get(question.id) ?? []).length === 0);
   const totalRows = rows.length;
+  // Typed but never sent. The operator has to be able to see this before
+  // pressing export, or the CSV silently ships the values from before the edit.
+  const unsent = rows.filter((row) => draftDiffers(row, drafts[row.id]));
+
+  const commitAll = useCallback(() => {
+    for (const row of rows.filter((item) => draftDiffers(item, draftsRef.current[item.id]))) {
+      commitDraft(row);
+    }
+  }, [commitDraft, rows]);
   const orphans = rows.filter((row) => !questions.some((question) => question.id === row.questionId));
   // Recomputed here so the operator sees what blocks the export before pressing
   // it, not as an error message afterwards.
@@ -591,6 +650,15 @@ export function SubmissionPanel(props: Props) {
       if ((event.key === "e" || event.key === "E") && (event.ctrlKey || event.metaKey)) {
         event.preventDefault();
         props.onExport();
+        return;
+      }
+      // Deliberately after the typing guard below is duplicated here: inside a
+      // cell Ctrl+Z must stay the browser's own text undo, so click out of the
+      // cell to undo the action itself.
+      if ((event.key === "z" || event.key === "Z") && (event.ctrlKey || event.metaKey)) {
+        if (isTyping() || editorOpen) return;
+        event.preventDefault();
+        setUndone(props.onUndo());
         return;
       }
       if (isTyping() || editorOpen) return;
@@ -720,6 +788,19 @@ export function SubmissionPanel(props: Props) {
         </button>
         <button
           className="btn sm ghost"
+          onClick={() => setUndone(props.onUndo())}
+          disabled={!props.undoLabel}
+          data-testid="submission-undo"
+          title={
+            props.undoLabel
+              ? `Hoàn tác: ${props.undoLabel} (Ctrl+Z) — cả đội sẽ thấy thay đổi này`
+              : "Không có thao tác nào để hoàn tác"
+          }
+        >
+          ↩ Hoàn tác
+        </button>
+        <button
+          className="btn sm ghost"
           onClick={props.onSearchAll}
           disabled={questions.length === 0 || props.searchingAll}
           data-testid="submission-search-all"
@@ -773,8 +854,26 @@ export function SubmissionPanel(props: Props) {
 
       <div className="hint-text" style={{ marginTop: 0 }}>
         ↑↓ chọn dòng · ←→ chọn sự kiện (TRAKE) · <b>P</b> xem ảnh keyframe · <b>V</b> mở video để
-        đổi frame · <b>Delete</b> xoá dòng · <b>Ctrl+E</b> export
+        đổi frame · <b>Delete</b> xoá dòng · <b>Ctrl+Z</b> hoàn tác · <b>Ctrl+E</b> export
       </div>
+      {unsent.length > 0 && (
+        <div className="submission-unsent" data-testid="unsent-banner">
+          <span>
+            ✎ {unsent.length} dòng đã gõ nhưng <b>chưa đồng bộ</b> — export bây giờ sẽ lấy giá trị
+            cũ.
+          </span>
+          <div className="spacer" />
+          <button className="btn sm" onClick={commitAll} data-testid="commit-all">
+            ✓ Đồng bộ {unsent.length} dòng
+          </button>
+        </div>
+      )}
+
+      {undone && (
+        <div className="hint-text" data-testid="undo-toast" style={{ marginTop: 0 }}>
+          ↩ đã hoàn tác: {undone}
+        </div>
+      )}
 
       {genOpen && (
         <AutoGenPanel
@@ -1001,6 +1100,8 @@ export function SubmissionPanel(props: Props) {
                 {shownRows.map((row, index) => {
                   const rowProblems = problemsByRow.get(row.id) ?? [];
                   const duplicate = findDuplicate(questionRows, row, question.kind, row.id);
+                  const draft = drafts[row.id];
+                  const dirty = draftDiffers(row, draft);
                   const isSelected = selected?.rowId === row.id;
                   const activeSlot = isSelected ? slot : 0;
                   return (
@@ -1009,6 +1110,7 @@ export function SubmissionPanel(props: Props) {
                       className={[
                         rowProblems.length || duplicate ? "bad-row" : "",
                         isSelected ? "selected-row" : "",
+                        dirty ? "draft-row" : "",
                       ].join(" ").trim()}
                       onClick={() => setSelected({ rowId: row.id, slot: 0 })}
                       data-testid={`row-${question.id}-${index}`}
@@ -1026,15 +1128,18 @@ export function SubmissionPanel(props: Props) {
                       <td>
                         <input
                           className="cell-input mono"
-                          value={row.videoId}
-                          onChange={(event) => props.onChangeRow(row.id, { videoId: event.target.value })}
+                          value={draft?.videoId ?? row.videoId}
+                          onChange={(event) => editDraft(row.id, { videoId: event.target.value })}
+                          onKeyDown={(event) => onCellKey(event, row)}
                           placeholder="L01_V028"
                         />
                       </td>
                       <td>
-                        <FramesInput
-                          value={row.frames}
-                          onChange={(frames) => props.onChangeRow(row.id, { frames })}
+                        <input
+                          className="cell-input mono"
+                          value={draft?.frames ?? framesToText(row.frames)}
+                          onChange={(event) => editDraft(row.id, { frames: event.target.value })}
+                          onKeyDown={(event) => onCellKey(event, row)}
                           placeholder={question.kind === "trake" ? "1200, 1850, 2100" : "25300"}
                         />
                       </td>
@@ -1047,14 +1152,29 @@ export function SubmissionPanel(props: Props) {
                         <td>
                           <input
                             className="cell-input"
-                            value={row.answer}
+                            value={draft?.answer ?? row.answer}
                             maxLength={MAX_ANSWER_LENGTH * 2}
-                            onChange={(event) => props.onChangeRow(row.id, { answer: event.target.value })}
+                            onChange={(event) => editDraft(row.id, { answer: event.target.value })}
+                            onKeyDown={(event) => onCellKey(event, row)}
                             placeholder="đáp án (≤100 ký tự)"
                           />
                         </td>
                       )}
                       <td>
+                        {dirty && (
+                          <button
+                            className="cell-commit"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              commitDraft(row);
+                            }}
+                            title="Đồng bộ dòng này cho cả đội (Enter). Esc để huỷ."
+                            aria-label={`Đồng bộ dòng ${index + 1}`}
+                            data-testid={`commit-${question.id}-${index}`}
+                          >
+                            ✓
+                          </button>
+                        )}
                         <button
                           className="rail-tab-close"
                           onClick={(event) => {
