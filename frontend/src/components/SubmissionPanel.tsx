@@ -18,6 +18,9 @@ import type { ImportMode, ImportedSubmission } from "../lib/submissionImport";
 import { planImport } from "../lib/submissionImport";
 import { SubmissionFrameEditor, type CommitMode, type FrameEdit } from "./SubmissionFrameEditor";
 
+/** Rows shown per question before the operator asks for the rest. */
+const COLLAPSED_ROWS = 10;
+
 export interface PackInfo {
   shared: boolean;
   sessionName: string | null;
@@ -512,6 +515,9 @@ export function SubmissionPanel(props: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const answerFileRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<{ rowId: string; slot: number } | null>(null);
+  // Collapsed by default: 25 questions × 100 rows is one scroll with no shape to
+  // it, and comparing two questions means paging past everything between them.
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const [previewOpen, setPreviewOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [genOpen, setGenOpen] = useState(false);
@@ -536,12 +542,29 @@ export function SubmissionPanel(props: Props) {
   // it, not as an error message afterwards.
   const audit = useMemo(() => auditSubmission(questions, rows), [questions, rows]);
 
-  /** Rows in the order they are rendered, for ↑/↓ navigation across questions. */
+  const visibleRowsOf = useCallback(
+    (questionId: string) => {
+      const list = byQuestion.get(questionId) ?? [];
+      return expanded.has(questionId) ? list : list.slice(0, COLLAPSED_ROWS);
+    },
+    [byQuestion, expanded],
+  );
+
+  /** Rows in the order they are rendered, for ↑/↓ navigation across questions.
+   *  Collapsed rows are left out on purpose, so the arrows walk exactly what is
+   *  on screen instead of stopping on rows nobody can see. */
   const flatRows = useMemo(
-    () => answered.flatMap((question) => byQuestion.get(question.id) ?? []),
-    [answered, byQuestion],
+    () => answered.flatMap((question) => visibleRowsOf(question.id)),
+    [answered, visibleRowsOf],
   );
   const selectedRow = selected ? rows.find((row) => row.id === selected.rowId) ?? null : null;
+
+  // Collapsing hides rows, and P / V / Delete all act on the selection —
+  // Delete would remove a row the operator cannot see. Drop the selection
+  // instead of leaving it pointing off screen.
+  useEffect(() => {
+    if (selected && !flatRows.some((row) => row.id === selected.rowId)) setSelected(null);
+  }, [flatRows, selected]);
   const slot = Math.min(selected?.slot ?? 0, Math.max(0, (selectedRow?.frames.length ?? 1) - 1));
 
   const move = useCallback(
@@ -892,6 +915,9 @@ export function SubmissionPanel(props: Props) {
           problemsByRow.set(problem.rowId, [...(problemsByRow.get(problem.rowId) ?? []), problem.message]);
         }
         const csv = questionCsv(questionRows.slice(0, MAX_ROWS_PER_QUESTION), question.kind);
+        const isExpanded = expanded.has(question.id);
+        const shownRows = isExpanded ? questionRows : questionRows.slice(0, COLLAPSED_ROWS);
+        const hiddenCount = questionRows.length - shownRows.length;
         return (
           <div className="submission-block" key={question.id} data-testid={`submission-${question.id}`}>
             <div className="submission-block-head">
@@ -936,7 +962,15 @@ export function SubmissionPanel(props: Props) {
               >
                 ✨ sinh lại
               </button>
-              <button className="btn sm ghost" onClick={() => props.onAddRow(question.id)}>
+              <button
+                className="btn sm ghost"
+                onClick={() => {
+                  // A new row lands at the end, which is out of sight while the
+                  // question is collapsed — the button would look like a no-op.
+                  setExpanded((current) => new Set(current).add(question.id));
+                  props.onAddRow(question.id);
+                }}
+              >
                 + dòng
               </button>
               <button className="btn sm ghost" onClick={() => props.onClearQuestion(question.id)}>
@@ -964,7 +998,7 @@ export function SubmissionPanel(props: Props) {
                 </tr>
               </thead>
               <tbody>
-                {questionRows.map((row, index) => {
+                {shownRows.map((row, index) => {
                   const rowProblems = problemsByRow.get(row.id) ?? [];
                   const duplicate = findDuplicate(questionRows, row, question.kind, row.id);
                   const isSelected = selected?.rowId === row.id;
@@ -1038,6 +1072,24 @@ export function SubmissionPanel(props: Props) {
                 })}
               </tbody>
             </table>
+
+            {questionRows.length > COLLAPSED_ROWS && (
+              <button
+                className="submission-more"
+                onClick={() =>
+                  setExpanded((current) => {
+                    const next = new Set(current);
+                    if (!next.delete(question.id)) next.add(question.id);
+                    return next;
+                  })
+                }
+                data-testid={`expand-${question.id}`}
+              >
+                {isExpanded
+                  ? `▴ thu gọn còn ${COLLAPSED_ROWS} dòng`
+                  : `▾ hiện tất cả ${questionRows.length} dòng — đang ẩn ${hiddenCount}`}
+              </button>
+            )}
 
             {problems.length > 0 && (
               <ul className="submission-problems">

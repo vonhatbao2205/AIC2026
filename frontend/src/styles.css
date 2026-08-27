@@ -210,6 +210,11 @@ button { font-family: inherit; }
   border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; font-size: 12px;
 }
 .cell-input:focus { outline: none; border-color: var(--accent); }
+.submission-more {
+  display: block; width: 100%; padding: 5px 0; border: none; border-top: 1px solid var(--bg-3);
+  background: transparent; color: var(--fg-faint); font: inherit; font-size: 11px; cursor: pointer;
+}
+.submission-more:hover { color: var(--fg); background: var(--bg-2); }
 .submission-problems { margin: 6px 10px; padding-left: 16px; font-size: 11px; color: var(--bad); }
 /* One answer for a whole Q&A question: the frames come from the generator, the
    text is typed once here rather than into every row. */

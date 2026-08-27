@@ -1486,8 +1486,9 @@ describe("query pack + submission table", () => {
     await user.click(screen.getByTestId("autogen-start"));
 
     const block = await screen.findByTestId("submission-query-p1-1-kis");
+    // Only the first ten rows are on screen; the CSV below carries all twelve.
     await waitFor(() =>
-      expect(within(block).getAllByTestId(/^row-query-p1-1-kis-\d+$/)).toHaveLength(12),
+      expect(within(block).getAllByTestId(/^row-query-p1-1-kis-\d+$/)).toHaveLength(10),
     );
     // The stub answers frame 1000 + rank*10, so rank order is frame order.
     const frames = screen
@@ -1497,6 +1498,56 @@ describe("query pack + submission table", () => {
       .map((line) => Number(line.split(",")[1]));
     expect(frames).toEqual([...frames].sort((a, b) => a - b));
     expect(frames[0]).toBe(1000);
+  });
+
+  it("shows ten rows per question until asked for the rest", async () => {
+    // 25 questions × 100 rows is one undifferentiated scroll: finding the next
+    // question means paging past a hundred rows of the previous one.
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByTestId("autogen-toggle"));
+    fireEvent.change(screen.getByTestId("autogen-limit"), { target: { value: "12" } });
+    await user.click(screen.getByTestId("autogen-start"));
+
+    const block = await screen.findByTestId("submission-query-p1-1-kis");
+    const rows = () => within(block).getAllByTestId(/^row-query-p1-1-kis-\d+$/);
+    await waitFor(() => expect(rows()).toHaveLength(10));
+
+    const toggle = screen.getByTestId("expand-query-p1-1-kis");
+    expect(toggle).toHaveTextContent("hiện tất cả 12 dòng");
+    await user.click(toggle);
+    expect(rows()).toHaveLength(12);
+
+    await user.click(screen.getByTestId("expand-query-p1-1-kis"));
+    expect(rows()).toHaveLength(10);
+  });
+
+  it("does not leave the selection on a row that collapsing hid", async () => {
+    // P / V / Delete all act on the selection, and Delete would drop a row the
+    // operator can no longer see.
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByTestId("autogen-toggle"));
+    fireEvent.change(screen.getByTestId("autogen-limit"), { target: { value: "12" } });
+    await user.click(screen.getByTestId("autogen-start"));
+
+    await screen.findByTestId("submission-query-p1-1-kis");
+    await user.click(screen.getByTestId("expand-query-p1-1-kis"));
+    const last = await screen.findByTestId("row-query-p1-1-kis-11");
+    await user.click(last);
+    expect(last.className).toContain("selected-row");
+
+    await user.click(screen.getByTestId("expand-query-p1-1-kis"));
+    expect(screen.queryByTestId("row-query-p1-1-kis-11")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("submission-query-p1-1-kis")).queryAllByRole("row", {
+        // nothing on screen is still marked as the selection
+      }).filter((row) => row.className.includes("selected-row")),
+    ).toHaveLength(0);
   });
 
   it("keeps a comma while a multi-event TRAKE row is being typed", async () => {
