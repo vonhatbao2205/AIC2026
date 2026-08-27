@@ -72,6 +72,10 @@ type Op =
   | { kind: "insert_many"; rows: SubmissionRow[] }
   | { kind: "answer_many"; ids: string[]; answer: string }
   | { kind: "delete_many"; ids: string[] }
+  // Clearing a question deletes BY QUESTION, not by the ids this client happens
+  // to hold: a teammate may have added a row a second ago that this client has
+  // not seen yet, and "xoá hết" means the question, not "the rows I know about".
+  | { kind: "delete_question"; questionId: string; sessionId: string | null }
   // The edited row travels WITH the op. Reading it back from a ref at flush
   // time raced React: `flush()` runs in the same tick as the optimistic
   // `setRows`, so the ref still held the pre-edit row, the old values were sent,
@@ -87,6 +91,18 @@ function loadCache(): SubmissionRow[] {
   } catch {
     return [];
   }
+}
+
+/** Rows that belong to the pack currently being answered.
+ *
+ *  The local cache spans every session this browser has seen. A row that never
+ *  reached the server — written offline, or before Supabase was configured —
+ *  would otherwise be merged into whatever session is active now, and if the two
+ *  packs share a question id (re-importing the same pack does) it would be
+ *  attributed to a question it was never an answer to. */
+function belongsToSession(row: SubmissionRow, sessionId: string | null): boolean {
+  if (!sessionId) return true;
+  return !row.sessionId || row.sessionId === sessionId;
 }
 
 export function useSharedSubmission(sessionId: string | null = null): SharedSubmission {
@@ -187,6 +203,15 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
                 setRows((current) => sortRows(mergeRow(current, fresh)));
               }
             }
+          } else if (op.kind === "delete_question") {
+            const request = supabase
+              .from(SUBMISSIONS_TABLE)
+              .delete()
+              .eq("question_id", op.questionId);
+            if (op.sessionId) request.eq("session_id", op.sessionId);
+            else request.eq("room", SUBMISSION_ROOM);
+            const { error: deleteError } = await request;
+            if (deleteError) throw deleteError;
           } else if (op.kind === "delete_many") {
             const { error: deleteError } = await supabase
               .from(SUBMISSIONS_TABLE)
@@ -242,9 +267,28 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
     let cancelled = false;
 
     void (async () => {
-      const query = supabase.from(SUBMISSIONS_TABLE).select("*").eq("room", SUBMISSION_ROOM);
-      if (sessionId) query.eq("session_id", sessionId);
-      const { data, error: loadError } = await query.order("created_at", { ascending: true });
+      // Paged on purpose. PostgREST caps a response at the project's "Max rows"
+      // setting (1000 by default) and says so only in `content-range` — an
+      // unpaged read would silently stop there, and 24 questions x 100 answers
+      // is 2400. Missing rows would then be missing from the export.
+      const page = 1000;
+      const collected: SubmissionRecord[] = [];
+      let loadError: unknown = null;
+      for (let from = 0; ; from += page) {
+        const query = supabase.from(SUBMISSIONS_TABLE).select("*").eq("room", SUBMISSION_ROOM);
+        if (sessionId) query.eq("session_id", sessionId);
+        const { data: chunk, error } = await query
+          .order("created_at", { ascending: true })
+          .range(from, from + page - 1);
+        if (error) {
+          loadError = error;
+          break;
+        }
+        const rows = (chunk ?? []) as SubmissionRecord[];
+        collected.push(...rows);
+        if (rows.length < page) break;
+      }
+      const data = collected;
       if (cancelled) return;
       if (loadError) {
         setError(
@@ -257,7 +301,9 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
       // re-applied on top so an unsynced local answer is not wiped by the fetch.
       const remote = ((data ?? []) as SubmissionRecord[]).map(recordToRow);
       setRows((current) => {
-        const unsynced = current.filter((row) => row.syncState !== "synced");
+        const unsynced = current.filter(
+          (row) => row.syncState !== "synced" && belongsToSession(row, sessionId),
+        );
         return sortRows(unsynced.reduce((acc, row) => mergeRow(acc, row), remote));
       });
       setStatus("live");
@@ -399,9 +445,12 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
 
   const clearQuestion = useCallback(
     (questionId: string) => {
-      const doomed = rowsRef.current.filter((row) => row.questionId === questionId);
+      // One request, not one per row. A hundred queued deletes are a hundred
+      // sequential round trips: the table looks cleared instantly while the
+      // outbox is still draining, and closing the tab in that window leaves the
+      // rest on the server to reappear on the next load.
       setRows((current) => current.filter((row) => row.questionId !== questionId));
-      for (const row of doomed) enqueue({ kind: "delete", id: row.id });
+      enqueue({ kind: "delete_question", questionId, sessionId: sessionRef.current });
     },
     [enqueue],
   );
