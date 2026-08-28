@@ -483,9 +483,17 @@ class QueryParser:
                 if self.s.translate_to_en and not self.s.mock_mode:
                     await self._apply_translation(parsed)
             base = parsed
-            if len(self._cache) > 256:
-                self._cache.clear()
-            self._cache[cache_key] = base
+            # A failed VI→EN translation is transient — a rate limit, or the
+            # network buckling under a bulk run. `translate.py` refuses to cache
+            # one for exactly that reason, but caching the *parse* that carries
+            # it defeats that: the query stays pinned to its Vietnamese text on
+            # every later search, and only a backend restart clears it. The
+            # operator sees one tab that can never translate while the others
+            # are fine, and re-running does nothing.
+            if not parsed.get("translation_failed"):
+                if len(self._cache) > 256:
+                    self._cache.clear()
+                self._cache[cache_key] = base
 
         # Work on a copy so cached base stays clean across override variations.
         result = copy.deepcopy(base)
