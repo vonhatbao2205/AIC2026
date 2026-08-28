@@ -390,6 +390,8 @@ let historyStore: any[] = [];
 let canvasRequests: any[] = [];
 
 let answerGenRequests: any[] = [];
+let inFlightSearches = 0;
+let maxConcurrentSearches = 0;
 
 function mockFetch(historySeed: any[] = []) {
   historyStore = historySeed;
@@ -481,7 +483,14 @@ function mockFetch(historySeed: any[] = []) {
       });
     }
     if (path.endsWith("/api/search/trake")) return json(TRAKE_RESPONSE);
-    if (path.endsWith("/api/search")) return json(SEARCH_RESPONSE);
+    if (path.endsWith("/api/search")) {
+      // Held open for a macrotask so a parallel fan-out would overlap here.
+      inFlightSearches += 1;
+      maxConcurrentSearches = Math.max(maxConcurrentSearches, inFlightSearches);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      inFlightSearches -= 1;
+      return json(SEARCH_RESPONSE);
+    }
     if (path.endsWith("/api/query/parse")) return json(SEARCH_RESPONSE.parsed);
     if (path.endsWith("/api/qa/analyze")) return json(QA_ANALYSIS_RESPONSE);
     if (path.includes("/timeline")) return json(TIMELINE);
@@ -528,6 +537,8 @@ afterEach(() => {
   canvasRequests = [];
   keyframeLookups = [];
   answerGenRequests = [];
+  inFlightSearches = 0;
+  maxConcurrentSearches = 0;
 });
 
 describe("V-KIS canvas", () => {
@@ -1314,6 +1325,43 @@ describe("query pack + submission table", () => {
         .map(([, init]) => JSON.parse(String(init?.body)).query);
       expect(trake).toContain(PACK[2].text);
     });
+  });
+
+  it("runs an imported pack one search at a time", async () => {
+    render(<App />);
+    await importPack();
+
+    // Every question still gets searched...
+    await waitFor(() => {
+      const searched = vi.mocked(fetch).mock.calls
+        .filter(([url]) => String(url).endsWith("/api/search"))
+        .map(([, init]) => JSON.parse(String(init?.body)).query);
+      expect(searched).toContain(PACK[0].text);
+      expect(searched).toContain(PACK[1].text);
+    });
+
+    // ...but never two at once. Arming every tab together sent one search per
+    // question simultaneously, each hitting two encoders plus Milvus and
+    // Elastic; the services answered ConnectTimeout and the operator got
+    // nothing back. The answer generator already runs questions one at a time.
+    expect(maxConcurrentSearches).toBe(1);
+  });
+
+  it("asks for health once for the tab on screen, not once per tab", async () => {
+    render(<App />);
+    const before = vi.mocked(fetch).mock.calls.filter(([url]) =>
+      String(url).includes("/api/health"),
+    ).length;
+
+    await importPack();
+    await waitFor(() => expect(screen.getAllByTestId(/^rail-tab-\d+$/)).toHaveLength(PACK.length));
+
+    const after = vi.mocked(fetch).mock.calls.filter(([url]) =>
+      String(url).includes("/api/health"),
+    ).length;
+    // Every tab of a pack stays mounted. Ungated, a 25-question import fired 25
+    // health checks at once, each fanning out to every upstream service.
+    expect(after - before).toBeLessThanOrEqual(1);
   });
 
   it("renames the tab in real time when the query type changes inside it", async () => {

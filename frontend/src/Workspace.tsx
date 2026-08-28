@@ -69,6 +69,17 @@ export default function Workspace(props: Props) {
   const [importError, setImportError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [busyTabs, setBusyTabs] = useState<Set<string>>(new Set());
+  // Sequential auto-run queue for "search all" / pack import.
+  //
+  // Every tab stays mounted, so arming them together fired one search per
+  // question at once: 25 questions meant ~25 parallel searches, each hitting
+  // two encoders, Milvus and Elastic, on top of 25 health checks. The services
+  // answered with ConnectTimeout and the operator got no results at all. The
+  // answer generator already runs its questions one at a time for exactly this
+  // reason; this is the same rule for the search path.
+  const autoRunQueue = useRef<string[]>([]);
+  const autoRunCurrent = useRef<string | null>(null);
+  const [autoRunRemaining, setAutoRunRemaining] = useState(0);
   const [genRunning, setGenRunning] = useState(false);
   const [genProgress, setGenProgress] = useState<AnswerGenProgress | null>(null);
   const [genLog, setGenLog] = useState<AnswerGenProgress[]>([]);
@@ -94,6 +105,19 @@ export default function Workspace(props: Props) {
     setTabs((current) => current.map((tab) => (tab.id === id ? { ...tab, ...patch } : tab)));
   }, []);
 
+  /** Hand the run to the next queued tab, or end the run. */
+  const armNextAutoRun = useCallback(() => {
+    const next = autoRunQueue.current.shift() ?? null;
+    autoRunCurrent.current = next;
+    setAutoRunRemaining(next ? autoRunQueue.current.length + 1 : 0);
+    if (!next) return;
+    setTabs((current) =>
+      current.map((tab) =>
+        tab.id === next ? { ...tab, autoRunToken: tab.autoRunToken + 1 } : tab,
+      ),
+    );
+  }, []);
+
   const addTab = useCallback(() => {
     const tab = newTab();
     setTabs((current) => [...current, tab]);
@@ -113,17 +137,35 @@ export default function Workspace(props: Props) {
       next.delete(id);
       return next;
     });
-  }, []);
+    autoRunQueue.current = autoRunQueue.current.filter((tabId) => tabId !== id);
+    // Closing the tab that is mid-run would otherwise leave the rest queued
+    // behind a busy signal that can no longer arrive.
+    if (autoRunCurrent.current === id) armNextAutoRun();
+    else setAutoRunRemaining(autoRunQueue.current.length + (autoRunCurrent.current ? 1 : 0));
+  }, [armNextAutoRun]);
 
-  const setTabBusy = useCallback((id: string, busy: boolean) => {
-    setBusyTabs((current) => {
-      if (current.has(id) === busy) return current;
-      const next = new Set(current);
-      if (busy) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  }, []);
+  const setTabBusy = useCallback(
+    (id: string, busy: boolean) => {
+      setBusyTabs((current) => {
+        if (current.has(id) === busy) return current;
+        const next = new Set(current);
+        if (busy) next.add(id);
+        else next.delete(id);
+        return next;
+      });
+    },
+    [],
+  );
+
+  /** One auto-run finished; hand the turn on. Ignores a stale report from a tab
+   *  that is no longer the one running. */
+  const finishAutoRun = useCallback(
+    (id: string) => {
+      if (id !== autoRunCurrent.current) return;
+      armNextAutoRun();
+    },
+    [armNextAutoRun],
+  );
 
   /** Assigning a question also switches the tab to that question's query type. */
   const selectQuestion = useCallback(
@@ -139,17 +181,19 @@ export default function Workspace(props: Props) {
 
   // ---- import ----
   /** Open one tab per question, each on the right type and already searching. */
-  const openTabsFor = useCallback((list: ImportedQuestion[]) => {
-    const opened = list.map((question) => {
-      const tab = newTab(question.queryType, question.id);
-      tab.autoRunToken = 1;
-      return tab;
-    });
-    if (!opened.length) return;
-    setTabs(opened);
-    setActive(opened[0].id);
-    setBusyTabs(new Set());
-  }, []);
+  const openTabsFor = useCallback(
+    (list: ImportedQuestion[]) => {
+      const opened = list.map((question) => newTab(question.queryType, question.id));
+      if (!opened.length) return;
+      setTabs(opened);
+      setActive(opened[0].id);
+      setBusyTabs(new Set());
+      autoRunQueue.current = opened.map((tab) => tab.id);
+      autoRunCurrent.current = null;
+      armNextAutoRun();
+    },
+    [armNextAutoRun],
+  );
 
   /** Parsing no longer applies the pack. Publishing it replaces what five
    *  machines are answering, so it is a decision the operator states. */
@@ -444,6 +488,8 @@ export default function Workspace(props: Props) {
 
   const busyRef = useRef(setTabBusy);
   busyRef.current = setTabBusy;
+  const autoRunDoneRef = useRef(finishAutoRun);
+  autoRunDoneRef.current = finishAutoRun;
 
   return (
     <div className="workspace-shell">
@@ -481,11 +527,12 @@ export default function Workspace(props: Props) {
                 importError={importError}
                 onOpenSubmission={() => setActive(SUBMISSION_VIEW)}
                 onSearchAll={searchAllQuestions}
-                searchingAll={busyTabs.size > 0}
+                searchingAll={busyTabs.size > 0 || autoRunRemaining > 0}
                 questionRows={question ? rows.filter((row) => row.questionId === question.id) : []}
                 onSubmitRow={addRow}
                 autoRunToken={tab.autoRunToken}
                 onBusyChange={(busy) => busyRef.current(tab.id, busy)}
+                onAutoRunDone={() => autoRunDoneRef.current(tab.id)}
               />
             </div>
           );

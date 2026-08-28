@@ -119,13 +119,20 @@ interface ConsoleProps {
   /** Bumped by an import to make this tab search on its own. */
   autoRunToken: number;
   onBusyChange: (busy: boolean) => void;
+  /** Called once an auto-run has finished, however it ended.
+   *
+   *  The parent runs these one at a time, and it cannot infer the end from
+   *  `onBusyChange`: `runSearch` flips loading true then false around an await,
+   *  which React coalesces into a single render when the response is already
+   *  in hand, so the `true` is never observed. */
+  onAutoRunDone: () => void;
 }
 
 export default function FullConsole({
   onSimpleMode, onShowSettings, configVersion = 0, retrievalDatabase, onRetrievalDatabase,
   active, queryType, onQueryType, questions, question, onSelectQuestion, onImportQuestions,
   importing, importError, onOpenSubmission, onSearchAll, searchingAll, questionRows, onSubmitRow,
-  autoRunToken, onBusyChange,
+  autoRunToken, onBusyChange, onAutoRunDone,
 }: ConsoleProps) {
   // `runSearch` shadows this with an explicit override, so the state itself is
   // kept under a distinct name and re-exported for every other reader.
@@ -335,10 +342,16 @@ export default function FullConsole({
   // ---- bootstrap: health + history + timer ----
   // Re-runs on a config import: the backend swapped its whole service stack, so
   // the capability flags this UI hides features behind are stale.
+  // Gated on `active`: every tab of an imported pack stays mounted, so without
+  // this a 25-question import fired 25 /api/health calls at once, each fanning
+  // out to every upstream service. That alone could time out Elastic and the
+  // Colab tunnels at the exact moment the searches needed them.
   useEffect(() => {
+    if (!active) return;
     api.health(retrievalDatabase).then(setHealth).catch(() => setHealth(null));
     refreshHistory();
-  }, [configVersion, retrievalDatabase]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, configVersion, retrievalDatabase]);
 
   // A worker that went away takes its tick box with it; untick so the state the
   // operator can no longer see does not keep riding along on every request.
@@ -527,7 +540,13 @@ export default function FullConsole({
     if (!autoRunToken || autoRunToken === lastAutoRun.current) return;
     lastAutoRun.current = autoRunToken;
     const text = question?.text?.trim();
-    if (text) runSearch(text);
+    // Report completion even when there is nothing to search, or a question
+    // with an empty statement would stall the queue behind it forever.
+    if (!text) {
+      onAutoRunDone();
+      return;
+    }
+    void runSearch(text).finally(onAutoRunDone);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRunToken, question?.id]);
 
