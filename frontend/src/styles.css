@@ -24,6 +24,7 @@
   --warn: #e3b14a;
   --bad: #ef6f63;
   --ch-vector: #6aa0ff;
+  --ch-qwen: #f47bc2;
   --ch-ocr: #c79bff;
   --ch-speech: #4fd0b0;
   --ch-audio: #f0945a;
@@ -58,6 +59,7 @@
   --warn: #b9821a;
   --bad: #d8483b;
   --ch-vector: #2f6fed;
+  --ch-qwen: #c43d91;
   --ch-ocr: #7c4ddc;
   --ch-speech: #0d9488;
   --ch-audio: #c9690c;
@@ -366,6 +368,27 @@ button { font-family: inherit; }
   background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 .check-toggle input { accent-color: var(--accent); margin: 0; cursor: pointer; }
+.check-toggle input:disabled { cursor: not-allowed; }
+/* Two independent vector indices live under one InfoShot++ profile. Grouping
+   their boxes makes the RRF relationship explicit without occupying a panel. */
+.image-model-selector {
+  display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  min-width: 0; margin: 0; padding: 3px 4px 3px 6px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-2) 72%, transparent);
+}
+.image-model-selector legend {
+  float: left; width: auto; margin: 0 3px 0 0; padding: 0;
+  color: var(--fg-faint); font-size: 9px; font-weight: 700;
+  letter-spacing: .45px; text-transform: uppercase; white-space: nowrap;
+}
+.image-model-selector .check-toggle { padding: 3px 6px; border-color: transparent; }
+.image-model-selector .check-toggle:has(input:disabled) { cursor: default; }
+.image-model-fusion {
+  padding: 2px 5px; border-radius: 10px; color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font: 700 9px/1.2 var(--mono); letter-spacing: .3px;
+}
 .hint-text.warn { color: var(--warn); }
 .latency-mini.warn { color: var(--warn); }
 .kbd {
@@ -396,6 +419,7 @@ button { font-family: inherit; }
   padding: 2px 7px; border-radius: 5px; font-family: var(--mono); white-space: nowrap;
 }
 .badge.image_pe { color: var(--ch-vector); background: color-mix(in srgb, var(--ch-vector) 16%, transparent); }
+.badge.image_qwen { color: var(--ch-qwen); background: color-mix(in srgb, var(--ch-qwen) 16%, transparent); }
 .badge.ocr { color: var(--ch-ocr); background: color-mix(in srgb, var(--ch-ocr) 16%, transparent); }
 .badge.speech { color: var(--ch-speech); background: color-mix(in srgb, var(--ch-speech) 16%, transparent); }
 .badge.audio { color: var(--ch-audio); background: color-mix(in srgb, var(--ch-audio) 16%, transparent); }
@@ -664,6 +688,9 @@ button { font-family: inherit; }
 .kf-card figcaption { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; }
 .kf-id { font-size: 11px; color: var(--fg-dim); word-break: break-all; }
 .kf-score { font-size: 11px; color: var(--accent); font-weight: 600; }
+/* Which image index found the frame — only rendered when both answered. */
+.kf-models { display: inline-flex; gap: 3px; flex: 0 0 auto; }
+.kf-models .badge { padding: 1px 5px; font-size: 9.5px; }
 
 /* ---- Relevance feedback ------------------------------------------------- */
 .feedback-bar { padding: 8px 10px; }

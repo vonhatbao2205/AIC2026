@@ -1,10 +1,12 @@
 // Types mirroring the backend API contract (see backend/README and main.py).
 
 export type Channel =
-  | "image_pe" | "ocr" | "speech" | "audio" | "similar" | "object_layout" | "canvas_image";
+  | "image_pe" | "image_qwen" | "ocr" | "speech" | "audio" | "similar" | "object_layout" | "canvas_image";
 export type QueryType = "T-KIS" | "QA" | "V-KIS" | "TRAKE";
 export type QueryTypeHint = "auto" | QueryType;
 export type RetrievalDatabase = "btc" | "infoshotpp";
+/** Image-vector indices that can answer an InfoShot++ search. BTC remains PE-only. */
+export type ImageEmbeddingModel = "pe" | "qwen3_vl";
 
 // ---- search scope (which dataset folders a search may return) --------------
 
@@ -475,7 +477,12 @@ export interface SimpleResult {
   submit_keyframe_id: string;
   video_id: string;
   keyframe_n: number;
+  /** Cosine for one model; the RRF score when two models answered. */
   score: number;
+  /** Which image indices returned this frame, in request order. */
+  models: ImageEmbeddingModel[];
+  /** Each model's own cosine — never summed across models, only shown. */
+  per_model_score: Partial<Record<ImageEmbeddingModel, number>>;
   /** Qwen3-VL relevance, present only when the search was reranked. */
   rerank_score?: number | null;
   keyframe_url: string;
@@ -485,12 +492,18 @@ export interface SimpleResult {
 export interface SimpleSearchResponse {
   retrieval_database: RetrievalDatabase;
   query: string;
+  /** Which image indices the backend actually searched. */
+  image_models: ImageEmbeddingModel[];
   translated_query?: string | null;
   scope?: ResolvedScope;
   results: SimpleResult[];
   mode: "mock" | "live";
   latency_ms: number;
+  /** Per-model wall clock, so a slow encoder is visible next to a fast one. */
+  model_latency_ms?: Partial<Record<ImageEmbeddingModel, number>>;
   reranker?: RerankerReport;
+  /** Degraded-search notices: a dead encoder, a failed VI→EN translation. */
+  warnings?: string[];
 }
 
 export interface HealthResponse {

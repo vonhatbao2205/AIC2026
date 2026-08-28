@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api/client";
 import type {
+  ImageEmbeddingModel,
   ResolvedScope,
   RetrievalDatabase,
   ScopeCatalogue,
@@ -11,6 +12,8 @@ import type {
 import { ScopeFilter } from "./components/ScopeFilter";
 import { DEFAULT_SCOPE_MODE, orderCategories, scopeRequest } from "./lib/scope";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { ImageModelSelector } from "./components/ImageModelSelector";
+import { DEFAULT_IMAGE_MODELS, imageModelsForSearch } from "./lib/imageModels";
 
 // Minimal vector-only view: one query box + slider + keyframe grid.
 export default function SimpleSearch({
@@ -34,8 +37,15 @@ export default function SimpleSearch({
   const [translated, setTranslated] = useState<string | null>(null);
   // Qwen3-VL reranking, default off — same opt-in contract as the console.
   const [rerank, setRerank] = useState(false);
+  // InfoShot++ can search either image index or RRF-fuse both. The component
+  // prevents an empty selection; the request helper is a second safety net.
+  const [imageModels, setImageModels] = useState<ImageEmbeddingModel[]>(() => [...DEFAULT_IMAGE_MODELS]);
   const [rerankAvailable, setRerankAvailable] = useState(false);
   const [rerankReport, setRerankReport] = useState<RerankerReport | null>(null);
+  // A dead encoder degrades the search instead of emptying it, so the operator
+  // has to be told which index actually answered before trusting the ranking.
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [answeredModels, setAnsweredModels] = useState<ImageEmbeddingModel[]>([]);
   const [scopeMode, setScopeMode] = useState<ScopeMode>(DEFAULT_SCOPE_MODE);
   const [scopeSelection, setScopeSelection] = useState<string[]>([]);
   const [scopeCatalogue, setScopeCatalogue] = useState<ScopeCatalogue | null>(null);
@@ -99,7 +109,12 @@ export default function SimpleSearch({
     setError(null);
     try {
       const res = await api.simpleSearch(
-        q, topK, retrievalDatabase, scopeRequest(scopeMode, scopeSelection), rerank,
+        q,
+        topK,
+        retrievalDatabase,
+        scopeRequest(scopeMode, scopeSelection),
+        rerank,
+        imageModelsForSearch(retrievalDatabase, imageModels),
       );
       setResults(res.results);
       setMode(res.mode);
@@ -107,6 +122,8 @@ export default function SimpleSearch({
       setTranslated(res.translated_query ?? null);
       setAppliedScope(res.scope ?? null);
       setRerankReport(res.reranker ?? null);
+      setWarnings(res.warnings ?? []);
+      setAnsweredModels(res.image_models ?? [...DEFAULT_IMAGE_MODELS]);
     } catch (e) {
       let msg = "Search failed — backend không chạy? (kiểm tra http://localhost:8000/api/health)";
       if (e instanceof ApiError) {
@@ -115,6 +132,8 @@ export default function SimpleSearch({
       setError(msg);
       setResults([]);
       setRerankReport(null);
+      setWarnings([]);
+      setAnsweredModels([]);
     } finally {
       setLoading(false);
     }
@@ -137,7 +156,7 @@ export default function SimpleSearch({
             onChange={(event) => onRetrievalDatabase(event.target.value as RetrievalDatabase)}
           >
             <option value="btc">BTC · đầy đủ</option>
-            <option value="infoshotpp">InfoShot++ · PE only</option>
+            <option value="infoshotpp">InfoShot++ · chọn embedding</option>
           </select>
           <span style={{ flex: 1 }} />
           <button className="btn sm ghost" onClick={onShowSettings} title="Cấu hình — import .env">
@@ -186,6 +205,11 @@ export default function SimpleSearch({
             applied={appliedScope}
             error={scopeError}
           />
+          <ImageModelSelector
+            retrievalDatabase={retrievalDatabase}
+            value={imageModels}
+            onChange={setImageModels}
+          />
           {rerankAvailable && (
             <label
               className="check-toggle"
@@ -228,6 +252,9 @@ export default function SimpleSearch({
         </div>
       )}
       {error && <div className="simple-error" data-testid="error">{error}</div>}
+      {warnings.map((warning) => (
+        <div className="simple-warn" data-testid="search-warning" key={warning}>⚠ {warning}</div>
+      ))}
 
       <main className="kf-grid" data-testid="results">
         {results.length === 0 && !loading && !error && (
@@ -239,6 +266,19 @@ export default function SimpleSearch({
             <img src={r.keyframe_url} alt={r.submit_keyframe_id} loading="lazy" />
             <figcaption>
               <span className="kf-id mono">{r.submit_keyframe_id}</span>
+              {answeredModels.length > 1 && (
+                <span className="kf-models">
+                  {(r.models ?? []).map((model) => (
+                    <span
+                      className={`badge ${model === "pe" ? "image_pe" : "image_qwen"}`}
+                      key={model}
+                      title={`cosine ${(r.per_model_score?.[model] ?? 0).toFixed(4)}`}
+                    >
+                      {model === "pe" ? "PE" : "Qwen"}
+                    </span>
+                  ))}
+                </span>
+              )}
               <span className="kf-score mono">{r.score.toFixed(4)}</span>
             </figcaption>
           </figure>

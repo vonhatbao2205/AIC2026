@@ -27,6 +27,7 @@ class TrakeService:
 
     async def search_trake(self, req: dict[str, Any]) -> dict[str, Any]:
         query = req.get("query", "")
+        image_models = self.search.resolve_image_models(req.get("image_models"))
         parsed = req.get("parsed")
         if parsed is None:
             parsed = await self.search.parser.parse(
@@ -56,7 +57,10 @@ class TrakeService:
         results = await asyncio.gather(
             *(
                 self.search.retrieve(
-                    self._event_to_parsed(parsed, ev), top_k=top_k, categories=scope.categories
+                    self._event_to_parsed(parsed, ev),
+                    top_k=top_k,
+                    categories=scope.categories,
+                    image_models=image_models,
                 )
                 for ev in events
             )
@@ -74,13 +78,14 @@ class TrakeService:
         # ---- Pass 2: targeted in-video fill for missing events ----
         # No scope needed here: pass 2 searches inside videos pass 1 already
         # returned, which are in scope by construction.
-        await self._fill_missing_events(events, event_frames)
+        await self._fill_missing_events(events, event_frames, image_models=image_models)
 
         fallback = (trake_cfg.get("fallback_policy") or "").startswith("allow_partial")
         sequences = assemble_trake_sequences(event_frames, fallback_partial=fallback)
 
         return {
             "retrieval_database": self.s.retrieval_database,
+            "image_models": list(image_models),
             "query": query,
             "parsed": parsed,
             "scope": scope.to_dict(),
@@ -96,6 +101,7 @@ class TrakeService:
         *,
         max_promising: int = 15,
         accept_ratio: float = 0.45,
+        image_models: tuple[str, ...] = ("pe",),
     ) -> None:
         """Pass 2: for promising partial videos, search that video for its missing
         events and add the in-video best frame that is BOTH above a relative
@@ -126,39 +132,116 @@ class TrakeService:
             (ev.get("image_pe_queries_en") or [ev.get("description_en_visual") or ev.get("description_vi") or ""])[0]
             for ev in events
         ]
-        try:
-            vectors = await self.search.pe.encode_text(ev_queries)
-        except Exception:  # noqa: BLE001 - PE unavailable -> skip pass 2
+        image_models = self.search.resolve_image_models(image_models)
+
+        async def _encode(model: str):
+            encoder = self.search.pe if model == "pe" else self.search.qwen3_vl
+            return model, await encoder.encode_text(ev_queries)
+
+        encoded = await asyncio.gather(
+            *(_encode(model) for model in image_models), return_exceptions=True
+        )
+        vectors_by_model = {
+            model: vectors
+            for outcome in encoded
+            if not isinstance(outcome, BaseException)
+            for model, vectors in (outcome,)
+        }
+        if not vectors_by_model:
             return
 
-        async def _search(vec, **kw):
+        async def _search(model: str, vec, **kw):
+            searcher = (
+                self.search.milvus.search_image
+                if model == "pe"
+                else self.search.milvus.search_qwen_image
+            )
             try:
-                return await asyncio.to_thread(self.search.milvus.search_image, vec, **kw)
+                return await asyncio.to_thread(searcher, vec, **kw)
             except Exception:  # noqa: BLE001
                 return []
 
-        # Reference best global cosine per event (for the relative floor), in parallel.
-        ref_hits = await asyncio.gather(*(_search(vectors[i], top_k=1) for i in range(n)))
-        ref = [(h[0]["score"] if h else 0.0) for h in ref_hits]
+        # Reference cosine remains model-local and is used only for that model's
+        # relative acceptance floor. Cross-model combination below is rank-only.
+        ref_jobs = [
+            (model, event_index)
+            for model in vectors_by_model
+            for event_index in range(n)
+        ]
+        ref_hits = await asyncio.gather(
+            *(
+                _search(model, vectors_by_model[model][event_index], top_k=1)
+                for model, event_index in ref_jobs
+            )
+        )
+        ref = {
+            (model, event_index): (hits[0]["score"] if hits else 0.0)
+            for (model, event_index), hits in zip(ref_jobs, ref_hits)
+        }
 
         # Targeted in-video search for every (promising video, missing event), parallel.
         jobs = [
-            (vid, i)
+            (vid, i, model)
             for vid in promising
             for i in range(n)
-            if i not in cover_pts[vid] and ref[i] > 0
+            if i not in cover_pts[vid]
+            for model in vectors_by_model
+            if ref.get((model, i), 0.0) > 0
         ]
         if not jobs:
             return
-        job_hits = await asyncio.gather(*(_search(vectors[i], top_k=3, video_id=vid) for vid, i in jobs))
+        job_hits = await asyncio.gather(
+            *(
+                _search(model, vectors_by_model[model][i], top_k=3, video_id=vid)
+                for vid, i, model in jobs
+            )
+        )
+
+        by_gap: dict[tuple[str, int], dict[str, list[dict[str, Any]]]] = {}
+        for (vid, i, model), hits in zip(jobs, job_hits):
+            floor = accept_ratio * ref[(model, i)]
+            accepted = [hit for hit in hits if hit["score"] >= floor]
+            if accepted:
+                by_gap.setdefault((vid, i), {})[model] = accepted
+
+        ranked_by_gap: dict[tuple[str, int], list[dict[str, Any]]] = {}
+        for gap, per_model in by_gap.items():
+            if len(per_model) == 1:
+                model, rows = next(iter(per_model.items()))
+                ref_score = ref[(model, gap[1])]
+                ranked_by_gap[gap] = [
+                    {**row, "fill_quality": float(row["score"]) / ref_score}
+                    for row in rows
+                ]
+                continue
+            fused: dict[str, dict[str, Any]] = {}
+            for model, rows in per_model.items():
+                for rank, row in enumerate(rows):
+                    entry = fused.setdefault(
+                        row["submit_keyframe_id"], {"row": row, "rrf": 0.0}
+                    )
+                    entry["rrf"] += 1.0 / (60 + rank + 1)
+            ordered = sorted(
+                fused.values(),
+                key=lambda item: (-item["rrf"], item["row"]["submit_keyframe_id"]),
+            )
+            best_rrf = ordered[0]["rrf"] if ordered else 1.0
+            ranked_by_gap[gap] = [
+                {**entry["row"], "fill_quality": entry["rrf"] / best_rrf}
+                for entry in ordered
+            ]
 
         # Batch-fetch pts for every candidate up front so feasibility can be tested
         # before choosing (one _mget instead of a post-hoc per-pick lookup).
-        cand_ids = {h["submit_keyframe_id"] for hits in job_hits for h in hits}
+        cand_ids = {
+            hit["submit_keyframe_id"]
+            for hits in ranked_by_gap.values()
+            for hit in hits
+        }
         recs = await self.search.elastic.get_keyframes_by_ids(list(cand_ids)) if cand_ids else {}
 
         new: list[tuple[int, FusedFrame]] = []
-        for (vid, i), hits in zip(jobs, job_hits):
+        for (vid, i), hits in ranked_by_gap.items():
             covered = cover_pts[vid]
             # Loosest necessary window: after some earlier-event candidate, before
             # some later-event candidate. A pick outside it can never be ordered.
@@ -168,8 +251,6 @@ class TrakeService:
             chosen = None  # first feasible hit above floor (best, since score-sorted)
             fallback = None  # highest-scoring hit above floor with a known pts
             for h in hits:
-                if h["score"] < accept_ratio * ref[i]:
-                    continue
                 rec = recs.get(h["submit_keyframe_id"])
                 pts = rec.get("pts_time") if rec else None
                 if pts is None:
@@ -190,7 +271,7 @@ class TrakeService:
                     video_id=h["video_id"],
                     keyframe_n=int(h["keyframe_n"]),
                     pts_time=pts,
-                    score=round(0.02 * (h["score"] / ref[i]), 5),
+                    score=round(0.02 * h["fill_quality"], 5),
                     frame_idx=rec.get("frame_idx"),
                     fps=rec.get("fps"),
                     via_fill=True,

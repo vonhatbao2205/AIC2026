@@ -14,6 +14,7 @@ import type {
   DresTaskHint,
   FeedbackState,
   HealthResponse,
+  ImageEmbeddingModel,
   KeyframeInfo,
   ParsedQuery,
   QaAnalysisResponse,
@@ -135,6 +136,7 @@ export const api = {
     retrieval_database: RetrievalDatabase = "btc",
     scope?: SearchScope,
     rerank = false,
+    image_models: ImageEmbeddingModel[] = ["pe"],
   ) =>
     request<SimpleSearchResponse>("/api/search/simple", {
       method: "POST",
@@ -143,6 +145,7 @@ export const api = {
         top_k,
         retrieval_database,
         rerank,
+        image_models,
         ...(scope ? { scope } : {}),
       }),
     }),
@@ -155,6 +158,7 @@ export const api = {
 
   search: (body: {
     retrieval_database: RetrievalDatabase;
+    image_models: ImageEmbeddingModel[];
     query: string;
     query_type_hint: QueryTypeHint;
     scope?: SearchScope;
@@ -174,7 +178,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
-  searchTrake: (body: { retrieval_database: RetrievalDatabase; query: string; scope?: SearchScope; previous_hints: string[]; manual_overrides: ManualOverrides; use_llm?: boolean; expand?: boolean; top_k?: number }) =>
+  searchTrake: (body: { retrieval_database: RetrievalDatabase; image_models: ImageEmbeddingModel[]; query: string; scope?: SearchScope; previous_hints: string[]; manual_overrides: ManualOverrides; use_llm?: boolean; expand?: boolean; top_k?: number }) =>
     request<TrakeSearchResponse>("/api/search/trake", {
       method: "POST",
       body: JSON.stringify(body),

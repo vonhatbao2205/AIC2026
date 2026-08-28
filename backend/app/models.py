@@ -4,10 +4,33 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 QueryTypeHint = Literal["auto", "T-KIS", "QA", "V-KIS", "TRAKE"]
 RetrievalDatabase = Literal["btc", "infoshotpp"]
+ImageEmbeddingModel = Literal["pe", "qwen3_vl"]
+
+
+class ImageModelSelection(BaseModel):
+    """Image embedding spaces an operator wants this request to search.
+
+    Qwen3-VL vectors currently exist only for the InfoShot++ keyframes. Keeping
+    this validation at the API boundary prevents a BTC request from appearing to
+    honour a model checkbox while silently falling back to PE.
+    """
+
+    retrieval_database: RetrievalDatabase = "btc"
+    image_models: list[ImageEmbeddingModel] = Field(
+        default_factory=lambda: ["pe"], min_length=1, max_length=2
+    )
+
+    @model_validator(mode="after")
+    def validate_image_models(self) -> "ImageModelSelection":
+        if len(set(self.image_models)) != len(self.image_models):
+            raise ValueError("image_models must not contain duplicates")
+        if "qwen3_vl" in self.image_models and self.retrieval_database != "infoshotpp":
+            raise ValueError("qwen3_vl image search is available only for infoshotpp")
+        return self
 
 
 class SearchScope(BaseModel):
@@ -44,8 +67,7 @@ class FeedbackState(BaseModel):
     negative_frames: list[str] = Field(default_factory=list)
 
 
-class SearchRequest(BaseModel):
-    retrieval_database: RetrievalDatabase = "btc"
+class SearchRequest(ImageModelSelection):
     query: str = ""
     query_type_hint: QueryTypeHint = "auto"
     scope: SearchScope = Field(default_factory=SearchScope)
@@ -65,8 +87,7 @@ class SearchRequest(BaseModel):
     max_videos: int = Field(default=50, ge=1, le=500)
 
 
-class SimpleSearchRequest(BaseModel):
-    retrieval_database: RetrievalDatabase = "btc"
+class SimpleSearchRequest(ImageModelSelection):
     query: str = ""
     scope: SearchScope = Field(default_factory=SearchScope)
     top_k: int = 60
@@ -77,8 +98,7 @@ class TranslateRequest(BaseModel):
     text: str = ""
 
 
-class TrakeSearchRequest(BaseModel):
-    retrieval_database: RetrievalDatabase = "btc"
+class TrakeSearchRequest(ImageModelSelection):
     query: str = ""
     scope: SearchScope = Field(default_factory=SearchScope)
     previous_hints: list[str] = Field(default_factory=list)
@@ -98,7 +118,7 @@ class TakenAnswer(BaseModel):
     frames: list[int] = Field(min_length=1, max_length=32)
 
 
-class AnswerGenerateRequest(BaseModel):
+class AnswerGenerateRequest(ImageModelSelection):
     """Ask for the ordered answer list of ONE query.
 
     Two ways in. Without `groups`/`sequences` the backend runs the retrieval
@@ -107,7 +127,6 @@ class AnswerGenerateRequest(BaseModel):
     and channel overrides are not silently discarded by a fresh search.
     """
 
-    retrieval_database: RetrievalDatabase = "btc"
     query: str = ""
     query_type_hint: QueryTypeHint = "T-KIS"
     scope: SearchScope = Field(default_factory=SearchScope)

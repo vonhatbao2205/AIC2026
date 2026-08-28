@@ -10,6 +10,7 @@ import type {
   FeedbackState,
   FrameResult,
   HealthResponse,
+  ImageEmbeddingModel,
   LatencyBreakdown,
   ParsedQuery,
   QaAnalysisResponse,
@@ -30,6 +31,7 @@ import { DresBar } from "./components/DresBar";
 import { QuestionBar } from "./components/QuestionBar";
 import { FeedbackBar } from "./components/FeedbackBar";
 import { HistorySidebar } from "./components/HistorySidebar";
+import { ImageModelSelector } from "./components/ImageModelSelector";
 import { NeighborStrip } from "./components/NeighborStrip";
 import { QueryPanel } from "./components/QueryPanel";
 import { QueryUnderstanding } from "./components/QueryUnderstanding";
@@ -48,7 +50,9 @@ import { autoEvaluationId } from "./lib/dres";
 import { sortFramesByTime } from "./lib/media";
 import { findQaFrame, selectQaCandidateFrames } from "./lib/qa";
 import { kindForQueryType, type ImportedQuestion } from "./lib/questions";
+import { DEFAULT_IMAGE_MODELS, imageModelsForSearch } from "./lib/imageModels";
 import { DEFAULT_SCOPE_MODE, orderCategories, scopeRequest } from "./lib/scope";
+import { VIDEO_COARSE_STEP_S, VIDEO_FINE_STEP_S, seekDeltaForKey } from "./lib/videoSeek";
 import { validateIncreasingOrder } from "./lib/snap";
 import { findDuplicate, rowToCsvLine, type SubmissionRow } from "./lib/submission";
 
@@ -140,6 +144,9 @@ export default function FullConsole({
   // Qwen3-VL reranking. Default OFF: it needs a second GPU worker running
   // and costs seconds per search, so the operator opts in per query.
   const [rerank, setRerank] = useState(false);
+  // Kept per console tab: two simultaneous tasks may intentionally search
+  // different InfoShot++ indices. BTC is normalized to PE-only at request time.
+  const [imageModels, setImageModels] = useState<ImageEmbeddingModel[]>(() => [...DEFAULT_IMAGE_MODELS]);
   // Search scope: which dataset folders may answer. `scopeMode` is the policy,
   // `scopeSelection` the hand-picked list it uses in "manual", and `appliedScope`
   // what the last search actually ran on (the backend resolves "auto", so only
@@ -609,7 +616,7 @@ export default function FullConsole({
     setCanvasQueries([]);
     try {
       if (queryType === "TRAKE") {
-        const res = await api.searchTrake({ retrieval_database: retrievalDatabase, query, scope: scopeRequest(scopeMode, scopeSelection), previous_hints: hints, manual_overrides: overrides, use_llm: useLLM, expand, top_k: Math.max(topK, TRAKE_MIN_TOP_K) });
+        const res = await api.searchTrake({ retrieval_database: retrievalDatabase, image_models: imageModelsForSearch(retrievalDatabase, imageModels), query, scope: scopeRequest(scopeMode, scopeSelection), previous_hints: hints, manual_overrides: overrides, use_llm: useLLM, expand, top_k: Math.max(topK, TRAKE_MIN_TOP_K) });
         setParsed(res.parsed);
         setAppliedScope(res.scope ?? null);
         const grp: VideoGroup[] = res.sequences.map((s) => ({
@@ -649,6 +656,7 @@ export default function FullConsole({
       } else {
         const res = await api.search({
           retrieval_database: retrievalDatabase,
+          image_models: imageModelsForSearch(retrievalDatabase, imageModels),
           query,
           query_type_hint: queryType,
           scope: scopeRequest(scopeMode, scopeSelection),
@@ -683,7 +691,7 @@ export default function FullConsole({
       setLoading(false);
     }
     // `topK` is read here, not watched: nothing re-runs a search when it moves.
-  }, [queryState, hints, overrides, queryType, feedback, useLLM, expand, rerank, retrievalDatabase, topK, scopeMode, scopeSelection]);
+  }, [queryState, hints, overrides, queryType, feedback, useLLM, expand, rerank, imageModels, retrievalDatabase, topK, scopeMode, scopeSelection]);
 
   // The tab rail shows a spinner per tab, so the parent has to know which tabs
   // are still running after an import kicked all of them off at once.
@@ -1310,6 +1318,10 @@ export default function FullConsole({
       const el = document.activeElement;
       return el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA");
     }
+    // The video only owns the keys while it is actually on screen for the group
+    // the operator has selected — the same condition 'v' toggles on.
+    const videoScrubbable = videoVisible && !!activeVideoId && activeVideoId === selectedVideoId;
+
     function onKey(e: KeyboardEvent) {
       // Ctrl/Cmd + / toggles the shortcuts help — works anywhere, even while typing.
       if (e.key === "/" && (e.ctrlKey || e.metaKey)) {
@@ -1335,6 +1347,15 @@ export default function FullConsole({
       }
       if (isTyping()) return;
 
+      // An inline <video controls> brings its own keyboard handling: Chrome's
+      // shadow-DOM media controls seek on the arrows, and once the progress
+      // slider has focus its step is ~1% of the duration — 11s on a 19-minute
+      // clip, which lands on top of our own 5s and moves the playhead 16s.
+      // That handling happens on the way UP to window, so preventDefault() here
+      // cannot cancel it. This listener is therefore registered in the CAPTURE
+      // phase and stops the event before the element is ever reached.
+      if (videoVisible && seekDeltaForKey(e.key) !== null) e.stopPropagation();
+
       switch (e.key) {
         case "Enter":
           e.preventDefault();
@@ -1359,17 +1380,34 @@ export default function FullConsole({
           setSelectedVideo((v) => Math.max(v - 1, 0));
           setSelectedFrame(0);
           break;
-        // While the neighbour strip is open the arrows browse it; otherwise they
-        // keep moving between the retrieved frames of the selected video.
+        // Three claimants on the horizontal arrows, in priority order:
+        //   1. the neighbour strip, whose whole purpose is paging keyframes
+        //      (and which already drives the video to each one);
+        //   2. the open inline video, scrubbed +/-5s — an operator watching a
+        //      clip wants the playhead, not the result list, to move;
+        //   3. otherwise the retrieved frames of the selected video.
+        // 'a'/'d' below stay on the video at +/-1s with no such contention.
         case "ArrowRight":
           e.preventDefault();
           if (neighborsVisible) moveNeighbor(1);
+          else if (videoScrubbable) nudgeVideo(VIDEO_COARSE_STEP_S);
           else setSelectedFrame((f) => Math.min(f + 1, (selectedGroup?.frames.length ?? 1) - 1));
           break;
         case "ArrowLeft":
           e.preventDefault();
           if (neighborsVisible) moveNeighbor(-1);
+          else if (videoScrubbable) nudgeVideo(-VIDEO_COARSE_STEP_S);
           else setSelectedFrame((f) => Math.max(f - 1, 0));
+          break;
+        case "d":
+        case "D":
+          e.preventDefault();
+          if (videoScrubbable) nudgeVideo(VIDEO_FINE_STEP_S);
+          break;
+        case "a":
+        case "A":
+          e.preventDefault();
+          if (videoScrubbable) nudgeVideo(-VIDEO_FINE_STEP_S);
           break;
         case "k":
         case "K":
@@ -1401,10 +1439,15 @@ export default function FullConsole({
           break;
       }
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guardOpen, guardTarget, keymapOpen, pausedFrame, queryType, activeSlot, groups.length, selectedGroup, selectedFrameObj, selectedVideoId, videoVisible, activeVideoId, submitting, assignPausedFrameToSlot, neighborsVisible, neighborKeyframes, neighborIndex, neighborAnchorIndex]);
+
+  /** Scrub the open inline video by `delta` seconds (clamped by the viewer). */
+  function nudgeVideo(delta: number) {
+    viewerRef.current?.seekBy(delta);
+  }
 
   function seekVideo(t: number) {
     viewerRef.current?.seek(t);
@@ -1509,6 +1552,13 @@ export default function FullConsole({
             onToggleRerank={setRerank}
             rerankAvailable={Boolean(health?.capabilities.visual_rerank)}
             rerankReport={latency?.reranker ?? null}
+            imageModelSelector={
+              <ImageModelSelector
+                retrievalDatabase={retrievalDatabase}
+                value={imageModels}
+                onChange={setImageModels}
+              />
+            }
             topK={topK}
             onTopK={setTopK}
             appliedTopK={appliedTopK}
@@ -1544,7 +1594,7 @@ export default function FullConsole({
           )}
           {queryType === "V-KIS" && retrievalDatabase === "infoshotpp" && (
             <div className="warn-banner">
-              InfoShot++ đã có PE image, OCR, speech và audio (index v2). Riêng V-KIS canvas
+              InfoShot++ đã có PE Core / Qwen3-VL image, OCR, speech và audio (index v2). Riêng V-KIS canvas
               còn khoá: chưa có object detection cho keyframe InfoShot++.
             </div>
           )}

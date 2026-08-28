@@ -42,6 +42,8 @@ files already in the repo root). See `backend/.env.example`.
 | `MILVUS_ENDPOINT`, `MILVUS_TOKEN` | for live image vector search | Zilliz/Milvus |
 | `PE_ENCODER_URL` | for live image search | Kaggle PE-Core-G14 `/encode-text` server |
 | `PE_ENCODER_TOKEN` | optional | sent as `Authorization: Bearer` if set |
+| `QWEN3_VL_ENCODER_URL`, `QWEN3_VL_ENCODER_TOKEN` | optional, InfoShot++ only | Colab A100 Qwen3-VL-Embedding-8B `/encode-text` worker; both are required to enable it |
+| `QWEN3_VL_ENCODER_TIMEOUT_SECONDS` | optional | text-encode timeout, default 120s (covers the worker's cold first inference) |
 | `MEDIA_BASE_URL` | yes | Cloudflare R2 public base (keyframes/videos) |
 | `NVIDIA_API_KEY` | optional | enables Nemotron query parser (else heuristics) |
 | `NVIDIA_BASE_URL`, `NVIDIA_MODEL` | optional | default NIM endpoint + `nvidia/nemotron-3-ultra-550b-a55b` |
@@ -54,6 +56,7 @@ files already in the repo root). See `backend/.env.example`.
 | `DRES_SESSION`, `DRES_EVALUATION_ID` | optional | reuse an issued session / pin one run (else auto-routed by query type) |
 | `DRES_SEGMENT_PAD_MS` | optional | ± ms around the picked instant for KIS/TRAKE temporal answers (default 500) |
 | `IDX_*`, `MILVUS_IMAGE_COLLECTION` | optional | override index/collection names |
+| `MILVUS_QWEN3_VL_IMAGE_COLLECTION_2` | optional | native 4096-d Qwen image collection (default `aic26_image_qwen3vl8b_infoshotpp_v3`); never point it at a PE collection |
 | `AIC26_MOCK_MODE` | optional | `true` ⇒ deterministic fixtures (no live services) |
 | `CORS_ORIGINS` | optional | comma-separated; default `*` |
 
@@ -100,8 +103,9 @@ All endpoints are under `/api`. Responses are JSON.
 |---|---|---|
 | GET | `/api/health` | service reachability + `mode` (`mock`/`live`) + `capabilities` flags + `warnings[]` |
 | POST | `/api/query/parse` | `{query, query_type_hint, previous_hints[], manual_overrides}` → routing JSON |
-| POST | `/api/search` | `{query, query_type_hint, previous_hints[], manual_overrides, parsed?, feedback?, top_k, max_videos}` |
-| POST | `/api/search/trake` | `{query, previous_hints[], manual_overrides}` → ordered sequences |
+| POST | `/api/search` | `{query, query_type_hint, previous_hints[], manual_overrides, parsed?, feedback?, image_models?, top_k, max_videos}` |
+| POST | `/api/search/simple` | `{query, top_k, scope?, rerank?, image_models?}` → flat keyframe list, no parser and no group-by-video |
+| POST | `/api/search/trake` | `{query, previous_hints[], manual_overrides, image_models?}` → ordered sequences |
 | POST | `/api/answers/generate` | `{query, query_type_hint, scope?, limit<=100, params?, answer_text?, event_count?, groups?/sequences?}` → the ordered answer list (§10). Pass `groups`/`sequences` to rank a result already on screen instead of searching again; `event_count` is the TRAKE row width taken from the statement |
 | GET | `/api/canvas/palette` | V-KIS canvas vocabulary: 16 OD colours + canonical labels (+ `colorable`) |
 | POST | `/api/search/canvas` | `{canvas{objects[{label,bbox,color,required}], action_text, mode}}` → same group shape, plus `object_layout` evidence |
@@ -119,11 +123,43 @@ All endpoints are under `/api`. Responses are JSON.
 | GET | `/api/submit/history` | `?task_id=` optional (task id = `{evaluationId}/{taskName}`) |
 | DELETE | `/api/submit/history` | deletes log entries: `?ids=a,b`, `?task_id=`, or all; writes a `.bak.json` first |
 
+### Image embedding models (`image_models`)
+
+Two independent visual indices answer the **InfoShot++** keyframes:
+
+| id | channel | encoder | collection | dim |
+|---|---|---|---|---:|
+| `pe` | `image_pe` | PE-Core-G14-448 `/encode-text` | `aic26_image_peg14_infoshotpp_v1` | 1280 |
+| `qwen3_vl` | `image_qwen` | Qwen3-VL-Embedding-8B `/encode-text` | `aic26_image_qwen3vl8b_infoshotpp_v3` | 4096 |
+
+- `image_models` defaults to `["pe"]`. `qwen3_vl` is **rejected with 422** on the
+  BTC profile: those keyframes were never encoded with Qwen, so answering from PE
+  while the UI shows a ticked Qwen box would be a lie about what was searched.
+- Selecting both runs both as separate ranked channels that meet in RRF. Their
+  cosine values are **never added** — a 1280-d PE cosine and a 4096-d Qwen cosine
+  come from unrelated score distributions, so only ranks are comparable. The same
+  rule holds inside `/api/search/simple`, the `similar` feedback channel and the
+  TRAKE pass-2 fill.
+- Query expansion variants are max-fused *within* one model, where cosine is
+  comparable, before that model becomes a channel.
+- **`channels.image_pe.enabled` is the master switch for BOTH indices** — the
+  Qwen runner reads that same parser block, so turning the visual channel off
+  disables Qwen too. The console labels that switch `VISUAL` (not `PE Core`) for
+  exactly this reason; `CHANNEL_LABEL` still says "PE Core" for the *evidence*
+  badge on a frame, which names the index that found it.
+- One dead worker degrades to the other index with a warning; it never empties
+  the result list. The Qwen client refuses to fabricate a vector in live mode.
+- Serve the worker with
+  `Qwen3VL-Embedding-8B/Qwen3_VL_Embedding_8B_Text_Encoder_Server_Colab_A100.ipynb`;
+  the checkbox is hidden on BTC and the health flag is
+  `capabilities.qwen3_vl_embedding_search`.
+
 ### Search result shape
 
 ```jsonc
 {
   "query": "...",
+  "image_models": ["pe"],                  // which visual indices answered
   "parsed": { /* routing JSON, see §5 */ },
   "groups": [{
     "video_id": "K01_V001",
@@ -162,6 +198,10 @@ when the same frame was already submitted for the task (unless `allow_duplicate`
 2. **Retrieve in parallel** over enabled channels:
    - `image_pe`: PE `/encode-text` → Milvus `aic26_image_peg14_v1` (COSINE); hit
      ids are `submit_keyframe_id`.
+   - `image_qwen` (InfoShot++, opt-in via `image_models`): Qwen3-VL-Embedding-8B
+     `/encode-text` → Milvus `aic26_image_qwen3vl8b_infoshotpp_v3` (COSINE, 4096-d).
+     It reads the same `image_pe` routing block from the parser, so the operator
+     picks the index without the parser having to know about it.
    - `ocr`: Elastic `text_clean` (+`text_nfc`) / `text_clean_fold` (fuzzy) +
      `hour`/`clock` filters.
    - `speech`: Elastic ASR `text`; `confidence_bucket` low/mid and
@@ -310,7 +350,8 @@ backend/app/
   canvas.py            V-KIS canvas: palette, zones, PE text, Hungarian matching
   query_parser.py      Nemotron + heuristic routing, manual overrides
   types.py / models.py internal dataclasses / pydantic request models
-  adapters/            elastic_client, milvus_client, pe_encoder, nvila_client,
+  adapters/            elastic_client, milvus_client, pe_encoder,
+                       qwen3_vl_encoder (4096-d text queries), nvila_client,
                        object_elastic (OD frames), dres_client (DRES v2 session),
                        http_pool (+ mock paths)
   services/            search_service, trake_service, canvas_service,
@@ -319,8 +360,10 @@ backend/app/
 frontend/src/
   api/                 client.ts, types.ts
   lib/                 media, identity, snap, qa, canvas, dres, constants,
+                       imageModels (PE/Qwen selection rules),
                        submission (CSV pack), answerGen (bulk generation)
-  components/          TopBar, DresBar, QueryPanel, ChannelControls, QueryUnderstanding,
+  components/          TopBar, DresBar, QueryPanel, ChannelControls, ImageModelSelector,
+                       QueryUnderstanding,
                        Results, DetailPanel, VideoViewer, Timeline, TrakePanel,
                        CanvasPanel, SubmitGuard, HistorySidebar, Badges
   App.tsx              state, keyboard, orchestration

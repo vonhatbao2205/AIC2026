@@ -26,6 +26,8 @@ interface Props {
   rerankAvailable: boolean;
   /** Last search's rerank outcome, so a failed refinement is visible. */
   rerankReport?: RerankerReport | null;
+  /** InfoShot++ image-vector picker; omitted for profiles that have one index. */
+  imageModelSelector?: React.ReactNode;
   /** Keyframes to retrieve. Applied on the NEXT search, never on change. */
   topK: number;
   onTopK: (value: number) => void;
@@ -38,7 +40,7 @@ interface Props {
 }
 
 export function QueryPanel(props: Props) {
-  const { query, setQuery, hints, onAppendHint, onClearHints, onSearch, loading, parsed, queryType, inputRef, useLLM, onToggleLLM, expand, onToggleExpand, rerank, onToggleRerank, rerankAvailable, rerankReport, topK, onTopK, appliedTopK, scopeFilter } = props;
+  const { query, setQuery, hints, onAppendHint, onClearHints, onSearch, loading, parsed, queryType, inputRef, useLLM, onToggleLLM, expand, onToggleExpand, rerank, onToggleRerank, rerankAvailable, rerankReport, imageModelSelector, topK, onTopK, appliedTopK, scopeFilter } = props;
   const [listening, setListening] = useState(false);
   const [voiceMsg, setVoiceMsg] = useState<string | null>(null);
   const [interim, setInterim] = useState("");
@@ -251,6 +253,7 @@ export function QueryPanel(props: Props) {
             <span>Rerank</span>
           </label>
         )}
+        {imageModelSelector}
         {scopeFilter}
       </div>
 

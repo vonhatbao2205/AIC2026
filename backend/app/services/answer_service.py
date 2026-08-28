@@ -151,6 +151,7 @@ class AnswerService:
     def _search_payload(self, req: dict[str, Any], *, default_top_k: int) -> dict[str, Any]:
         return {
             "retrieval_database": self.s.retrieval_database,
+            "image_models": req.get("image_models") or ["pe"],
             "query": req.get("query", ""),
             "query_type_hint": req.get("query_type_hint", "auto"),
             "scope": req.get("scope") or {"mode": "auto", "categories": []},

@@ -20,8 +20,8 @@ const GROUPS: Group[] = [
     rows: [
       { keys: ["↑"], desc: "Previous video group" },
       { keys: ["↓"], desc: "Next video group" },
-      { keys: ["←"], desc: "Previous frame in group" },
-      { keys: ["→"], desc: "Next frame in group" },
+      { keys: ["←"], desc: "Previous frame in group (when no video is open)" },
+      { keys: ["→"], desc: "Next frame in group (when no video is open)" },
       { keys: ["Tab"], desc: "Switch focus: results ⇄ detail" },
     ],
   },
@@ -33,6 +33,8 @@ const GROUPS: Group[] = [
       { keys: ["T"], desc: "Toggle the timeline" },
       { keys: ["K"], desc: "Browse neighbouring keyframes of the selected frame" },
       { keys: ["←", "→"], desc: "Page the neighbour strip (video follows) when it is open" },
+      { keys: ["←", "→"], desc: "Rewind / forward the open video by 5s (strip closed)" },
+      { keys: ["a", "d"], desc: "Rewind / forward the open video by 1s" },
     ],
   },
   {

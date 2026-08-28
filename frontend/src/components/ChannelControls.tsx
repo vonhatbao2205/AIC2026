@@ -1,11 +1,22 @@
 import type { Channel, ParsedQuery, RetrievalDatabase } from "../api/types";
-import { CHANNELS, CHANNEL_LABEL } from "../lib/constants";
+import { CHANNELS, CHANNEL_TOGGLE_LABEL } from "../lib/constants";
 
 interface Props {
   parsed: ParsedQuery | null;
   overrides: { force_channels: string[]; disable_channels: string[] };
   onToggle: (channel: Channel, enabled: boolean) => void;
   retrievalDatabase: RetrievalDatabase;
+}
+
+/** The `image_pe` switch is the master switch for BOTH image indices: the backend
+ *  reads `channels.image_pe.enabled` for the Qwen channel too. Say so on hover,
+ *  because switching it off during a Qwen search silently kills every keyframe. */
+function toggleHint(channel: Channel, disabled: boolean): string | undefined {
+  if (disabled) return "Chưa có object detection cho InfoShot++";
+  if (channel === "image_pe") {
+    return "Công tắc tổng của kênh hình — tắt là tắt CẢ PE Core lẫn Qwen3-VL. Chọn index nào chạy ở ô Image embedding.";
+  }
+  return undefined;
 }
 
 export function ChannelControls({ parsed, overrides, onToggle, retrievalDatabase }: Props) {
@@ -35,10 +46,10 @@ export function ChannelControls({ parsed, overrides, onToggle, retrievalDatabase
             aria-checked={on}
             data-testid={`channel-${c}`}
             aria-disabled={disabled}
-            title={disabled ? "Chưa có object detection cho InfoShot++" : undefined}
+            title={toggleHint(c, disabled)}
           >
             <span className="lbl">
-              <span className={`badge ${c}`}>{CHANNEL_LABEL[c]}</span>
+              <span className={`badge ${c}`}>{CHANNEL_TOGGLE_LABEL[c]}</span>
               {auto && <span style={{ fontSize: 9, color: "var(--fg-faint)" }}>auto</span>}
             </span>
             <span className="row" style={{ gap: 6 }}>
@@ -50,7 +61,7 @@ export function ChannelControls({ parsed, overrides, onToggle, retrievalDatabase
       })}
       <div className="hint-text">
         {retrievalDatabase === "infoshotpp"
-          ? "InfoShot++ chạy PE image, similar-image, OCR/speech/audio trên index v2. OCR chưa có L26; V-KIS canvas vẫn khoá (chưa có object detection)."
+          ? "VISUAL là công tắc tổng của kênh hình (tắt là mất cả PE Core lẫn Qwen3-VL); chọn index ở ô Image embedding, tick cả hai để fuse bằng RRF. InfoShot++ còn có similar-image và OCR/speech/audio trên index v2. OCR chưa có L26; V-KIS canvas vẫn khoá (chưa có object detection)."
           : "Confidence/stoplist demotion (speech low/intro, audio stoplist & generic captions) is applied automatically by the backend."}
       </div>
     </div>

@@ -16,10 +16,12 @@ from typing import Any, Literal
 # for things the detector has no label for (a rice field, a sky), deliberately
 # fused at a low weight because a sketch is far outside PE's photo distribution.
 Channel = Literal[
-    "image_pe", "ocr", "speech", "audio", "similar", "object_layout", "canvas_image",
+    "image_pe", "image_qwen", "ocr", "speech", "audio", "similar", "object_layout",
+    "canvas_image",
 ]
 ALL_CHANNELS: tuple[Channel, ...] = (
-    "image_pe", "ocr", "speech", "audio", "similar", "object_layout", "canvas_image",
+    "image_pe", "image_qwen", "ocr", "speech", "audio", "similar", "object_layout",
+    "canvas_image",
 )
 
 

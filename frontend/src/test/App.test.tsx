@@ -797,6 +797,129 @@ describe("AIC26 retrieval console (full)", () => {
     await waitFor(() => expect(screen.queryByTestId("video-viewer")).not.toBeInTheDocument());
   });
 
+  // ---- scrubbing the open video ------------------------------------------
+  /** Search, select a frame, open the inline video with 'v'. */
+  async function openVideo(user: ReturnType<typeof userEvent.setup>) {
+    render(<App />);
+    await user.type(screen.getByTestId("query-input"), "thời sự");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => screen.getByTestId("detail-panel"));
+    (document.activeElement as HTMLElement)?.blur();
+    fireEvent.keyDown(window, { key: "v" });
+    const video = (await screen.findByTestId("video-viewer")) as HTMLVideoElement;
+    video.currentTime = 30;
+    return video;
+  }
+
+  it("scrubs the open video: arrows by 5s, a/d by 1s", async () => {
+    const user = userEvent.setup();
+    const video = await openVideo(user);
+
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(video.currentTime).toBeCloseTo(35, 3);
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    expect(video.currentTime).toBeCloseTo(30, 3);
+
+    fireEvent.keyDown(window, { key: "d" });
+    expect(video.currentTime).toBeCloseTo(31, 3);
+    fireEvent.keyDown(window, { key: "a" });
+    expect(video.currentTime).toBeCloseTo(30, 3);
+
+    // Shift-free capitals reach the same handler (Caps Lock is not a mode here).
+    fireEvent.keyDown(window, { key: "D" });
+    expect(video.currentTime).toBeCloseTo(31, 3);
+    fireEvent.keyDown(window, { key: "A" });
+    expect(video.currentTime).toBeCloseTo(30, 3);
+  });
+
+  it("keeps the arrow keys away from the video's own media controls", async () => {
+    const user = userEvent.setup();
+    const video = await openVideo(user);
+    // Chrome's shadow-DOM controls seek on their own when the element sees an
+    // arrow key — the focused progress slider steps ~1% of duration, which
+    // stacked on top of our 5s and moved the playhead ~16s per press. Our
+    // handler must consume the key before the element is ever reached.
+    const reachedVideo = vi.fn();
+    video.addEventListener("keydown", reachedVideo);
+
+    fireEvent.keyDown(video, { key: "ArrowRight" });
+    fireEvent.keyDown(video, { key: "ArrowLeft" });
+    fireEvent.keyDown(video, { key: "a" });
+    fireEvent.keyDown(video, { key: "d" });
+
+    expect(reachedVideo).not.toHaveBeenCalled();
+
+    // Space stays the video's own play/pause, so it must still get through.
+    fireEvent.keyDown(video, { key: " " });
+    expect(reachedVideo).toHaveBeenCalledTimes(1);
+
+    video.removeEventListener("keydown", reachedVideo);
+  });
+
+  it("rewinding stops at the start instead of going negative", async () => {
+    const user = userEvent.setup();
+    const video = await openVideo(user);
+    video.currentTime = 2;
+
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+
+    expect(video.currentTime).toBe(0);
+  });
+
+  it("leaves the arrows on the result list while no video is open", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByTestId("query-input"), "thời sự");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => screen.getAllByTestId("frame-thumb"));
+    (document.activeElement as HTMLElement)?.blur();
+
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+
+    await waitFor(() => {
+      const detail = screen.getByTestId("detail-panel");
+      expect(within(detail).getByTestId("submit-id")).toHaveTextContent("K01/K01_V001/006");
+    });
+  });
+
+  it("gives the arrows back to the neighbour strip when it is open", async () => {
+    const user = userEvent.setup();
+    const video = await openVideo(user);
+    fireEvent.keyDown(window, { key: "k" });
+    await screen.findByTestId("neighbor-strip");
+    const before = video.currentTime;
+
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+
+    // The strip pages and drives the video to that keyframe's pts — which is a
+    // seek to an absolute time, never `before + 5`.
+    await waitFor(() =>
+      expect(screen.getByTestId("neighbor-position")).toHaveTextContent("keyframe 2 / 40"),
+    );
+    expect(video.currentTime).not.toBeCloseTo(before + 5, 3);
+    // 'a'/'d' have no such contention and still nudge the video.
+    const paged = video.currentTime;
+    fireEvent.keyDown(window, { key: "d" });
+    expect(video.currentTime).toBeCloseTo(paged + 1, 3);
+  });
+
+  it("never scrubs while the operator is typing", async () => {
+    const user = userEvent.setup();
+    const video = await openVideo(user);
+    const input = screen.getByTestId("query-input");
+    input.focus();
+    const before = video.currentTime;
+
+    // 'a' and 'd' are ordinary letters: typing them must reach the query box,
+    // not the playhead. Arrows move the caret for the same reason.
+    fireEvent.keyDown(input, { key: "a" });
+    fireEvent.keyDown(input, { key: "d" });
+    fireEvent.keyDown(input, { key: "ArrowRight" });
+    fireEvent.keyDown(input, { key: "ArrowLeft" });
+
+    expect(video.currentTime).toBe(before);
+  });
+
   it.each(["T-KIS", "QA", "V-KIS"] as const)(
     "%s: the paused panel submits the exact raw frame from its own button",
     async (queryType) => {
@@ -1870,6 +1993,51 @@ describe("query pack + submission table", () => {
     await waitFor(() =>
       expect(screen.getByTestId("csv-query-p1-1-kis")).toHaveTextContent("K01_V001,130"),
     );
+  });
+
+  it("scrubs the editor video with the same keys as the search console", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await waitFor(() => screen.getByTestId("detail-panel"));
+    await user.click(screen.getByTestId("open-submit"));
+    await user.click(screen.getByTestId("confirm-submit"));
+    await user.click(screen.getByTestId("open-submission"));
+    await screen.findByTestId("csv-query-p1-1-kis");
+    await user.click(screen.getByTestId("row-query-p1-1-kis-0"));
+    fireEvent.keyDown(window, { key: "V" });
+
+    const editor = await screen.findByTestId("frame-editor");
+    const video = (await within(editor).findByTestId("video-viewer")) as HTMLVideoElement;
+    video.currentTime = 30;
+
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(video.currentTime).toBeCloseTo(35, 3);
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    expect(video.currentTime).toBeCloseTo(30, 3);
+    fireEvent.keyDown(window, { key: "d" });
+    expect(video.currentTime).toBeCloseTo(31, 3);
+    fireEvent.keyDown(window, { key: "a" });
+    expect(video.currentTime).toBeCloseTo(30, 3);
+
+    video.currentTime = 2;
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    expect(video.currentTime).toBe(0);
+
+    // The modal's player has the same shadow-DOM controls, so the key must not
+    // reach it here either — otherwise the browser adds its own seek to ours.
+    const reachedVideo = vi.fn();
+    video.addEventListener("keydown", reachedVideo);
+    fireEvent.keyDown(video, { key: "ArrowRight" });
+    fireEvent.keyDown(video, { key: "d" });
+    expect(reachedVideo).not.toHaveBeenCalled();
+    video.removeEventListener("keydown", reachedVideo);
+
+    // Closing the editor hands the arrows back to the row list, which is what
+    // they mean everywhere else in the submission tab.
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByTestId("frame-editor")).not.toBeInTheDocument());
+    expect(() => fireEvent.keyDown(window, { key: "ArrowDown" })).not.toThrow();
   });
 
   it("can keep the original answer and add the re-picked frame as a second row", async () => {

@@ -3,6 +3,7 @@ import { api, ApiError } from "../api/client";
 import type { RetrievalDatabase } from "../api/types";
 import { formatTime } from "../lib/media";
 import { VideoViewer, type VideoViewerHandle } from "./VideoViewer";
+import { isTypingTarget, seekDeltaForKey } from "../lib/videoSeek";
 
 export interface FrameEdit {
   frameIdx: number;
@@ -97,6 +98,28 @@ export function SubmissionFrameEditor(props: Props) {
     };
   }, [open, cacheKey, videoId, keyframeId, retrievalDatabase]);
 
+  // Same scrub keys as the search console's inline player: arrows +/-5s, 'a'/'d'
+  // +/-1s. SubmissionPanel releases every key while this modal is open, so there
+  // is nothing to arbitrate against here — but the typing guard stays, because
+  // 'a' and 'd' must remain letters for any text box inside the modal.
+  useEffect(() => {
+    if (!open) return;
+    function onKey(event: KeyboardEvent) {
+      if (isTypingTarget()) return;
+      const delta = seekDeltaForKey(event.key);
+      if (delta == null) return;
+      // Capture phase + stopPropagation: the <video controls> element handles
+      // the arrows itself (its focused progress slider steps ~1% of duration),
+      // and that runs before the event reaches window, so preventDefault alone
+      // would leave the playhead jumping by our step plus the browser's.
+      event.stopPropagation();
+      event.preventDefault();
+      viewerRef.current?.seekBy(delta);
+    }
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [open]);
+
   const onPaused = useCallback(
     (rawTime: number) => {
       // Same derivation the search console uses, so a frame picked here and one
@@ -153,7 +176,8 @@ export function SubmissionFrameEditor(props: Props) {
             </div>
           </div>
           <div className="hint-text">
-            Tạm dừng video đúng khoảnh khắc cần nộp, rồi chọn ghi đè dòng hiện tại hay thêm một
+            Tua bằng <b>←</b>/<b>→</b> (±5s) hoặc <b>a</b>/<b>d</b> (±1s). Tạm dừng video đúng
+            khoảnh khắc cần nộp, rồi chọn ghi đè dòng hiện tại hay thêm một
             dòng mới cho cùng câu hỏi. Frame lấy ở đây là frame thật của video nên có thể không
             phải keyframe đã trích — khi đó preview sẽ báo raw frame thay vì hiện ảnh tĩnh.
           </div>

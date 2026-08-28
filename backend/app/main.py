@@ -132,10 +132,22 @@ build_runtime()
 async def health(retrieval_database: RetrievalDatabase = "btc"):
     selected = search_services[retrieval_database]
     selected_settings = profile_settings[retrieval_database]
-    elastic, milvus, pe, nvila, reranker, grounding, dres = await asyncio.gather(
+    (
+        elastic,
+        milvus,
+        pe,
+        qwen3_vl_encoder,
+        qwen3_vl_milvus,
+        nvila,
+        reranker,
+        grounding,
+        dres,
+    ) = await asyncio.gather(
         selected.elastic.health(),
         selected.milvus.health(),
         selected.pe.health(),
+        selected.qwen3_vl.health(),
+        selected.milvus.health_qwen_image(),
         nvila_qa.health(),
         selected.reranker.health(),
         web_grounding_client.health(),
@@ -150,6 +162,8 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
         "elastic": elastic,
         "milvus": milvus,
         "pe_encoder": pe,
+        "qwen3_vl_encoder": qwen3_vl_encoder,
+        "qwen3_vl_milvus": qwen3_vl_milvus,
         "nvila_qa": nvila,
         "qwen_reranker": reranker,
         "web_grounding": grounding,
@@ -158,7 +172,18 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
     }
     # NVILA is an optional QA accelerator: a stopped Colab session must not mark
     # the core retrieval stack unhealthy.
-    ok = selected_settings.mock_mode or all(s.get("ok") for s in (elastic, milvus, pe))
+    pe_image_ready = bool(milvus.get("ok") and pe.get("ok"))
+    qwen3_vl_image_ready = bool(
+        selected_settings.is_infoshotpp
+        and qwen3_vl_encoder.get("ok")
+        and qwen3_vl_milvus.get("ok")
+    )
+    if selected_settings.is_infoshotpp:
+        ok = selected_settings.mock_mode or bool(
+            elastic.get("ok") and (pe_image_ready or qwen3_vl_image_ready)
+        )
+    else:
+        ok = selected_settings.mock_mode or bool(elastic.get("ok") and pe_image_ready)
     has_live_nvila = settings.has_nvila and not settings.mock_mode and bool(nvila.get("ok"))
     has_qa_nvila = settings.mock_mode or has_live_nvila
     has_qa_visual_verification = settings.mock_mode or (
@@ -173,6 +198,8 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
             "dres_submit": settings.has_dres,
             "dres_connected": bool(dres.get("ok")),
             "audio_vector_search": selected_settings.has_glap and not settings.mock_mode,
+            "image_pe_search": selected_settings.mock_mode or pe_image_ready,
+            "qwen3_vl_embedding_search": qwen3_vl_image_ready,
             # Both profiles now have their own OCR/speech/audio indices (BTC: the
             # `*_v1` set, InfoShot++: the `*_v2` set built on the new keyframe map).
             "ocr_search": "ocr" not in selected_settings.unsupported_channels,
@@ -204,6 +231,12 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
             "ocr": selected_settings.idx_ocr,
             "speech": selected_settings.idx_speech,
             "audio": selected_settings.idx_audio,
+            "image_pe": selected_settings.milvus_image_collection,
+            "image_qwen": (
+                selected_settings.milvus_qwen3_vl_image_collection
+                if selected_settings.is_infoshotpp
+                else None
+            ),
         },
         # Categories the active OCR index does not cover, so a blank OCR result
         # there reads as "not indexed" rather than "no text on screen".
@@ -303,6 +336,7 @@ async def search_simple(req: SimpleSearchRequest):
             top_k=req.top_k,
             scope_spec=req.scope.model_dump(),
             rerank=req.rerank,
+            image_models=req.image_models,
         )
     except ServiceUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

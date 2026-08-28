@@ -41,7 +41,7 @@ GROUPS: tuple[ConfigGroup, ...] = (
     ),
     ConfigGroup(
         "Milvus / Zilliz",
-        "Hai database image vector độc lập: BTC đầy đủ và InfoShot++ PE-only.",
+        "Hai database độc lập; InfoShot++ giữ PE và Qwen trong hai collection riêng.",
         (
             ConfigKey("MILVUS_ENDPOINT_1", "BTC cluster endpoint", required=True),
             ConfigKey("MILVUS_TOKEN_1", "BTC token", secret=True, required=True),
@@ -51,10 +51,17 @@ GROUPS: tuple[ConfigGroup, ...] = (
     ),
     ConfigGroup(
         "Encoders",
-        "PE-Core-G14 text→image, and GLAP for audio↔text.",
+        "PE-Core-G14, Qwen3-VL-Embedding-8B, and GLAP audio↔text.",
         (
             ConfigKey("PE_ENCODER_URL", "PE encoder base URL", required=True),
             ConfigKey("PE_ENCODER_TOKEN", "PE encoder bearer token", secret=True),
+            ConfigKey("QWEN3_VL_ENCODER_URL", "Qwen3-VL embedding encoder base URL"),
+            ConfigKey(
+                "QWEN3_VL_ENCODER_TOKEN",
+                "Qwen3-VL embedding bearer token",
+                secret=True,
+            ),
+            ConfigKey("QWEN3_VL_ENCODER_TIMEOUT_SECONDS", "Qwen text encode timeout"),
             ConfigKey("GLAP_ENCODER_URL", "GLAP base URL (blank = reuse PE)"),
         ),
     ),
@@ -137,6 +144,10 @@ GROUPS: tuple[ConfigGroup, ...] = (
             ConfigKey("IDX_OBJECTS", "Object detection index"),
             ConfigKey("MILVUS_IMAGE_COLLECTION_1", "BTC image vector collection"),
             ConfigKey("MILVUS_IMAGE_COLLECTION_2", "InfoShot++ image vector collection"),
+            ConfigKey(
+                "MILVUS_QWEN3_VL_IMAGE_COLLECTION_2",
+                "InfoShot++ Qwen3-VL image vector collection",
+            ),
             ConfigKey("MILVUS_AUDIO_COLLECTION", "Audio vector collection"),
         ),
     ),

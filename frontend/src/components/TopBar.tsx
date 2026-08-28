@@ -34,11 +34,11 @@ export function TopBar({ queryType, onQueryType, elapsed, penalties, latency, he
         title={
           retrievalDatabase === "btc"
             ? "BTC: đầy đủ mọi kênh"
-            : "InfoShot++: PE image + OCR/speech/audio (index v2); V-KIS canvas chưa có"
+            : "InfoShot++: chọn PE Core, Qwen3-VL Embedding hoặc fuse cả hai bằng RRF; V-KIS canvas chưa có"
         }
       >
         <option value="btc">BTC · đầy đủ</option>
-        <option value="infoshotpp">InfoShot++ · v2 (no canvas)</option>
+        <option value="infoshotpp">InfoShot++ · PE / Qwen3-VL</option>
       </select>
       <div className="seg" role="tablist" aria-label="Query type">
         {TYPES.map((t) => (

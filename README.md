@@ -22,6 +22,9 @@ The repository contains two parts:
 
 - **Multi-channel retrieval** fused with Reciprocal Rank Fusion (RRF, `k=60`):
   - `image_pe` — PE-Core-G14 text→image vectors in **Milvus** (cosine)
+  - `image_qwen` — Qwen3-VL-Embedding-8B native 4096-d vectors for InfoShot++;
+    the operator may search PE, Qwen, or both in parallel. A two-model search
+    combines ranks with RRF and never adds their incomparable cosine scores.
   - `ocr` / `speech` / `audio` — full-text + filters in **Elastic**
   - `audio` vector — **GLAP** audio↔text embeddings in Milvus, fused with the Elastic audio signal
 - **Query understanding** via NVIDIA Nemotron (OpenAI-compatible) with a
@@ -101,9 +104,13 @@ The broader design/strategy is in **[AIC26_Pipeline.md](AIC26_Pipeline.md)**.
 | `keyframe_mapping.py` | Build the keyframe → (video, pts_time) map. |
 | `elastic_upload.py` | Index OCR / speech / audio / keyframe-map records into Elastic. |
 | `milvus_upload.py` | Upload PE-Core-G14 image vectors into Milvus. |
+| `milvus_upload_pe_core.py` | Audit + upload the InfoShot++ PE-Core-G14-448 Parquet dataset (1280-d) into `aic26_image_peg14_infoshotpp_v1`. |
+| `milvus_upload_qwen3_vl_embedding_8b.py` | Audit + upload the InfoShot++ Qwen3-VL-Embedding-8B dataset (native 4096-d, 1.339.055 keyframe, 658 shard) into `aic26_image_qwen3vl8b_infoshotpp_v3`. Shard-atomic resume; joins `frame_id` against the final map CSVs and never treats `frame_idx` as the keyframe ordinal. |
 | `aic26_query_factory_qwen3vl8b_t4x2.ipynb` | Kaggle T4×2 workflow dùng Qwen3-VL-8B, PE-G14/Milvus visual hard negatives, critic, review và export benchmark T-KIS/QA/TRAKE/V-KIS. |
 | `aic26_nvila8b_qa_colab_server.ipynb` | Colab A100 worker chạy NVILA-8B BF16: QA hotspot prediction → grounded answer suggestions qua FastAPI/Cloudflare tunnel. |
 | `aic26_qwen3vl_reranker8b_colab_server.ipynb` | Colab A100 worker chạy Qwen3-VL-Reranker-8B BF16: rerank cặp (query, keyframe) ở frame level trước RRF, qua FastAPI/Cloudflare tunnel. |
+| `Qwen3VL-Embedding-8B/Qwen3_VL_Embedding_8B_Text_Encoder_Server_Colab_A100.ipynb` | Colab A100 (40/80 GB) worker chạy Qwen3-VL-Embedding-8B BF16 + FA2: encode text query thành vector 4096-d FP32 unit-norm cho kênh `image_qwen`, qua FastAPI/Cloudflare tunnel. |
+| `Qwen3VL-Embedding-8B/Qwen3_VL_Embedding_8B_AIC2026_HANDOFF.md` | Semantic contract, provenance và audit của collection embedding ảnh `qwen3-vl-embedding-8b-4096-v3`. |
 | `*.ipynb` | Pipeline notebooks: `audio_pipeline`, `speech_pipeline`, `cloudflareR2`, `model-setup-backend`, `glap-encoder-kaggle`, `ui-streamlit`. |
 | `*_PIPELINE.md`, `*_HANDOFF.md`, `FEATURES.md` | Per-stage documentation (audio, speech, OCR, Elastic, Milvus, R2). |
 | `instruction.md` | Official DRES v2 submission protocol (BTC). |
@@ -145,8 +152,8 @@ the browser. Setup guide for them: [scripts/dist/HUONG_DAN.md](scripts/dist/HUON
 
 ### Prerequisites (development from source)
 - Python 3.10+ and Node.js 18+
-- (Optional for live mode) Elastic Cloud, Milvus/Zilliz, a PE-Core-G14 encoder
-  endpoint, and a Cloudflare R2 media base URL.
+- (Optional for live mode) Elastic Cloud, Milvus/Zilliz, PE-Core-G14 and/or
+  Qwen3-VL-Embedding-8B encoder endpoints, and a Cloudflare R2 media base URL.
 
 ### 1. Backend
 
@@ -197,8 +204,10 @@ Key variables (full list in [backend/.env.example](backend/.env.example)):
 |---|---|
 | `ELASTIC_ENDPOINT`, `ELASTIC_API_KEY` | Elastic Cloud (OCR/speech/audio/timeline) |
 | `MILVUS_ENDPOINT_1`, `MILVUS_TOKEN_1` | BTC Milvus/Zilliz (đầy đủ kênh hiện tại) |
-| `MILVUS_ENDPOINT_2`, `MILVUS_TOKEN_2` | InfoShot++ Milvus/Zilliz (PE image only) |
+| `MILVUS_ENDPOINT_2`, `MILVUS_TOKEN_2` | InfoShot++ Milvus/Zilliz (separate PE/Qwen collections) |
 | `PE_ENCODER_URL` / `GLAP_ENCODER_URL` | text/audio encoder endpoints |
+| `QWEN3_VL_ENCODER_URL`, `QWEN3_VL_ENCODER_TOKEN` | optional InfoShot++ Qwen3-VL text encoder tunnel/auth |
+| `MILVUS_QWEN3_VL_IMAGE_COLLECTION_2` | InfoShot++ native 4096-d Qwen image collection |
 | `MEDIA_BASE_URL` | Cloudflare R2: BTC keyframes và video của cả hai profile |
 | `KEYFRAME_MEDIA_BASE_URL_2` | Hugging Face public base cho keyframe InfoShot++ |
 | `NVIDIA_API_KEY` | enables the Nemotron query parser (else heuristics) |

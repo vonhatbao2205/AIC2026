@@ -1,8 +1,11 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { seekElementBy } from "../lib/videoSeek";
 
 export interface VideoViewerHandle {
   toggle: () => void;
   seek: (t: number) => void;
+  /** Nudge the playhead by `delta` seconds, clamped inside the media. */
+  seekBy: (delta: number) => void;
   currentTime: () => number;
 }
 
@@ -41,6 +44,7 @@ export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoVi
       const v = videoRef.current;
       if (v) v.currentTime = t;
     },
+    seekBy: (delta: number) => seekElementBy(videoRef.current, delta),
     currentTime: () => videoRef.current?.currentTime ?? 0,
   }));
 

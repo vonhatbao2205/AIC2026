@@ -50,6 +50,34 @@ class MilvusClient:
         except Exception as exc:  # noqa: BLE001
             return {"ok": False, "error": str(exc)}
 
+    async def health_qwen_image(self) -> dict[str, Any]:
+        """Check the independent InfoShot++ Qwen3-VL image collection."""
+        if not self.s.is_infoshotpp:
+            return {
+                "ok": False,
+                "mode": "disabled",
+                "reason": "Qwen3-VL embeddings are indexed only for InfoShot++",
+            }
+        if self.s.mock_mode:
+            return {
+                "ok": True,
+                "mode": "mock",
+                "collection": self.s.milvus_qwen3_vl_image_collection,
+            }
+        if not self.s.has_milvus:
+            return {
+                "ok": False,
+                "mode": "disabled",
+                "reason": "MILVUS_ENDPOINT_2/TOKEN_2 are not configured",
+            }
+        try:
+            client = self._connect()
+            collection = self.s.milvus_qwen3_vl_image_collection
+            has = client.has_collection(collection)
+            return {"ok": bool(has), "collection": collection}
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "error": str(exc)}
+
     def search_image(
         self,
         vector: list[float],
@@ -65,6 +93,49 @@ class MilvusClient:
         of dataset folders — pushed into the Milvus filter so the top_k the operator
         asked for is filled from INSIDE the scope, rather than retrieved globally
         and then thinned out by a post-filter."""
+        return self._search_image_collection(
+            self.s.milvus_image_collection,
+            vector,
+            top_k=top_k,
+            video_id=video_id,
+            categories=categories,
+        )
+
+    def search_qwen_image(
+        self,
+        vector: list[float],
+        *,
+        top_k: int = 100,
+        video_id: str | None = None,
+        categories: tuple[str, ...] = (),
+    ) -> list[dict[str, Any]]:
+        """Search the 4096-d Qwen3-VL InfoShot++ collection.
+
+        This is intentionally a separate method from PE search: callers can
+        never pass a Qwen vector to PE's collection (or vice versa) by choosing
+        the wrong optional argument.
+        """
+        if not self.s.is_infoshotpp:
+            raise RuntimeError("Qwen3-VL image collection is available only for InfoShot++")
+        if not self.s.mock_mode and not self.s.has_milvus:
+            raise RuntimeError("InfoShot++ Milvus endpoint/token are not configured")
+        return self._search_image_collection(
+            self.s.milvus_qwen3_vl_image_collection,
+            vector,
+            top_k=top_k,
+            video_id=video_id,
+            categories=categories,
+        )
+
+    def _search_image_collection(
+        self,
+        collection_name: str,
+        vector: list[float],
+        *,
+        top_k: int,
+        video_id: str | None,
+        categories: tuple[str, ...],
+    ) -> list[dict[str, Any]]:
         if self.mock:
             return self._mock_image(top_k=top_k, video_id=video_id, categories=categories)
 
@@ -78,7 +149,7 @@ class MilvusClient:
             if expr
         ]
         results = client.search(
-            collection_name=self.s.milvus_image_collection,
+            collection_name=collection_name,
             data=[vector],
             limit=top_k,
             output_fields=["submit_keyframe_id", "video_id", "keyframe_n"],
@@ -113,6 +184,25 @@ class MilvusClient:
         milvus_upload.py), so a marked frame can seed an image-to-image kNN
         without re-encoding the picture.
         """
+        return self._get_image_vectors_from_collection(
+            self.s.milvus_image_collection, submit_keyframe_ids
+        )
+
+    def get_qwen_image_vectors(
+        self, submit_keyframe_ids: list[str]
+    ) -> dict[str, list[float]]:
+        """Fetch stored Qwen vectors for model-consistent relevance feedback."""
+        if not self.s.is_infoshotpp:
+            raise RuntimeError("Qwen3-VL image collection is available only for InfoShot++")
+        if not self.s.mock_mode and not self.s.has_milvus:
+            raise RuntimeError("InfoShot++ Milvus endpoint/token are not configured")
+        return self._get_image_vectors_from_collection(
+            self.s.milvus_qwen3_vl_image_collection, submit_keyframe_ids
+        )
+
+    def _get_image_vectors_from_collection(
+        self, collection_name: str, submit_keyframe_ids: list[str]
+    ) -> dict[str, list[float]]:
         ids = [kf_id for kf_id in dict.fromkeys(submit_keyframe_ids) if kf_id]
         if not ids:
             return {}
@@ -120,7 +210,7 @@ class MilvusClient:
             return {kf_id: [0.1] * 8 for kf_id in ids}
         client = self._connect()
         rows = client.get(
-            collection_name=self.s.milvus_image_collection,
+            collection_name=collection_name,
             ids=ids,
             output_fields=["id", "submit_keyframe_id", "embedding"],
         )

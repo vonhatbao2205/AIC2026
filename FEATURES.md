@@ -48,6 +48,7 @@ Bộ lọc **📂 phạm vi** cạnh nút Search: bấm vào ra **danh sách che
 
 ## 6. Kênh truy hồi (Retrieval channels)
 - **image_pe (VECTOR)**: PE-Core-G14 encode query → Milvus `aic26_image_peg14_v1` (COSINE). Hỗ trợ **multi-variant max-fusion** (query expansion).
+- **image_qwen (VECTOR, InfoShot++)**: Qwen3-VL-Embedding-8B encode query → Milvus `aic26_image_qwen3vl8b_infoshotpp_v3` (COSINE, 4096-d native). Ô chọn **Image embedding** trong query panel cho phép chạy PE, Qwen, hoặc cả hai; chọn cả hai thì hai kênh **fuse bằng RRF**, không bao giờ cộng cosine của hai không gian khác nhau. BTC không có vector Qwen nên request BTC bị từ chối 422 thay vì âm thầm trả kết quả PE.
 - **OCR**: Elastic `text_clean`/`text_nfc`/`text_clean_fold` (fuzzy) + filter `hour`/`clock`. Guard: query rỗng → trả rỗng (không match-all).
 - **speech**: Elastic ASR `text`; hạ điểm `confidence_bucket` low/mid, `segment_role` intro/preview.
 - **audio**: Elastic `top1_label`/`tag_labels`/`caption` (drop stoplist, hạ generic/vietnamese_asr) **FUSE (rank-RRF) với GLAP audio-vector** (`aic26_audio_glap_v1`, COSINE) khi GLAP bật. Frame do vector tìm có **badge `GLAP`** trên kết quả + evidence.
@@ -205,7 +206,8 @@ Vòng sơ tuyển chấm `Final = (R@1 + R@5 + R@20 + R@50 + R@100) / 5`, mỗi 
 ## 17. Models & dữ liệu
 - **PE-Core-G14-448** (1280-d) — ảnh + text, Kaggle FastAPI + cloudflared (`model-setup-backend.ipynb`).
 - **GLAP `mispeech/GLAP`** (1024-d) — audio↔text, text encoder chạy **CPU** (`/encode-audio-text`); cùng notebook PE hoặc `glap-encoder-kaggle.ipynb` riêng.
-- **Milvus**: `aic26_image_peg14_v1` (382,299), `aic26_audio_glap_v1` (466,996).
+- **Qwen3-VL-Embedding-8B** (4096-d native) — text query encoder, Colab A100 40/80 GB BF16 + FA2 (`Qwen3VL-Embedding-8B/Qwen3_VL_Embedding_8B_Text_Encoder_Server_Colab_A100.ipynb`). Ảnh đã encode sẵn offline; instruction query khóa ở `Retrieve images or text relevant to the user's query.`
+- **Milvus**: `aic26_image_peg14_v1` (382,299), `aic26_audio_glap_v1` (466,996), `aic26_image_peg14_infoshotpp_v1` và `aic26_image_qwen3vl8b_infoshotpp_v3` (1,339,055 keyframe InfoShot++).
 - **Elastic**: `aic26_keyframe_map_v1`, `aic26_ocr_keyframes_v1`, `aic26_speech_segments_v1`, `aic26_audio_windows_v1`.
 - **NVIDIA NIM**: qwen3-next (parse), llama-3.1-8b (expansion). **faster-whisper** (voice).
 - **NVILA-8B**: Colab A100 BF16 worker (`aic26_nvila8b_qa_colab_server.ipynb`), multi-image QA hai pass cộng post-search visual verification, không cần caption keyframe tạo sẵn.

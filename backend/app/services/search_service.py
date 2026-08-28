@@ -8,11 +8,13 @@ from __future__ import annotations
 import asyncio
 import functools
 import time
+from collections.abc import Sequence
 from typing import Any
 
 from ..adapters.elastic_client import ElasticClient
 from ..adapters.milvus_client import MilvusClient
 from ..adapters.pe_encoder import GlapEncoderClient, PeEncoderClient
+from ..adapters.qwen3_vl_encoder import Qwen3VlEncoderClient
 from ..adapters.qwen_reranker import QwenRerankerClient
 from ..config import Settings
 from ..fusion import group_by_video, reciprocal_rank_fusion
@@ -25,6 +27,30 @@ from ..types import Channel, ChannelHit, Evidence, FusedFrame, VideoGroup
 #: Upper bound of the console's retrieval-depth slider; every returned frame is
 #: enriched so it can be submitted.
 MAX_ENRICHED_FRAMES = 1000
+IMAGE_MODELS = ("pe", "qwen3_vl")
+
+
+def _translation_warning(image_models: Sequence[str]) -> str | None:
+    """What a failed VI→EN translation actually costs, per selected model.
+
+    Only PE-Core needs English: it is an English-centric CLIP, so an untranslated
+    Vietnamese query lands outside the space it was trained on and the keyframes
+    look plausible while matching nothing. Qwen3-VL-Embedding is multilingual and
+    is queried in Vietnamese by design (see the encoder handoff's reference
+    query), so warning about it sends the operator chasing a problem that is not
+    there — and a Qwen-only search has nothing to warn about at all.
+    """
+    if "pe" not in image_models:
+        return None
+    tail = (
+        " Nhánh Qwen3-VL không bị ảnh hưởng (đa ngữ)."
+        if "qwen3_vl" in image_models
+        else ""
+    )
+    return (
+        "Không dịch được query sang tiếng Anh — PE Core cần tiếng Anh nên kết quả "
+        "PE có thể kém. Bật LLM hoặc kiểm tra mạng." + tail
+    )
 
 
 class ServiceUnavailable(Exception):
@@ -37,10 +63,22 @@ class SearchService:
         self.elastic = ElasticClient(settings)
         self.milvus = MilvusClient(settings)
         self.pe = PeEncoderClient(settings)
+        self.qwen3_vl = Qwen3VlEncoderClient(settings)
         self.glap = GlapEncoderClient(settings)
         self.reranker = QwenRerankerClient(settings)
         self.parser = QueryParser(settings)
         self.media = MediaUrlBuilder(settings.keyframe_media_base_url, settings.video_media_base_url)
+
+    def resolve_image_models(self, models: Any = None) -> tuple[str, ...]:
+        """Normalize the API selection for internal/direct service callers too."""
+        selected = tuple(models if models is not None else ("pe",))
+        if not selected:
+            raise ValueError("At least one image embedding model must be selected")
+        if len(set(selected)) != len(selected) or any(m not in IMAGE_MODELS for m in selected):
+            raise ValueError(f"Unknown or duplicate image_models: {list(selected)!r}")
+        if "qwen3_vl" in selected and not self.s.is_infoshotpp:
+            raise ValueError("qwen3_vl image search is available only for infoshotpp")
+        return selected
 
     # ---- channel runners ----------------------------------------------
     async def _run_image_pe(
@@ -169,8 +207,62 @@ class SearchService:
         })
         return ordered
 
+    async def _run_image_qwen(
+        self,
+        cfg: dict[str, Any],
+        top_k: int,
+        categories: tuple[str, ...] = (),
+    ) -> tuple[list[ChannelHit], float]:
+        """Qwen3-VL text→image retrieval in its independent 4096-d space.
+
+        Query-expansion variants are max-fused only *within* Qwen, where cosine
+        scores are comparable. PE and Qwen remain separate ranked channels and
+        meet later in RRF; their raw cosine values are never added.
+        """
+        t0 = time.perf_counter()
+        queries = [q for q in (cfg.get("queries_en") or []) if q and q.strip()]
+        if not queries:
+            return [], 0.0
+        vectors = await self.qwen3_vl.encode_text(queries)
+        search = functools.partial(
+            self.milvus.search_qwen_image, top_k=top_k, categories=categories
+        )
+        if self.milvus.mock:
+            raws = [search(vector) for vector in vectors]
+        else:
+            raws = await asyncio.gather(*(asyncio.to_thread(search, vector) for vector in vectors))
+
+        best: dict[str, dict[str, Any]] = {}
+        for raw in raws:
+            for row in raw:
+                kf_id = row["submit_keyframe_id"]
+                if kf_id not in best or row["score"] > best[kf_id]["score"]:
+                    best[kf_id] = row
+        ranked = sorted(best.values(), key=lambda row: -row["score"])[:top_k]
+        hits = [
+            ChannelHit(
+                channel="image_qwen",
+                submit_keyframe_id=row["submit_keyframe_id"],
+                video_id=row["video_id"],
+                keyframe_n=int(row["keyframe_n"]),
+                score=float(row["score"]),
+                rank=rank,
+                evidence=Evidence(
+                    type="image_qwen",
+                    score=float(row["score"]),
+                    extra={"model": "qwen3_vl"},
+                ),
+            )
+            for rank, row in enumerate(ranked)
+        ]
+        return hits, (time.perf_counter() - t0) * 1000
+
     async def _run_similar(
-        self, seed_ids: list[str], top_k: int, categories: tuple[str, ...] = ()
+        self,
+        seed_ids: list[str],
+        top_k: int,
+        categories: tuple[str, ...] = (),
+        image_models: tuple[str, ...] = ("pe",),
     ) -> tuple[list[ChannelHit], float]:
         """Image-to-image kNN seeded by the frames the operator marked.
 
@@ -183,24 +275,80 @@ class SearchService:
         t0 = time.perf_counter()
         if not seed_ids:
             return [], 0.0
-        vectors = await asyncio.to_thread(self.milvus.get_image_vectors, seed_ids)
-        if not vectors:
-            return [], (time.perf_counter() - t0) * 1000
-        raws = await asyncio.gather(
-            *(
-                asyncio.to_thread(
-                    self.milvus.search_image, vector, top_k=top_k, categories=categories
-                )
-                for vector in vectors.values()
+        async def run_model(model: str) -> tuple[str, list[dict[str, Any]], int]:
+            getter = (
+                self.milvus.get_image_vectors
+                if model == "pe"
+                else self.milvus.get_qwen_image_vectors
             )
+            searcher = (
+                self.milvus.search_image
+                if model == "pe"
+                else self.milvus.search_qwen_image
+            )
+            vectors = await asyncio.to_thread(getter, seed_ids)
+            if not vectors:
+                return model, [], 0
+            raws = await asyncio.gather(
+                *(
+                    asyncio.to_thread(
+                        searcher, vector, top_k=top_k, categories=categories
+                    )
+                    for vector in vectors.values()
+                )
+            )
+            # Scores are comparable across seeds encoded by the same model.
+            best: dict[str, dict[str, Any]] = {}
+            for raw in raws:
+                for row in raw:
+                    kf_id = row["submit_keyframe_id"]
+                    if kf_id not in best or row["score"] > best[kf_id]["score"]:
+                        best[kf_id] = row
+            ranked = sorted(best.values(), key=lambda row: -row["score"])[:top_k]
+            return model, ranked, len(vectors)
+
+        outcomes = await asyncio.gather(
+            *(run_model(model) for model in image_models), return_exceptions=True
         )
-        best: dict[str, dict[str, Any]] = {}
-        for raw in raws:
-            for r in raw:
-                kf = r["submit_keyframe_id"]
-                if kf not in best or r["score"] > best[kf]["score"]:
-                    best[kf] = r
-        fused = sorted(best.values(), key=lambda r: -r["score"])[:top_k]
+        model_lists: dict[str, list[dict[str, Any]]] = {}
+        seed_counts: dict[str, int] = {}
+        failures: list[BaseException] = []
+        for outcome in outcomes:
+            if isinstance(outcome, BaseException):
+                failures.append(outcome)
+                continue
+            model, rows, seed_count = outcome
+            if rows:
+                model_lists[model] = rows
+                seed_counts[model] = seed_count
+        if not model_lists:
+            if failures:
+                raise failures[0]
+            return [], (time.perf_counter() - t0) * 1000
+
+        # One selected model preserves its own cosine ordering. With two models,
+        # fuse ranks only; adding 1280-d PE cosine to 4096-d Qwen cosine is invalid.
+        if len(model_lists) == 1:
+            only_model, fused = next(iter(model_lists.items()))
+            model_scores = {
+                row["submit_keyframe_id"]: {only_model: float(row["score"])} for row in fused
+            }
+        else:
+            by_id: dict[str, dict[str, Any]] = {}
+            for model, rows in model_lists.items():
+                for rank, row in enumerate(rows):
+                    entry = by_id.setdefault(
+                        row["submit_keyframe_id"],
+                        {"row": row, "score": 0.0, "model_scores": {}},
+                    )
+                    entry["score"] += 1.0 / (60 + rank + 1)
+                    entry["model_scores"][model] = float(row["score"])
+            ordered = sorted(by_id.values(), key=lambda item: (-item["score"], item["row"]["submit_keyframe_id"]))
+            fused = [{**entry["row"], "score": entry["score"]} for entry in ordered[:top_k]]
+            model_scores = {
+                entry["row"]["submit_keyframe_id"]: entry["model_scores"]
+                for entry in ordered[:top_k]
+            }
         hits = [
             ChannelHit(
                 channel="similar",
@@ -212,7 +360,11 @@ class SearchService:
                 evidence=Evidence(
                     type="similar",
                     score=float(r["score"]),
-                    extra={"seeds": len(vectors)},
+                    extra={
+                        "models": list(model_lists),
+                        "seeds": sum(seed_counts.values()),
+                        "per_model_score": model_scores[r["submit_keyframe_id"]],
+                    },
                 ),
             )
             for i, r in enumerate(fused)
@@ -359,6 +511,7 @@ class SearchService:
         feedback: dict[str, Any] | None = None,
         categories: tuple[str, ...] = (),
         rerank: bool = False,
+        image_models: tuple[str, ...] = ("pe",),
     ) -> tuple[list[VideoGroup], dict[str, Any]]:
         """`categories` is the resolved search scope: the dataset folders this
         search may return frames from. It is pushed into every channel's own
@@ -367,6 +520,7 @@ class SearchService:
         channels_cfg = parsed.get("channels", {})
         filters = parsed.get("filters", {})
         unsupported = self.s.unsupported_channels
+        image_models = self.resolve_image_models(image_models)
         # Per-call, so two concurrent searches never write each other's report.
         rerank_info: dict[str, Any] = {}
         runners = {
@@ -378,16 +532,19 @@ class SearchService:
                         self._run_image_pe, rerank=rerank, rerank_info=rerank_info
                     ),
                 ),
+                ("image_qwen", self._run_image_qwen),
                 ("ocr", self._run_ocr),
                 ("speech", self._run_speech),
                 ("audio", self._run_audio),
             )
             if name not in unsupported
+            and (name != "image_pe" or "pe" in image_models)
+            and (name != "image_qwen" or "qwen3_vl" in image_models)
         }
         feedback = feedback or {}
         tasks: dict[Channel, asyncio.Task] = {}
         for name, runner in runners.items():
-            cfg = channels_cfg.get(name, {})
+            cfg = channels_cfg.get("image_pe" if name == "image_qwen" else name, {})
             if cfg.get("enabled"):
                 tasks[name] = asyncio.create_task(runner(cfg, top_k, categories))
         # Feedback-driven, not parser-driven: it exists only while the operator
@@ -395,7 +552,9 @@ class SearchService:
         positive_frames = [str(kf) for kf in (feedback.get("positive_frames") or []) if kf]
         if positive_frames:
             tasks["similar"] = asyncio.create_task(
-                self._run_similar(positive_frames, top_k, categories)
+                self._run_similar(
+                    positive_frames, top_k, categories, image_models=image_models
+                )
             )
 
         latency: dict[str, Any] = {"channels": {}}
@@ -424,7 +583,8 @@ class SearchService:
                 warnings.append(f"{name} channel unavailable: {exc}")
             channel_hits[name] = _apply_filters(hits, filters, categories)
             latency["channels"][name] = round(ms, 1)
-            weights[name] = float(channels_cfg.get(name, {}).get("weight") or 1.0)
+            cfg_name = "image_pe" if name == "image_qwen" else name
+            weights[name] = float(channels_cfg.get(cfg_name, {}).get("weight") or 1.0)
         if rerank_info:
             latency["reranker"] = rerank_info
             if not rerank_info.get("ok"):
@@ -482,26 +642,28 @@ class SearchService:
         top_k: int = 60,
         scope_spec: dict[str, Any] | None = None,
         rerank: bool = False,
+        image_models: Any = None,
     ) -> dict[str, Any]:
-        """Pure PE→Milvus image search returning a FLAT keyframe list ordered by
-        cosine similarity (no parser, no fusion, no group-by-video).
+        """Flat visual search over the selected embedding model(s).
 
-        Simple Search is the second visual code path; hooking only the full search
-        would leave this tab silently on plain PE while its tick box says otherwise.
+        One model keeps its own cosine order. Two models run concurrently and
+        are fused by RRF, never by adding their incompatible cosine scores.
         """
         t0 = time.perf_counter()
         query = (query or "").strip()
+        selected = self.resolve_image_models(image_models)
         scope = self.resolve_scope(scope_spec, query=query)
         if not query:
             return {
                 "query": query,
                 "results": [],
                 "retrieval_database": self.s.retrieval_database,
+                "image_models": list(selected),
                 "scope": scope.to_dict(),
                 "mode": "mock" if self.s.mock_mode else "live",
                 "latency_ms": 0,
             }
-        # Translate VI→EN so the English-centric PE encoder gets an English query.
+        # Use the same translated visual query for a fair PE/Qwen rank ensemble.
         search_text = query
         translation_failed = False
         if self.s.translate_to_en and not self.s.mock_mode:
@@ -511,39 +673,109 @@ class SearchService:
                 query, settings=self.s
             )
             translation_failed = not translated_ok
-        try:
-            vectors = await self.pe.encode_text([search_text])
-        except Exception as exc:  # noqa: BLE001
-            raise ServiceUnavailable(
-                f"PE text-encoder unreachable ({self.s.pe_encoder_url}). "
-                f"Restart the Kaggle PE server and update PE_ENCODER_URL. Detail: {exc}"
-            ) from exc
+
         rerank_on = bool(rerank and self.reranker.enabled)
-        candidate_k = max(top_k, self.reranker.candidate_k) if rerank_on else top_k
-        try:
-            raw = (
-                self.milvus.search_image(vectors[0], top_k=candidate_k, categories=scope.categories)
+        rerank_info: dict[str, Any] = {}
+        model_latency: dict[str, float] = {}
+
+        async def run_model(model: str) -> tuple[str, list[dict[str, Any]]]:
+            started = time.perf_counter()
+            encoder = self.pe if model == "pe" else self.qwen3_vl
+            searcher = (
+                self.milvus.search_image
+                if model == "pe"
+                else self.milvus.search_qwen_image
+            )
+            vectors = await encoder.encode_text([search_text])
+            candidate_k = (
+                max(top_k, self.reranker.candidate_k)
+                if model == "pe" and rerank_on
+                else top_k
+            )
+            rows = (
+                searcher(vectors[0], top_k=candidate_k, categories=scope.categories)
                 if self.milvus.mock
                 else await asyncio.to_thread(
-                    self.milvus.search_image,
+                    searcher,
                     vectors[0],
                     top_k=candidate_k,
                     categories=scope.categories,
                 )
             )
-        except Exception as exc:  # noqa: BLE001
-            raise ServiceUnavailable(f"Milvus image search failed: {exc}") from exc
-        rerank_info: dict[str, Any] = {}
-        if rerank_on:
-            raw = await self._rerank_frames(search_text, list(raw), rerank_info)
-        raw = raw[:top_k]
+            if model == "pe" and rerank_on:
+                rows = await self._rerank_frames(search_text, list(rows), rerank_info)
+            model_latency[model] = round((time.perf_counter() - started) * 1000, 1)
+            return model, list(rows)[:top_k]
+
+        outcomes = await asyncio.gather(
+            *(run_model(model) for model in selected), return_exceptions=True
+        )
+        model_rows: dict[str, list[dict[str, Any]]] = {}
+        warnings: list[str] = []
+        for model, outcome in zip(selected, outcomes):
+            if isinstance(outcome, BaseException):
+                warnings.append(f"{model} image search unavailable: {outcome}")
+                continue
+            returned_model, rows = outcome
+            model_rows[returned_model] = rows
+        if not model_rows:
+            detail = "; ".join(warnings) or "no image model returned results"
+            raise ServiceUnavailable(detail)
+
+        per_model_score: dict[str, dict[str, float]] = {}
+        row_by_id: dict[str, dict[str, Any]] = {}
+        for model, rows in model_rows.items():
+            for row in rows:
+                kf_id = row["submit_keyframe_id"]
+                per_model_score.setdefault(kf_id, {})[model] = float(row["score"])
+                row_by_id.setdefault(kf_id, row)
+
+        if len(model_rows) == 1:
+            only_model, raw = next(iter(model_rows.items()))
+            ranked_rows = [
+                {**row, "fused_score": float(row["score"]), "models": [only_model]}
+                for row in raw[:top_k]
+            ]
+        else:
+            channel_hits: dict[Channel, list[ChannelHit]] = {}
+            for model, rows in model_rows.items():
+                channel: Channel = "image_pe" if model == "pe" else "image_qwen"
+                channel_hits[channel] = [
+                    ChannelHit(
+                        channel=channel,
+                        submit_keyframe_id=row["submit_keyframe_id"],
+                        video_id=row["video_id"],
+                        keyframe_n=int(row["keyframe_n"]),
+                        score=float(row["score"]),
+                        rank=rank,
+                    )
+                    for rank, row in enumerate(rows)
+                ]
+            fused_frames = reciprocal_rank_fusion(channel_hits, k=60)[:top_k]
+            ranked_rows = [
+                {
+                    **row_by_id[frame.submit_keyframe_id],
+                    "fused_score": frame.score,
+                    "models": [
+                        "pe" if channel == "image_pe" else "qwen3_vl"
+                        for channel in frame.channels
+                    ],
+                }
+                for frame in fused_frames
+            ]
+
         results = [
             {
                 "image_id": r["submit_keyframe_id"],
                 "submit_keyframe_id": r["submit_keyframe_id"],
                 "video_id": r["video_id"],
                 "keyframe_n": int(r["keyframe_n"]),
-                "score": round(float(r["score"]), 6),
+                "score": round(float(r["fused_score"]), 6),
+                "models": r["models"],
+                "per_model_score": {
+                    model: round(score, 6)
+                    for model, score in per_model_score[r["submit_keyframe_id"]].items()
+                },
                 "rerank_score": (
                     round(float(r["rerank_score"]), 4)
                     if r.get("rerank_score") is not None
@@ -552,24 +784,27 @@ class SearchService:
                 "keyframe_url": self.media.keyframe_url(r["video_id"], int(r["keyframe_n"])),
                 "video_url": self.media.video_url(r["video_id"]),
             }
-            for r in raw
+            for r in ranked_rows
         ]
         body: dict[str, Any] = {
             "query": query,
             "retrieval_database": self.s.retrieval_database,
+            "image_models": list(selected),
             "scope": scope.to_dict(),
             "translated_query": search_text if search_text != query else None,
             "results": results,
             "mode": "mock" if self.s.mock_mode else "live",
             "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
+            "model_latency_ms": model_latency,
         }
         if rerank_info:
             body["reranker"] = rerank_info
         if translation_failed:
-            body["warnings"] = [
-                "Không dịch được query sang tiếng Anh — PE đang nhận tiếng Việt "
-                "nên kết quả sẽ kém. Bật LLM hoặc kiểm tra mạng."
-            ]
+            notice = _translation_warning(selected)
+            if notice:
+                warnings.append(notice)
+        if warnings:
+            body["warnings"] = warnings
         return body
 
     def resolve_scope(self, spec: dict[str, Any] | None, *, query: str) -> ResolvedScope:
@@ -600,6 +835,7 @@ class SearchService:
     async def search(self, req: dict[str, Any]) -> dict[str, Any]:
         t_total = time.perf_counter()
         query = req.get("query", "")
+        image_models = self.resolve_image_models(req.get("image_models"))
         parse_provided = req.get("parsed")
         t_parse = time.perf_counter()
         if parse_provided:
@@ -625,18 +861,19 @@ class SearchService:
             feedback=req.get("feedback"),
             categories=scope.categories,
             rerank=bool(req.get("rerank")),
+            image_models=image_models,
         )
         if parsed.get("translation_failed"):
-            latency.setdefault("warnings", []).append(
-                "Không dịch được query sang tiếng Anh — PE đang nhận tiếng Việt nên "
-                "keyframe trả về sẽ không khớp. Bật LLM hoặc kiểm tra mạng."
-            )
+            notice = _translation_warning(image_models)
+            if notice:
+                latency.setdefault("warnings", []).append(notice)
         latency["parse_ms"] = round(parse_ms, 1)
         latency["total_ms"] = round((time.perf_counter() - t_total) * 1000, 1)
 
         return {
             "query": query,
             "retrieval_database": self.s.retrieval_database,
+            "image_models": list(image_models),
             "parsed": parsed,
             "scope": scope.to_dict(),
             "groups": [self._serialize_group(g) for g in groups[: req.get("max_videos", 50)]],

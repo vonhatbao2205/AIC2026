@@ -82,6 +82,7 @@ backend/data/
 milvus_upload_checkpoint.json
 .milvus_upload_state_*.json
 milvus_upload_pe_core_verification.json
+milvus_upload_qwen3_vl_embedding_8b_verification.json
 .hf_media_local_upload_state*.json
 
 # ---- OS / editor ------------------------------------------------------------

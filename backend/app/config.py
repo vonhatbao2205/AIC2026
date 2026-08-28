@@ -95,6 +95,12 @@ class Settings:
     retrieval_database: str = "btc"
     pe_encoder_url: str | None = None
     pe_encoder_token: str | None = None
+    # Qwen3-VL-Embedding-8B text encoder. Its 4096-d space is independent from
+    # PE-Core's 1280-d space, so it has its own worker credentials and Milvus
+    # collection and is combined with PE by rank only.
+    qwen3_vl_encoder_url: str | None = None
+    qwen3_vl_encoder_token: str | None = None
+    qwen3_vl_encoder_timeout_seconds: float = 120.0
     # GLAP audio↔text encoder (/encode-audio-text). Usually the SAME Kaggle server
     # as PE; if unset, falls back to pe_encoder_url.
     glap_encoder_url: str | None = None
@@ -198,6 +204,8 @@ class Settings:
     milvus_image_collection: str = "aic26_image_peg14_v1"
     milvus_image_collection_1: str = "aic26_image_peg14_v1"
     milvus_image_collection_2: str = "aic26_image_peg14_infoshotpp_v1"
+    milvus_qwen3_vl_image_collection: str = "aic26_image_qwen3vl8b_infoshotpp_v3"
+    milvus_qwen3_vl_image_collection_2: str = "aic26_image_qwen3vl8b_infoshotpp_v3"
     milvus_audio_collection: str = "aic26_audio_glap_v1"
 
     # When true, adapters return deterministic fixtures instead of calling services.
@@ -228,6 +236,20 @@ class Settings:
     @property
     def has_pe_encoder(self) -> bool:
         return bool(self.pe_encoder_url)
+
+    @property
+    def has_qwen3_vl_encoder(self) -> bool:
+        # The companion Colab worker always authenticates with a bearer token.
+        return bool(self.qwen3_vl_encoder_url and self.qwen3_vl_encoder_token)
+
+    @property
+    def has_qwen3_vl_search(self) -> bool:
+        return bool(
+            self.is_infoshotpp
+            and self.has_qwen3_vl_encoder
+            and self.has_milvus
+            and self.milvus_qwen3_vl_image_collection
+        )
 
     @property
     def glap_url(self) -> str | None:
@@ -285,6 +307,7 @@ class Settings:
             idx_audio=self.idx_audio_2,
             ocr_missing_categories=self.ocr_missing_categories_2,
             milvus_image_collection=self.milvus_image_collection_2,
+            milvus_qwen3_vl_image_collection=self.milvus_qwen3_vl_image_collection_2,
             keyframe_media_base_url=self.keyframe_media_base_url_2,
             video_media_base_url=(self.video_media_base_url_2 or self.media_base_url).rstrip("/"),
         )
@@ -358,6 +381,12 @@ def get_settings() -> Settings:
         nvila_max_candidates = int(_env("NVILA_MAX_CANDIDATES", "12") or "12")
     except ValueError:
         nvila_max_candidates = 12
+    try:
+        qwen3_vl_encoder_timeout_seconds = float(
+            _env("QWEN3_VL_ENCODER_TIMEOUT_SECONDS", "120") or "120"
+        )
+    except ValueError:
+        qwen3_vl_encoder_timeout_seconds = 120.0
     reranker_env = (_env("QWEN_RERANKER_ENABLED", "true") or "true").lower()
     qwen_reranker_enabled = reranker_env in {"1", "true", "yes", "on"}
     try:
@@ -433,6 +462,11 @@ def get_settings() -> Settings:
         milvus_token_2=_env("MILVUS_TOKEN_2"),
         pe_encoder_url=_env("PE_ENCODER_URL"),
         pe_encoder_token=_env("PE_ENCODER_TOKEN"),
+        qwen3_vl_encoder_url=(_env("QWEN3_VL_ENCODER_URL") or "").rstrip("/") or None,
+        qwen3_vl_encoder_token=(
+            _env("QWEN3_VL_ENCODER_TOKEN") or file_default("qwen3_vl_encoder_token.txt")
+        ),
+        qwen3_vl_encoder_timeout_seconds=max(10.0, qwen3_vl_encoder_timeout_seconds),
         glap_encoder_url=_env("GLAP_ENCODER_URL"),
         media_base_url=media_base_url,
         keyframe_media_base_url=media_base_url,
@@ -492,6 +526,14 @@ def get_settings() -> Settings:
         milvus_image_collection_1=image_collection_1,
         milvus_image_collection_2=(
             _env("MILVUS_IMAGE_COLLECTION_2") or "aic26_image_peg14_infoshotpp_v1"
+        ),
+        milvus_qwen3_vl_image_collection=(
+            _env("MILVUS_QWEN3_VL_IMAGE_COLLECTION_2")
+            or "aic26_image_qwen3vl8b_infoshotpp_v3"
+        ),
+        milvus_qwen3_vl_image_collection_2=(
+            _env("MILVUS_QWEN3_VL_IMAGE_COLLECTION_2")
+            or "aic26_image_qwen3vl8b_infoshotpp_v3"
         ),
         milvus_audio_collection=_env("MILVUS_AUDIO_COLLECTION") or "aic26_audio_glap_v1",
         mock_mode=mock_mode,
