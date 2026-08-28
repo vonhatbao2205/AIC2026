@@ -254,6 +254,49 @@ async def test_trake_threads_the_selection_through_every_event(settings):
     assert body["sequences"]
 
 
+# ---- answer generation -------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_answer_generation_searches_every_selected_index(settings):
+    """The 100-answer list is what actually gets graded, so it must be built on
+    the same evidence a two-model console search would surface. It used to run
+    the generator's own retrieval on PE alone whatever the operator had ticked."""
+    from app.services.answer_service import AnswerService
+
+    svc = SearchService(infoshotpp(settings))
+    answers = AnswerService(svc.s, svc, TrakeService(svc.s, svc))
+    seen: list[list[str]] = []
+    original = answers._search_payload
+
+    def spy(req, *, default_top_k):
+        payload = original(req, default_top_k=default_top_k)
+        seen.append(list(payload["image_models"]))
+        return payload
+
+    answers._search_payload = spy
+    body = await answers.generate(
+        {
+            "retrieval_database": "infoshotpp",
+            "image_models": ["pe", "qwen3_vl"],
+            "query": "nhóm người tập thể dục",
+            "query_type_hint": "T-KIS",
+            "limit": 5,
+        }
+    )
+
+    assert seen == [["pe", "qwen3_vl"]]
+    assert body["answers"]
+
+
+def test_answer_generation_api_rejects_qwen_on_btc():
+    response = client.post(
+        "/api/answers/generate",
+        json={"retrieval_database": "btc", "image_models": ["qwen3_vl"], "query": "x"},
+    )
+    assert response.status_code == 422
+
+
 # ---- degraded-search notices -------------------------------------------------
 
 

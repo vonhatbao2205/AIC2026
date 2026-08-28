@@ -1368,6 +1368,27 @@ describe("query pack + submission table", () => {
     expect(screen.getByTestId("csv-query-p1-1-kis")).toHaveTextContent("K01_V001,1000");
     // A TRAKE row carries one frame per event.
     expect(screen.getByTestId("csv-query-p1-3-trake")).toHaveTextContent("K01_V001,1000,1500");
+    // BTC has no Qwen vectors, so the generator must stay on PE there.
+    expect(answerGenRequests.every((r) => JSON.stringify(r.image_models) === '["pe"]')).toBe(true);
+  });
+
+  it("generates from every image index the profile has, not PE alone", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.selectOptions(screen.getByTestId("retrieval-database"), "infoshotpp");
+    await importPack();
+    await user.click(screen.getByTestId("open-submission"));
+    await user.click(screen.getByTestId("autogen-toggle"));
+    fireEvent.change(screen.getByTestId("autogen-limit"), { target: { value: "3" } });
+    await user.click(screen.getByTestId("autogen-start"));
+
+    await waitFor(() => expect(answerGenRequests).toHaveLength(PACK.length));
+    // The generated list is what gets graded, so it is built on the same
+    // evidence a two-model console search would surface. It used to run the
+    // generator's own retrieval on PE alone whatever was ticked in the console.
+    for (const request of answerGenRequests) {
+      expect(request.image_models).toEqual(["pe", "qwen3_vl"]);
+    }
   });
 
   it("keeps a hand-picked answer at the top and only fills what is missing", async () => {

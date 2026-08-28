@@ -6,13 +6,28 @@
  * queue behind each other anyway while making the progress bar useless.
  */
 import { api, ApiError } from "../api/client";
-import type { AnswerGenParams, GeneratedAnswer, RetrievalDatabase, SearchScope } from "../api/types";
+import type {
+  AnswerGenParams,
+  GeneratedAnswer,
+  ImageEmbeddingModel,
+  RetrievalDatabase,
+  SearchScope,
+} from "../api/types";
+import { imageModelsForSearch } from "./imageModels";
 import { KIND_QUERY_TYPE, type ImportedQuestion } from "./questions";
 import { MAX_ROWS_PER_QUESTION, frameKey, type SubmissionRow } from "./submission";
+
+/** Every index a profile can answer with; `imageModelsForSearch` trims it to
+ *  what the active profile actually has. */
+const ALL_IMAGE_MODELS: ImageEmbeddingModel[] = ["pe", "qwen3_vl"];
 
 export interface AnswerGenRequest {
   questions: ImportedQuestion[];
   retrievalDatabase: RetrievalDatabase;
+  /** Image indices the generator searches. Defaults to every index the profile
+   *  has, so a generated list is built from the same evidence a two-model
+   *  console search would surface, not from PE alone. */
+  imageModels?: ImageEmbeddingModel[];
   scope?: SearchScope;
   /** Answers the question should end up with, counting the kept ones. */
   limit: number;
@@ -52,6 +67,7 @@ export async function generateForQuestion(
   question: ImportedQuestion,
   options: {
     retrievalDatabase: RetrievalDatabase;
+    imageModels?: ImageEmbeddingModel[];
     scope?: SearchScope;
     limit: number;
     params?: AnswerGenParams;
@@ -66,6 +82,13 @@ export async function generateForQuestion(
   const response = await api.generateAnswers(
     {
       retrieval_database: options.retrievalDatabase,
+      // Normalised on the way out, so no caller can produce an invalid request:
+      // a BTC one must never name qwen3_vl (those keyframes have no Qwen
+      // vectors and the API rejects it), and an empty list must never be sent.
+      image_models: imageModelsForSearch(
+        options.retrievalDatabase,
+        options.imageModels ?? ALL_IMAGE_MODELS,
+      ),
       query: question.text,
       query_type_hint: KIND_QUERY_TYPE[question.kind],
       ...(options.scope ? { scope: options.scope } : {}),
@@ -137,6 +160,7 @@ export async function generateAll(
     try {
       const outcome = await generateForQuestion(question, {
         retrievalDatabase: request.retrievalDatabase,
+        imageModels: request.imageModels,
         scope: request.scope,
         limit: budget,
         params: request.params,

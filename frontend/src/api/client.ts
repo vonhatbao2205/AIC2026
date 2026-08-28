@@ -191,6 +191,8 @@ export const api = {
    *  backend run its own retrieval, which is what bulk generation does. */
   generateAnswers: (body: {
     retrieval_database: RetrievalDatabase;
+    /** Image indices the generator's own search may use (InfoShot++: PE, Qwen, or both). */
+    image_models: ImageEmbeddingModel[];
     query: string;
     query_type_hint: QueryTypeHint;
     scope?: SearchScope;
