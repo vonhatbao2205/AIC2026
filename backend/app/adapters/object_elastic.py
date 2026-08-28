@@ -20,7 +20,7 @@ from .. import mock_data
 from ..config import Settings
 from ..identity import make_submit_keyframe_id
 from ..scope import elastic_filter_clause
-from .http_pool import PooledHttpClient
+from .http_pool import PooledHttpClient, failure_reason
 
 # Detection subfields the assignment needs. Fetching the full `detections` array
 # would drag along per-source scores and the raw colour histogram — several times
@@ -82,7 +82,7 @@ class ObjectElasticClient:
             resp.raise_for_status()
             return {"ok": True, "documents": resp.json().get("count", 0)}
         except Exception as exc:  # noqa: BLE001 - surfaced as a health warning
-            return {"ok": False, "error": str(exc)}
+            return {"ok": False, "error": failure_reason(exc)}
 
     async def search_canvas_candidates(
         self,

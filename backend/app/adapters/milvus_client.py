@@ -12,6 +12,7 @@ from ..config import Settings
 from ..identity import parse_submit_keyframe_id
 from ..scope import milvus_filter_expr
 from .. import mock_data
+from .http_pool import failure_reason
 
 
 _FLOAT16_MIN_NORMAL = 2**-14
@@ -48,7 +49,7 @@ class MilvusClient:
             has = client.has_collection(self.s.milvus_image_collection)
             return {"ok": bool(has), "collection": self.s.milvus_image_collection}
         except Exception as exc:  # noqa: BLE001
-            return {"ok": False, "error": str(exc)}
+            return {"ok": False, "error": failure_reason(exc)}
 
     async def health_qwen_image(self) -> dict[str, Any]:
         """Check the independent InfoShot++ Qwen3-VL image collection."""
@@ -76,7 +77,7 @@ class MilvusClient:
             has = client.has_collection(collection)
             return {"ok": bool(has), "collection": collection}
         except Exception as exc:  # noqa: BLE001
-            return {"ok": False, "error": str(exc)}
+            return {"ok": False, "error": failure_reason(exc)}
 
     def search_image(
         self,

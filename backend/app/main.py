@@ -128,6 +128,17 @@ def build_runtime() -> Settings:
 build_runtime()
 
 
+#: Services whose absence actually degrades retrieval. Everything else is an
+#: accessory the console already hides when its worker is gone — the Rerank tick
+#: box disappears, the QA panel says NVILA is unavailable — so repeating it in
+#: the health banner only teaches the operator to ignore a banner that is
+#: supposed to mean "your search results are wrong". `ok` has always been
+#: computed from these alone; the banner just did not agree with it.
+CORE_RETRIEVAL_SERVICES = frozenset(
+    {"elastic", "milvus", "pe_encoder", "qwen3_vl_encoder", "qwen3_vl_milvus"}
+)
+
+
 @app.get("/api/health")
 async def health(retrieval_database: RetrievalDatabase = "btc"):
     selected = search_services[retrieval_database]
@@ -244,7 +255,9 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
         "warnings": [
             f"{name} unreachable: {s.get('error')}"
             for name, s in services.items()
-            if not s.get("ok") and s.get("mode") != "disabled"
+            if not s.get("ok")
+            and s.get("mode") != "disabled"
+            and name in CORE_RETRIEVAL_SERVICES
         ],
     }
 

@@ -28,3 +28,15 @@ class PooledHttpClient:
             self._client = httpx.AsyncClient(**self._kwargs)
             self._loop = loop
         return self._client
+
+
+def failure_reason(exc: BaseException) -> str:
+    """A health/error reason that is never blank.
+
+    httpx transport errors are raised with no message, so `str(exc)` is `""` and
+    a health banner ships as "elastic unreachable: " — the operator is told
+    something broke but not what, which during a run is the same as being told
+    nothing. Fall back to the exception class, which distinguishes a DNS failure
+    from a timeout from a refused connection.
+    """
+    return str(exc).strip() or type(exc).__name__

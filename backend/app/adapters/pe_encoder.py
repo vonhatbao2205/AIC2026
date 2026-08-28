@@ -12,7 +12,7 @@ from typing import Any
 
 
 from ..config import Settings
-from .http_pool import PooledHttpClient
+from .http_pool import PooledHttpClient, failure_reason
 
 PE_DIM = 1280
 GLAP_DIM = 1024
@@ -43,7 +43,7 @@ class PeEncoderClient:
             resp.raise_for_status()
             return {"ok": True, **resp.json()}
         except Exception as exc:  # noqa: BLE001
-            return {"ok": False, "error": str(exc)}
+            return {"ok": False, "error": failure_reason(exc)}
 
     async def encode_text(self, texts: list[str]) -> list[list[float]]:
         if self.mock:
@@ -104,7 +104,7 @@ class GlapEncoderClient:
             resp.raise_for_status()
             return {"ok": True}
         except Exception as exc:  # noqa: BLE001
-            return {"ok": False, "error": str(exc)}
+            return {"ok": False, "error": failure_reason(exc)}
 
     async def encode_text(self, texts: list[str]) -> list[list[float]]:
         if self.mock:

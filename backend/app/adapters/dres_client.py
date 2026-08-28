@@ -26,7 +26,7 @@ from typing import Any
 import httpx
 
 from ..config import Settings
-from .http_pool import PooledHttpClient
+from .http_pool import PooledHttpClient, failure_reason
 
 
 class DresError(RuntimeError):
@@ -122,7 +122,7 @@ class DresClient:
                     headers={"Content-Type": "application/json"},
                 )
             except httpx.HTTPError as exc:
-                self._last_error = f"login failed: {exc}"
+                self._last_error = f"login failed: {failure_reason(exc)}"
                 raise DresError(self._last_error) from exc
             if resp.status_code != 200:
                 self._last_error = f"login rejected ({resp.status_code}): {self._describe(resp)}"
@@ -166,7 +166,7 @@ class DresClient:
             try:
                 return await client.request(method, url, params={"session": session}, json=json_body)
             except httpx.HTTPError as exc:
-                self._last_error = f"{method} {path} failed: {exc}"
+                self._last_error = f"{method} {path} failed: {failure_reason(exc)}"
                 raise DresError(self._last_error) from exc
 
         resp = await once(await self._session())
@@ -260,7 +260,7 @@ class DresClient:
                     headers={"Content-Type": "application/json"},
                 )
             except httpx.HTTPError as exc:
-                self._last_error = f"submit failed: {exc}"
+                self._last_error = f"submit failed: {failure_reason(exc)}"
                 raise DresError(self._last_error) from exc
 
         resp = await once(await self._session())
@@ -294,7 +294,7 @@ class DresClient:
         try:
             await self.login()
         except DresError as exc:
-            return {"ok": False, "mode": "live", "error": str(exc), "logged_in": False}
+            return {"ok": False, "mode": "live", "error": failure_reason(exc), "logged_in": False}
         return {
             "ok": True,
             "mode": "live",

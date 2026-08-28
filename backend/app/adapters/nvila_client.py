@@ -11,6 +11,7 @@ from typing import Any
 import httpx
 
 from ..config import Settings
+from .http_pool import failure_reason
 
 
 class NvilaUnavailable(RuntimeError):
@@ -45,7 +46,7 @@ class NvilaQaClient:
                 response.raise_for_status()
                 return {"ok": True, **response.json()}
         except Exception as exc:  # noqa: BLE001 - health reports upstream details
-            return {"ok": False, "mode": "unreachable", "error": str(exc)}
+            return {"ok": False, "mode": "unreachable", "error": failure_reason(exc)}
 
     async def analyze(
         self,

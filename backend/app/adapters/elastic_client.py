@@ -17,7 +17,7 @@ from ..config import Settings
 from ..scope import elastic_filter_clause
 from ..scoring import audio_score_multiplier, speech_score_multiplier
 from ..text_normalization import fold_vietnamese
-from .http_pool import PooledHttpClient
+from .http_pool import PooledHttpClient, failure_reason
 
 
 _OCR_TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
@@ -311,7 +311,7 @@ class ElasticClient:
             info = resp.json()
             return {"ok": True, "cluster": info.get("cluster_name")}
         except Exception as exc:  # noqa: BLE001 - surfaced as health warning
-            return {"ok": False, "error": str(exc)}
+            return {"ok": False, "error": failure_reason(exc)}
 
     # ---- OCR -----------------------------------------------------------
     async def search_ocr(
