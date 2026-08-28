@@ -36,7 +36,7 @@ DEFAULT_INDEX_PREFIX = "aic26"
 DEFAULT_R2_BUCKET = "aic26-media"
 DEFAULT_MAX_BULK_BYTES = 8 * 1024 * 1024
 DEFAULT_INFOSHOTPP_MAP_ROOT = Path(
-    "/home/bao/Projects/ExtractKeyframe/infoshootpp/map-keyframes"
+    "/home/bao/Projects/ExtractKeyframe/keyframe_L/infoshootpp/map-keyframes"
 )
 DEFAULT_INFOSHOTPP_MAP_INDEX = "aic26_keyframe_map_infoshotpp_v1"
 EXPECTED_INFOSHOTPP_VIDEOS = 873

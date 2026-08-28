@@ -35,7 +35,7 @@ import numpy as np
 
 
 DEFAULT_ARTIFACT_ROOT = Path("/home/bao/Projects/EncoderModel/pe-core-g14-448-v1")
-DEFAULT_MAP_ROOT = Path("/home/bao/Projects/ExtractKeyframe/infoshootpp/map-keyframes")
+DEFAULT_MAP_ROOT = Path("/home/bao/Projects/ExtractKeyframe/keyframe_L/infoshootpp/map-keyframes")
 DEFAULT_COLLECTION = "aic26_image_peg14_infoshotpp_v1"
 EXPECTED_ROWS = 1_339_055
 EXPECTED_DIM = 1280

@@ -68,7 +68,7 @@ from keyframe_mapping import (
 )
 
 
-DEFAULT_MAP_ROOT = Path("/home/bao/Projects/ExtractKeyframe/infoshootpp/map-keyframes")
+DEFAULT_MAP_ROOT = Path("/home/bao/Projects/ExtractKeyframe/keyframe_L/infoshootpp/map-keyframes")
 DEFAULT_OUT_DIR = Path("elastic_staging_v2")
 DEFAULT_OCR_PATH = Path("OCR/ocr_clean_no_L26.jsonl")
 
