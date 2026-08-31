@@ -96,7 +96,11 @@ async def test_service_level_callers_get_the_same_rule_as_the_api(settings):
         btc.resolve_image_models(["pe", "pe"])
 
     svc = SearchService(infoshotpp(settings))
-    assert svc.resolve_image_models(["qwen3_vl", "pe"]) == ("qwen3_vl", "pe")
+    # Canonicalized, NOT echoed back: the order decides which retriever wins the
+    # odd slot when the reranker's candidate pool is cut round-robin, so honouring
+    # the caller's order would make these two different searches.
+    assert svc.resolve_image_models(["qwen3_vl", "pe"]) == ("pe", "qwen3_vl")
+    assert svc.resolve_image_models(["pe", "qwen3_vl"]) == ("pe", "qwen3_vl")
 
 
 # ---- collection isolation ----------------------------------------------------

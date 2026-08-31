@@ -72,7 +72,14 @@ class SearchService:
         self.media = MediaUrlBuilder(settings.keyframe_media_base_url, settings.video_media_base_url)
 
     def resolve_image_models(self, models: Any = None) -> tuple[str, ...]:
-        """Normalize the API selection for internal/direct service callers too."""
+        """Normalize the API selection for internal/direct service callers too.
+
+        The result is in CANONICAL `IMAGE_MODELS` order, not the caller's. Model
+        order is not a preference the caller gets to express: it decides which
+        retriever wins the round-robin's odd slot when the candidate pool is cut,
+        so honouring it would make `["pe","qwen3_vl"]` and `["qwen3_vl","pe"]`
+        two different searches over the same two indices.
+        """
         selected = tuple(models if models is not None else ("pe",))
         if not selected:
             raise ValueError("At least one image embedding model must be selected")
@@ -80,7 +87,7 @@ class SearchService:
             raise ValueError(f"Unknown or duplicate image_models: {list(selected)!r}")
         if "qwen3_vl" in selected and not self.s.is_infoshotpp:
             raise ValueError("qwen3_vl image search is available only for infoshotpp")
-        return selected
+        return tuple(model for model in IMAGE_MODELS if model in selected)
 
     # ---- channel runners ----------------------------------------------
     async def _search_visual_model(
@@ -199,6 +206,13 @@ class SearchService:
         that is already correct rank fusion, and their cosine values are still
         never added.
 
+        FAIL-OPEN RESTORES THE BASELINE TOPOLOGY, not merely the baseline order:
+        a reranker that could not answer hands back `image_pe` + `image_qwen`,
+        the same two channels an unticked search produces. Returning the union
+        order under a single `image_visual` channel would still have changed the
+        final ranking — RRF adds one contribution per channel — after a refinement
+        that contributed nothing.
+
         Returns `(hits per channel, milliseconds per channel, warnings)`. A dead
         model is a warning, not an exception: only losing EVERY selected model
         raises, so one stopped Colab worker degrades the search instead of
@@ -254,13 +268,24 @@ class SearchService:
         if not model_rows:
             return {}, idle, warnings
 
-        if not rerank_on:
+        def baseline() -> tuple[dict[Channel, list[ChannelHit]], dict[str, float]]:
+            """Each retriever as its own channel — the shape a search WITHOUT the
+            rerank tick box produces.
+
+            `rows[:top_k]` is exactly what a `top_k` retrieval would have returned:
+            the deeper candidate list is the same cosine ordering, so falling back
+            here lands on the baseline result rather than near it.
+            """
             hits: dict[Channel, list[ChannelHit]] = {}
             latency = dict(idle)
             for model, rows in model_rows.items():
                 channel = VISUAL_CHANNEL[model]
                 hits[channel] = self._model_hits(model, rows[:top_k])
                 latency[channel] = model_ms[model]
+            return hits, latency
+
+        if not rerank_on:
+            hits, latency = baseline()
             return hits, latency, warnings
 
         started = time.perf_counter()
@@ -270,7 +295,20 @@ class SearchService:
             model: sum(1 for row in pool if model in row["retrievers"])
             for model in model_rows
         }
-        ranked = await self._rerank_frames(queries[0], pool, rerank_info)
+        rerank_report = rerank_info if rerank_info is not None else {}
+        ranked = await self._rerank_frames(queries[0], pool, rerank_report)
+        if rerank_report.get("ok") is False:
+            # FAIL-OPEN IS A TOPOLOGY DECISION, not just an ordering one. RRF adds
+            # one contribution PER CHANNEL, so collapsing PE and Qwen into a single
+            # `image_visual` channel re-weights the whole fusion against
+            # OCR/speech/audio — and it would do that even here, where the reranker
+            # scored nothing at all. A refinement that died has to leave the
+            # pipeline in the exact shape it would have had if the operator had
+            # never ticked the box, which means handing back both channels.
+            stage_report["merged"] = False
+            hits, latency = baseline()
+            return hits, latency, warnings
+
         ordered = ranked[:top_k]
         merged: list[ChannelHit] = []
         for rank, row in enumerate(ordered):
@@ -879,35 +917,22 @@ class SearchService:
                 per_model_score.setdefault(kf_id, {})[model] = float(row["score"])
                 row_by_id.setdefault(kf_id, row)
 
-        if rerank_on:
-            # Union BEFORE the reranker, exactly as in `_run_visual`: one pool,
-            # one verdict, one ranking.
-            pool = _union_visual_candidates(
-                model_rows, rrf_k=DEFAULT_RRF_K, pool_size=depth
-            )
-            ordered = await self._rerank_frames(search_text, pool, rerank_info)
-            ranked_rows = [
-                {
-                    **row,
-                    "fused_score": float(
-                        row["rerank_score"]
-                        if row.get("rerank_score") is not None
-                        else row["union_score"]
-                    ),
-                    "models": list(row["retrievers"]),
-                }
-                for row in ordered[:top_k]
-            ]
-        elif len(model_rows) == 1:
-            only_model, raw = next(iter(model_rows.items()))
-            ranked_rows = [
-                {**row, "fused_score": float(row["score"]), "models": [only_model]}
-                for row in raw[:top_k]
-            ]
-        else:
+        def baseline_rows() -> list[dict[str, Any]]:
+            """The ranking a search WITHOUT the rerank tick box produces.
+
+            One model keeps its own cosine order; two are fused by RRF over their
+            full lists. Kept in one place because the rerank path has to be able
+            to fall back onto EXACTLY this when the worker dies.
+            """
+            if len(model_rows) == 1:
+                only_model, raw = next(iter(model_rows.items()))
+                return [
+                    {**row, "fused_score": float(row["score"]), "models": [only_model]}
+                    for row in raw[:top_k]
+                ]
             channel_hits: dict[Channel, list[ChannelHit]] = {}
             for model, rows in model_rows.items():
-                channel: Channel = "image_pe" if model == "pe" else "image_qwen"
+                channel = VISUAL_CHANNEL[model]
                 channel_hits[channel] = [
                     ChannelHit(
                         channel=channel,
@@ -919,8 +944,8 @@ class SearchService:
                     )
                     for rank, row in enumerate(rows)
                 ]
-            fused_frames = reciprocal_rank_fusion(channel_hits, k=60)[:top_k]
-            ranked_rows = [
+            fused_frames = reciprocal_rank_fusion(channel_hits, k=DEFAULT_RRF_K)[:top_k]
+            return [
                 {
                     **row_by_id[frame.submit_keyframe_id],
                     "fused_score": frame.score,
@@ -931,6 +956,36 @@ class SearchService:
                 }
                 for frame in fused_frames
             ]
+
+        if not rerank_on:
+            ranked_rows = baseline_rows()
+        else:
+            # Union BEFORE the reranker, exactly as in `_run_visual`: one pool,
+            # one verdict, one ranking.
+            pool = _union_visual_candidates(
+                model_rows, rrf_k=DEFAULT_RRF_K, pool_size=depth
+            )
+            ordered = await self._rerank_frames(search_text, pool, rerank_info)
+            if rerank_info.get("ok") is False:
+                # Same rule as `_run_visual`: a dead reranker returns the search to
+                # its baseline, and the pool is NOT that baseline — the round-robin
+                # cut it to `depth` candidates in TOTAL, so fusing it would answer
+                # differently from an unticked search over the same two indices.
+                model_rows = {model: rows[:top_k] for model, rows in model_rows.items()}
+                ranked_rows = baseline_rows()
+            else:
+                ranked_rows = [
+                    {
+                        **row,
+                        "fused_score": float(
+                            row["rerank_score"]
+                            if row.get("rerank_score") is not None
+                            else row["union_score"]
+                        ),
+                        "models": list(row["retrievers"]),
+                    }
+                    for row in ordered[:top_k]
+                ]
 
         results = [
             {
@@ -1113,8 +1168,13 @@ def _union_visual_candidates(
     Two models therefore each contribute about half the depth one model would.
     Raise `QWEN_RERANKER_CANDIDATES` if you want both retrievers at full depth.
     """
+    # Canonical order, never `model_rows`' insertion order: this function is a
+    # pure ranking primitive and must not answer differently because a caller
+    # built its dict the other way round.
+    models = [model for model in IMAGE_MODELS if model in model_rows]
     entries: dict[str, dict[str, Any]] = {}
-    for model, rows in model_rows.items():
+    for model in models:
+        rows = model_rows[model]
         for rank, row in enumerate(rows):
             kf_id = row["submit_keyframe_id"]
             entry = entries.get(kf_id)
@@ -1134,7 +1194,6 @@ def _union_visual_candidates(
 
     selected: list[str] = []
     seen: set[str] = set()
-    models = list(model_rows)
     deepest = max((len(rows) for rows in model_rows.values()), default=0)
     for rank in range(deepest):
         for model in models:

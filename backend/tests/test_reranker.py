@@ -5,11 +5,13 @@ channel exception into an empty channel, so a reranker that raised would delete
 every PE result the moment the Colab tunnel dropped — a refinement turning into
 the outage. Several tests below exist only to hold that line.
 """
+import json
+
 import httpx
 import pytest
 
 from app.adapters.qwen_reranker import QwenRerankerClient, QwenRerankerUnavailable
-from app.services.search_service import SearchService
+from app.services.search_service import SearchService, _union_visual_candidates
 
 PARSED = {
     "channels": {"image_pe": {"enabled": True, "weight": 1.0, "queries_en": ["a busy street"]}},
@@ -278,6 +280,50 @@ async def test_the_pool_keeps_both_retrievers_when_it_has_to_be_cut(settings, mo
     assert sum(1 for kf in sent if "/QW" in kf) == 5
 
 
+def _sharing(pe_rows: list[dict], overlap: int) -> list[dict]:
+    """A Qwen list sharing `overlap` frames with PE — at DIFFERENT ranks and with
+    different cosines, which is the case that actually exercises the merge."""
+    shared = [
+        {**row, "score": round(0.40 + i * 0.01, 4)}
+        for i, row in enumerate(reversed(pe_rows[:overlap]))
+    ]
+    return shared + _rows("QW", len(pe_rows) - overlap)
+
+
+@pytest.mark.parametrize("pool_size", [5, 10])
+@pytest.mark.parametrize(
+    "overlap", [0, 5, 9], ids=["disjoint", "half-overlap", "near-total-overlap"]
+)
+def test_the_pool_does_not_depend_on_the_order_the_models_were_requested(
+    pool_size, overlap
+):
+    """`["pe","qwen3_vl"]` and `["qwen3_vl","pe"]` must be the SAME search.
+
+    Round-robin selection reads the models in order, so whoever goes first wins
+    every odd slot of a pool that has to be cut — and with an odd `pool_size` that
+    is a different candidate reaching the GPU. Overlap matters too: the shared
+    frames' cosine and `per_model_score` come from whichever list is walked first.
+    Both are pinned here, not just the id list.
+    """
+    pe = _rows("PE", 10)
+    qwen = _sharing(pe, overlap)
+
+    forward = _union_visual_candidates(
+        {"pe": pe, "qwen3_vl": qwen}, rrf_k=60, pool_size=pool_size
+    )
+    reverse = _union_visual_candidates(
+        {"qwen3_vl": qwen, "pe": pe}, rrf_k=60, pool_size=pool_size
+    )
+
+    assert len(forward) == pool_size, "the case must actually force a cut"
+    assert [r["submit_keyframe_id"] for r in forward] == [
+        r["submit_keyframe_id"] for r in reverse
+    ]
+    # Every field, key order included: `retrievers` and `per_model_score` are
+    # built by walking the models and would otherwise carry the request order.
+    assert json.dumps(forward) == json.dumps(reverse)
+
+
 @pytest.mark.asyncio
 async def test_both_indices_over_retrieve_not_just_pe(settings, monkeypatch):
     """Over-retrieval on one side only makes the union wide on one side only."""
@@ -365,18 +411,22 @@ async def test_a_dead_index_degrades_the_visual_stage_instead_of_emptying_it(
 
 
 @pytest.mark.asyncio
-async def test_a_dead_reranker_leaves_the_union_order_behind(settings, monkeypatch):
-    """Fail-open now means the UNION order, which is RRF over both lists.
+async def test_a_dead_reranker_hands_back_both_channels_not_a_merged_one(
+    settings, monkeypatch
+):
+    """Fail-open is a TOPOLOGY decision, not only an ordering one.
 
-    Never a sum of PE cosine and Qwen cosine: the two spaces have different score
-    distributions, so only their ranks are comparable.
+    Returning the union order under a single `image_visual` channel would still
+    be a changed pipeline: RRF adds one contribution per channel, so the visual
+    branch would carry one vote instead of two against OCR/speech/audio — after a
+    refinement that scored nothing at all.
     """
     svc = SearchService(_infoshotpp(settings))
     svc.reranker = _StubReranker(error=QwenRerankerUnavailable("tunnel down"))
     _disjoint_retrievers(svc, monkeypatch, pe=3, qwen=3)
     rerank_info: dict = {}
 
-    channels, _, _ = await svc._run_visual(
+    channels, latency, _ = await svc._run_visual(
         PARSED["channels"]["image_pe"],
         6,
         image_models=("pe", "qwen3_vl"),
@@ -384,12 +434,86 @@ async def test_a_dead_reranker_leaves_the_union_order_behind(settings, monkeypat
         rerank_info=rerank_info,
     )
 
-    ids = [h.submit_keyframe_id for h in channels["image_visual"]]
-    # Disjoint lists of equal length: rank 0 of both, then rank 1 of both, ...
-    assert [kf[-5:] for kf in ids] == [
-        "PE000", "QW000", "PE001", "QW001", "PE002", "QW002",
+    assert set(channels) == {"image_pe", "image_qwen"}
+    assert set(latency) == {"image_pe", "image_qwen"}
+    assert [h.submit_keyframe_id[-5:] for h in channels["image_pe"]] == [
+        "PE000", "PE001", "PE002",
+    ]
+    assert [h.submit_keyframe_id[-5:] for h in channels["image_qwen"]] == [
+        "QW000", "QW001", "QW002",
     ]
     assert rerank_info["ok"] is False
+
+
+@pytest.mark.asyncio
+async def test_a_dead_reranker_returns_the_whole_search_to_its_baseline(settings):
+    """The property the visual-stage test above cannot see: the FUSED result.
+
+    Ticking a box that then fails must cost latency and nothing else. Asserted on
+    the fused scores, because that is where a channel-count change shows up — the
+    frame ids alone can be identical while every score has moved.
+    """
+    svc = SearchService(_infoshotpp(settings))
+    request = {"query": "phố đông", "parsed": PARSED, "image_models": ["pe", "qwen3_vl"]}
+
+    baseline = await svc.search(dict(request))
+    svc.reranker = _StubReranker(error=QwenRerankerUnavailable("tunnel down"))
+    dead = await svc.search({**request, "rerank": True})
+
+    assert set(dead["latency_ms"]["channels"]) == {"image_pe", "image_qwen"}
+    assert _frame_ids(dead) == _frame_ids(baseline)
+    assert [g["video_id"] for g in dead["groups"]] == [
+        g["video_id"] for g in baseline["groups"]
+    ]
+    for got, want in zip(dead["groups"], baseline["groups"]):
+        assert got["video_score"] == pytest.approx(want["video_score"])
+        for frame_got, frame_want in zip(got["frames"], want["frames"]):
+            assert frame_got["score"] == pytest.approx(frame_want["score"])
+            assert frame_got["channels"] == frame_want["channels"]
+    assert dead["latency_ms"]["reranker"]["ok"] is False
+    assert any("Reranker" in warning for warning in dead["warnings"])
+
+
+@pytest.mark.asyncio
+async def test_a_dead_reranker_returns_the_flat_search_to_its_baseline(
+    settings, monkeypatch
+):
+    """Same rule on the second visual code path.
+
+    The union pool is NOT the baseline there either: it is `depth` candidates
+    deep, so a frame both indices ranked LOW carries two rank contributions and
+    outscores a frame one index ranked first — while the baseline, cut to `top_k`
+    per index, never sees it at all. The two indices are made to disagree here
+    (one list is the other reversed) because mock Milvus otherwise replays one
+    fixture for both collections, where every order coincides and nothing is
+    being tested.
+    """
+    svc = SearchService(_infoshotpp(settings))
+
+    async def fake(model, queries, k, categories=()):
+        rows = _rows("PE", 10)
+        return (rows if model == "pe" else list(reversed(rows)))[:k]
+
+    monkeypatch.setattr(svc, "_search_visual_model", fake)
+    monkeypatch.setattr(type(svc.reranker), "candidate_k", 10, raising=False)
+    baseline = await svc.simple_image_search(
+        "a busy street", top_k=3, image_models=["pe", "qwen3_vl"]
+    )
+    svc.reranker = _StubReranker(error=QwenRerankerUnavailable("tunnel down"))
+    monkeypatch.setattr(type(svc.reranker), "candidate_k", 10, raising=False)
+
+    dead = await svc.simple_image_search(
+        "a busy street", top_k=3, rerank=True, image_models=["pe", "qwen3_vl"]
+    )
+
+    assert dead["reranker"]["ok"] is False
+    assert [r["submit_keyframe_id"] for r in dead["results"]] == [
+        r["submit_keyframe_id"] for r in baseline["results"]
+    ]
+    for got, want in zip(dead["results"], baseline["results"]):
+        assert got["score"] == pytest.approx(want["score"])
+        assert got["models"] == want["models"]
+        assert got["rerank_score"] is None
 
 
 # ---- what is actually sent to the worker ------------------------------------
