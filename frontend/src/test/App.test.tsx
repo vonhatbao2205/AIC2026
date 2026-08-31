@@ -1217,7 +1217,7 @@ describe("AIC26 retrieval console (full)", () => {
     expect(within(cards[1]).getByTestId("trake-event-2")).toHaveTextContent("ngoài chuỗi");
   });
 
-  it("TRAKE: clicking an event representative arms that event's slot and opens the video", async () => {
+  it("TRAKE: clicking an event arms its slot without pulling the video down", async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole("tab", { name: "TRAKE" }));
@@ -1230,9 +1230,15 @@ describe("AIC26 retrieval console (full)", () => {
     const card = screen.getAllByTestId("trake-video-card")[0];
     await user.click(within(card).getByTestId("trake-event-2"));
 
-    // Slot E2 is armed, and the player is open on that video ready to be scrubbed.
     expect(screen.getByTestId("trake-slot-1").className).toContain("active");
     expect(screen.getByTestId("trake-slot-0").className).not.toContain("active");
+    // Choosing a moment and watching it are separate decisions: the card already
+    // shows the frame, so a click must not cost a video fetch and a layout jump.
+    expect(screen.queryByTestId("video-viewer")).not.toBeInTheDocument();
+
+    // 'v' opens it, parked on the moment that was picked.
+    (document.activeElement as HTMLElement)?.blur();
+    fireEvent.keyDown(window, { key: "v" });
     const video = (await screen.findByTestId("video-viewer")) as HTMLVideoElement;
     expect(video.src).toContain("K19_V028.mp4");
   });
@@ -1255,8 +1261,7 @@ describe("AIC26 retrieval console (full)", () => {
     await user.click(e1Peaks[0]);
 
     expect(screen.getByTestId("trake-slot-0").className).toContain("active");
-    expect(await screen.findByTestId("video-viewer")).toBeInTheDocument();
-    // Verifying an alternative costs a seek, not another retrieval round.
+    // Verifying an alternative costs a click, not another retrieval round.
     expect(
       vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("/api/search/trake")).length,
     ).toBe(searchesBefore);
@@ -1281,6 +1286,10 @@ describe("AIC26 retrieval console (full)", () => {
     // operator verifies one frame while the panel documents another.
     const detail = screen.getByTestId("detail-panel");
     expect(detail).toHaveTextContent("K19/K19_V028/012");
+
+    // And the player, once opened, starts on that same alternative.
+    (document.activeElement as HTMLElement)?.blur();
+    fireEvent.keyDown(window, { key: "v" });
     const video = (await screen.findByTestId("video-viewer")) as HTMLVideoElement;
     expect(video.src).toContain("K19_V028.mp4");
   });
@@ -1438,6 +1447,8 @@ describe("AIC26 retrieval console (full)", () => {
     const cards = await openTrakeResults(user);
     const e1Row = within(cards[0]).getByTestId("trake-heat-row-1");
     await user.click(within(e1Row).getAllByTestId("trake-heat-peak")[0]);
+    (document.activeElement as HTMLElement)?.blur();
+    fireEvent.keyDown(window, { key: "v" });
 
     const video = (await screen.findByTestId("video-viewer")) as HTMLVideoElement;
     // It opens parked on the frame instead of playing away from it.

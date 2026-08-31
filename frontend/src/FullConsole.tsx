@@ -1107,10 +1107,11 @@ export default function FullConsole({
 
   /** Click an event representative or a heat peak on a TRAKE video card.
    *
-   *  One click has to do all four things the operator would otherwise do by
-   *  hand: pick the video, jump the player to that instant, point the detail
-   *  panel at it, and arm the slot the moment belongs to. Verifying an
-   *  alternative peak then costs a seek instead of another search. */
+   *  Selecting a moment and WATCHING it are separate decisions. The click points
+   *  the selection, the detail panel and the event slot at the frame, and moves
+   *  the player only if it is already open; `v` is what opens it. Opening the
+   *  video on every click meant a 10 MB fetch and a layout jump for what is
+   *  mostly a glance at a thumbnail the card already shows. */
   const pickTrakeMoment = useCallback(
     (videoId: string, peak: TrakeHeatPeak) => {
       const videoIndex = displayGroups.findIndex((group) => group.video_id === videoId);
@@ -1125,14 +1126,14 @@ export default function FullConsole({
         if (frameIndex >= 0) setSelectedFrame(frameIndex);
       }
       setExpanded((current) => new Set(current).add(videoId));
+      // Set even while the player is closed: it warms the timeline fetch and
+      // tells `v` which video to open.
       setActiveVideoId(videoId);
-      setVideoVisible(true);
-      setShowTimeline(true);
-      // Both paths are needed: the state drives the seek when the player is
-      // being mounted for this video, the imperative call when it is already up
-      // (`startTime` would not have changed).
+      // Both paths are needed: the pin drives `startTime` when the player is
+      // opened later (or is being mounted), the imperative seek moves one that
+      // is already up, where `startTime` would not have changed.
       setTrakePeak({ videoId, peak });
-      seekVideo(peak.pts_time);
+      if (videoVisible && activeVideoId === videoId) seekVideo(peak.pts_time);
       setActiveSlot(
         Math.min(Math.max(peak.event_index - 1, 0), Math.max(0, trakeSlots.length - 1)),
       );
@@ -1140,7 +1141,7 @@ export default function FullConsole({
       setPausedFrame(null);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [displayGroups, trakeSlots.length],
+    [displayGroups, trakeSlots.length, videoVisible, activeVideoId],
   );
 
   const selectTrakeVideo = useCallback(

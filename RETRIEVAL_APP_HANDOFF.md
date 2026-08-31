@@ -328,13 +328,21 @@ rejects such a row and one rejected row blocks the whole submission. The DP only
 orderable, not whether it is plausible; the heat rows are where a human sees
 that E1 sits minutes away from a tight E2-E3-E4 cluster. Clicking a
 representative or a peak selects the video, seeks the player to that instant and
-arms that event's slot, so checking an alternative moment costs a seek instead of
-another search. The verified peak becomes the selected frame, so the detail
+arms that event's slot, so checking an alternative costs a click instead of
+another search. It deliberately does NOT open the video — the card already shows
+the frame, and a fetch plus a layout jump per glance is not what a click should
+cost; `v` opens the player, parked on the moment that was picked. The verified peak becomes the selected frame, so the detail
 panel, the timeline marker and the neighbour anchor describe the moment on
 screen rather than the chain frame the player left behind. Heat rows are drawn
 against the video's real `duration_s` (one keyframe-map aggregation for the whole
 result page), and the peaks carry a fixed, generous hit area that does not shrink
 with their score — they are click targets on a laptop under a clock, not a chart.
+Crowded candidates stack into a second lane (`lib/trakeHeatLayout.ts`) rather
+than covering each other: three hits eleven seconds apart in a ten-minute video
+land on the same pixels, and only the last one painted can be hit while the two
+underneath — the ones worth comparing — are unreachable. Each candidate keeps a
+tick at its true timestamp, so a frame nudged clear of a cluster never misreports
+when the event fires.
 TRAKE shows no prioritise/deprioritise controls and no feedback bar:
 `/api/search/trake` takes no feedback, so those buttons re-ran the search and
 changed nothing while telling the operator they had.
