@@ -257,16 +257,25 @@ one hypothesis, and spending the cap on them dropped the genuinely different
 moment later in the video that the chain needed. Each surviving video is then
 assembled with the same **exact DP** — a maximum-weight strictly-increasing chain
 over (event index, `pts_time`) that picks ≤1 frame per event, maximizing (events
-covered, then REAL evidence, then quality). It is globally optimal (unlike
-greedy) and can skip an event for a partial sequence.
+REAL evidence, then coverage, then quality) — term for term the priority
+`trake_video_score` encodes. It is globally optimal (unlike greedy) and can skip
+an event for a partial sequence.
 
-Real evidence is its own term because the scales genuinely overlap: a pass-2 fill
-scores `0.02 x quality` while a frame found by one channel at rank 0 scores
-`1/(60+1) = 0.0164`, so a `(coverage, relevance)` DP trades a real frame for a
-strong fill at equal coverage — and the ranking, which counts
-`confident_coverage`, then marks the video down for the swap the DP made. The
-quality term is the per-event normalized `strength`, not the raw score, so an
-event whose scores run high cannot decide the chain on its own.
+The ORDER is load-bearing, not just the terms. `(coverage, real, ...)` looks
+equivalent and is not: with E1/E4/E5 found for real and E2/E3 only fillable after
+E4, it prefers `E1 + fill + fill + E5` (coverage 4, real 2) over `E1 + E4 + E5`
+(coverage 3, real 3), and the ranking then scores that video on
+`confident_coverage = 2` — marking it down for the trade the DP made on its
+behalf. Real evidence dominating fill coverage is the policy across videos, so it
+has to be the policy inside one too. The known cost: when a fill would DISPLACE
+real evidence, the shorter real chain wins and the video may contribute no
+submittable row at all (a TRAKE row is only valid at full width). That is
+deliberate — the longer chain would have been buried by the ranking anyway.
+
+Real evidence is also its own term because the scales genuinely overlap: a pass-2
+fill scores `0.02 x quality` while a frame found by one channel at rank 0 scores
+`1/(60+1) = 0.0164`. The quality term is the per-event normalized `strength`, not
+the raw score, so an event whose scores run high cannot decide the chain alone.
 
 `trake_video_score` encodes the lexicographic ranking
 `(confident_coverage, coverage, chain quality)` as one number in [0, 1]: with

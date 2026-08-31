@@ -235,16 +235,22 @@ def _best_increasing_chain(
     """Exact DP: lexicographic best chain of candidates with strictly increasing
     (event_index, pts_time).
 
-    The state is compared as `(coverage, real evidence, quality)` — the SAME
-    priority the video ranking uses, so the chain the DP hands over is the chain
-    the ranking is about to reward.
+    The state is compared as `(real evidence, coverage, quality)` — term for term
+    the priority `trake_video_score` encodes, so the chain the DP hands over is
+    the chain the ranking is about to reward.
 
-    `real evidence` has to be its own term rather than an emergent property of the
-    scores. A pass-2 fill scores `0.02 x quality`, while a frame found by a single
-    channel at rank 0 scores `1/(60+1) = 0.0164`: a strong fill genuinely
-    outweighs real evidence on the raw sum, so a `(coverage, relevance)` DP would
-    trade a real frame for a fill at equal coverage — and then the ranking, which
-    counts `confident_coverage`, would punish the video for the swap the DP made.
+    The order matters, not just the terms. `(coverage, real, ...)` looks close
+    enough and is not: with E1/E4/E5 found for real and E2/E3 only fillable after
+    E4, it prefers `E1 + fill E2 + fill E3 + E5` (coverage 4, real 2) over
+    `E1 + E4 + E5` (coverage 3, real 3) — and the ranking then scores that video
+    on `confident_coverage = 2`, marking it down for the trade the DP made on its
+    behalf. Real evidence dominating fill coverage is the policy across videos;
+    it has to be the policy inside one too.
+
+    `real evidence` also has to be its own term rather than an emergent property
+    of the scores. A pass-2 fill scores `0.02 x quality`, while a frame found by a
+    single channel at rank 0 scores `1/(60+1) = 0.0164`: a strong fill genuinely
+    outweighs real evidence on a raw sum.
 
     Quality is per-event normalized `strength`, not raw score, so an event whose
     scores happen to run high cannot dominate the sum for events where they run
@@ -266,8 +272,8 @@ def _best_increasing_chain(
             if nj.event_index < ni.event_index and nj.pts_time < ni.pts_time and dp[j] > best_prev:
                 best_prev, best_j = dp[j], j
         dp[i] = (
-            best_prev[0] + 1,
-            best_prev[1] + (0 if ni.via_fill else 1),
+            best_prev[0] + (0 if ni.via_fill else 1),
+            best_prev[1] + 1,
             best_prev[2] + ni.strength,
         )
         parent[i] = best_j

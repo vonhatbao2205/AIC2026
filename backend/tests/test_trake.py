@@ -162,6 +162,32 @@ def test_dp_keeps_real_evidence_over_a_fill_that_outscores_it():
     assert video.filled_events == 0
 
 
+def test_dp_will_not_trade_real_evidence_for_fill_coverage():
+    """Inside one video, real evidence dominates fill coverage — the same rule
+    the ranking applies ACROSS videos.
+
+    E1/E4/E5 are found for real; E2 and E3 can only be filled after E4, so taking
+    them costs E4. A `(coverage, real, quality)` DP prefers the longer chain
+    (4 covered, 2 real) — and `trake_video_score`, which weighs
+    `confident_coverage` above everything, then ranks that video on 2 real
+    instead of 3. The DP would be trading away the video's own rank."""
+    e1 = [_frame("K01/K01_V001/010", "K01_V001", 10, 10.0, 0.040)]
+    e2 = [_frame("K01/K01_V001/060", "K01_V001", 60, 60.0, 0.02, via_fill=True, fill_quality=1.0)]
+    e3 = [_frame("K01/K01_V001/070", "K01_V001", 70, 70.0, 0.02, via_fill=True, fill_quality=1.0)]
+    e4 = [_frame("K01/K01_V001/050", "K01_V001", 50, 50.0, 0.040)]
+    e5 = [_frame("K01/K01_V001/100", "K01_V001", 100, 100.0, 0.040)]
+
+    video = _video(build_trake_videos([e1, e2, e3, e4, e5]), "K01_V001")
+    assert video.confident_coverage == 3
+    assert video.coverage == 3
+    assert [f.pts_time for f in video.sequence.frames] == [10.0, 50.0, 100.0]
+    assert video.filled_events == 0
+
+    # The rejected alternative really was orderable and really was longer — the
+    # DP passed it over on evidence, not on feasibility.
+    assert validate_increasing_order([10.0, 60.0, 70.0, 100.0]) == []
+
+
 def test_dp_still_takes_a_fill_when_it_buys_coverage():
     # Coverage is the first key and stays there: without the fill, E2 is simply
     # not covered, and a 1-of-2 chain of pure evidence is not the better answer.
