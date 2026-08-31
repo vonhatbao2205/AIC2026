@@ -12,6 +12,11 @@ if (typeof Blob !== "undefined" && !Blob.prototype.arrayBuffer) {
   };
 }
 
+// jsdom has no layout, so it implements neither of these.
+if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function scrollIntoView(): void {};
+}
+
 // jsdom lacks these; stub for components that touch them.
 if (!("clipboard" in navigator)) {
   Object.defineProperty(navigator, "clipboard", {

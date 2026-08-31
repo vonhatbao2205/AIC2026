@@ -90,6 +90,14 @@ const DEFAULT_TOP_K = 100;
  *  slider may raise that pool but never drops it below the working default. */
 const TRAKE_MIN_TOP_K = 400;
 
+/** An animated jump is easier to follow than a teleport, but it is exactly the
+ *  thing the OS setting exists to switch off. jsdom implements no `matchMedia`,
+ *  so the absence of the API is treated as "no preference stated". */
+function prefersReducedMotion(): boolean {
+  return typeof window.matchMedia === "function"
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 const EMPTY_OVERRIDES: ManualOverrides = { force_channels: [], disable_channels: [] };
 const EMPTY_FEEDBACK: FeedbackState = {
   positive_videos: [], negative_videos: [], positive_frames: [], negative_frames: [],
@@ -262,12 +270,28 @@ export default function FullConsole({
   // prefill must never clobber their words.
   const queryTouched = useRef(false);
   const viewerRef = useRef<VideoViewerHandle>(null);
+  const videoPanelRef = useRef<HTMLDivElement>(null);
   const timelineCache = useRef<Map<string, TimelineData>>(new Map());
 
   // What the results column actually shows. Everything that resolves the
   // selection reads THIS, not `groups`: `selectedFrame` is an index into the
   // rendered strip, so a reordered strip and a selection indexing the original
   // ranking would point at two different frames — including at submit time.
+  // The player is rendered inside the result card it belongs to, so on a video
+  // whose results run past the fold it opened somewhere below the viewport and
+  // the operator had to scroll to find it — with 400 keyframes in one group,
+  // far enough to cost real seconds under the clock. Bring it into view instead.
+  // Also covers the neighbour strip (`k`), which lives in the same panel.
+  useEffect(() => {
+    if (!videoVisible && !neighborsVisible) return;
+    // jsdom has no layout and therefore no scrollIntoView; a missing scroll must
+    // never take the console down with it.
+    videoPanelRef.current?.scrollIntoView?.({
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+      block: "center",
+    });
+  }, [videoVisible, neighborsVisible, activeVideoId]);
+
   const displayGroups = useMemo(
     () =>
       timeSorted.size === 0
@@ -1685,7 +1709,7 @@ export default function FullConsole({
   const videoSlot =
     (videoVisible || neighborsVisible) && activeVideoId && selectedGroup
     && selectedGroup.video_id === activeVideoId ? (
-      <>
+      <div ref={videoPanelRef}>
         {videoVisible && (
           <>
             <VideoViewer
@@ -1724,7 +1748,7 @@ export default function FullConsole({
             onPick={pickNeighbor}
           />
         )}
-      </>
+      </div>
     ) : null;
 
   // A parked tab stays MOUNTED — that is what lets an imported pack run every

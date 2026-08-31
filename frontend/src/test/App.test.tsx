@@ -1181,6 +1181,26 @@ describe("AIC26 retrieval console (full)", () => {
     expect(screen.queryByTestId("paused-frame-chip")).not.toBeInTheDocument();
   });
 
+  it("scrolls the player into view when 'v' opens it below the fold", async () => {
+    const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByTestId("query-input"), "bản tin");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => expect(screen.getByTestId("results")).toBeInTheDocument());
+    scrollIntoView.mockClear();
+
+    (document.activeElement as HTMLElement)?.blur();
+    fireEvent.keyDown(window, { key: "v" });
+    await screen.findByTestId("video-viewer");
+
+    // The player is rendered inside the result card it belongs to, so a group
+    // holding hundreds of keyframes opens it far below the viewport.
+    expect(scrollIntoView).toHaveBeenCalled();
+    expect(scrollIntoView.mock.calls[0][0]).toMatchObject({ block: "center" });
+    scrollIntoView.mockRestore();
+  });
+
   it("Ctrl+/ toggles the keyboard shortcuts help", async () => {
     render(<App />);
     await waitFor(() => expect(fetch).toHaveBeenCalled());

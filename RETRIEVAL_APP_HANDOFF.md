@@ -347,6 +347,10 @@ TRAKE shows no prioritise/deprioritise controls and no feedback bar:
 `/api/search/trake` takes no feedback, so those buttons re-ran the search and
 changed nothing while telling the operator they had.
 
+Opening the player (`v`, or the neighbour strip with `k`) scrolls it into view:
+it is rendered inside the result card it belongs to, so a group holding hundreds
+of keyframes opened it well below the viewport.
+
 **Frame-pick**: `requestVideoFrameCallback` tracks the latest `mediaTime`. The
 inline video opens **paused on the frame it was opened to show** and every seek
 that lands while it is paused captures that frame — capture used to be tied to
