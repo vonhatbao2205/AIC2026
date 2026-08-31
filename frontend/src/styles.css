@@ -560,6 +560,62 @@ button { font-family: inherit; }
 .tl-marker.ev { width: 4px; }
 .tl-marker.qa { width: 5px; background: var(--warn); box-shadow: 0 0 0 2px color-mix(in srgb, var(--warn) 30%, transparent); z-index: 4; }
 
+/* ---- TRAKE video results (video-centric result list) ---- */
+.trake-videos { padding: 8px 0 0; }
+.trake-video {
+  margin: 0 14px 10px; background: var(--bg-1); border: 1px solid var(--line-soft);
+  border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-1); cursor: pointer;
+}
+.trake-video.selected { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.trake-video.selected > .trake-video-head { background: var(--accent-weak); }
+.trake-video-head {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 10px 14px; user-select: none; transition: background .15s;
+}
+.trake-video-head:hover { background: var(--bg-2); }
+.trake-video-head .rank { color: var(--fg-faint); font-size: 11px; }
+.trake-video-head .vid { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: -0.2px; }
+.trake-video-head .score { font-family: var(--mono); font-size: 11.5px; color: var(--fg-dim); }
+
+/* One representative per event, left to right = E1..En. */
+.trake-event-strip { display: flex; gap: 8px; flex-wrap: wrap; padding: 2px 14px 8px; }
+.trake-event {
+  flex: 0 0 auto; width: 132px; padding: 6px; text-align: left; cursor: pointer;
+  border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm);
+  background: var(--bg-2); color: var(--fg); transition: transform .12s, box-shadow .15s;
+}
+.trake-event:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+.trake-event:disabled { cursor: default; opacity: .55; }
+.trake-event.loose { border-style: dashed; border-color: var(--warn); }
+.trake-event-head { display: flex; align-items: center; gap: 4px; font-size: 10.5px; margin-bottom: 5px; }
+.trake-event-tag {
+  margin-left: auto; padding: 0 4px; border-radius: 3px; font-family: var(--mono); font-size: 8px;
+  color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent);
+}
+.trake-event img { display: block; width: 100%; height: 72px; object-fit: cover; border-radius: 5px; background: var(--bg-3); }
+.trake-event-meta { display: block; margin-top: 4px; font-size: 10px; color: var(--fg-dim); }
+.trake-event-warn { display: block; margin-top: 2px; font-size: 9px; color: var(--warn); }
+.trake-event-empty { display: block; padding: 22px 0; text-align: center; font-size: 10px; color: var(--fg-faint); }
+
+/* Heat rows: where each event fires along the video. Read the DIAGONAL. */
+.trake-heatmap { padding: 2px 14px 10px; }
+.trake-heat-row { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
+.trake-heat-row.active .trake-heat-track { background: color-mix(in srgb, var(--accent) 10%, var(--bg-3)); }
+.trake-heat-label { width: 20px; font-family: var(--mono); font-size: 9.5px; font-weight: 700; }
+.trake-heat-track { position: relative; flex: 1; height: 16px; border-radius: 4px; background: var(--bg-3); }
+.trake-heat-peak {
+  position: absolute; bottom: 0; width: 4px; padding: 0; border: 0; border-radius: 2px;
+  cursor: pointer; transform: translateX(-2px);
+}
+.trake-heat-peak:hover { width: 6px; transform: translateX(-3px); outline: 1px solid var(--fg); }
+.trake-heat-peak.picked { box-shadow: 0 0 0 1.5px var(--fg); z-index: 2; }
+.trake-heat-peak.fill { border: 1px dashed var(--warn); }
+.trake-heat-empty { position: absolute; left: 6px; top: 2px; font-size: 9px; color: var(--fg-faint); }
+.trake-heat-axis {
+  display: flex; justify-content: space-between; padding-left: 27px;
+  font-family: var(--mono); font-size: 8.5px; color: var(--fg-faint);
+}
+
 /* ---- TRAKE ---- */
 .trake-slots { display: flex; gap: 8px; flex-wrap: wrap; }
 .slot { flex: 1 1 124px; min-width: 112px; border: 1.5px dashed var(--line-2); border-radius: var(--radius-sm); padding: 7px; background: var(--bg-2); position: relative; }

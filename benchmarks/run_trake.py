@@ -85,6 +85,20 @@ def video_rank(sequences: list[dict], gt_videos: set[str]) -> int | None:
     return None
 
 
+def preliminary_rank(videos: list[dict], gt_videos: set[str]) -> int | None:
+    """Vị trí của video đúng NGAY SAU pass 1, trước khi pass 2 lấp event thiếu.
+
+    So với `video_rank` (thứ hạng cuối) nó trả lời câu hỏi pass 2 có đáng chạy
+    không: nếu hai số bằng nhau ở mọi query thì ngân sách pass 2 đang tiêu vào
+    những video không thay đổi thứ hạng.
+    """
+    for v in videos:
+        if v.get("video_id") in gt_videos:
+            rank = v.get("preliminary_rank")
+            return int(rank) if rank is not None else None
+    return None
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--top-k", type=int, default=400)
@@ -107,8 +121,11 @@ def main() -> None:
             continue
 
         seqs = d.get("sequences", [])
+        videos = d.get("videos", [])
         gt_videos = {v for alt in q.alternatives.values() for _o, v, _f in alt}
         vr = video_rank(seqs, gt_videos)
+        pr = preliminary_rank(videos, gt_videos)
+        gt_video = next((v for v in videos if v.get("video_id") in gt_videos), {})
 
         top1 = seqs[0] if seqs else {}
         per_tol = {}
@@ -130,8 +147,18 @@ def main() -> None:
             "n_alternatives": len(q.alternatives),
             "gt_videos": sorted(gt_videos),
             "video_rank": vr,
+            "gt_preliminary_rank": pr,
+            # Điểm/độ phủ của chính video đúng — cho biết nó tụt hạng vì thiếu
+            # event hay vì chất lượng chuỗi kém.
+            "gt_trake_video_score": gt_video.get("trake_video_score"),
+            "gt_confident_coverage": gt_video.get("confident_coverage"),
+            "gt_evidence_coverage": gt_video.get("evidence_coverage"),
+            "gt_min_quality": gt_video.get("min_quality"),
+            "pass2_targets": len((d.get("pass2") or {}).get("targets") or []),
+            "n_videos": len(videos),
             "n_sequences": len(seqs),
             "top1_video": top1.get("video_id"),
+            "top1_trake_video_score": (videos[0].get("trake_video_score") if videos else None),
             "top1_coverage": top1.get("coverage"),
             "top1_confident_coverage": top1.get("confident_coverage"),
             "top1_filled": top1.get("filled_events"),
@@ -208,6 +235,17 @@ def main() -> None:
             f"H@{k}": sum(1 for r in valid if r["video_rank"] and r["video_rank"] <= k)
             for k in (1, 3, 5, 10, 20, 50)
         },
+        # Cùng chỉ số nhưng ở thứ hạng sơ bộ: chênh lệch giữa hai bảng chính là
+        # phần pass 2 đóng góp.
+        "preliminary_video_rank_hits": {
+            f"H@{k}": sum(
+                1 for r in valid if r.get("gt_preliminary_rank") and r["gt_preliminary_rank"] <= k
+            )
+            for k in (1, 3, 5, 10, 20, 50)
+        },
+        "mean_pass2_targets": (
+            sum(r.get("pass2_targets") or 0 for r in valid) / len(valid) if valid else 0.0
+        ),
         "per_tolerance_summary": summary,
         "records": records,
         "finals_no_gt": final_records,
@@ -218,7 +256,9 @@ def main() -> None:
     dest.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(f"\n=== TRAKE (n={len(valid)}) ===")
-    print("video rank:", out["video_rank_hits"])
+    print("video rank (sau pass 2):", out["video_rank_hits"])
+    print("video rank (sơ bộ):     ", out["preliminary_video_rank_hits"])
+    print(f"pass-2 video/truy vấn:   {out['mean_pass2_targets']:.1f}")
     for tol in TOLERANCES:
         s = summary[str(tol)]
         print(

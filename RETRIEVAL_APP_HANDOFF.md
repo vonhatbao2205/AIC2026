@@ -105,7 +105,7 @@ All endpoints are under `/api`. Responses are JSON.
 | POST | `/api/query/parse` | `{query, query_type_hint, previous_hints[], manual_overrides}` → routing JSON |
 | POST | `/api/search` | `{query, query_type_hint, previous_hints[], manual_overrides, parsed?, feedback?, image_models?, top_k, max_videos}` |
 | POST | `/api/search/simple` | `{query, top_k, scope?, rerank?, image_models?}` → flat keyframe list, no parser and no group-by-video |
-| POST | `/api/search/trake` | `{query, previous_hints[], manual_overrides, image_models?}` → ordered sequences |
+| POST | `/api/search/trake` | `{query, previous_hints[], manual_overrides, image_models?}` → `videos[]` (video-centric: per-event heat peaks + representatives + best chain) **and** `sequences[]` (the same assembly as flat chains) |
 | POST | `/api/answers/generate` | `{query, query_type_hint, scope?, limit<=100, params?, answer_text?, event_count?, groups?/sequences?}` → the ordered answer list (§10). Pass `groups`/`sequences` to rank a result already on screen instead of searching again; `event_count` is the TRAKE row width taken from the statement |
 | GET | `/api/canvas/palette` | V-KIS canvas vocabulary: 16 OD colours + canonical labels (+ `colorable`) |
 | POST | `/api/search/canvas` | `{canvas{objects[{label,bbox,color,required}], action_text, mode}}` → same group shape, plus `object_layout` evidence |
@@ -244,12 +244,41 @@ All three are fused with the same RRF/group-by-video as the main search, and the
 matched detections travel back as `object_layout` evidence so the UI can draw
 each detection over the keyframe in the colour of the box that matched it.
 
-TRAKE runs the pipeline per event (each event's visual query translated VI→EN),
-then assembles the best per-video sequence with an **exact DP** — a maximum-weight
-strictly-increasing chain over (event index, `pts_time`) that picks ≤1 frame per
-event, maximizing (events covered, then total relevance). It is globally optimal
-(unlike greedy), can skip an event for a partial sequence, and ranks videos
-coverage-first. See `assemble_trake_sequences` in `backend/app/trake.py`.
+TRAKE runs the pipeline per event (each event's visual query translated VI→EN).
+The unit of a TRAKE answer is the **video**, so the flat per-event results are
+folded into `video_id -> per-event candidates` (`build_video_event_map`)
+immediately after pass 1; that map, not a list of chains, is what pass-2
+targeting, the DP, the heatmap and the ranking all read.
+
+Per (video, event) the candidates go through a **temporal NMS**
+(`temporal_diversify`): up to 8 peaks at least 2 s apart, then the best
+near-duplicates while budget is left. Twelve frames of one two-second burst are
+one hypothesis, and spending the cap on them dropped the genuinely different
+moment later in the video that the chain needed. Each surviving video is then
+assembled with the same **exact DP** — a maximum-weight strictly-increasing chain
+over (event index, `pts_time`) that picks ≤1 frame per event, maximizing (events
+covered, then total relevance). It is globally optimal (unlike greedy) and can
+skip an event for a partial sequence.
+
+`trake_video_score` encodes the lexicographic ranking
+`(confident_coverage, coverage, chain quality)` as one number in [0, 1]: with
+`B = n+1`, `(C·B² + T·B + Q) / (n·B² + n·B + 1)` where
+`Q = 0.70·mean + 0.30·min` of the per-event normalized strengths. One more
+confidently covered event therefore always beats any cosine difference, and
+`Q_min` carries its own weight so three superb events plus one hopeless one
+cannot outrank four solid ones. Heat `strength` is normalized **per event**
+against `G_e` (that event's best score anywhere in the pool), because each event
+is a different query with its own difficulty; a pass-2 fill reports its own
+`fill_quality` instead, since the 0.02 fill scale means nothing against RRF.
+
+Pass 2's budget is spent by `select_pass2_videos`: tier by how many events pass 1
+found NO candidate for (missing one is a single query from a full chain), and
+inside a tier by the preliminary `trake_video_score`. The old rule ranked on
+covered-event *count* alone, which treated "covers E1-E3 barely" and "covers
+E1-E3 convincingly" as the same bet.
+
+See `backend/app/trake.py` (`build_trake_videos`, `assemble_trake_sequences` for
+the flat chain view the answer generator consumes).
 
 ---
 
@@ -262,6 +291,17 @@ Keyboard: `/` focus query · `Enter` search (in query) / open guard (results) /
 confirm (modal) / assign chip (TRAKE) · `↑/↓` video group · `←/→` frame ·
 `Space` play-pause the candidate video · `Tab` switch zone · `T` toggle timeline ·
 `Esc` cancel modal/chip · `Ctrl+M` voice (if browser supports it).
+
+**TRAKE results are video cards**, not the generic `VideoGroup` list
+(`components/TrakeVideoResults.tsx` + `TrakeHeatmap.tsx`): one representative
+thumbnail per event — the DP's pick, or the strongest candidate badged
+`⚠ ngoài chuỗi` when no orderable position exists — over a heat row per event
+drawn from the sparse peaks the backend sends. The DP only knows a chain is
+orderable, not whether it is plausible; the heat rows are where a human sees
+that E1 sits minutes away from a tight E2-E3-E4 cluster. Clicking a
+representative or a peak selects the video, seeks the player to that instant and
+arms that event's slot, so checking an alternative moment costs a seek instead of
+another search.
 
 **TRAKE pause frame-pick**: `requestVideoFrameCallback` tracks the latest
 `mediaTime`; on pause the raw frame is snapped to the nearest BTC keyframe by

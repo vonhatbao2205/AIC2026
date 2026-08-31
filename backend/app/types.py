@@ -83,6 +83,12 @@ class FusedFrame:
     frame_idx: int | None = None  # absolute frame index in the video (for DRES submit)
     fps: float | None = None
     via_fill: bool = False  # True if surfaced by TRAKE pass-2 in-video fill (fallback relevance)
+    # How good a pass-2 fill was RELATIVE to the best hit that event has anywhere
+    # in the index (cosine ratio, or the RRF ratio when two models were combined).
+    # `score` compresses it onto a 0.02 scale so a fill can never outrank real
+    # evidence; this keeps the undistorted value for the TRAKE heatmap, which
+    # normalizes every event on its own scale.
+    fill_quality: float | None = None
 
     @property
     def image_id(self) -> str:

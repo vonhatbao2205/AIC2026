@@ -415,13 +415,70 @@ export interface TrakeSequence {
   video_url: string;
 }
 
+/** One distinct moment an event fires at inside a video.
+ *
+ *  `strength` is normalized PER EVENT against that event's best hit anywhere in
+ *  the pool, so E1's and E2's heat rows are comparable even though their raw
+ *  score distributions are not. */
+export interface TrakeHeatPeak {
+  event_index: number;
+  submit_keyframe_id: string;
+  keyframe_n: number;
+  frame_idx: number | null;
+  pts_time: number;
+  score: number;
+  strength: number;
+  via_fill: boolean;
+  selected_by_dp: boolean;
+  keyframe_url: string;
+}
+
+/** What one video has to say about one event. `in_chain` is false when the DP
+ *  could not place the event in time — the strongest peak is still shown, so the
+ *  operator can judge the video instead of only seeing a gap. */
+export interface TrakeEventEvidence {
+  event_index: number;
+  covered: boolean;
+  in_chain: boolean;
+  representative: TrakeHeatPeak | null;
+  peaks: TrakeHeatPeak[];
+}
+
+/** A TRAKE answer candidate as the console ranks it: one VIDEO, its per-event
+ *  evidence, and the coverage-dominant score the list sorts on. */
+export interface TrakeVideoResult {
+  video_id: string;
+  video_url: string;
+  trake_video_score: number;
+  coverage: number;
+  confident_coverage: number;
+  filled_events: number;
+  /** Events pass-1 retrieval found any candidate for — what pass 2 could fix. */
+  evidence_coverage: number;
+  chain_quality: number;
+  mean_quality: number;
+  min_quality: number;
+  complete: boolean;
+  warning: string | null;
+  /** Smallest gap between two chain frames; a warning sign, never a ranking term. */
+  min_event_gap: number | null;
+  /** Where the video stood before the pass-2 fill ran. */
+  preliminary_rank: number | null;
+  events: TrakeEventEvidence[];
+  best_chain: TrakeSequenceFrame[];
+}
+
 export interface TrakeSearchResponse {
   retrieval_database: RetrievalDatabase;
   query: string;
   parsed: ParsedQuery;
   scope?: ResolvedScope;
   events: { event_index: number; description_vi: string; candidate_count: number }[];
+  /** The video-centric result the console renders. */
+  videos?: TrakeVideoResult[];
+  /** The same assembly as flat chains — what the answer generator consumes. */
   sequences: TrakeSequence[];
+  pass2?: { targets: string[]; candidates: number };
   mode: string;
 }
 

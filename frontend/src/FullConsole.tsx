@@ -22,6 +22,8 @@ import type {
   SubmitEntry,
   SubmitPreview,
   Timeline as TimelineData,
+  TrakeHeatPeak,
+  TrakeVideoResult,
   VideoGroup,
 } from "./api/types";
 import { CanvasPanel } from "./components/CanvasPanel";
@@ -37,6 +39,7 @@ import { QueryPanel } from "./components/QueryPanel";
 import { QueryUnderstanding } from "./components/QueryUnderstanding";
 import { QaAssistPanel } from "./components/QaAssistPanel";
 import { Results } from "./components/Results";
+import { TrakeVideoResults } from "./components/TrakeVideoResults";
 import { ScopeFilter } from "./components/ScopeFilter";
 import { PausedFramePanel, type PausedFrame } from "./components/PausedFramePanel";
 import { ShortcutsModal } from "./components/ShortcutsModal";
@@ -194,6 +197,15 @@ export default function FullConsole({
 
   const [trakeSlots, setTrakeSlots] = useState<(TrakeSlot | null)[]>([null, null]);
   const [activeSlot, setActiveSlot] = useState(0);
+  // The video-centric TRAKE result: every event's candidates per video, not just
+  // the one chain per video the generic group shape can carry.
+  const [trakeVideos, setTrakeVideos] = useState<TrakeVideoResult[]>([]);
+  // Where a clicked TRAKE moment wants the player. It overrides the selected
+  // keyframe's time because a heat peak is usually an ALTERNATIVE moment — one
+  // the chain did not take, so no result frame points at it. The video id travels
+  // with it: a pin left over from another video would seek the newly opened one
+  // to a timestamp that means nothing there.
+  const [trakeSeek, setTrakeSeek] = useState<{ videoId: string; pts: number } | null>(null);
   const [pausedFrame, setPausedFrame] = useState<PausedFrame | null>(null);
   // Which frame the OPEN guard is about to submit. Capturing a paused frame no
   // longer re-points the detail panel: the two submit paths stay independent and
@@ -264,6 +276,12 @@ export default function FullConsole({
 
   const selectedGroup = displayGroups[selectedVideo] ?? null;
   const selectedFrameObj: FrameResult | null = selectedGroup?.frames[selectedFrame] ?? null;
+  // How many events the statement asked for; the slots are the fallback when the
+  // parser returned none, because a row of the wrong width is a rejected row.
+  const trakeEventCount = parsed?.trake?.events?.length ?? 0;
+  // The video-centric TRAKE view is used whenever the backend sent one. An older
+  // backend (or a search that predates it) still gets the generic group list.
+  const trakeVideoView = queryType === "TRAKE" && trakeVideos.length > 0;
   // Only the guard reads this. The detail panel always describes the selected
   // result keyframe, whether or not a raw frame is currently captured.
   const guardPausedFrame =
@@ -628,6 +646,8 @@ export default function FullConsole({
     setTimeSorted(new Set());
     setDuplicateId(null);
     setPausedFrame(null);
+    setTrakeVideos([]);
+    setTrakeSeek(null);
     setQaAnalysis(null);
     setQaAnalysisError(null);
     setAnswer("");
@@ -668,6 +688,7 @@ export default function FullConsole({
           })),
         }));
         setGroups(grp);
+        setTrakeVideos(res.videos ?? []);
         setLatency(null);
         const n = Math.max(2, res.parsed.trake?.events?.length || 2);
         setTrakeSlots(Array(n).fill(null));
@@ -1046,6 +1067,52 @@ export default function FullConsole({
     });
   }
 
+  /** Click an event representative or a heat peak on a TRAKE video card.
+   *
+   *  One click has to do all four things the operator would otherwise do by
+   *  hand: pick the video, jump the player to that instant, point the detail
+   *  panel at it, and arm the slot the moment belongs to. Verifying an
+   *  alternative peak then costs a seek instead of another search. */
+  const pickTrakeMoment = useCallback(
+    (videoId: string, peak: TrakeHeatPeak) => {
+      const videoIndex = displayGroups.findIndex((group) => group.video_id === videoId);
+      if (videoIndex >= 0) {
+        setSelectedVideo(videoIndex);
+        const frameIndex = displayGroups[videoIndex].frames.findIndex(
+          (frame) => frame.submit_keyframe_id === peak.submit_keyframe_id,
+        );
+        setSelectedFrame(frameIndex >= 0 ? frameIndex : 0);
+      }
+      setExpanded((current) => new Set(current).add(videoId));
+      setActiveVideoId(videoId);
+      setVideoVisible(true);
+      setShowTimeline(true);
+      // Both paths are needed: the state drives the seek when the player is
+      // being mounted for this video, the imperative call when it is already up
+      // (`startTime` would not have changed).
+      setTrakeSeek({ videoId, pts: peak.pts_time });
+      seekVideo(peak.pts_time);
+      setActiveSlot(
+        Math.min(Math.max(peak.event_index - 1, 0), Math.max(0, trakeSlots.length - 1)),
+      );
+      // A raw pause belongs to whatever the operator was verifying before.
+      setPausedFrame(null);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [displayGroups, trakeSlots.length],
+  );
+
+  const selectTrakeVideo = useCallback(
+    (videoId: string) => {
+      const videoIndex = displayGroups.findIndex((group) => group.video_id === videoId);
+      if (videoIndex < 0) return;
+      setSelectedVideo(videoIndex);
+      setSelectedFrame(0);
+      setTrakeSeek(null);
+    },
+    [displayGroups],
+  );
+
   // TRAKE: fill all event slots from a candidate video's frames, then open guard.
   function trakeQuickSubmit(g: VideoGroup) {
     const slots: (TrakeSlot | null)[] = g.frames.map((f) => ({
@@ -1393,11 +1460,13 @@ export default function FullConsole({
           e.preventDefault();
           setSelectedVideo((v) => Math.min(v + 1, groups.length - 1));
           setSelectedFrame(0);
+          setTrakeSeek(null);
           break;
         case "ArrowUp":
           e.preventDefault();
           setSelectedVideo((v) => Math.max(v - 1, 0));
           setSelectedFrame(0);
+          setTrakeSeek(null);
           break;
         // Three claimants on the horizontal arrows, in priority order:
         //   1. the neighbour strip, whose whole purpose is paging keyframes
@@ -1410,13 +1479,19 @@ export default function FullConsole({
           e.preventDefault();
           if (neighborsVisible) moveNeighbor(1);
           else if (videoScrubbable) nudgeVideo(VIDEO_COARSE_STEP_S);
-          else setSelectedFrame((f) => Math.min(f + 1, (selectedGroup?.frames.length ?? 1) - 1));
+          else {
+            setSelectedFrame((f) => Math.min(f + 1, (selectedGroup?.frames.length ?? 1) - 1));
+            setTrakeSeek(null);
+          }
           break;
         case "ArrowLeft":
           e.preventDefault();
           if (neighborsVisible) moveNeighbor(-1);
           else if (videoScrubbable) nudgeVideo(-VIDEO_COARSE_STEP_S);
-          else setSelectedFrame((f) => Math.max(f - 1, 0));
+          else {
+            setSelectedFrame((f) => Math.max(f - 1, 0));
+            setTrakeSeek(null);
+          }
           break;
         case "d":
         case "D":
@@ -1476,6 +1551,59 @@ export default function FullConsole({
   function copyId(id: string) {
     navigator.clipboard?.writeText(id).then(() => setToast({ msg: `Copied ${id}`, kind: "ok" })).catch(() => {});
   }
+
+  // The inline player + timeline + neighbour strip, rendered under whichever
+  // result card owns the active video. Both result views mount the same node,
+  // so switching between them never reloads the video.
+  const videoSlot =
+    (videoVisible || neighborsVisible) && activeVideoId && selectedGroup
+    && selectedGroup.video_id === activeVideoId ? (
+      <>
+        {videoVisible && (
+          <>
+            <VideoViewer
+              ref={viewerRef}
+              src={selectedGroup.video_url}
+              fps={timeline?.fps ?? 25}
+              startTime={
+                trakeSeek && trakeSeek.videoId === activeVideoId
+                  ? trakeSeek.pts
+                  : selectedFrameObj?.pts_time ?? 0
+              }
+              onPaused={onVideoPaused}
+              onTime={setPlayhead}
+            />
+            {showTimeline && timeline && timeline.video_id === activeVideoId && (
+              <Timeline
+                data={timeline}
+                playhead={playhead}
+                selectedPts={selectedFrameObj?.pts_time ?? null}
+                eventMarkers={eventMarkers}
+                qaHotspots={(qaAnalysis?.hotspots ?? [])
+                  .filter((hotspot) => hotspot.video_id === activeVideoId && hotspot.pts_time != null)
+                  .map((hotspot) => ({
+                    submit_keyframe_id: hotspot.submit_keyframe_id,
+                    pts_time: hotspot.pts_time as number,
+                    relevance: hotspot.relevance,
+                  }))}
+                onSeek={seekVideo}
+              />
+            )}
+          </>
+        )}
+        {/* Always below the player, so pressing V and K in either order
+            gives the same layout. */}
+        {neighborsVisible && (
+          <NeighborStrip
+            keyframes={neighborKeyframes}
+            centerIndex={neighborIndex}
+            anchorId={neighborAnchorId}
+            videoLinked={videoVisible}
+            onPick={pickNeighbor}
+          />
+        )}
+      </>
+    ) : null;
 
   // A parked tab stays MOUNTED — that is what lets an imported pack run every
   // tab's search at once and keep each result set — but it renders nothing.
@@ -1619,39 +1747,70 @@ export default function FullConsole({
           )}
           <div className="results-toolbar">
             <span className="results-count">
-              {groups.length} video{groups.length === 1 ? "" : "s"} ·{" "}
-              {groups.reduce((n, g) => n + g.frame_count, 0)} frames
+              {trakeVideoView ? (
+                <>
+                  {trakeVideos.length} video{trakeVideos.length === 1 ? "" : "s"} · xếp theo TRAKE
+                  video score (coverage trước, rồi chất lượng chuỗi)
+                </>
+              ) : (
+                <>
+                  {groups.length} video{groups.length === 1 ? "" : "s"} ·{" "}
+                  {groups.reduce((n, g) => n + g.frame_count, 0)} frames
+                </>
+              )}
             </span>
-            <div className="seg sm">
-              <button
-                className={viewMode === "grouped" ? "active" : ""}
-                onClick={() => setViewMode("grouped")}
-                data-testid="view-grouped"
-              >
-                Group by video
-              </button>
-              <button
-                className={viewMode === "flat" ? "active" : ""}
-                onClick={() => setViewMode("flat")}
-                data-testid="view-flat"
-              >
-                Flat top-K
-              </button>
-            </div>
+            {/* A TRAKE answer is a whole video, so there is no flat keyframe
+                ranking to switch to — every frame on screen IS event i. */}
+            {!trakeVideoView && (
+              <div className="seg sm">
+                <button
+                  className={viewMode === "grouped" ? "active" : ""}
+                  onClick={() => setViewMode("grouped")}
+                  data-testid="view-grouped"
+                >
+                  Group by video
+                </button>
+                <button
+                  className={viewMode === "flat" ? "active" : ""}
+                  onClick={() => setViewMode("flat")}
+                  data-testid="view-flat"
+                >
+                  Flat top-K
+                </button>
+              </div>
+            )}
           </div>
           <FeedbackBar feedback={feedback} onRemove={removeFeedback} onClear={clearFeedback} />
+          {trakeVideoView ? (
+          <TrakeVideoResults
+            videos={trakeVideos}
+            eventCount={trakeEventCount || trakeSlots.length}
+            selectedVideoId={selectedVideoId}
+            activeEventIndex={activeSlot + 1}
+            loading={loading}
+            onSelectVideo={selectTrakeVideo}
+            onPickMoment={pickTrakeMoment}
+            onQuickSubmit={(videoId) => {
+              const group = displayGroups.find((g) => g.video_id === videoId);
+              if (group) trakeQuickSubmit(group);
+            }}
+            onVideoFeedback={onVideoFeedback}
+            videoSlotVideoId={videoVisible || neighborsVisible ? activeVideoId : null}
+            videoSlot={videoSlot}
+          />
+          ) : (
           <Results
             groups={displayGroups}
             viewMode={viewMode}
-            trakeEventCount={queryType === "TRAKE" ? parsed?.trake?.events?.length : undefined}
+            trakeEventCount={queryType === "TRAKE" ? trakeEventCount : undefined}
             onTrakeQuickSubmit={queryType === "TRAKE" ? trakeQuickSubmit : undefined}
             qaHotspotScores={queryType === "QA" ? qaHotspotScores : undefined}
             selectedVideo={selectedVideo}
             selectedFrame={selectedFrame}
             expanded={expanded}
             loading={loading}
-            onSelectVideo={(i) => { setSelectedVideo(i); setSelectedFrame(0); }}
-            onSelectFrame={(vi, fi) => { setSelectedVideo(vi); setSelectedFrame(fi); }}
+            onSelectVideo={(i) => { setSelectedVideo(i); setSelectedFrame(0); setTrakeSeek(null); }}
+            onSelectFrame={(vi, fi) => { setSelectedVideo(vi); setSelectedFrame(fi); setTrakeSeek(null); }}
             onToggleExpand={(vid) =>
               setExpanded((prev) => {
                 const n = new Set(prev);
@@ -1665,53 +1824,9 @@ export default function FullConsole({
             onSortByTime={sortFramesByTimeFor}
             onResetOrder={resetFrameOrderFor}
             videoSlotVideoId={videoVisible || neighborsVisible ? activeVideoId : null}
-            videoSlot={
-              (videoVisible || neighborsVisible) && activeVideoId && selectedGroup
-              && selectedGroup.video_id === activeVideoId ? (
-                <>
-                  {videoVisible && (
-                    <>
-                      <VideoViewer
-                        ref={viewerRef}
-                        src={selectedGroup.video_url}
-                        fps={timeline?.fps ?? 25}
-                        startTime={selectedFrameObj?.pts_time ?? 0}
-                        onPaused={onVideoPaused}
-                        onTime={setPlayhead}
-                      />
-                      {showTimeline && timeline && timeline.video_id === activeVideoId && (
-                        <Timeline
-                          data={timeline}
-                          playhead={playhead}
-                          selectedPts={selectedFrameObj?.pts_time ?? null}
-                          eventMarkers={eventMarkers}
-                          qaHotspots={(qaAnalysis?.hotspots ?? [])
-                            .filter((hotspot) => hotspot.video_id === activeVideoId && hotspot.pts_time != null)
-                            .map((hotspot) => ({
-                              submit_keyframe_id: hotspot.submit_keyframe_id,
-                              pts_time: hotspot.pts_time as number,
-                              relevance: hotspot.relevance,
-                            }))}
-                          onSeek={seekVideo}
-                        />
-                      )}
-                    </>
-                  )}
-                  {/* Always below the player, so pressing V and K in either order
-                      gives the same layout. */}
-                  {neighborsVisible && (
-                    <NeighborStrip
-                      keyframes={neighborKeyframes}
-                      centerIndex={neighborIndex}
-                      anchorId={neighborAnchorId}
-                      videoLinked={videoVisible}
-                      onPick={pickNeighbor}
-                    />
-                  )}
-                </>
-              ) : null
-            }
+            videoSlot={videoSlot}
           />
+          )}
         </div>
 
         {/* RIGHT */}

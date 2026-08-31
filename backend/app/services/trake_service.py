@@ -1,11 +1,21 @@
-"""TRAKE search: two-pass per-event retrieval, then optimal ordered assembly.
+"""TRAKE search: two-pass per-event retrieval around one video-centric map.
 
-Pass 1: retrieve each event globally (wide pool).
-Pass 2: for promising videos that cover only SOME events, re-search that exact
-video (Milvus filtered by video_id) for each MISSING event — this surfaces the
-video's own best frame for the gap event, turning 3/4 coverage into 4/4 when the
-costume/scene really is in that video. A relative similarity floor prevents
-low-confidence fill candidates from overstating coverage when the event is absent.
+Pass 1: retrieve each event globally (wide pool), then fold the flat per-event
+results into `video_id -> per-event candidates` immediately. That map — not the
+list of chains — is the intermediate representation everything after it reads,
+which is what lets one abstraction serve pass-2 targeting, the DP, the heatmap
+and the ranking instead of each of them grouping by video again.
+
+A preliminary pass over that map (temporal NMS + the exact DP + the
+coverage-dominant `trake_video_score`) says how strong each video's evidence
+already is, and pass 2 spends its budget accordingly: videos that are one event
+short of a chain first, weaker/thinner ones only while queries remain.
+
+Pass 2: for those videos, re-search that exact video (Milvus filtered by
+video_id) for each MISSING event — this surfaces the video's own best frame for
+the gap event, turning 3/4 coverage into 4/4 when the costume/scene really is in
+that video. A relative similarity floor prevents low-confidence fill candidates
+from overstating coverage when the event is absent.
 """
 from __future__ import annotations
 
@@ -14,7 +24,7 @@ from typing import Any
 
 from ..config import Settings
 from ..media import MediaUrlBuilder
-from ..trake import assemble_trake_sequences
+from ..trake import TrakeVideoResult, build_trake_videos, select_pass2_videos
 from ..types import FusedFrame
 from .search_service import SearchService
 
@@ -75,13 +85,22 @@ class TrakeService:
             for idx, ev in enumerate(events)
         ]
 
+        # ---- Preliminary video scoring (drives pass 2) ----
+        # Partial by definition here — pass 2 has not run — so the preliminary
+        # pass always allows partial chains regardless of the query's policy.
+        preliminary = build_trake_videos(event_frames, fallback_partial=True, max_results=None)
+        targets = select_pass2_videos(preliminary, len(events))
+
         # ---- Pass 2: targeted in-video fill for missing events ----
         # No scope needed here: pass 2 searches inside videos pass 1 already
         # returned, which are in scope by construction.
-        await self._fill_missing_events(events, event_frames, image_models=image_models)
+        await self._fill_missing_events(
+            events, event_frames, targets=targets, image_models=image_models
+        )
 
         fallback = (trake_cfg.get("fallback_policy") or "").startswith("allow_partial")
-        sequences = assemble_trake_sequences(event_frames, fallback_partial=fallback)
+        videos = build_trake_videos(event_frames, fallback_partial=fallback)
+        preliminary_rank = {v.video_id: i + 1 for i, v in enumerate(preliminary)}
 
         return {
             "retrieval_database": self.s.retrieval_database,
@@ -90,7 +109,12 @@ class TrakeService:
             "parsed": parsed,
             "scope": scope.to_dict(),
             "events": per_event_meta,
-            "sequences": [self._serialize_sequence(s) for s in sequences],
+            # The video-centric result the console renders. `sequences` is the
+            # same assembly seen as flat chains, kept because the answer
+            # generator and the benchmarks are written against chains.
+            "videos": [self._serialize_video(v, preliminary_rank) for v in videos],
+            "sequences": [self._serialize_sequence(v.sequence) for v in videos],
+            "pass2": {"targets": targets, "candidates": len(preliminary)},
             "mode": "mock" if self.s.mock_mode else "live",
         }
 
@@ -99,16 +123,22 @@ class TrakeService:
         events: list[dict[str, Any]],
         event_frames: list[list[FusedFrame]],
         *,
+        targets: list[str] | None = None,
         max_promising: int = 15,
         accept_ratio: float = 0.45,
         image_models: tuple[str, ...] = ("pe",),
     ) -> None:
-        """Pass 2: for promising partial videos, search that video for its missing
-        events and add the in-video best frame that is BOTH above a relative
-        similarity floor AND temporally placeable between the video's already-found
-        neighbour frames. An order-infeasible fill would just be dropped by the
-        assembly DP (strictly-increasing time), wasting the one shot at that gap —
-        so prefer the highest-scoring hit that can actually slot in."""
+        """Pass 2: for the videos `targets` names, search that video for its
+        missing events and add the in-video best frame that is BOTH above a
+        relative similarity floor AND temporally placeable between the video's
+        already-found neighbour frames. An order-infeasible fill would just be
+        dropped by the assembly DP (strictly-increasing time), wasting the one
+        shot at that gap — so prefer the highest-scoring hit that can actually
+        slot in.
+
+        `targets` comes from the preliminary video scoring (`select_pass2_videos`).
+        Without it this falls back to the covered-event count, which is what the
+        direct-service callers and older tests pass."""
         n = len(events)
         if n < 2:
             return
@@ -121,10 +151,15 @@ class TrakeService:
                 if f.pts_time is None:
                     continue
                 cover_pts.setdefault(f.video_id, {}).setdefault(i, []).append(f.pts_time)
-        promising = sorted(
-            (v for v, evs in cover_pts.items() if 1 <= len(evs) < n),
-            key=lambda v: -len(cover_pts[v]),
-        )[:max_promising]
+        if targets is None:
+            promising = sorted(
+                (v for v, evs in cover_pts.items() if 1 <= len(evs) < n),
+                key=lambda v: -len(cover_pts[v]),
+            )[:max_promising]
+        else:
+            # A target that pass 1 left with no candidate at all cannot be filled:
+            # there is no neighbour to order a fill against.
+            promising = [v for v in targets if 1 <= len(cover_pts.get(v, {})) < n][:max_promising]
         if not promising:
             return
 
@@ -275,6 +310,9 @@ class TrakeService:
                     frame_idx=rec.get("frame_idx"),
                     fps=rec.get("fps"),
                     via_fill=True,
+                    # The undistorted ratio, for the heatmap: `score` deliberately
+                    # squashes it onto a scale real evidence always beats.
+                    fill_quality=float(h["fill_quality"]),
                 ),
             ))
 
@@ -318,4 +356,27 @@ class TrakeService:
         for f in d["frames"]:
             f["keyframe_url"] = self.media.keyframe_url(seq.video_id, f["keyframe_n"])
         d["video_url"] = self.media.video_url(seq.video_id)
+        return d
+
+    def _serialize_video(
+        self, video: TrakeVideoResult, preliminary_rank: dict[str, int]
+    ) -> dict[str, Any]:
+        """One video card: coverage, quality, per-event peaks and representatives.
+
+        No heatmap image is rendered here — the peaks travel as sparse points and
+        the console draws them, so the same data serves the heat row, the
+        representative thumbnails and the click-to-seek targets."""
+        d = video.to_dict()
+        d["video_url"] = self.media.video_url(video.video_id)
+        for event in d["events"]:
+            for peak in [*event["peaks"], event["representative"]]:
+                if peak is not None:
+                    peak["keyframe_url"] = self.media.keyframe_url(
+                        video.video_id, peak["keyframe_n"]
+                    )
+        for frame in d["best_chain"]:
+            frame["keyframe_url"] = self.media.keyframe_url(video.video_id, frame["keyframe_n"])
+        # How far the video moved once pass 2 had run — the one number that says
+        # whether the fill budget was spent on the right videos.
+        d["preliminary_rank"] = preliminary_rank.get(video.video_id)
         return d

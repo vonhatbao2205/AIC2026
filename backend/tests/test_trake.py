@@ -1,12 +1,19 @@
 from app.trake import (
+    DEFAULT_PER_VIDEO_EVENT_CAP,
     assemble_trake_sequences,
+    build_trake_videos,
+    build_video_event_map,
+    event_reference_scores,
+    select_pass2_videos,
     snap_to_keyframe,
+    temporal_diversify,
+    trake_video_score,
     validate_increasing_order,
 )
 from app.types import FusedFrame
 
 
-def _frame(kf_id, video_id, n, pts, score, via_fill=False):
+def _frame(kf_id, video_id, n, pts, score, via_fill=False, fill_quality=None):
     return FusedFrame(
         submit_keyframe_id=kf_id,
         video_id=video_id,
@@ -14,7 +21,12 @@ def _frame(kf_id, video_id, n, pts, score, via_fill=False):
         pts_time=pts,
         score=score,
         via_fill=via_fill,
+        fill_quality=fill_quality,
     )
+
+
+def _video(videos, video_id):
+    return next(v for v in videos if v.video_id == video_id)
 
 
 def test_assemble_complete_ordered_sequence():
@@ -158,6 +170,246 @@ def test_clean_full_coverage_still_tops_filled_full_coverage():
     seqs = assemble_trake_sequences([clean[0] + filled[0], clean[1] + filled[1]])
     assert seqs[0].video_id == "K01_V001"  # confident 2 beats confident 1 + fill
     assert seqs[0].filled_events == 0
+
+
+
+# ---- video-centric assembly: map, NMS, heat, score -------------------------
+
+
+def test_video_event_map_groups_candidates_per_video_and_event():
+    e1 = [
+        _frame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.30),
+        _frame("K02/K02_V001/001", "K02_V001", 1, 11.0, 0.20),
+    ]
+    e2 = [_frame("K01/K01_V001/010", "K01_V001", 10, 50.0, 0.25)]
+    vmap = build_video_event_map([e1, e2])
+    assert set(vmap) == {"K01_V001", "K02_V001"}
+    assert [len(slot) for slot in vmap["K01_V001"]] == [1, 1]
+    assert [len(slot) for slot in vmap["K02_V001"]] == [1, 0]
+    # A frame with no timestamp cannot be ordered, so it is not a candidate.
+    ptsless = _frame("K03/K03_V001/001", "K03_V001", 1, 10.0, 0.3)
+    ptsless.pts_time = None
+    assert "K03_V001" not in build_video_event_map([[ptsless], []])
+
+
+def test_temporal_nms_keeps_a_distinct_alternate_moment():
+    # One burst of 12 near-identical frames plus one genuinely different scene
+    # ranked below all of them. Top-by-score alone would drop the alternative.
+    burst = [
+        _frame(f"K01/K01_V001/{i:03d}", "K01_V001", i, 31.0 + 0.2 * i, 0.040 - 0.001 * i)
+        for i in range(12)
+    ]
+    alternative = _frame("K01/K01_V001/200", "K01_V001", 200, 78.3, 0.025)
+    from app.trake import TrakeCandidateFrame
+
+    def _cand(f):
+        return TrakeCandidateFrame(
+            event_index=1,
+            submit_keyframe_id=f.submit_keyframe_id,
+            keyframe_n=f.keyframe_n,
+            pts_time=f.pts_time,
+            score=f.score,
+        )
+
+    for_dp, peaks = temporal_diversify([_cand(f) for f in [*burst, alternative]])
+    times = {round(p.pts_time, 1) for p in peaks}
+    assert 78.3 in times  # the distinct moment survived
+    assert len(for_dp) == DEFAULT_PER_VIDEO_EVENT_CAP
+    assert 78.3 in {round(c.pts_time, 1) for c in for_dp}
+    # Peaks are at least the minimum gap apart — no two describe one moment.
+    ordered = sorted(p.pts_time for p in peaks)
+    assert all(b - a >= 2.0 for a, b in zip(ordered, ordered[1:]))
+
+
+def test_duplicate_burst_cannot_evict_a_later_distinct_peak_in_assembly():
+    # E2's burst sits before E1's frame; only the late alternative can be ordered
+    # after it. The old top-12-by-score cap dropped that alternative, which cost
+    # the chain a whole event.
+    e1 = [_frame("K01/K01_V001/100", "K01_V001", 100, 40.0, 0.050)]
+    e2 = [
+        _frame(f"K01/K01_V001/{i:03d}", "K01_V001", i, 10.0 + 0.2 * i, 0.040 - 0.001 * i)
+        for i in range(14)
+    ] + [_frame("K01/K01_V001/200", "K01_V001", 200, 78.3, 0.010)]
+    videos = build_trake_videos([e1, e2])
+    chain = _video(videos, "K01_V001").sequence
+    assert chain.complete is True
+    assert [f.pts_time for f in chain.frames] == [40.0, 78.3]
+
+
+def test_heat_strength_is_normalized_per_event():
+    # E1 and E2 live on completely different score scales. Each video candidate
+    # is ~90% of its OWN event's global best, so both must read ~0.9.
+    e1 = [
+        _frame("K02/K02_V001/001", "K02_V001", 1, 5.0, 0.040),  # global best of E1
+        _frame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.036),
+    ]
+    e2 = [
+        _frame("K02/K02_V001/010", "K02_V001", 10, 90.0, 0.022),  # global best of E2
+        _frame("K01/K01_V001/010", "K01_V001", 10, 50.0, 0.020),
+    ]
+    assert event_reference_scores([e1, e2]) == [0.040, 0.022]
+    video = _video(build_trake_videos([e1, e2]), "K01_V001")
+    s1 = video.events[0].representative.strength
+    s2 = video.events[1].representative.strength
+    assert abs(s1 - 0.90) < 1e-6
+    assert abs(s2 - 0.909091) < 1e-5
+    # Raw scores differ by ~2x; normalized strengths do not.
+    assert abs(s1 - s2) < 0.02
+
+
+def test_fill_strength_uses_its_own_quality_scale():
+    # A fill's 0.02-scale score means nothing against the RRF reference; its
+    # `fill_quality` (cosine ratio to the event's best hit) is the honest number.
+    e1 = [_frame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.040)]
+    e2 = [_frame("K01/K01_V001/010", "K01_V001", 10, 50.0, 0.016, via_fill=True, fill_quality=0.8)]
+    video = _video(build_trake_videos([e1, e2]), "K01_V001")
+    peak = video.events[1].representative
+    assert peak.via_fill is True
+    assert abs(peak.strength - 0.8) < 1e-9
+
+
+def test_representative_is_the_dp_pick_when_the_chain_covers_the_event():
+    # E1's highest-scoring frame is at 50s, but only the 10s one lets E2 order.
+    e1 = [
+        _frame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.020),
+        _frame("K01/K01_V001/050", "K01_V001", 50, 50.0, 0.040),
+    ]
+    e2 = [_frame("K01/K01_V001/030", "K01_V001", 30, 30.0, 0.040)]
+    video = _video(build_trake_videos([e1, e2]), "K01_V001")
+    rep = video.events[0].representative
+    assert video.events[0].in_chain is True
+    assert rep.pts_time == 10.0  # the DP's choice, not the strongest peak
+    assert rep.selected_by_dp is True
+    assert {p.pts_time for p in video.events[0].peaks} == {10.0, 50.0}  # both still offered
+
+
+def test_uncovered_event_still_exposes_its_best_alternative():
+    # E2 only fires BEFORE E1, so no chain can place it — but the operator still
+    # needs to see the frame, badged as not part of the chain.
+    e1 = [_frame("K01/K01_V001/050", "K01_V001", 50, 90.0, 0.040)]
+    e2 = [
+        _frame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.030),
+        _frame("K01/K01_V001/005", "K01_V001", 5, 20.0, 0.010),
+    ]
+    video = _video(build_trake_videos([e1, e2]), "K01_V001")
+    assert video.sequence.complete is False
+    evidence = video.events[1]
+    assert evidence.in_chain is False
+    assert evidence.covered is True  # a representative is still shown
+    assert evidence.representative.pts_time == 10.0  # the strongest alternative
+    assert evidence.representative.selected_by_dp is False
+
+
+def test_video_score_never_trades_a_confident_event_for_quality():
+    # 2 confident events at terrible quality vs 1 confident event at perfect quality.
+    worse_coverage = trake_video_score(
+        n_events=4, confident_coverage=1, coverage=4, mean_quality=1.0, min_quality=1.0
+    )
+    better_coverage = trake_video_score(
+        n_events=4, confident_coverage=2, coverage=2, mean_quality=0.01, min_quality=0.0
+    )
+    assert better_coverage > worse_coverage
+
+
+def test_video_score_prefers_more_total_coverage_at_equal_confidence():
+    thin = trake_video_score(
+        n_events=4, confident_coverage=3, coverage=3, mean_quality=1.0, min_quality=1.0
+    )
+    filled = trake_video_score(
+        n_events=4, confident_coverage=3, coverage=4, mean_quality=0.05, min_quality=0.0
+    )
+    assert filled > thin
+
+
+def test_video_score_penalizes_one_hopeless_event_in_the_chain():
+    # Same mean-ish chains; the one with a collapsed weakest event scores lower.
+    steady = trake_video_score(
+        n_events=4, confident_coverage=4, coverage=4, mean_quality=0.9125, min_quality=0.88
+    )
+    shaky = trake_video_score(
+        n_events=4, confident_coverage=4, coverage=4, mean_quality=0.79, min_quality=0.22
+    )
+    assert steady > shaky
+    assert trake_video_score(n_events=0, confident_coverage=0, coverage=0,
+                             mean_quality=1.0, min_quality=1.0) == 0.0
+
+
+def test_video_score_ranking_matches_the_lexicographic_chain_ranking():
+    videos = build_trake_videos(
+        [
+            [
+                _frame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.40),
+                _frame("K02/K02_V001/001", "K02_V001", 1, 10.0, 0.99),
+                _frame("K03/K03_V001/001", "K03_V001", 1, 10.0, 0.99),
+            ],
+            [
+                _frame("K01/K01_V001/010", "K01_V001", 10, 50.0, 0.40),
+                _frame("K02/K02_V001/010", "K02_V001", 10, 50.0, 0.02, via_fill=True),
+            ],
+        ]
+    )
+    assert [v.video_id for v in videos] == ["K01_V001", "K02_V001", "K03_V001"]
+    assert [
+        (-v.confident_coverage, -v.coverage) for v in videos
+    ] == sorted((-v.confident_coverage, -v.coverage) for v in videos)
+    assert [v.trake_video_score for v in videos] == sorted(
+        (v.trake_video_score for v in videos), reverse=True
+    )
+
+
+def test_min_event_gap_flags_a_chain_squeezed_into_one_moment():
+    e1 = [_frame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.04)]
+    e2 = [_frame("K01/K01_V001/002", "K01_V001", 2, 10.2, 0.04)]
+    e3 = [_frame("K01/K01_V001/003", "K01_V001", 3, 10.4, 0.04)]
+    video = _video(build_trake_videos([e1, e2, e3]), "K01_V001")
+    assert video.min_event_gap is not None
+    assert abs(video.min_event_gap - 0.2) < 1e-6
+    # Diagnostic only: it must not have changed the ranking or the chain.
+    assert video.sequence.complete is True
+
+
+def test_pass2_targets_prefer_the_video_that_is_one_event_short():
+    # A is missing 1 event; B is missing 2 but every hit it has is stronger.
+    a = [
+        [_frame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.030)],
+        [_frame("K01/K01_V001/010", "K01_V001", 10, 50.0, 0.030)],
+        [],
+    ]
+    b = [
+        [_frame("K02/K02_V001/001", "K02_V001", 1, 10.0, 0.040)],
+        [],
+        [],
+    ]
+    videos = build_trake_videos([a[i] + b[i] for i in range(3)])
+    assert select_pass2_videos(videos, 3) == ["K01_V001", "K02_V001"]
+
+
+def test_pass2_targets_break_a_tier_tie_on_preliminary_score():
+    # Both videos are missing exactly E3; the stronger evidence goes first.
+    weak = [
+        [_frame("K02/K02_V001/001", "K02_V001", 1, 10.0, 0.005)],
+        [_frame("K02/K02_V001/010", "K02_V001", 10, 50.0, 0.005)],
+        [],
+    ]
+    strong = [
+        [_frame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.040)],
+        [_frame("K01/K01_V001/010", "K01_V001", 10, 50.0, 0.040)],
+        [],
+    ]
+    videos = build_trake_videos([weak[i] + strong[i] for i in range(3)])
+    assert select_pass2_videos(videos, 3) == ["K01_V001", "K02_V001"]
+    # The old rule ranked on covered-event COUNT alone, which is a tie here.
+    assert {v.evidence_coverage for v in videos} == {2}
+    assert select_pass2_videos(videos, 3, budget=1) == ["K01_V001"]
+
+
+def test_pass2_targets_exclude_videos_that_need_no_fill():
+    complete = [
+        [_frame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.040)],
+        [_frame("K01/K01_V001/010", "K01_V001", 10, 50.0, 0.040)],
+    ]
+    videos = build_trake_videos(complete)
+    assert select_pass2_videos(videos, 2) == []
 
 
 def test_validate_increasing_order():

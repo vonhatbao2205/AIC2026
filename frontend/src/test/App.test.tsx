@@ -99,6 +99,29 @@ const TIMELINE = {
   heatmap: [],
 };
 
+const kfUrl = (n: number) =>
+  `https://media.test/Keyframes/Keyframes_K19/K19_V028/${String(n).padStart(3, "0")}.jpg`;
+/** One TRAKE heat peak, the shape `/api/search/trake` returns per event. */
+const peak = (
+  eventIndex: number,
+  keyframeN: number,
+  pts: number,
+  frameIdx: number,
+  strength: number,
+  picked = false,
+) => ({
+  event_index: eventIndex,
+  submit_keyframe_id: `K19/K19_V028/${String(keyframeN).padStart(3, "0")}`,
+  keyframe_n: keyframeN,
+  frame_idx: frameIdx,
+  pts_time: pts,
+  score: 0.03,
+  strength,
+  via_fill: false,
+  selected_by_dp: picked,
+  keyframe_url: kfUrl(keyframeN),
+});
+
 const TRAKE_RESPONSE = {
   query: "trake",
   parsed: {
@@ -113,6 +136,80 @@ const TRAKE_RESPONSE = {
     _engine: "heuristic",
   },
   events: [{ event_index: 1, candidate_count: 5 }, { event_index: 2, candidate_count: 5 }],
+  videos: [
+    {
+      video_id: "K19_V028",
+      video_url: "https://media.test/Videos/Videos_K19/K19_V028.mp4",
+      trake_video_score: 0.981,
+      coverage: 2,
+      confident_coverage: 2,
+      filled_events: 0,
+      evidence_coverage: 2,
+      chain_quality: 0.9,
+      mean_quality: 0.93,
+      min_quality: 0.83,
+      complete: true,
+      warning: null,
+      min_event_gap: 312,
+      preliminary_rank: 1,
+      events: [
+        {
+          event_index: 1,
+          covered: true,
+          in_chain: true,
+          representative: peak(1, 203, 530, 15926, 0.95, true),
+          peaks: [peak(1, 12, 120, 3600, 0.42), peak(1, 203, 530, 15926, 0.95, true)],
+        },
+        {
+          event_index: 2,
+          covered: true,
+          in_chain: true,
+          representative: peak(2, 301, 842, 21030, 0.83, true),
+          peaks: [peak(2, 301, 842, 21030, 0.83, true)],
+        },
+      ],
+      best_chain: [
+        { event_index: 1, submit_keyframe_id: "K19/K19_V028/203", keyframe_n: 203, frame_idx: 15926, pts_time: 530, score: 0.03, via_fill: false, keyframe_url: kfUrl(203) },
+        { event_index: 2, submit_keyframe_id: "K19/K19_V028/301", keyframe_n: 301, frame_idx: 21030, pts_time: 842, score: 0.03, via_fill: false, keyframe_url: kfUrl(301) },
+      ],
+    },
+    {
+      video_id: "K19_V099",
+      video_url: "https://media.test/Videos/Videos_K19/K19_V099.mp4",
+      trake_video_score: 0.541,
+      coverage: 1,
+      confident_coverage: 1,
+      filled_events: 0,
+      evidence_coverage: 2,
+      chain_quality: 0.6,
+      mean_quality: 0.6,
+      min_quality: 0.6,
+      complete: false,
+      warning: "Partial sequence: events 2 have no orderable candidate.",
+      min_event_gap: null,
+      preliminary_rank: 2,
+      events: [
+        {
+          event_index: 1,
+          covered: true,
+          in_chain: true,
+          representative: peak(1, 400, 300, 9000, 0.6, true),
+          peaks: [peak(1, 400, 300, 9000, 0.6, true)],
+        },
+        {
+          event_index: 2,
+          covered: true,
+          in_chain: false,
+          representative: peak(2, 20, 100, 3000, 0.5),
+          peaks: [peak(2, 20, 100, 3000, 0.5)],
+        },
+      ],
+      best_chain: [
+        { event_index: 1, submit_keyframe_id: "K19/K19_V099/400", keyframe_n: 400, frame_idx: 9000, pts_time: 300, score: 0.03, via_fill: false, keyframe_url: kfUrl(400) },
+      ],
+    },
+  ],
+  pass2: { targets: ["K19_V099"], candidates: 2 },
   sequences: [
     {
       video_id: "K19_V028",
@@ -1092,6 +1189,74 @@ describe("AIC26 retrieval console (full)", () => {
 
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(screen.queryByTestId("shortcuts-modal")).not.toBeInTheDocument());
+  });
+
+  it("TRAKE: results are VIDEOS with per-event representatives and a heat row", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("tab", { name: "TRAKE" }));
+    await user.type(screen.getByTestId("query-input"), "a then b");
+    await user.click(screen.getByTestId("search-btn"));
+
+    await waitFor(() => expect(screen.getByTestId("trake-videos")).toBeInTheDocument());
+    const cards = screen.getAllByTestId("trake-video-card");
+    expect(cards).toHaveLength(2);
+    // Ranked by TRAKE video score: coverage first, so the 2/2 video leads.
+    expect(cards[0]).toHaveTextContent("K19_V028");
+    expect(cards[0]).toHaveTextContent("2/2 events");
+    expect(cards[1]).toHaveTextContent("K19_V099");
+    expect(cards[1]).toHaveTextContent("1/2 events");
+    // One representative per event, and the whole heat row behind it.
+    expect(within(cards[0]).getByTestId("trake-event-1")).toBeInTheDocument();
+    expect(within(cards[0]).getByTestId("trake-event-2")).toBeInTheDocument();
+    expect(within(cards[0]).getAllByTestId("trake-heat-peak")).toHaveLength(3);
+    // An event the chain could not place still shows its best candidate, badged.
+    expect(within(cards[1]).getByTestId("trake-event-2")).toHaveTextContent("ngoài chuỗi");
+  });
+
+  it("TRAKE: clicking an event representative arms that event's slot and opens the video", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("tab", { name: "TRAKE" }));
+    await user.type(screen.getByTestId("query-input"), "a then b");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => expect(screen.getByTestId("trake-videos")).toBeInTheDocument());
+
+    // E1 is the active slot after a search.
+    expect(screen.getByTestId("trake-slot-0").className).toContain("active");
+    const card = screen.getAllByTestId("trake-video-card")[0];
+    await user.click(within(card).getByTestId("trake-event-2"));
+
+    // Slot E2 is armed, and the player is open on that video ready to be scrubbed.
+    expect(screen.getByTestId("trake-slot-1").className).toContain("active");
+    expect(screen.getByTestId("trake-slot-0").className).not.toContain("active");
+    const video = (await screen.findByTestId("video-viewer")) as HTMLVideoElement;
+    expect(video.src).toContain("K19_V028.mp4");
+  });
+
+  it("TRAKE: clicking an alternative heat peak arms its event without a new search", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("tab", { name: "TRAKE" }));
+    await user.type(screen.getByTestId("query-input"), "a then b");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => expect(screen.getByTestId("trake-videos")).toBeInTheDocument());
+    const searchesBefore = vi.mocked(fetch).mock.calls
+      .filter(([url]) => String(url).endsWith("/api/search/trake")).length;
+
+    const card = screen.getAllByTestId("trake-video-card")[0];
+    // E1's row carries the chain's own peak plus one alternative moment; the
+    // alternative is exactly what the old sequence-only result threw away.
+    const e1Peaks = within(within(card).getByTestId("trake-heat-row-1")).getAllByTestId("trake-heat-peak");
+    expect(e1Peaks).toHaveLength(2);
+    await user.click(e1Peaks[0]);
+
+    expect(screen.getByTestId("trake-slot-0").className).toContain("active");
+    expect(await screen.findByTestId("video-viewer")).toBeInTheDocument();
+    // Verifying an alternative costs a seek, not another retrieval round.
+    expect(
+      vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("/api/search/trake")).length,
+    ).toBe(searchesBefore);
   });
 
   it("TRAKE: a full-coverage video can be submitted directly from the result list", async () => {

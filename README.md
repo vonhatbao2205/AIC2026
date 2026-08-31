@@ -44,8 +44,15 @@ The repository contains two parts:
   programme, so a topic heuristic reads the folders off the query the same way
   the parser reads channels ("đầu bếp" → L26), while never excluding the
   programmes that carry every subject (the 60-second bulletins and L30).
-- **TRAKE** temporal sequences assembled with an exact dynamic-programming
-  maximum-weight increasing chain (globally optimal, not greedy).
+- **TRAKE** is ranked by **video**, not by keyframe: after pass 1 the per-event
+  results become one `video_id -> per-event candidates` map that drives pass-2
+  targeting, the DP, the heatmap and the ranking. A temporal NMS keeps distinct
+  moments (not twelve frames of one burst) before an exact dynamic-programming
+  maximum-weight increasing chain assembles the sequence — globally optimal, not
+  greedy. `trake_video_score` folds `(confident coverage, coverage, chain
+  quality)` into one coverage-dominant number, and each result card shows one
+  representative per event over a heat row of every moment that event fires;
+  clicking one seeks the player there and arms that event's slot.
 - **NVILA-8B QA copilot** — top-video-first candidate blocks, 3–5 visual
   hypotheses and answer alternatives, DeepSeek web-search grounding, then a
   third NVILA visual-consistency pass before explicit human verification.

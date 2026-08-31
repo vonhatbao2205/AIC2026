@@ -239,6 +239,94 @@ async def test_fill_falls_back_when_no_feasible_frame(settings):
 
 
 @pytest.mark.asyncio
+async def test_trake_response_carries_video_centric_results(settings):
+    """The console ranks VIDEOS, so the response leads with them; `sequences` is
+    the same assembly flattened for the answer generator and the benchmarks."""
+    svc = SearchService(settings)
+    trake = TrakeService(settings, svc)
+    res = await trake.search_trake(
+        {"query": "người nói chuyện sau đó có tiếng nhạc", "top_k": 50}
+    )
+    videos = res["videos"]
+    assert videos
+    # One assembly, two views: same videos, same order.
+    assert [v["video_id"] for v in videos] == [s["video_id"] for s in res["sequences"]]
+    scores = [v["trake_video_score"] for v in videos]
+    assert scores == sorted(scores, reverse=True)
+    top = videos[0]
+    assert 0.0 <= top["trake_video_score"] <= 1.0
+    assert top["video_url"].endswith(f"{top['video_id']}.mp4")
+    assert top["preliminary_rank"] is not None
+    assert len(top["events"]) == len(res["events"])
+    for event in top["events"]:
+        assert event["peaks"], "every event must offer its peaks for the heatmap"
+        strengths = [p["strength"] for p in event["peaks"]]
+        assert all(0.0 <= s <= 1.0 for s in strengths)
+        rep = event["representative"]
+        assert rep is not None and rep["keyframe_url"].endswith(f"{rep['keyframe_n']:03d}.jpg")
+        if event["in_chain"]:
+            assert rep["selected_by_dp"] is True
+    chain_times = [f["pts_time"] for f in top["best_chain"]]
+    assert chain_times == sorted(chain_times)
+
+
+@pytest.mark.asyncio
+async def test_pass2_only_queries_the_videos_the_preliminary_score_chose(settings):
+    from app.types import FusedFrame
+
+    class _RecordingMilvus(_StubMilvus):
+        def __init__(self):
+            super().__init__([])
+            self.searched: list[str] = []
+
+        def search_image(self, vector, top_k=10, video_id=None):
+            if video_id is not None:
+                self.searched.append(video_id)
+            return super().search_image(vector, top_k=top_k, video_id=video_id)
+
+    trake = _wire(settings, [], {})
+    milvus = _RecordingMilvus()
+    trake.search.milvus = milvus
+    events = [{"event_index": j + 1, "image_pe_queries_en": ["q"]} for j in range(3)]
+    ef = [
+        [
+            FusedFrame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.9),
+            FusedFrame("K02/K02_V001/001", "K02_V001", 1, 10.0, 0.9),
+        ],
+        [FusedFrame("K01/K01_V001/010", "K01_V001", 10, 50.0, 0.9)],
+        [],
+    ]
+    await trake._fill_missing_events(events, ef, targets=["K02_V001"])
+    # K01_V001 is the stronger, 2-of-3 video — but the budget said K02_V001, and
+    # pass 2 does not get to second-guess it.
+    assert set(milvus.searched) == {"K02_V001"}
+
+
+@pytest.mark.asyncio
+async def test_pass2_skips_a_target_pass1_left_completely_empty(settings):
+    from app.types import FusedFrame
+
+    class _RecordingMilvus(_StubMilvus):
+        def __init__(self):
+            super().__init__([])
+            self.searched: list[str] = []
+
+        def search_image(self, vector, top_k=10, video_id=None):
+            if video_id is not None:
+                self.searched.append(video_id)
+            return super().search_image(vector, top_k=top_k, video_id=video_id)
+
+    trake = _wire(settings, [], {})
+    milvus = _RecordingMilvus()
+    trake.search.milvus = milvus
+    events = [{"event_index": j + 1, "image_pe_queries_en": ["q"]} for j in range(2)]
+    ef = [[FusedFrame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.9)], []]
+    await trake._fill_missing_events(events, ef, targets=["K09_V999", "K01_V001"])
+    # Nothing in K09_V999 to order a fill against, so its queries are not spent.
+    assert set(milvus.searched) == {"K01_V001"}
+
+
+@pytest.mark.asyncio
 async def test_marked_frames_add_a_similar_channel_seeded_by_their_embeddings(settings):
     """'More like this frame' is a retrieval channel, not a score bonus: it must
     appear in the latency breakdown and attribute frames like any other channel."""
