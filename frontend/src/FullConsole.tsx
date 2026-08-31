@@ -1621,6 +1621,14 @@ export default function FullConsole({
           e.preventDefault();
           if (videoScrubbable) nudgeVideo(-VIDEO_FINE_STEP_S);
           break;
+        case " ":
+          // The video no longer autoplays, so play/pause needs a key that works
+          // without the element having focus — after clicking a heat peak or
+          // pressing 'v', focus is nowhere near it.
+          if (!videoScrubbable) break;
+          e.preventDefault();
+          viewerRef.current?.toggle();
+          break;
         case "k":
         case "K":
           e.preventDefault();
@@ -1630,8 +1638,8 @@ export default function FullConsole({
         case "V":
           e.preventDefault();
           // 'v' shows the inline video under the selected keyframe (seeked to it);
-          // pressing it again on the same video hides it. Space is left to the
-          // video's native play/pause control.
+          // pressing it again on the same video hides it. It opens PARKED on the
+          // selected frame — see VideoViewer — and Space starts playback.
           if (!selectedFrameObj || !selectedVideoId) break;
           if (videoVisible && activeVideoId === selectedVideoId) {
             setVideoVisible(false);

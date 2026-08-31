@@ -14,8 +14,9 @@ interface Props {
   // Seek target (keyframe pts). Applied on load and whenever it changes, so the
   // video jumps to the selected keyframe instead of replaying from the start.
   startTime?: number | null;
-  // Called on pause with the most accurate paused mediaTime available plus a
-  // JPEG thumbnail captured from the exact paused frame (null if CORS-tainted).
+  // Called with the frame the operator is looking at: on pause, and on every
+  // seek that lands while the video is ALREADY paused. The second case is what
+  // makes a frame pick exact — see the note on `handleSeeked` below.
   onPaused?: (rawTime: number, thumbnail: string | null) => void;
   // Live playhead reporting for the timeline.
   onTime?: (t: number) => void;
@@ -132,10 +133,19 @@ export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoVi
     // A seek invalidates the last presented frame: until a new one arrives,
     // `currentTime` is the authority on where the video is. Without this, pausing
     // right after a seek captured the frame the operator had seeked AWAY from.
+    //
+    // A seek that lands while the video is ALREADY PAUSED also IS the frame pick.
+    // Capture had been tied to the `pause` event alone, so choosing a frame meant
+    // playing the clip and pausing it again — and the frame you get back is
+    // wherever the video had run to by the time the pause took effect, not the
+    // one you seeked to. Every fine-tune (`a`/`d`, the arrows, the timeline, a
+    // heat peak) is a seek on a paused video, so this is the path that has to be
+    // exact.
     function handleSeeked() {
       hasPresentedFrame.current = false;
       latestMediaTime.current = v!.currentTime;
       onTimeRef.current?.(v!.currentTime);
+      if (v!.paused) onPausedRef.current?.(v!.currentTime, captureThumbnail());
     }
 
     v.addEventListener("play", startTracking);
@@ -155,12 +165,16 @@ export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoVi
   }, [src]);
 
   return (
+    // Deliberately NOT autoplaying. The video is opened to look at one frame —
+    // the selected keyframe, or the heat peak just clicked — and playing from it
+    // immediately walks away from that frame, so picking it meant chasing the
+    // playhead back with a pause. It now opens parked on the frame, already
+    // captured; `Space` starts it whenever the operator actually wants to watch.
     <video
       ref={videoRef}
       className="inline-video"
       src={src}
       controls
-      autoPlay
       preload="auto"
       crossOrigin="anonymous"
       data-testid="video-viewer"

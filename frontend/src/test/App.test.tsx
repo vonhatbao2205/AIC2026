@@ -1433,6 +1433,27 @@ describe("AIC26 retrieval console (full)", () => {
     expect(ordered).toHaveTextContent("frame 21030");  // E2 untouched
   });
 
+  it("TRAKE: seeking a paused video captures the frame with no play/pause dance", async () => {
+    const user = userEvent.setup();
+    const cards = await openTrakeResults(user);
+    const e1Row = within(cards[0]).getByTestId("trake-heat-row-1");
+    await user.click(within(e1Row).getAllByTestId("trake-heat-peak")[0]);
+
+    const video = (await screen.findByTestId("video-viewer")) as HTMLVideoElement;
+    // It opens parked on the frame instead of playing away from it.
+    expect(video).not.toHaveAttribute("autoplay");
+    expect(screen.queryByTestId("paused-frame-chip")).not.toBeInTheDocument();
+
+    // The seek settling IS the frame pick: no play, no pause.
+    Object.defineProperty(video, "currentTime", { configurable: true, writable: true, value: 120 });
+    fireEvent.seeked(video);
+
+    // 120s at the 25fps fallback -> frame 3000, ready for Enter into the slot.
+    expect(await screen.findByTestId("paused-frame-chip")).toHaveTextContent("frame 3000");
+    await user.click(screen.getByTestId("assign-paused-frame"));
+    expect(screen.getByTestId("trake-slot-0")).toHaveTextContent("f3000");
+  });
+
   it("TRAKE: a full-coverage video can be submitted directly from the result list", async () => {
     const user = userEvent.setup();
     render(<App />);

@@ -52,6 +52,11 @@ function Harness({ onPaused }: { onPaused: (t: number, thumb: string | null) => 
   );
 }
 
+/** jsdom never actually plays, so `paused` has to be stated. */
+function playing(video: HTMLVideoElement) {
+  Object.defineProperty(video, "paused", { configurable: true, get: () => false });
+}
+
 describe("VideoViewer paused-frame accuracy", () => {
   let rvfc: ReturnType<typeof installVideoFrameCallback>;
 
@@ -85,6 +90,7 @@ describe("VideoViewer paused-frame accuracy", () => {
     render(<Harness onPaused={onPaused} />);
     const video = screen.getByTestId("video-viewer") as HTMLVideoElement;
 
+    playing(video);
     fireEvent.play(video);
     rvfc.present(83);
 
@@ -95,5 +101,44 @@ describe("VideoViewer paused-frame accuracy", () => {
     fireEvent.pause(video);
 
     expect(onPaused.mock.calls[0][0]).toBe(150);
+  });
+
+  it("captures the frame on a seek that lands while the video is paused", () => {
+    const onPaused = vi.fn();
+    render(<Harness onPaused={onPaused} />);
+    const video = screen.getByTestId("video-viewer") as HTMLVideoElement;
+    expect(video.paused).toBe(true);
+
+    // Fine-tuning a frame — 'a'/'d', the arrows, the timeline, a heat peak — is
+    // a seek on a paused video. Tying capture to the `pause` event alone meant
+    // the operator had to play the clip and pause it again, and what came back
+    // was wherever the video had run to, not the frame they had chosen.
+    Object.defineProperty(video, "currentTime", { configurable: true, writable: true, value: 42.5 });
+    fireEvent.seeked(video);
+
+    expect(onPaused).toHaveBeenCalledTimes(1);
+    expect(onPaused.mock.calls[0][0]).toBe(42.5);
+  });
+
+  it("leaves capture to the pause handler while the video is playing", () => {
+    const onPaused = vi.fn();
+    render(<Harness onPaused={onPaused} />);
+    const video = screen.getByTestId("video-viewer") as HTMLVideoElement;
+
+    playing(video);
+    fireEvent.play(video);
+    // Seeking mid-playback is navigation, not a frame pick; capturing there would
+    // arm a submit target the operator is about to play straight past.
+    Object.defineProperty(video, "currentTime", { configurable: true, writable: true, value: 42.5 });
+    fireEvent.seeked(video);
+
+    expect(onPaused).not.toHaveBeenCalled();
+  });
+
+  it("opens parked on the frame instead of playing away from it", () => {
+    render(<Harness onPaused={() => {}} />);
+    // Autoplay walked the video off the very frame it was opened to show, which
+    // is what forced the play-then-pause dance in the first place.
+    expect(screen.getByTestId("video-viewer")).not.toHaveAttribute("autoplay");
   });
 });

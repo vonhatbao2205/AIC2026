@@ -339,8 +339,13 @@ TRAKE shows no prioritise/deprioritise controls and no feedback bar:
 `/api/search/trake` takes no feedback, so those buttons re-ran the search and
 changed nothing while telling the operator they had.
 
-**TRAKE pause frame-pick**: `requestVideoFrameCallback` tracks the latest
-`mediaTime`; on pause the raw frame is snapped to the nearest BTC keyframe by
+**Frame-pick**: `requestVideoFrameCallback` tracks the latest `mediaTime`. The
+inline video opens **paused on the frame it was opened to show** and every seek
+that lands while it is paused captures that frame — capture used to be tied to
+the `pause` event alone, so picking a frame meant playing the clip and pausing
+it again, and what came back was wherever playback had reached, not the frame
+chosen. Seeking mid-playback captures nothing; that is navigation. `Space`
+starts playback. The raw frame is snapped to the nearest BTC keyframe by
 `frame_idx` (fallback `pts_time`). A draggable chip shows raw time/frame, snapped
 `submit_keyframe_id`, and Δframes/Δseconds with a far-warning; `Enter` or drag
 assigns it to the active event slot. Slots validate increasing `pts_time`.

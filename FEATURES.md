@@ -114,7 +114,10 @@ Bộ lọc **📂 phạm vi** cạnh nút Search: bấm vào ra **danh sách che
 - **TRAKE không có nút ⬆/⬇ và không có FeedbackBar**: `/api/search/trake` không nhận feedback, nên các nút đó chạy lại search mà không đổi gì trong khi báo với operator là đã đổi. Control không có tác dụng còn tệ hơn không có control.
 - **Badge coverage** `4/4 / 3/4 events` + chip `+N in-video` khi có fill + `q` chất lượng chuỗi + cảnh báo `⚠ yếu N%` (event yếu nhất) và `⚠ N s giữa 2 event` (chuỗi bị nén vào một khoảnh khắc — chẩn đoán, **không** vào xếp hạng).
 - **Submit nhanh**: video đủ event → nút **Submit sequence ↵** điền hết slot + mở guard.
-- **Frame-pick lúc pause là tính năng global** (phím `v` mở video → pause): lấy **frame_idx = round(pts×fps) ngay tại điểm dừng** (KHÔNG snap về BTC keyframe) và thumbnail trực tiếp từ video (canvas). T-KIS/QA/V-KIS tự dùng raw frame này làm submit target (có thể chuyển lại result keyframe); TRAKE kéo thả/Enter để gán vào event slot.
+- **Frame-pick là tính năng global** (phím `v` mở video): lấy **frame_idx = round(pts×fps) ngay tại điểm đang xem** (KHÔNG snap về BTC keyframe) và thumbnail trực tiếp từ video (canvas). T-KIS/QA/V-KIS tự dùng raw frame này làm submit target (có thể chuyển lại result keyframe); TRAKE kéo thả/Enter để gán vào event slot.
+  - **Video mở ra ở trạng thái DỪNG ngay tại frame đang chọn, không tự chạy.** Autoplay đi thẳng khỏi đúng cái frame vừa mở ra để xem, nên muốn lấy nó lại phải đuổi theo playhead bằng một lần pause. `Space` chạy/dừng khi thật sự muốn xem.
+  - **Mọi lần tua khi video đang dừng CHÍNH LÀ một lần chọn frame** — ghi nhận ngay, không cần chạy rồi pause. Trước đây capture chỉ gắn vào sự kiện `pause`, nên chọn frame nghĩa là cho chạy rồi bấm dừng, và cái nhận về là chỗ video đã chạy tới lúc lệnh dừng có hiệu lực, **không phải frame đã tua tới** → lệch `frame_idx`. Tinh chỉnh bằng `a`/`d`, mũi tên, click timeline hay click frame trên bản đồ nhiệt đều là tua trên video đang dừng, nên đây đúng là đường phải chính xác nhất.
+  - Tua **trong lúc đang chạy** thì không ghi nhận: đó là thao tác di chuyển, không phải chọn frame.
 - **Kéo-thả keyframe giữa các ô event** để sắp xếp lại thứ tự (swap); validate thứ tự tăng dần, cảnh báo `⚠ order`.
 - **Auto-fill E1..En** từ video đang chọn; marker event màu trên timeline.
 
