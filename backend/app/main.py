@@ -204,6 +204,13 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
         "ok": ok,
         "mode": "mock" if settings.mock_mode else "live",
         "services": services,
+        # The console needs the video origins, not just the built URLs: when the
+        # primary is down EVERY video URL is dead at once, so the retry is an
+        # origin swap rather than something to attach to each URL individually.
+        "media": {
+            "video_base_url": selected_settings.video_media_base_url,
+            "video_fallback_base_url": selected_settings.video_media_fallback_base_url,
+        },
         "capabilities": {
             "llm_query_parser": settings.has_llm and not settings.mock_mode,
             "dres_submit": settings.has_dres,

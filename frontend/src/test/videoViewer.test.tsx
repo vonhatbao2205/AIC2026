@@ -36,13 +36,23 @@ function installVideoFrameCallback() {
 
 /** The console re-creates `onPaused` whenever the state it closes over moves —
  *  the timeline finishing its fetch is enough. `bump` reproduces that. */
-function Harness({ onPaused }: { onPaused: (t: number, thumb: string | null) => void }) {
+function Harness({
+  onPaused,
+  fallbackSrc,
+  onFallback,
+}: {
+  onPaused: (t: number, thumb: string | null) => void;
+  fallbackSrc?: string | null;
+  onFallback?: (src: string) => void;
+}) {
   const [tick, setTick] = useState(0);
   return (
     <>
       <button onClick={() => setTick((t) => t + 1)}>bump</button>
       <VideoViewer
         src="https://media.test/v.mp4"
+        fallbackSrc={fallbackSrc}
+        onFallback={onFallback}
         startTime={0}
         // A new identity every render, like the real `useCallback` whose deps moved.
         onPaused={(t, thumb) => onPaused(t + tick * 0, thumb)}
@@ -140,5 +150,58 @@ describe("VideoViewer paused-frame accuracy", () => {
     // Autoplay walked the video off the very frame it was opened to show, which
     // is what forced the play-then-pause dance in the first place.
     expect(screen.getByTestId("video-viewer")).not.toHaveAttribute("autoplay");
+  });
+});
+
+describe("VideoViewer origin fallback", () => {
+  const FALLBACK = "https://fallback.test/v.mp4";
+
+  it("retries the other origin when the source fails to load", () => {
+    const onFallback = vi.fn();
+    render(<Harness onPaused={() => {}} fallbackSrc={FALLBACK} onFallback={onFallback} />);
+    const video = screen.getByTestId("video-viewer") as HTMLVideoElement;
+    expect(video.getAttribute("src")).toBe("https://media.test/v.mp4");
+
+    // A dead origin kills every video at once, so the element's media error is
+    // the signal to swap rather than to give up.
+    fireEvent.error(video);
+
+    expect(screen.getByTestId("video-viewer").getAttribute("src")).toBe(FALLBACK);
+    expect(onFallback).toHaveBeenCalledWith(FALLBACK);
+  });
+
+  it("carries the playhead across the swap", () => {
+    render(<Harness onPaused={() => {}} fallbackSrc={FALLBACK} />);
+    const video = screen.getByTestId("video-viewer") as HTMLVideoElement;
+    Object.defineProperty(video, "currentTime", { configurable: true, writable: true, value: 137 });
+
+    fireEvent.error(video);
+    // The new source seeks back once its metadata is in: a dead origin should
+    // cost a reload, not the operator's place in the clip.
+    fireEvent.loadedMetadata(screen.getByTestId("video-viewer"));
+
+    expect((screen.getByTestId("video-viewer") as HTMLVideoElement).currentTime).toBe(137);
+  });
+
+  it("swaps at most once, so a dead fallback cannot loop", () => {
+    const onFallback = vi.fn();
+    render(<Harness onPaused={() => {}} fallbackSrc={FALLBACK} onFallback={onFallback} />);
+    const video = screen.getByTestId("video-viewer") as HTMLVideoElement;
+
+    fireEvent.error(video);
+    fireEvent.error(screen.getByTestId("video-viewer"));
+    fireEvent.error(screen.getByTestId("video-viewer"));
+
+    expect(onFallback).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("video-viewer").getAttribute("src")).toBe(FALLBACK);
+  });
+
+  it("stays put when no fallback is configured", () => {
+    const onFallback = vi.fn();
+    render(<Harness onPaused={() => {}} fallbackSrc={null} onFallback={onFallback} />);
+    fireEvent.error(screen.getByTestId("video-viewer"));
+
+    expect(screen.getByTestId("video-viewer").getAttribute("src")).toBe("https://media.test/v.mp4");
+    expect(onFallback).not.toHaveBeenCalled();
   });
 });

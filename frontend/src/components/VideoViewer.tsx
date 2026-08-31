@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { seekElementBy } from "../lib/videoSeek";
 
 export interface VideoViewerHandle {
@@ -11,6 +11,13 @@ export interface VideoViewerHandle {
 
 interface Props {
   src: string;
+  /** Same video under the other origin, tried ONCE if `src` fails to load.
+   *  The playhead is carried across, so a dead origin costs a reload rather than
+   *  the operator's place in the clip. */
+  fallbackSrc?: string | null;
+  /** Fired when the fallback was used, so the console can stop starting new
+   *  videos on an origin it now knows is down. */
+  onFallback?: (src: string) => void;
   // Seek target (keyframe pts). Applied on load and whenever it changes, so the
   // video jumps to the selected keyframe instead of replaying from the start.
   startTime?: number | null;
@@ -25,7 +32,7 @@ interface Props {
 // Uses requestVideoFrameCallback (when available) to track the latest presented
 // mediaTime, so the paused frame is computed from the actual displayed frame.
 export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoViewer(
-  { src, startTime, onPaused, onTime },
+  { src, fallbackSrc, startTime, onPaused, onTime, onFallback },
   ref,
 ) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -42,8 +49,28 @@ export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoVi
   // instant on screen: seek to E3, pause, and the captured frame was E1's.
   const onPausedRef = useRef(onPaused);
   const onTimeRef = useRef(onTime);
+  const onFallbackRef = useRef(onFallback);
+  // Read inside the listener effect, which is keyed on the source alone.
+  const startTimeRef = useRef(startTime);
+  startTimeRef.current = startTime ?? 0;
+  // Where to land after an origin swap; consumed by the seek effect below.
+  const resumeAt = useRef<number | null>(null);
   onPausedRef.current = onPaused;
   onTimeRef.current = onTime;
+  onFallbackRef.current = onFallback;
+
+  // Which URL the element is actually playing. It starts at `src` and moves to
+  // the fallback at most once per source; `activeSrc` rather than `src` is what
+  // the <video> reads, so a swap does not fight the prop on the next render.
+  const [activeSrc, setActiveSrc] = useState(src);
+  const triedFallback = useRef(false);
+  // A source change is a new decision: the fallback becomes available again.
+  const lastSrc = useRef(src);
+  if (lastSrc.current !== src) {
+    lastSrc.current = src;
+    triedFallback.current = false;
+    if (activeSrc !== src) setActiveSrc(src);
+  }
 
   useImperativeHandle(ref, () => ({
     toggle: () => {
@@ -60,13 +87,20 @@ export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoVi
     currentTime: () => videoRef.current?.currentTime ?? 0,
   }));
 
-  // Seek to the selected keyframe time on load and whenever it changes.
+  // Seek to the selected keyframe time on load and whenever it changes — or to
+  // where playback actually was, when the source changed underneath because the
+  // origin died. ONE seek path on purpose: an origin swap and a `startTime`
+  // change both land on the same `loadedmetadata`, and two listeners racing
+  // there meant the later one won, sending the operator back to the keyframe
+  // instead of resuming where they were.
   useEffect(() => {
     const v = videoRef.current;
-    if (!v || startTime == null) return;
+    const target = resumeAt.current ?? startTime;
+    resumeAt.current = null;
+    if (!v || target == null) return;
     const doSeek = () => {
       try {
-        v.currentTime = startTime;
+        v.currentTime = target;
       } catch {
         /* not seekable yet */
       }
@@ -74,7 +108,7 @@ export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoVi
     if (v.readyState >= 1) doSeek();
     else v.addEventListener("loadedmetadata", doSeek, { once: true });
     return () => v.removeEventListener("loadedmetadata", doSeek);
-  }, [startTime, src]);
+  }, [startTime, activeSrc]);
 
   useEffect(() => {
     const v = videoRef.current;
@@ -148,9 +182,21 @@ export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoVi
       if (v!.paused) onPausedRef.current?.(v!.currentTime, captureThumbnail());
     }
 
+    // A dead origin surfaces as a media error on the element. Retry the same
+    // video under the other origin, carrying the playhead across so the operator
+    // keeps their place; once only, or a fallback that is also down would loop.
+    function handleError() {
+      if (triedFallback.current || !fallbackSrc || fallbackSrc === v!.src) return;
+      triedFallback.current = true;
+      resumeAt.current = v!.currentTime || startTimeRef.current || 0;
+      setActiveSrc(fallbackSrc);
+      onFallbackRef.current?.(fallbackSrc);
+    }
+
     v.addEventListener("play", startTracking);
     v.addEventListener("pause", handlePause);
     v.addEventListener("seeked", handleSeeked);
+    v.addEventListener("error", handleError);
     v.addEventListener("timeupdate", handleTimeUpdate);
     // React can re-run this effect while the video is already playing (a source
     // swap, a Fast Refresh); `play` will not fire again, so pick tracking back up.
@@ -159,10 +205,11 @@ export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoVi
       v.removeEventListener("play", startTracking);
       v.removeEventListener("pause", handlePause);
       v.removeEventListener("seeked", handleSeeked);
+      v.removeEventListener("error", handleError);
       v.removeEventListener("timeupdate", handleTimeUpdate);
       stopTracking();
     };
-  }, [src]);
+  }, [activeSrc, fallbackSrc]);
 
   return (
     // Deliberately NOT autoplaying. The video is opened to look at one frame —
@@ -173,7 +220,7 @@ export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoVi
     <video
       ref={videoRef}
       className="inline-video"
-      src={src}
+      src={activeSrc}
       controls
       preload="auto"
       crossOrigin="anonymous"

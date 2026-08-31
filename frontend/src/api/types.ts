@@ -575,6 +575,10 @@ export interface HealthResponse {
   mode: "mock" | "live";
   services: Record<string, { ok: boolean; error?: string }>;
   capabilities: Record<string, boolean>;
+  /** Video origins for this profile. `video_fallback_base_url` is empty when no
+   *  second origin is configured; when it is set, a video that fails to load
+   *  from the primary is retried under it. */
+  media?: { video_base_url: string; video_fallback_base_url: string };
   warnings: string[];
 }
 

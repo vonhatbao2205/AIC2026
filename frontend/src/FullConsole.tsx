@@ -51,7 +51,7 @@ import { TrakePanel, type TrakeSlot } from "./components/TrakePanel";
 import type { TrakePeakDrag } from "./lib/trakeDrag";
 import { VideoViewer, type VideoViewerHandle } from "./components/VideoViewer";
 import { autoEvaluationId } from "./lib/dres";
-import { sortFramesByTime } from "./lib/media";
+import { sortFramesByTime, swapVideoOrigin } from "./lib/media";
 import { findQaFrame, selectQaCandidateFrames } from "./lib/qa";
 import { kindForQueryType, type ImportedQuestion } from "./lib/questions";
 import { DEFAULT_IMAGE_MODELS, imageModelsForSearch } from "./lib/imageModels";
@@ -274,6 +274,10 @@ export default function FullConsole({
   const queryTouched = useRef(false);
   const viewerRef = useRef<VideoViewerHandle>(null);
   const videoPanelRef = useRef<HTMLDivElement>(null);
+  // Set once a video has actually failed on the primary origin. After that every
+  // new video starts on the fallback instead of spending a failed request per
+  // clip rediscovering that the origin is still down.
+  const [videoOriginDown, setVideoOriginDown] = useState(false);
   const timelineCache = useRef<Map<string, TimelineData>>(new Map());
 
   // What the results column actually shows. Everything that resolves the
@@ -443,6 +447,7 @@ export default function FullConsole({
     setTrakePeak(null);
     setChainOverrides({});
     setParsed(null);
+    setVideoOriginDown(false);
     setTimeline(null);
     setActiveVideoId(null);
     setVideoVisible(false);
@@ -1735,6 +1740,17 @@ export default function FullConsole({
   // The inline player + timeline + neighbour strip, rendered under whichever
   // result card owns the active video. Both result views mount the same node,
   // so switching between them never reloads the video.
+  // Which URL the player starts on, and which one it retries. They swap once the
+  // primary has failed, so the retry always points at the origin NOT in use.
+  const primaryVideoUrl = selectedGroup?.video_url ?? "";
+  const otherOriginUrl = swapVideoOrigin(
+    primaryVideoUrl,
+    health?.media?.video_base_url,
+    health?.media?.video_fallback_base_url,
+  );
+  const playerSrc = (videoOriginDown && otherOriginUrl) || primaryVideoUrl;
+  const playerFallbackSrc = playerSrc === primaryVideoUrl ? otherOriginUrl : primaryVideoUrl;
+
   const videoSlot =
     (videoVisible || neighborsVisible) && activeVideoId && selectedGroup
     && selectedGroup.video_id === activeVideoId ? (
@@ -1743,7 +1759,13 @@ export default function FullConsole({
           <>
             <VideoViewer
               ref={viewerRef}
-              src={selectedGroup.video_url}
+              src={playerSrc}
+              fallbackSrc={playerFallbackSrc}
+              onFallback={() => {
+                if (videoOriginDown) return;
+                setVideoOriginDown(true);
+                setToast({ msg: "Video origin chính không phản hồi — đã chuyển sang nguồn dự phòng.", kind: "bad" });
+              }}
               startTime={selectedFrameObj?.pts_time ?? 0}
               onPaused={onVideoPaused}
               onTime={setPlayhead}

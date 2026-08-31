@@ -11,7 +11,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
-import { frameTimeKey, sortFramesByTime, topRelevanceRanks } from "../lib/media";
+import { frameTimeKey, sortFramesByTime, swapVideoOrigin, topRelevanceRanks } from "../lib/media";
 
 /** One frame of L21_V024, mirroring the console's shape. */
 function frame(keyframeN: number, ptsTime: number | null, score: number) {
@@ -288,5 +288,42 @@ describe("sortFramesByTime", () => {
     const b = frame(2, 10, 0.5);
     expect(sortFramesByTime([a, b]).map((f) => f.keyframe_n)).toEqual([1, 2]);
     expect(sortFramesByTime([b, a]).map((f) => f.keyframe_n)).toEqual([2, 1]);
+  });
+});
+
+describe("video origin fallback", () => {
+  const CF = "https://video.baoencoder.site";
+  const HF = "https://huggingface.co/buckets/Baonenha1/aic26-media/resolve";
+  const clip = `${CF}/Videos/Videos_L26/L26_V001.mp4`;
+
+  it("rewrites only the origin, keeping the whole path", () => {
+    expect(swapVideoOrigin(clip, CF, HF)).toBe(
+      `${HF}/Videos/Videos_L26/L26_V001.mp4`,
+    );
+  });
+
+  it("tolerates a trailing slash on either origin", () => {
+    expect(swapVideoOrigin(clip, `${CF}/`, `${HF}/`)).toBe(
+      `${HF}/Videos/Videos_L26/L26_V001.mp4`,
+    );
+  });
+
+  it("refuses to retry against the host that just failed", () => {
+    // Two identical origins is a single point of failure wearing a fallback's
+    // clothes: the retry would go straight back to the one that is down.
+    expect(swapVideoOrigin(clip, CF, CF)).toBeNull();
+  });
+
+  it("does nothing without a configured fallback", () => {
+    expect(swapVideoOrigin(clip, CF, "")).toBeNull();
+    expect(swapVideoOrigin(clip, CF, undefined)).toBeNull();
+    expect(swapVideoOrigin("", CF, HF)).toBeNull();
+  });
+
+  it("leaves a URL that never came from the primary alone", () => {
+    // A K01-K20 clip served from R2 has nothing to swap; rewriting by string
+    // length would have produced a URL pointing at neither origin.
+    expect(swapVideoOrigin("https://r2.example/Videos/Videos_K01/K01_V001.mp4", CF, HF))
+      .toBeNull();
   });
 });

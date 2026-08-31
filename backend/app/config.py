@@ -115,6 +115,20 @@ class Settings:
     video_media_base_url: str = ""
     video_media_base_url_1: str = ""
     video_media_base_url_2: str = HF_MEDIA_BASE_URL
+    # Where the console retries a video the primary origin failed to serve.
+    #
+    # The fast path for L21-L30 is a named Cloudflare tunnel — measured at ~63 ms
+    # to first byte against ~834 ms for the Hugging Face bucket, which answers
+    # every range request with a 302 to its CDN and pays that round trip again on
+    # every seek. But a tunnel terminates on a machine that can be switched off,
+    # while the bucket is always-on hosting: speed and availability are not the
+    # same property, so the bucket stays configured as the fallback rather than
+    # being replaced.
+    # Active alias for the profile handling this request, filled by
+    # `for_retrieval_database` exactly like `video_media_base_url` above.
+    video_media_fallback_base_url: str = ""
+    video_media_fallback_base_url_1: str = ""
+    video_media_fallback_base_url_2: str = ""
     nvidia_api_key: str | None = None
     nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
     # Routing parser model. qwen3-next (3B-active MoE) is the fastest model that
@@ -298,6 +312,7 @@ class Settings:
                 milvus_image_collection=self.milvus_image_collection_1,
                 keyframe_media_base_url=self.media_base_url,
                 video_media_base_url=(self.video_media_base_url_1 or self.media_base_url).rstrip("/"),
+                video_media_fallback_base_url=self.video_media_fallback_base_url_1.rstrip("/"),
             )
         return replace(
             self,
@@ -313,6 +328,7 @@ class Settings:
             milvus_qwen3_vl_image_collection=self.milvus_qwen3_vl_image_collection_2,
             keyframe_media_base_url=self.keyframe_media_base_url_2,
             video_media_base_url=(self.video_media_base_url_2 or self.media_base_url).rstrip("/"),
+            video_media_fallback_base_url=self.video_media_fallback_base_url_2.rstrip("/"),
         )
 
     @property
@@ -478,6 +494,11 @@ def get_settings() -> Settings:
         # been migrated there; until then profile 1 must keep its R2 origin.
         video_media_base_url_1=(_env("VIDEO_MEDIA_BASE_URL_1") or media_base_url).rstrip("/"),
         video_media_base_url_2=(_env("VIDEO_MEDIA_BASE_URL_2") or HF_MEDIA_BASE_URL).rstrip("/"),
+        # Unset by default: a fallback is only meaningful once the primary is
+        # something other than the bucket, and pointing both at one origin would
+        # dress a single point of failure up as redundancy.
+        video_media_fallback_base_url_1=(_env("VIDEO_MEDIA_FALLBACK_BASE_URL_1") or "").rstrip("/"),
+        video_media_fallback_base_url_2=(_env("VIDEO_MEDIA_FALLBACK_BASE_URL_2") or "").rstrip("/"),
         nvidia_api_key=_env("NVIDIA_API_KEY") or file_default("nvidia_api_key.txt"),
         nvidia_base_url=_env("NVIDIA_BASE_URL") or "https://integrate.api.nvidia.com/v1",
         nvidia_model=_env("NVIDIA_MODEL") or "qwen/qwen3-next-80b-a3b-instruct",

@@ -55,6 +55,8 @@ files already in the repo root). See `backend/.env.example`.
 | `DRES_USERNAME`, `DRES_PASSWORD` | yes for submit | participant account; backend logs in and keeps the `sessionId` |
 | `DRES_SESSION`, `DRES_EVALUATION_ID` | optional | reuse an issued session / pin one run (else auto-routed by query type) |
 | `DRES_SEGMENT_PAD_MS` | optional | ± ms around the picked instant for KIS/TRAKE temporal answers (default 500) |
+| `VIDEO_MEDIA_BASE_URL_2` | optional | video origin for L21–L30 (default: the HF bucket) |
+| `VIDEO_MEDIA_FALLBACK_BASE_URL_{1,2}` | optional | origin the console retries a failed video under; empty disables the retry |
 | `IDX_*`, `MILVUS_IMAGE_COLLECTION` | optional | override index/collection names |
 | `MILVUS_QWEN3_VL_IMAGE_COLLECTION_2` | optional | native 4096-d Qwen image collection (default `aic26_image_qwen3vl8b_infoshotpp_v3`); never point it at a PE collection |
 | `AIC26_MOCK_MODE` | optional | `true` ⇒ deterministic fixtures (no live services) |
@@ -372,6 +374,25 @@ when the event fires.
 TRAKE shows no prioritise/deprioritise controls and no feedback bar:
 `/api/search/trake` takes no feedback, so those buttons re-ran the search and
 changed nothing while telling the operator they had.
+
+**Video origins.** Keyframes and videos are served from separate hosts because a
+thumbnail grid and a video stream do not want the same thing. For L21–L30 the
+video origin is a named Cloudflare tunnel: measured against the HF bucket over 10
+videos, median time-to-first-byte was **63 ms vs 834 ms** on the opening range and
+**59 ms vs 831 ms** on a mid-file seek, with 13.1 MB/s vs 1.2 MB/s throughput. The
+bucket answers every range request with a 302 to its CDN and pays that round trip
+again on each seek, which a scrubbing player does constantly.
+
+Speed and availability are not the same property, though: a tunnel terminates on
+a machine that can be switched off, while the bucket is always-on hosting. So the
+bucket stays configured as `VIDEO_MEDIA_FALLBACK_BASE_URL_2` rather than being
+replaced. `/api/health` returns both origins for the active profile; when a video
+fails to load, `VideoViewer` retries the same path under the other origin, once,
+carrying the playhead across — and the console then starts subsequent videos on
+the fallback instead of spending a failed request per clip rediscovering that the
+primary is still down. Configuring both to the same origin is refused
+(`swapVideoOrigin`): that is a single point of failure wearing a fallback's
+clothes.
 
 Opening the player (`v`, or the neighbour strip with `k`) scrolls it into view:
 it is rendered inside the result card it belongs to, so a group holding hundreds
