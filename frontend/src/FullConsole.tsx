@@ -200,12 +200,13 @@ export default function FullConsole({
   // The video-centric TRAKE result: every event's candidates per video, not just
   // the one chain per video the generic group shape can carry.
   const [trakeVideos, setTrakeVideos] = useState<TrakeVideoResult[]>([]);
-  // Where a clicked TRAKE moment wants the player. It overrides the selected
-  // keyframe's time because a heat peak is usually an ALTERNATIVE moment — one
-  // the chain did not take, so no result frame points at it. The video id travels
-  // with it: a pin left over from another video would seek the newly opened one
-  // to a timestamp that means nothing there.
-  const [trakeSeek, setTrakeSeek] = useState<{ videoId: string; pts: number } | null>(null);
+  // The TRAKE moment the operator is verifying. A heat peak is usually an
+  // ALTERNATIVE the chain did not take, so no result frame points at it: without
+  // this the player went to the peak while the detail panel, the timeline marker
+  // and the neighbour anchor still described the chain's frame. The video id
+  // travels with it — a pin left over from another video would seek the newly
+  // opened one to a timestamp that means nothing there.
+  const [trakePeak, setTrakePeak] = useState<{ videoId: string; peak: TrakeHeatPeak } | null>(null);
   const [pausedFrame, setPausedFrame] = useState<PausedFrame | null>(null);
   // Which frame the OPEN guard is about to submit. Capturing a paused frame no
   // longer re-points the detail panel: the two submit paths stay independent and
@@ -275,7 +276,29 @@ export default function FullConsole({
   );
 
   const selectedGroup = displayGroups[selectedVideo] ?? null;
-  const selectedFrameObj: FrameResult | null = selectedGroup?.frames[selectedFrame] ?? null;
+  // A verified TRAKE peak IS the current frame while it is pinned, so everything
+  // that reads the selection — player start time, timeline marker, detail panel,
+  // neighbour anchor — describes the same moment instead of disagreeing.
+  const trakePeakFrame: FrameResult | null =
+    trakePeak && selectedGroup && trakePeak.videoId === selectedGroup.video_id
+      ? {
+          image_id: trakePeak.peak.submit_keyframe_id,
+          submit_keyframe_id: trakePeak.peak.submit_keyframe_id,
+          video_id: trakePeak.videoId,
+          keyframe_n: trakePeak.peak.keyframe_n,
+          frame_idx: trakePeak.peak.frame_idx,
+          fps: null,
+          pts_time: trakePeak.peak.pts_time,
+          score: trakePeak.peak.score,
+          channels: [],
+          per_channel_score: {},
+          keyframe_url: trakePeak.peak.keyframe_url,
+          video_url: selectedGroup.video_url,
+          evidence: [],
+        }
+      : null;
+  const selectedFrameObj: FrameResult | null =
+    trakePeakFrame ?? selectedGroup?.frames[selectedFrame] ?? null;
   // How many events the statement asked for; the slots are the fallback when the
   // parser returned none, because a row of the wrong width is a rejected row.
   const trakeEventCount = parsed?.trake?.events?.length ?? 0;
@@ -380,6 +403,8 @@ export default function FullConsole({
   useEffect(() => {
     timelineCache.current.clear();
     setGroups([]);
+    setTrakeVideos([]);
+    setTrakePeak(null);
     setParsed(null);
     setTimeline(null);
     setActiveVideoId(null);
@@ -547,6 +572,8 @@ export default function FullConsole({
     setQuery(question.text);
     setHints([]);
     setGroups([]);
+    setTrakeVideos([]);
+    setTrakePeak(null);
     setParsed(null);
   }, [question]);
 
@@ -647,7 +674,7 @@ export default function FullConsole({
     setDuplicateId(null);
     setPausedFrame(null);
     setTrakeVideos([]);
-    setTrakeSeek(null);
+    setTrakePeak(null);
     setQaAnalysis(null);
     setQaAnalysisError(null);
     setAnswer("");
@@ -789,6 +816,8 @@ export default function FullConsole({
       });
       setParsed(null);
       setGroups(res.groups);
+      setTrakeVideos([]);
+      setTrakePeak(null);
       setLatency(res.latency_ms);
       setAppliedScope(res.scope ?? null);
       setCanvasQueries(res.canvas.queries_en ?? []);
@@ -1078,10 +1107,13 @@ export default function FullConsole({
       const videoIndex = displayGroups.findIndex((group) => group.video_id === videoId);
       if (videoIndex >= 0) {
         setSelectedVideo(videoIndex);
+        // Only when the peak IS a chain frame. An alternative moment is not in
+        // the strip at all, and snapping the selection to frame 0 would send the
+        // operator back to E1 the moment the pin is dropped.
         const frameIndex = displayGroups[videoIndex].frames.findIndex(
           (frame) => frame.submit_keyframe_id === peak.submit_keyframe_id,
         );
-        setSelectedFrame(frameIndex >= 0 ? frameIndex : 0);
+        if (frameIndex >= 0) setSelectedFrame(frameIndex);
       }
       setExpanded((current) => new Set(current).add(videoId));
       setActiveVideoId(videoId);
@@ -1090,7 +1122,7 @@ export default function FullConsole({
       // Both paths are needed: the state drives the seek when the player is
       // being mounted for this video, the imperative call when it is already up
       // (`startTime` would not have changed).
-      setTrakeSeek({ videoId, pts: peak.pts_time });
+      setTrakePeak({ videoId, peak });
       seekVideo(peak.pts_time);
       setActiveSlot(
         Math.min(Math.max(peak.event_index - 1, 0), Math.max(0, trakeSlots.length - 1)),
@@ -1108,7 +1140,7 @@ export default function FullConsole({
       if (videoIndex < 0) return;
       setSelectedVideo(videoIndex);
       setSelectedFrame(0);
-      setTrakeSeek(null);
+      setTrakePeak(null);
     },
     [displayGroups],
   );
@@ -1460,13 +1492,13 @@ export default function FullConsole({
           e.preventDefault();
           setSelectedVideo((v) => Math.min(v + 1, groups.length - 1));
           setSelectedFrame(0);
-          setTrakeSeek(null);
+          setTrakePeak(null);
           break;
         case "ArrowUp":
           e.preventDefault();
           setSelectedVideo((v) => Math.max(v - 1, 0));
           setSelectedFrame(0);
-          setTrakeSeek(null);
+          setTrakePeak(null);
           break;
         // Three claimants on the horizontal arrows, in priority order:
         //   1. the neighbour strip, whose whole purpose is paging keyframes
@@ -1481,7 +1513,7 @@ export default function FullConsole({
           else if (videoScrubbable) nudgeVideo(VIDEO_COARSE_STEP_S);
           else {
             setSelectedFrame((f) => Math.min(f + 1, (selectedGroup?.frames.length ?? 1) - 1));
-            setTrakeSeek(null);
+            setTrakePeak(null);
           }
           break;
         case "ArrowLeft":
@@ -1490,7 +1522,7 @@ export default function FullConsole({
           else if (videoScrubbable) nudgeVideo(-VIDEO_COARSE_STEP_S);
           else {
             setSelectedFrame((f) => Math.max(f - 1, 0));
-            setTrakeSeek(null);
+            setTrakePeak(null);
           }
           break;
         case "d":
@@ -1564,12 +1596,7 @@ export default function FullConsole({
             <VideoViewer
               ref={viewerRef}
               src={selectedGroup.video_url}
-              fps={timeline?.fps ?? 25}
-              startTime={
-                trakeSeek && trakeSeek.videoId === activeVideoId
-                  ? trakeSeek.pts
-                  : selectedFrameObj?.pts_time ?? 0
-              }
+              startTime={selectedFrameObj?.pts_time ?? 0}
               onPaused={onVideoPaused}
               onTime={setPlayhead}
             />
@@ -1619,6 +1646,8 @@ export default function FullConsole({
         onQueryType={(t) => {
           onQueryType(t);
           setParsed(null);
+          setTrakeVideos([]);
+          setTrakePeak(null);
           setPausedFrame(null);
           setQaAnalysis(null);
           setQaAnalysisError(null);
@@ -1780,7 +1809,11 @@ export default function FullConsole({
               </div>
             )}
           </div>
-          <FeedbackBar feedback={feedback} onRemove={removeFeedback} onClear={clearFeedback} />
+          {/* Feedback is a `/api/search` concept; the TRAKE endpoint takes none,
+              so showing the bar there would promise a re-ranking that cannot happen. */}
+          {!trakeVideoView && (
+            <FeedbackBar feedback={feedback} onRemove={removeFeedback} onClear={clearFeedback} />
+          )}
           {trakeVideoView ? (
           <TrakeVideoResults
             videos={trakeVideos}
@@ -1794,7 +1827,6 @@ export default function FullConsole({
               const group = displayGroups.find((g) => g.video_id === videoId);
               if (group) trakeQuickSubmit(group);
             }}
-            onVideoFeedback={onVideoFeedback}
             videoSlotVideoId={videoVisible || neighborsVisible ? activeVideoId : null}
             videoSlot={videoSlot}
           />
@@ -1809,8 +1841,8 @@ export default function FullConsole({
             selectedFrame={selectedFrame}
             expanded={expanded}
             loading={loading}
-            onSelectVideo={(i) => { setSelectedVideo(i); setSelectedFrame(0); setTrakeSeek(null); }}
-            onSelectFrame={(vi, fi) => { setSelectedVideo(vi); setSelectedFrame(fi); setTrakeSeek(null); }}
+            onSelectVideo={(i) => { setSelectedVideo(i); setSelectedFrame(0); setTrakePeak(null); }}
+            onSelectFrame={(vi, fi) => { setSelectedVideo(vi); setSelectedFrame(fi); setTrakePeak(null); }}
             onToggleExpand={(vid) =>
               setExpanded((prev) => {
                 const n = new Set(prev);

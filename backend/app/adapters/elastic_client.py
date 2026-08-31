@@ -599,6 +599,44 @@ class ElasticClient:
                 out2[doc["_id"]] = doc.get("_source", {})
         return out2
 
+    async def video_durations(self, video_ids: list[str]) -> dict[str, float]:
+        """Approximate length of each video, as the last keyframe's `pts_time`.
+
+        One terms aggregation for the whole result page rather than one timeline
+        fetch per video: the TRAKE heat rows need a time axis for every card on
+        screen, not only the one the operator has opened."""
+        if not video_ids:
+            return {}
+        if self.mock:
+            return {
+                vid: max((float(k["pts_time"]) for k in mock_data.MOCK_KEYFRAMES.get(vid, [])), default=0.0)
+                for vid in video_ids
+                if mock_data.MOCK_KEYFRAMES.get(vid)
+            }
+        body = {
+            "size": 0,
+            "query": {"terms": {"video_id": video_ids}},
+            "aggs": {
+                "by_video": {
+                    "terms": {"field": "video_id", "size": len(video_ids)},
+                    "aggs": {"last_pts": {"max": {"field": "pts_time"}}},
+                }
+            },
+        }
+        try:
+            data = await self._search(self.s.idx_keyframe_map, body)
+        except Exception:  # noqa: BLE001
+            # A missing time axis costs the heat rows their absolute scale; it
+            # must never cost the operator the search result.
+            return {}
+        buckets = data.get("aggregations", {}).get("by_video", {}).get("buckets", [])
+        out: dict[str, float] = {}
+        for bucket in buckets:
+            value = (bucket.get("last_pts") or {}).get("value")
+            if value is not None:
+                out[str(bucket["key"])] = float(value)
+        return out
+
     async def get_video_keyframes(self, video_id: str, *, size: int = 5000) -> list[dict[str, Any]]:
         if self.mock:
             return list(mock_data.MOCK_KEYFRAMES.get(video_id, []))

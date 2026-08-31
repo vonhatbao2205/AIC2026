@@ -151,18 +151,19 @@ const TRAKE_RESPONSE = {
       complete: true,
       warning: null,
       min_event_gap: 312,
+      duration_s: 900,
       preliminary_rank: 1,
       events: [
         {
           event_index: 1,
-          covered: true,
+          has_candidate: true,
           in_chain: true,
           representative: peak(1, 203, 530, 15926, 0.95, true),
           peaks: [peak(1, 12, 120, 3600, 0.42), peak(1, 203, 530, 15926, 0.95, true)],
         },
         {
           event_index: 2,
-          covered: true,
+          has_candidate: true,
           in_chain: true,
           representative: peak(2, 301, 842, 21030, 0.83, true),
           peaks: [peak(2, 301, 842, 21030, 0.83, true)],
@@ -187,18 +188,19 @@ const TRAKE_RESPONSE = {
       complete: false,
       warning: "Partial sequence: events 2 have no orderable candidate.",
       min_event_gap: null,
+      duration_s: 600,
       preliminary_rank: 2,
       events: [
         {
           event_index: 1,
-          covered: true,
+          has_candidate: true,
           in_chain: true,
           representative: peak(1, 400, 300, 9000, 0.6, true),
           peaks: [peak(1, 400, 300, 9000, 0.6, true)],
         },
         {
           event_index: 2,
-          covered: true,
+          has_candidate: true,
           in_chain: false,
           representative: peak(2, 20, 100, 3000, 0.5),
           peaks: [peak(2, 20, 100, 3000, 0.5)],
@@ -1257,6 +1259,55 @@ describe("AIC26 retrieval console (full)", () => {
     expect(
       vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("/api/search/trake")).length,
     ).toBe(searchesBefore);
+  });
+
+  it("TRAKE: verifying a heat peak points the detail panel at that peak, not the chain frame", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("tab", { name: "TRAKE" }));
+    await user.type(screen.getByTestId("query-input"), "a then b");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => expect(screen.getByTestId("trake-videos")).toBeInTheDocument());
+
+    const card = screen.getAllByTestId("trake-video-card")[0];
+    const e1Row = within(card).getByTestId("trake-heat-row-1");
+    // E1's alternative moment at 120s — a candidate the chain did NOT take, so
+    // it exists nowhere in the result frame strip.
+    const alternative = within(e1Row).getAllByTestId("trake-heat-peak")[0];
+    await user.click(alternative);
+
+    // Everything reading the selection has to describe the SAME moment, or the
+    // operator verifies one frame while the panel documents another.
+    const detail = screen.getByTestId("detail-panel");
+    expect(detail).toHaveTextContent("K19/K19_V028/012");
+    const video = (await screen.findByTestId("video-viewer")) as HTMLVideoElement;
+    expect(video.src).toContain("K19_V028.mp4");
+  });
+
+  it("TRAKE: no prioritize/deprioritize controls — the endpoint takes no feedback", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("tab", { name: "TRAKE" }));
+    await user.type(screen.getByTestId("query-input"), "a then b");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => expect(screen.getByTestId("trake-videos")).toBeInTheDocument());
+
+    // A control that re-runs the search and changes nothing is worse than none.
+    expect(screen.queryByTestId("prioritize-video")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("deprioritize-video")).not.toBeInTheDocument();
+  });
+
+  it("TRAKE: switching the retrieval database drops the previous result", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("tab", { name: "TRAKE" }));
+    await user.type(screen.getByTestId("query-input"), "a then b");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => expect(screen.getByTestId("trake-videos")).toBeInTheDocument());
+
+    await user.selectOptions(screen.getByTestId("retrieval-database"), "infoshotpp");
+    // Those cards describe videos from a corpus that is no longer being searched.
+    await waitFor(() => expect(screen.queryByTestId("trake-videos")).not.toBeInTheDocument());
   });
 
   it("TRAKE: a full-coverage video can be submitted directly from the result list", async () => {

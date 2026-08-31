@@ -151,7 +151,6 @@ export function SubmissionFrameEditor(props: Props) {
             <VideoViewer
               ref={viewerRef}
               src={source.url}
-              fps={fps}
               startTime={originalTime}
               onPaused={onPaused}
             />

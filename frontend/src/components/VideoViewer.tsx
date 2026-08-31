@@ -11,7 +11,6 @@ export interface VideoViewerHandle {
 
 interface Props {
   src: string;
-  fps: number;
   // Seek target (keyframe pts). Applied on load and whenever it changes, so the
   // video jumps to the selected keyframe instead of replaying from the start.
   startTime?: number | null;
@@ -25,13 +24,25 @@ interface Props {
 // Uses requestVideoFrameCallback (when available) to track the latest presented
 // mediaTime, so the paused frame is computed from the actual displayed frame.
 export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoViewer(
-  { src, fps, startTime, onPaused, onTime },
+  { src, startTime, onPaused, onTime },
   ref,
 ) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const latestMediaTime = useRef(0);
   const hasPresentedFrame = useRef(false);
   const rvfcId = useRef<number | null>(null);
+  // The listeners below are attached ONCE per source and read the callbacks
+  // through these refs. Depending on the callbacks directly meant that any
+  // parent state they close over — the timeline finishing its fetch was enough —
+  // tore the listeners down mid-playback. The teardown cancelled the
+  // requestVideoFrameCallback loop, nothing restarted it (that only happens on a
+  // `play` event, and the video was already playing), and `latestMediaTime`
+  // froze. Pausing then reported the instant tracking died instead of the
+  // instant on screen: seek to E3, pause, and the captured frame was E1's.
+  const onPausedRef = useRef(onPaused);
+  const onTimeRef = useRef(onTime);
+  onPausedRef.current = onPaused;
+  onTimeRef.current = onTime;
 
   useImperativeHandle(ref, () => ({
     toggle: () => {
@@ -76,13 +87,15 @@ export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoVi
     const step = (_now: number, metadata: { mediaTime: number }) => {
       latestMediaTime.current = metadata.mediaTime;
       hasPresentedFrame.current = true;
-      onTime?.(metadata.mediaTime);
+      onTimeRef.current?.(metadata.mediaTime);
       rvfcId.current = vAny.requestVideoFrameCallback!(step);
     };
 
     function startTracking() {
       hasPresentedFrame.current = false;
-      if (supportsRVFC) rvfcId.current = vAny.requestVideoFrameCallback!(step);
+      if (supportsRVFC && rvfcId.current == null) {
+        rvfcId.current = vAny.requestVideoFrameCallback!(step);
+      }
     }
     function stopTracking() {
       if (supportsRVFC && rvfcId.current != null) {
@@ -110,23 +123,36 @@ export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoVi
       const rawTime = supportsRVFC && hasPresentedFrame.current
         ? latestMediaTime.current
         : v!.currentTime;
-      onPaused?.(rawTime, captureThumbnail());
+      onPausedRef.current?.(rawTime, captureThumbnail());
       stopTracking();
     }
     function handleTimeUpdate() {
-      if (!supportsRVFC) onTime?.(v!.currentTime);
+      if (!supportsRVFC) onTimeRef.current?.(v!.currentTime);
+    }
+    // A seek invalidates the last presented frame: until a new one arrives,
+    // `currentTime` is the authority on where the video is. Without this, pausing
+    // right after a seek captured the frame the operator had seeked AWAY from.
+    function handleSeeked() {
+      hasPresentedFrame.current = false;
+      latestMediaTime.current = v!.currentTime;
+      onTimeRef.current?.(v!.currentTime);
     }
 
     v.addEventListener("play", startTracking);
     v.addEventListener("pause", handlePause);
+    v.addEventListener("seeked", handleSeeked);
     v.addEventListener("timeupdate", handleTimeUpdate);
+    // React can re-run this effect while the video is already playing (a source
+    // swap, a Fast Refresh); `play` will not fire again, so pick tracking back up.
+    if (!v.paused) startTracking();
     return () => {
       v.removeEventListener("play", startTracking);
       v.removeEventListener("pause", handlePause);
+      v.removeEventListener("seeked", handleSeeked);
       v.removeEventListener("timeupdate", handleTimeUpdate);
       stopTracking();
     };
-  }, [src, fps, onPaused, onTime]);
+  }, [src]);
 
   return (
     <video

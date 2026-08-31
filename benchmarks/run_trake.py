@@ -155,6 +155,9 @@ def main() -> None:
             "gt_evidence_coverage": gt_video.get("evidence_coverage"),
             "gt_min_quality": gt_video.get("min_quality"),
             "pass2_targets": len((d.get("pass2") or {}).get("targets") or []),
+            # Chi phí thật của pass 2 là số truy vấn Milvus có mục tiêu, không
+            # phải số video: một video thiếu 3 event tốn gấp ba một video thiếu 1.
+            "pass2_queries": (d.get("pass2") or {}).get("queries"),
             "n_videos": len(videos),
             "n_sequences": len(seqs),
             "top1_video": top1.get("video_id"),
@@ -246,6 +249,9 @@ def main() -> None:
         "mean_pass2_targets": (
             sum(r.get("pass2_targets") or 0 for r in valid) / len(valid) if valid else 0.0
         ),
+        "mean_pass2_queries": (
+            sum(r.get("pass2_queries") or 0 for r in valid) / len(valid) if valid else 0.0
+        ),
         "per_tolerance_summary": summary,
         "records": records,
         "finals_no_gt": final_records,
@@ -258,7 +264,10 @@ def main() -> None:
     print(f"\n=== TRAKE (n={len(valid)}) ===")
     print("video rank (sau pass 2):", out["video_rank_hits"])
     print("video rank (sơ bộ):     ", out["preliminary_video_rank_hits"])
-    print(f"pass-2 video/truy vấn:   {out['mean_pass2_targets']:.1f}")
+    print(
+        f"pass-2:                  {out['mean_pass2_targets']:.1f} video, "
+        f"{out['mean_pass2_queries']:.1f} truy vấn/query"
+    )
     for tol in TOLERANCES:
         s = summary[str(tol)]
         print(

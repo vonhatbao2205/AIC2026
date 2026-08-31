@@ -597,23 +597,33 @@ button { font-family: inherit; }
 .trake-event-warn { display: block; margin-top: 2px; font-size: 9px; color: var(--warn); }
 .trake-event-empty { display: block; padding: 22px 0; text-align: center; font-size: 10px; color: var(--fg-faint); }
 
-/* Heat rows: where each event fires along the video. Read the DIAGONAL. */
-.trake-heatmap { padding: 2px 14px 10px; }
-.trake-heat-row { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
-.trake-heat-row.active .trake-heat-track { background: color-mix(in srgb, var(--accent) 10%, var(--bg-3)); }
-.trake-heat-label { width: 20px; font-family: var(--mono); font-size: 9.5px; font-weight: 700; }
-.trake-heat-track { position: relative; flex: 1; height: 16px; border-radius: 4px; background: var(--bg-3); }
-.trake-heat-peak {
-  position: absolute; bottom: 0; width: 4px; padding: 0; border: 0; border-radius: 2px;
-  cursor: pointer; transform: translateX(-2px);
+/* Heat rows: where each event fires along the video. Read the DIAGONAL.
+   Sized as a control, not a chart: these are the operator's click targets for
+   seeking to an alternative moment, and on a 13" laptop a 4px bar under a
+   competition clock is not something a hand can hit. */
+.trake-heatmap { padding: 4px 14px 12px; }
+.trake-heat-row { display: flex; align-items: center; gap: 9px; margin-bottom: 5px; }
+.trake-heat-row.active .trake-heat-track { background: color-mix(in srgb, var(--accent) 12%, var(--bg-3)); }
+.trake-heat-label { width: 24px; font-family: var(--mono); font-size: 11px; font-weight: 700; }
+.trake-heat-track {
+  position: relative; flex: 1; height: 30px; border-radius: 5px; background: var(--bg-3);
 }
-.trake-heat-peak:hover { width: 6px; transform: translateX(-3px); outline: 1px solid var(--fg); }
-.trake-heat-peak.picked { box-shadow: 0 0 0 1.5px var(--fg); z-index: 2; }
-.trake-heat-peak.fill { border: 1px dashed var(--warn); }
-.trake-heat-empty { position: absolute; left: 6px; top: 2px; font-size: 9px; color: var(--fg-faint); }
+.trake-heat-peak {
+  position: absolute; bottom: 0; width: 9px; padding: 0; border: 0; border-radius: 3px;
+  cursor: pointer; transform: translateX(-4.5px); transition: width .1s, transform .1s;
+}
+/* The hit area is bigger than the mark and does NOT scale with strength, so a
+   faint peak is exactly as easy to click as a strong one. */
+.trake-heat-peak::after { content: ""; position: absolute; inset: -10px -6px; }
+.trake-heat-peak:hover, .trake-heat-peak:focus-visible {
+  width: 14px; transform: translateX(-7px); outline: 2px solid var(--fg); outline-offset: 1px;
+}
+.trake-heat-peak.picked { box-shadow: 0 0 0 2px var(--fg); z-index: 2; }
+.trake-heat-peak.fill { border: 1.5px dashed var(--warn); }
+.trake-heat-empty { position: absolute; left: 8px; top: 8px; font-size: 10px; color: var(--fg-faint); }
 .trake-heat-axis {
-  display: flex; justify-content: space-between; padding-left: 27px;
-  font-family: var(--mono); font-size: 8.5px; color: var(--fg-faint);
+  display: flex; justify-content: space-between; padding-left: 33px; margin-top: 2px;
+  font-family: var(--mono); font-size: 9.5px; color: var(--fg-faint);
 }
 
 /* ---- TRAKE ---- */

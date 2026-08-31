@@ -438,7 +438,9 @@ export interface TrakeHeatPeak {
  *  operator can judge the video instead of only seeing a gap. */
 export interface TrakeEventEvidence {
   event_index: number;
-  covered: boolean;
+  /** This video has something to show for the event — NOT that the chain covers
+   *  it. Only `in_chain` means that. */
+  has_candidate: boolean;
   in_chain: boolean;
   representative: TrakeHeatPeak | null;
   peaks: TrakeHeatPeak[];
@@ -462,6 +464,9 @@ export interface TrakeVideoResult {
   warning: string | null;
   /** Smallest gap between two chain frames; a warning sign, never a ranking term. */
   min_event_gap: number | null;
+  /** Video length in seconds when the keyframe map could resolve it — the time
+   *  axis the heat rows are drawn against. */
+  duration_s: number | null;
   /** Where the video stood before the pass-2 fill ran. */
   preliminary_rank: number | null;
   events: TrakeEventEvidence[];

@@ -149,13 +149,15 @@ class TrakeEventEvidence:
     in_chain: bool = False
 
     @property
-    def covered(self) -> bool:
+    def has_candidate(self) -> bool:
+        """This video has SOMETHING to show for the event — which is not the same
+        as the chain covering it. Only `in_chain` means that."""
         return self.representative is not None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "event_index": self.event_index,
-            "covered": self.covered,
+            "has_candidate": self.has_candidate,
             "in_chain": self.in_chain,
             "representative": self.representative.to_dict() if self.representative else None,
             "peaks": [p.to_dict() for p in self.peaks],
@@ -186,6 +188,22 @@ class TrakeVideoResult:
     # fraction of a second is usually one moment matched n times, not n events —
     # a diagnostic for the operator, deliberately NOT part of the ranking.
     min_event_gap: float | None = None
+    # Length of the video in seconds, when known. The heat rows are drawn against
+    # it; without it they would be drawn against the last peak, which silently
+    # rescales "all four events happen in the first third" into "they span the
+    # whole video".
+    duration_s: float | None = None
+
+    @property
+    def unplaced_events(self) -> list[int]:
+        """0-based indices of the events the chain could NOT place.
+
+        This — not "the event has no candidate" — is what pass 2 has to go after.
+        An event whose only candidates sit before the previous event is just as
+        absent from the answer as one with no candidate at all, and it is the
+        commoner failure: retrieval found the right action in the wrong part of
+        the video."""
+        return [e.event_index - 1 for e in self.events if not e.in_chain]
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -201,6 +219,7 @@ class TrakeVideoResult:
             "complete": self.sequence.complete,
             "warning": self.warning,
             "min_event_gap": None if self.min_event_gap is None else round(self.min_event_gap, 3),
+            "duration_s": None if self.duration_s is None else round(self.duration_s, 3),
             "events": [e.to_dict() for e in self.events],
             "best_chain": self.sequence.to_dict()["frames"],
         }
@@ -447,9 +466,15 @@ def _assemble_one_video(
             )
         )
 
+    # Chain quality covers EVERY link, fills included — unlike the sequence's
+    # mean/min relevance, which is a statement about real evidence only.
+    # `confident_coverage` already dominates the ranking, so excluding fills here
+    # too just threw away the one signal that separates two videos with identical
+    # coverage: a chain closed by a convincing fill is worth more than the same
+    # chain closed by one that barely cleared the acceptance floor.
     strengths = [
         candidate_strength(p, references[p.event_index - 1] if p.event_index - 1 < len(references) else 0.0)
-        for p in quality_src
+        for p in chain
     ]
     mean_quality = sum(strengths) / len(strengths) if strengths else 0.0
     min_quality = min(strengths) if strengths else 0.0
@@ -535,23 +560,32 @@ def build_trake_videos(
     return results if max_results is None else results[:max_results]
 
 
-def select_pass2_videos(
+def select_pass2_gaps(
     videos: list[TrakeVideoResult], n_events: int, *, budget: int = 15
-) -> list[str]:
-    """Which partial videos pass 2 spends its targeted in-video queries on.
+) -> dict[str, list[int]]:
+    """What pass 2 should search for, per video: `video_id -> missing event indices`.
 
-    Ranking them by how many events pass 1 found a candidate for (what the old
-    code did) treats "covers E1,E2,E3 barely" and "covers E1,E2,E3 convincingly"
-    as the same bet. Tier by how many events are still MISSING — one missing
-    event is one query away from a full chain, so it goes first — and inside a
-    tier let the preliminary `trake_video_score` decide. Videos missing many
-    events fall to the end of the list and therefore run only while the budget
-    is not yet spent on better ones."""
-    eligible = [v for v in videos if 1 <= v.evidence_coverage < n_events]
-    eligible.sort(
-        key=lambda v: (n_events - v.evidence_coverage, -v.trake_video_score, v.video_id)
-    )
-    return [v.video_id for v in eligible[:budget]]
+    Two decisions live here, and both used to be made on the wrong quantity.
+
+    WHICH EVENTS. A gap is an event the preliminary DP could not place
+    (`unplaced_events`), not one with no candidate at all. A video whose E1 only
+    fires at 90 s and whose E2 only fires at 10 s has a candidate for every event
+    and still answers nothing — the chain is 1 of 2. That is the commoner failure
+    (retrieval found the right action in the wrong part of the video), and asking
+    "does this event have a candidate?" made pass 2 blind to it: the video looked
+    fully covered, so it was never re-searched.
+
+    WHICH VIDEOS. Tier by how many events the CHAIN is still missing — one short
+    is a single query away from a full chain, so it goes first — and inside a
+    tier let the preliminary `trake_video_score` decide. The old rule ranked on
+    the count of events with a candidate, which treats "covers E1-E3 barely" and
+    "covers E1-E3 convincingly" as the same bet. Videos missing many events fall
+    to the end and therefore run only while the budget is not yet spent.
+
+    Returned in priority order, so a caller that truncates keeps the best."""
+    eligible = [v for v in videos if v.coverage < n_events]
+    eligible.sort(key=lambda v: (n_events - v.coverage, -v.trake_video_score, v.video_id))
+    return {v.video_id: v.unplaced_events for v in eligible[:budget]}
 
 
 def assemble_trake_sequences(

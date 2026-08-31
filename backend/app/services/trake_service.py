@@ -24,7 +24,7 @@ from typing import Any
 
 from ..config import Settings
 from ..media import MediaUrlBuilder
-from ..trake import TrakeVideoResult, build_trake_videos, select_pass2_videos
+from ..trake import TrakeVideoResult, build_trake_videos, select_pass2_gaps
 from ..types import FusedFrame
 from .search_service import SearchService
 
@@ -85,22 +85,27 @@ class TrakeService:
             for idx, ev in enumerate(events)
         ]
 
-        # ---- Preliminary video scoring (drives pass 2) ----
+        # ---- Preliminary assembly (drives pass 2) ----
         # Partial by definition here — pass 2 has not run — so the preliminary
         # pass always allows partial chains regardless of the query's policy.
+        # Its DP is what says which events are still missing FROM THE ANSWER,
+        # which is a different (and larger) set than the events with no candidate.
         preliminary = build_trake_videos(event_frames, fallback_partial=True, max_results=None)
-        targets = select_pass2_videos(preliminary, len(events))
+        gaps = select_pass2_gaps(preliminary, len(events))
 
-        # ---- Pass 2: targeted in-video fill for missing events ----
+        # ---- Pass 2: targeted in-video fill for the events the DP could not place ----
         # No scope needed here: pass 2 searches inside videos pass 1 already
         # returned, which are in scope by construction.
         await self._fill_missing_events(
-            events, event_frames, targets=targets, image_models=image_models
+            events, event_frames, gaps=gaps, image_models=image_models
         )
 
         fallback = (trake_cfg.get("fallback_policy") or "").startswith("allow_partial")
         videos = build_trake_videos(event_frames, fallback_partial=fallback)
         preliminary_rank = {v.video_id: i + 1 for i, v in enumerate(preliminary)}
+        durations = await self.search.elastic.video_durations([v.video_id for v in videos])
+        for video in videos:
+            video.duration_s = durations.get(video.video_id)
 
         return {
             "retrieval_database": self.s.retrieval_database,
@@ -114,7 +119,11 @@ class TrakeService:
             # generator and the benchmarks are written against chains.
             "videos": [self._serialize_video(v, preliminary_rank) for v in videos],
             "sequences": [self._serialize_sequence(v.sequence) for v in videos],
-            "pass2": {"targets": targets, "candidates": len(preliminary)},
+            "pass2": {
+                "targets": list(gaps),
+                "queries": sum(len(missing) for missing in gaps.values()),
+                "candidates": len(preliminary),
+            },
             "mode": "mock" if self.s.mock_mode else "live",
         }
 
@@ -123,45 +132,55 @@ class TrakeService:
         events: list[dict[str, Any]],
         event_frames: list[list[FusedFrame]],
         *,
-        targets: list[str] | None = None,
+        gaps: dict[str, list[int]] | None = None,
         max_promising: int = 15,
         accept_ratio: float = 0.45,
         image_models: tuple[str, ...] = ("pe",),
     ) -> None:
-        """Pass 2: for the videos `targets` names, search that video for its
-        missing events and add the in-video best frame that is BOTH above a
+        """Pass 2: for each `(video, missing event)` in `gaps`, search that video
+        for the event and add the in-video best frame that is BOTH above a
         relative similarity floor AND temporally placeable between the video's
         already-found neighbour frames. An order-infeasible fill would just be
         dropped by the assembly DP (strictly-increasing time), wasting the one
         shot at that gap — so prefer the highest-scoring hit that can actually
         slot in.
 
-        `targets` comes from the preliminary video scoring (`select_pass2_videos`).
-        Without it this falls back to the covered-event count, which is what the
-        direct-service callers and older tests pass."""
+        `gaps` comes from `select_pass2_gaps`, i.e. from the preliminary DP:
+        the events missing from the ANSWER, not merely the events with no
+        candidate. Without it this falls back to the covered-event count, which
+        is what the direct-service callers and older tests pass."""
         n = len(events)
         if n < 2:
             return
 
-        # Per video: covered event positions -> pts of their pass-1 candidates.
+        # Per video: event positions with a pass-1 candidate -> their pts.
         # (pts-less frames are invisible to assembly, so ignore them here too.)
         cover_pts: dict[str, dict[int, list[float]]] = {}
+        seen_ids: dict[tuple[str, int], set[str]] = {}
         for i, frames in enumerate(event_frames):
             for f in frames:
                 if f.pts_time is None:
                     continue
                 cover_pts.setdefault(f.video_id, {}).setdefault(i, []).append(f.pts_time)
-        if targets is None:
-            promising = sorted(
-                (v for v, evs in cover_pts.items() if 1 <= len(evs) < n),
-                key=lambda v: -len(cover_pts[v]),
-            )[:max_promising]
-        else:
-            # A target that pass 1 left with no candidate at all cannot be filled:
-            # there is no neighbour to order a fill against.
-            promising = [v for v in targets if 1 <= len(cover_pts.get(v, {})) < n][:max_promising]
-        if not promising:
+                seen_ids.setdefault((f.video_id, i), set()).add(f.submit_keyframe_id)
+        if gaps is None:
+            gaps = {
+                video_id: [i for i in range(n) if i not in cover_pts[video_id]]
+                for video_id in sorted(
+                    (v for v, evs in cover_pts.items() if 1 <= len(evs) < n),
+                    key=lambda v: -len(cover_pts[v]),
+                )
+            }
+        # A video pass 1 left completely empty has no neighbour to order a fill
+        # against, so its queries would be spent on an unplaceable frame.
+        planned = [
+            (video_id, missing)
+            for video_id, missing in gaps.items()
+            if missing and cover_pts.get(video_id)
+        ][:max_promising]
+        if not planned:
             return
+        promising = [video_id for video_id, _ in planned]
 
         ev_queries = [
             (ev.get("image_pe_queries_en") or [ev.get("description_en_visual") or ev.get("description_vi") or ""])[0]
@@ -214,12 +233,11 @@ class TrakeService:
             for (model, event_index), hits in zip(ref_jobs, ref_hits)
         }
 
-        # Targeted in-video search for every (promising video, missing event), parallel.
+        # Targeted in-video search for every (video, event the DP could not place).
         jobs = [
             (vid, i, model)
-            for vid in promising
-            for i in range(n)
-            if i not in cover_pts[vid]
+            for vid, missing in planned
+            for i in missing
             for model in vectors_by_model
             if ref.get((model, i), 0.0) > 0
         ]
@@ -239,13 +257,26 @@ class TrakeService:
             if accepted:
                 by_gap.setdefault((vid, i), {})[model] = accepted
 
+        # Two different questions, deliberately answered by two different numbers.
+        # ORDER comes from RRF across the models, because a 1280-d PE cosine and a
+        # 4096-d Qwen cosine are only comparable by rank. QUALITY stays
+        # model-local: `score / that model's best hit for the event`, which is
+        # what the heat row and the acceptance floor mean. Normalising RRF by the
+        # gap's own best made every top candidate 1.0 — a frame that had scraped
+        # past the 45% floor was reported to the operator as a perfect match.
         ranked_by_gap: dict[tuple[str, int], list[dict[str, Any]]] = {}
         for gap, per_model in by_gap.items():
-            if len(per_model) == 1:
-                model, rows = next(iter(per_model.items()))
+            quality: dict[str, float] = {}
+            for model, rows in per_model.items():
                 ref_score = ref[(model, gap[1])]
+                for row in rows:
+                    ratio = float(row["score"]) / ref_score if ref_score > 0 else 0.0
+                    key = row["submit_keyframe_id"]
+                    quality[key] = max(quality.get(key, 0.0), ratio)
+            if len(per_model) == 1:
+                rows = next(iter(per_model.values()))
                 ranked_by_gap[gap] = [
-                    {**row, "fill_quality": float(row["score"]) / ref_score}
+                    {**row, "fill_quality": quality[row["submit_keyframe_id"]]}
                     for row in rows
                 ]
                 continue
@@ -260,9 +291,8 @@ class TrakeService:
                 fused.values(),
                 key=lambda item: (-item["rrf"], item["row"]["submit_keyframe_id"]),
             )
-            best_rrf = ordered[0]["rrf"] if ordered else 1.0
             ranked_by_gap[gap] = [
-                {**entry["row"], "fill_quality": entry["rrf"] / best_rrf}
+                {**entry["row"], "fill_quality": quality[entry["row"]["submit_keyframe_id"]]}
                 for entry in ordered
             ]
 
@@ -283,9 +313,19 @@ class TrakeService:
             lower = min((p for ev, ps in covered.items() if ev < i for p in ps), default=None)
             upper = max((p for ev, ps in covered.items() if ev > i for p in ps), default=None)
 
+            # An event pass 1 found nothing for gets the best hit even if it
+            # cannot be ordered — the operator still needs to see the video's own
+            # answer for the gap. An event that HAS candidates and simply could
+            # not be placed in time gets no such consolation: another unorderable
+            # frame is exactly what the DP already rejected, so only a hit that
+            # actually slots in is worth adding.
+            already = seen_ids.get((vid, i), set())
+            allow_infeasible = i not in covered
             chosen = None  # first feasible hit above floor (best, since score-sorted)
             fallback = None  # highest-scoring hit above floor with a known pts
             for h in hits:
+                if h["submit_keyframe_id"] in already:
+                    continue  # pass 1 already offered this frame for this event
                 rec = recs.get(h["submit_keyframe_id"])
                 pts = rec.get("pts_time") if rec else None
                 if pts is None:
@@ -295,7 +335,7 @@ class TrakeService:
                 if (lower is None or pts > lower) and (upper is None or pts < upper):
                     chosen = (h, rec, pts)
                     break
-            pick = chosen or fallback
+            pick = chosen or (fallback if allow_infeasible else None)
             if pick is None:
                 continue
             h, rec, pts = pick

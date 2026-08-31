@@ -239,6 +239,65 @@ async def test_fill_falls_back_when_no_feasible_frame(settings):
 
 
 @pytest.mark.asyncio
+async def test_pass2_rescues_an_event_whose_only_candidate_is_out_of_order(settings):
+    """The whole point of making pass 2 DP-aware.
+
+    Pass 1 finds E1 at 90 s and E2 at 10 s: every event has a candidate, so the
+    old "gap = event with no candidate" rule saw a fully covered video and never
+    went back in. The chain was still 1 of 2, because E2 cannot follow E1. Pass 2
+    now re-searches E2 inside the video, finds it at 100 s, and the chain closes.
+    """
+    from app.trake import build_trake_videos, select_pass2_gaps
+    from app.types import FusedFrame
+
+    hits = [
+        {"submit_keyframe_id": "K01/K01_V001/100", "video_id": "K01_V001", "keyframe_n": 100, "score": 0.80},
+    ]
+    recs = {"K01/K01_V001/100": {"pts_time": 100.0, "frame_idx": 2500, "fps": 25.0}}
+    trake = _wire(settings, hits, recs)
+    events = [{"event_index": j + 1, "image_pe_queries_en": ["q"]} for j in range(2)]
+    ef = [
+        [FusedFrame("K01/K01_V001/050", "K01_V001", 50, 90.0, 0.040)],
+        [FusedFrame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.030)],
+    ]
+
+    before = build_trake_videos([list(ef[0]), list(ef[1])])[0]
+    assert before.coverage == 1 and before.evidence_coverage == 2
+
+    gaps = select_pass2_gaps([before], 2)
+    assert gaps == {"K01_V001": [1]}
+    await trake._fill_missing_events(events, ef, gaps=gaps)
+
+    after = build_trake_videos(ef)[0]
+    assert after.coverage == 2
+    assert [f.pts_time for f in after.sequence.frames] == [90.0, 100.0]
+    assert after.trake_video_score > before.trake_video_score
+
+
+@pytest.mark.asyncio
+async def test_pass2_does_not_re_add_an_unorderable_frame_pass1_already_had(settings):
+    """An event that HAS candidates and simply could not be placed gets no
+    consolation frame: another unorderable hit is exactly what the DP rejected,
+    so spending a slot on it would only pad the candidate list."""
+    from app.types import FusedFrame
+
+    # The only in-video hit for E2 is the same early frame pass 1 already offered.
+    hits = [
+        {"submit_keyframe_id": "K01/K01_V001/001", "video_id": "K01_V001", "keyframe_n": 1, "score": 0.80},
+    ]
+    recs = {"K01/K01_V001/001": {"pts_time": 10.0, "frame_idx": 250, "fps": 25.0}}
+    trake = _wire(settings, hits, recs)
+    events = [{"event_index": j + 1, "image_pe_queries_en": ["q"]} for j in range(2)]
+    ef = [
+        [FusedFrame("K01/K01_V001/050", "K01_V001", 50, 90.0, 0.040)],
+        [FusedFrame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.030)],
+    ]
+    await trake._fill_missing_events(events, ef, gaps={"K01_V001": [1]})
+    assert len(ef[1]) == 1  # nothing added
+    assert not any(f.via_fill for f in ef[1])
+
+
+@pytest.mark.asyncio
 async def test_trake_response_carries_video_centric_results(settings):
     """The console ranks VIDEOS, so the response leads with them; `sequences` is
     the same assembly flattened for the answer generator and the benchmarks."""
@@ -296,8 +355,8 @@ async def test_pass2_only_queries_the_videos_the_preliminary_score_chose(setting
         [FusedFrame("K01/K01_V001/010", "K01_V001", 10, 50.0, 0.9)],
         [],
     ]
-    await trake._fill_missing_events(events, ef, targets=["K02_V001"])
-    # K01_V001 is the stronger, 2-of-3 video — but the budget said K02_V001, and
+    await trake._fill_missing_events(events, ef, gaps={"K02_V001": [2]})
+    # K01_V001 is the stronger, 2-of-3 video — but the plan said K02_V001, and
     # pass 2 does not get to second-guess it.
     assert set(milvus.searched) == {"K02_V001"}
 
@@ -321,7 +380,7 @@ async def test_pass2_skips_a_target_pass1_left_completely_empty(settings):
     trake.search.milvus = milvus
     events = [{"event_index": j + 1, "image_pe_queries_en": ["q"]} for j in range(2)]
     ef = [[FusedFrame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.9)], []]
-    await trake._fill_missing_events(events, ef, targets=["K09_V999", "K01_V001"])
+    await trake._fill_missing_events(events, ef, gaps={"K09_V999": [0, 1], "K01_V001": [1]})
     # Nothing in K09_V999 to order a fill against, so its queries are not spent.
     assert set(milvus.searched) == {"K01_V001"}
 

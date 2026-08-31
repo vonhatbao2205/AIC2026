@@ -4,7 +4,7 @@ from app.trake import (
     build_trake_videos,
     build_video_event_map,
     event_reference_scores,
-    select_pass2_videos,
+    select_pass2_gaps,
     snap_to_keyframe,
     temporal_diversify,
     trake_video_score,
@@ -295,7 +295,7 @@ def test_uncovered_event_still_exposes_its_best_alternative():
     assert video.sequence.complete is False
     evidence = video.events[1]
     assert evidence.in_chain is False
-    assert evidence.covered is True  # a representative is still shown
+    assert evidence.has_candidate is True  # a representative is still shown
     assert evidence.representative.pts_time == 10.0  # the strongest alternative
     assert evidence.representative.selected_by_dp is False
 
@@ -381,7 +381,10 @@ def test_pass2_targets_prefer_the_video_that_is_one_event_short():
         [],
     ]
     videos = build_trake_videos([a[i] + b[i] for i in range(3)])
-    assert select_pass2_videos(videos, 3) == ["K01_V001", "K02_V001"]
+    gaps = select_pass2_gaps(videos, 3)
+    assert list(gaps) == ["K01_V001", "K02_V001"]
+    assert gaps["K01_V001"] == [2]
+    assert gaps["K02_V001"] == [1, 2]
 
 
 def test_pass2_targets_break_a_tier_tie_on_preliminary_score():
@@ -397,10 +400,10 @@ def test_pass2_targets_break_a_tier_tie_on_preliminary_score():
         [],
     ]
     videos = build_trake_videos([weak[i] + strong[i] for i in range(3)])
-    assert select_pass2_videos(videos, 3) == ["K01_V001", "K02_V001"]
+    assert list(select_pass2_gaps(videos, 3)) == ["K01_V001", "K02_V001"]
     # The old rule ranked on covered-event COUNT alone, which is a tie here.
     assert {v.evidence_coverage for v in videos} == {2}
-    assert select_pass2_videos(videos, 3, budget=1) == ["K01_V001"]
+    assert list(select_pass2_gaps(videos, 3, budget=1)) == ["K01_V001"]
 
 
 def test_pass2_targets_exclude_videos_that_need_no_fill():
@@ -409,7 +412,46 @@ def test_pass2_targets_exclude_videos_that_need_no_fill():
         [_frame("K01/K01_V001/010", "K01_V001", 10, 50.0, 0.040)],
     ]
     videos = build_trake_videos(complete)
-    assert select_pass2_videos(videos, 2) == []
+    assert select_pass2_gaps(videos, 2) == {}
+
+
+def test_pass2_targets_an_event_that_has_candidates_the_dp_cannot_order():
+    """The failure the old gap rule was blind to.
+
+    Every event has a candidate, so "events with no candidate" is empty and the
+    video looked fully covered — but E2 only fires BEFORE E1, so the chain is
+    1 of 2 and the video answers nothing. Pass 2 has to go back into it."""
+    e1 = [_frame("K01/K01_V001/050", "K01_V001", 50, 90.0, 0.040)]
+    e2 = [_frame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.030)]
+    video = _video(build_trake_videos([e1, e2]), "K01_V001")
+    assert video.evidence_coverage == 2  # nothing is "missing" by the old rule
+    assert video.coverage == 1  # ...yet the answer is one event short
+    assert video.unplaced_events == [1]
+    assert select_pass2_gaps([video], 2) == {"K01_V001": [1]}
+
+
+def test_chain_quality_separates_a_strong_fill_from_a_barely_accepted_one():
+    # Same coverage and same real evidence; only the fill differs. Excluding
+    # fills from the quality term made these two videos indistinguishable.
+    def _build(video_id, category, fill_quality):
+        return [
+            [_frame(f"{category}/{video_id}/001", video_id, 1, 10.0, 0.040)],
+            [_frame(f"{category}/{video_id}/010", video_id, 10, 50.0, 0.040)],
+            [
+                _frame(
+                    f"{category}/{video_id}/020", video_id, 20, 90.0,
+                    0.02 * fill_quality, via_fill=True, fill_quality=fill_quality,
+                )
+            ],
+        ]
+
+    strong = _build("K01_V001", "K01", 0.95)
+    weak = _build("K02_V001", "K02", 0.46)
+    videos = build_trake_videos([strong[i] + weak[i] for i in range(3)])
+    assert [v.video_id for v in videos] == ["K01_V001", "K02_V001"]
+    assert _video(videos, "K01_V001").min_quality > _video(videos, "K02_V001").min_quality
+    # Coverage is identical — quality is the only thing that separated them.
+    assert {(v.confident_coverage, v.coverage) for v in videos} == {(2, 3)}
 
 
 def test_validate_increasing_order():

@@ -258,6 +258,60 @@ async def test_trake_threads_the_selection_through_every_event(settings):
     assert body["sequences"]
 
 
+@pytest.mark.asyncio
+async def test_multi_model_fill_quality_stays_a_ratio_not_a_rank(settings):
+    """RRF decides ORDER across two incomparable vector spaces; it must not be
+    reported as confidence.
+
+    The pass-2 fill quality is what the TRAKE heat row shows as a percentage and
+    what the acceptance floor is measured against, so it has to stay a
+    model-local `score / that model's best hit`. Normalising the RRF value by the
+    gap's own top made every winning candidate 1.0 — a frame that had just
+    scraped past the 45% floor was reported to the operator as a perfect match."""
+    from app.types import FusedFrame
+
+    class _StubEncoder:
+        async def encode_text(self, texts):
+            return [[0.1, 0.2] for _ in texts]
+
+    class _StubElastic:
+        async def get_keyframes_by_ids(self, ids):
+            return {"L21/L21_V001/030": {"pts_time": 30.0, "frame_idx": 750, "fps": 25.0}}
+
+    class _TwoModelMilvus:
+        """Global reference hit scores 1.0; the in-video hit is a weak 0.5."""
+
+        def _hits(self, video_id):
+            if video_id is None:
+                return [{"submit_keyframe_id": "ref", "video_id": "X", "keyframe_n": 1, "score": 1.0}]
+            return [
+                {"submit_keyframe_id": "L21/L21_V001/030", "video_id": "L21_V001", "keyframe_n": 30, "score": 0.5}
+            ]
+
+        def search_image(self, vector, top_k=10, video_id=None):
+            return self._hits(video_id)
+
+        def search_qwen_image(self, vector, top_k=10, video_id=None):
+            return self._hits(video_id)
+
+    trake = TrakeService(infoshotpp(settings))
+    trake.search.pe = _StubEncoder()
+    trake.search.qwen3_vl = _StubEncoder()
+    trake.search.milvus = _TwoModelMilvus()
+    trake.search.elastic = _StubElastic()
+
+    events = [{"event_index": j + 1, "image_pe_queries_en": ["q"]} for j in range(2)]
+    event_frames = [[FusedFrame("L21/L21_V001/001", "L21_V001", 1, 10.0, 0.9)], []]
+    await trake._fill_missing_events(
+        events, event_frames, gaps={"L21_V001": [1]}, image_models=("pe", "qwen3_vl")
+    )
+
+    assert len(event_frames[1]) == 1
+    fill = event_frames[1][0]
+    # 0.5 / 1.0 — the model-local ratio, not "top of its gap, therefore perfect".
+    assert abs((fill.fill_quality or 0.0) - 0.5) < 1e-9
+
+
 # ---- answer generation -------------------------------------------------------
 
 

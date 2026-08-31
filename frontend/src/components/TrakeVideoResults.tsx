@@ -16,7 +16,6 @@ interface Props {
    *  moment, and arm that event's slot. */
   onPickMoment: (videoId: string, peak: TrakeHeatPeak) => void;
   onQuickSubmit: (videoId: string) => void;
-  onVideoFeedback: (videoId: string, kind: "prioritize" | "deprioritize") => void;
   videoSlot?: ReactNode;
   videoSlotVideoId?: string | null;
 }
@@ -89,18 +88,10 @@ export function TrakeVideoResults(props: Props) {
                   ⚠ {video.min_event_gap.toFixed(1)}s giữa 2 event
                 </span>
               )}
-              <span className="fb video-fb">
-                <button
-                  title="Prioritize this video"
-                  data-testid="prioritize-video"
-                  onClick={(e) => { e.stopPropagation(); props.onVideoFeedback(video.video_id, "prioritize"); }}
-                >⬆</button>
-                <button
-                  title="Deprioritize this video"
-                  data-testid="deprioritize-video"
-                  onClick={(e) => { e.stopPropagation(); props.onVideoFeedback(video.video_id, "deprioritize"); }}
-                >⬇</button>
-              </span>
+              {/* No prioritise/deprioritise here on purpose: `/api/search/trake`
+                  takes no feedback, so the buttons re-ran the search and changed
+                  nothing while telling the operator they had. A control with no
+                  effect is worse than no control under a clock. */}
               {full && (
                 <button
                   className="btn sm primary"
@@ -127,7 +118,7 @@ export function TrakeVideoResults(props: Props) {
 
             <TrakeHeatmap
               events={video.events}
-              duration={span}
+              duration={video.duration_s || span}
               activeEventIndex={props.activeEventIndex}
               onPick={(peak) => props.onPickMoment(video.video_id, peak)}
             />
@@ -182,9 +173,11 @@ function EventCard(props: {
   );
 }
 
-/** How wide the heat rows are drawn. The video's real duration is not in the
- *  search response, so use the last moment any event fires plus a margin — the
- *  rows are read against each other, not against the clock. */
+/** Fallback width for the heat rows when the backend could not resolve the
+ *  video's duration. The last moment any event fires plus a margin keeps the
+ *  shape of the sequence readable, but it silently rescales "all four events
+ *  happen in the first third" into "they span the whole video" — which is why
+ *  `duration_s` is preferred whenever it is known. */
 function videoSpan(video: TrakeVideoResult): number {
   let last = 0;
   for (const event of video.events) {

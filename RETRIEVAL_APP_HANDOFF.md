@@ -266,16 +266,34 @@ skip an event for a partial sequence.
 `Q = 0.70·mean + 0.30·min` of the per-event normalized strengths. One more
 confidently covered event therefore always beats any cosine difference, and
 `Q_min` carries its own weight so three superb events plus one hopeless one
-cannot outrank four solid ones. Heat `strength` is normalized **per event**
+cannot outrank four solid ones. `Q` covers every link of the chain, fills
+included — unlike the sequence's `mean_score`/`min_score`, which are deliberately
+about real evidence only. `confident_coverage` already dominates the ranking, so
+excluding fills from `Q` too threw away the one thing separating two videos with
+identical coverage: a chain closed by a convincing fill versus one closed by a
+fill that barely cleared the floor. Heat `strength` is normalized **per event**
 against `G_e` (that event's best score anywhere in the pool), because each event
 is a different query with its own difficulty; a pass-2 fill reports its own
 `fill_quality` instead, since the 0.02 fill scale means nothing against RRF.
 
-Pass 2's budget is spent by `select_pass2_videos`: tier by how many events pass 1
-found NO candidate for (missing one is a single query from a full chain), and
-inside a tier by the preliminary `trake_video_score`. The old rule ranked on
-covered-event *count* alone, which treated "covers E1-E3 barely" and "covers
-E1-E3 convincingly" as the same bet.
+Pass 2 is planned by `select_pass2_gaps`, and it reads the preliminary **DP**,
+not the candidate lists. A gap is an event the chain could not place, not an
+event with no candidate: a video whose E1 only fires at 90 s and whose E2 only
+fires at 10 s has a candidate for every event and still answers nothing. Asking
+"does this event have a candidate?" made pass 2 blind to that case — the commoner
+one, since retrieval usually finds the right action in the wrong part of the
+video. Videos are then tiered by how many events the chain is still missing
+(one short is a single query from a full chain) and, inside a tier, by the
+preliminary `trake_video_score`.
+
+An event pass 1 found nothing for still accepts the best hit even when it cannot
+be ordered — the operator needs to see the video's own answer for the gap. An
+event that has candidates and merely could not be placed accepts only a hit that
+actually slots between its neighbours: another unorderable frame is exactly what
+the DP just rejected. Across two image models, RRF decides the fill's *order*
+while `fill_quality` stays the model-local `score / that model's best hit`;
+normalising RRF by the gap's own top reported every winning candidate as 1.0,
+including one that had just scraped past the 45% floor.
 
 See `backend/app/trake.py` (`build_trake_videos`, `assemble_trake_sequences` for
 the flat chain view the answer generator consumes).
@@ -301,7 +319,15 @@ orderable, not whether it is plausible; the heat rows are where a human sees
 that E1 sits minutes away from a tight E2-E3-E4 cluster. Clicking a
 representative or a peak selects the video, seeks the player to that instant and
 arms that event's slot, so checking an alternative moment costs a seek instead of
-another search.
+another search. The verified peak becomes the selected frame, so the detail
+panel, the timeline marker and the neighbour anchor describe the moment on
+screen rather than the chain frame the player left behind. Heat rows are drawn
+against the video's real `duration_s` (one keyframe-map aggregation for the whole
+result page), and the peaks carry a fixed, generous hit area that does not shrink
+with their score — they are click targets on a laptop under a clock, not a chart.
+TRAKE shows no prioritise/deprioritise controls and no feedback bar:
+`/api/search/trake` takes no feedback, so those buttons re-ran the search and
+changed nothing while telling the operator they had.
 
 **TRAKE pause frame-pick**: `requestVideoFrameCallback` tracks the latest
 `mediaTime`; on pause the raw frame is snapped to the nearest BTC keyframe by
