@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { FrameResult, VideoGroup } from "../api/types";
-import { formatTime } from "../lib/media";
+import { formatTime, topRelevanceRanks } from "../lib/media";
 import { ChannelBadges } from "./Badges";
 
 type ViewMode = "grouped" | "flat";
@@ -16,10 +16,10 @@ interface Props {
   onToggleExpand: (videoId: string) => void;
   onFeedback: (frame: FrameResult, kind: "more" | "exclude") => void;
   onVideoFeedback: (videoId: string, kind: "prioritize" | "deprioritize") => void;
-  /** Video ids whose frames are shown in chronological order instead of by
-   *  relevance. The reordering itself happens upstream, so the selection index
+  /** Video ids the operator has put BACK into relevance order — chronological is
+   *  the default. The reordering itself happens upstream, so the selection index
    *  and the strip on screen never disagree. */
-  timeSorted: Set<string>;
+  relevanceOrdered: Set<string>;
   onSortByTime: (videoId: string) => void;
   onResetOrder: (videoId: string) => void;
   loading: boolean;
@@ -93,7 +93,12 @@ export function Results(props: Props) {
         const filled = g.trake_filled ?? 0;
         const fullCover = n != null && g.frame_count >= n;
         const confident = fullCover && filled === 0; // every event from real retrieval
-        const sorted = props.timeSorted.has(g.video_id);
+        const byTime = !props.relevanceOrdered.has(g.video_id);
+        // The reason this video is on screen is its top frames, and chronological
+        // order scatters them through the strip. Mark them so the reading order
+        // does not cost the ranking. Meaningless for TRAKE, where each frame is
+        // event i rather than a ranked hit.
+        const topRanks = props.trakeEventCount ? null : topRelevanceRanks(g.frames);
         return (
           <div key={g.video_id} className={`vgroup ${isSel ? "selected" : ""}`} data-testid="video-group">
             <div className="vgroup-head" onClick={() => { props.onSelectVideo(gi); props.onToggleExpand(g.video_id); }}>
@@ -147,23 +152,26 @@ export function Results(props: Props) {
               {!props.trakeEventCount && (
                 <span className="fb video-fb order-fb">
                   <button
-                    className={sorted ? "on" : ""}
-                    title="Sắp xếp frame trong video theo thời gian tăng dần"
-                    aria-pressed={sorted}
+                    className={byTime ? "on" : ""}
+                    title="Sắp xếp frame trong video theo thời gian tăng dần (mặc định)"
+                    aria-pressed={byTime}
+                    disabled={byTime}
                     data-testid="sort-frames-time"
                     onClick={(e) => { e.stopPropagation(); props.onSortByTime(g.video_id); }}
                   >⏱</button>
                   <button
-                    title={sorted ? "Hoàn tác — trả về thứ tự theo độ liên quan" : "Đang theo thứ tự độ liên quan"}
-                    disabled={!sorted}
+                    title={byTime ? "Xếp lại theo thứ hạng độ liên quan" : "Đang theo thứ tự độ liên quan"}
+                    disabled={!byTime}
                     data-testid="reset-frames-order"
                     onClick={(e) => { e.stopPropagation(); props.onResetOrder(g.video_id); }}
                   >↺</button>
                 </span>
               )}
-              {!props.trakeEventCount && sorted && (
-                <span className="order-tag" data-testid="order-tag" title="Frame đang xếp theo thời gian tăng dần">
-                  theo thời gian
+              {/* Only the exception is announced: chronological is the default,
+                  and a tag on every group is noise the operator stops reading. */}
+              {!props.trakeEventCount && !byTime && (
+                <span className="order-tag" data-testid="order-tag" title="Frame đang xếp theo thứ hạng độ liên quan">
+                  theo độ liên quan
                 </span>
               )}
               {!props.trakeEventCount && g.ambiguous && <span className="ambiguous-tag" title="Top frames split into distant time clusters">⚠ ambiguous</span>}
@@ -183,13 +191,21 @@ export function Results(props: Props) {
               <div className="frames-strip">
                 {g.frames.map((f, fi) => {
                   const fsel = isSel && fi === selectedFrame;
+                  const rank = topRanks?.get(f.submit_keyframe_id);
                   return (
                     <div
                       key={f.submit_keyframe_id}
-                      className={`thumb ${fsel ? "selected" : ""}`}
+                      className={`thumb ${fsel ? "selected" : ""} ${rank ? `top-rank rank-${rank}` : ""}`}
                       data-testid="frame-thumb"
                       onClick={() => props.onSelectFrame(gi, fi)}
                     >
+                      {rank && (
+                        <span
+                          className="kf-top-rank"
+                          data-testid="frame-rank"
+                          title={`Hạng ${rank} về độ liên quan trong video này`}
+                        >#{rank}</span>
+                      )}
                       <div className="chips">
                         {f.channels.map((c) => (
                           <span key={c} className={`badge ${c}`}>{c[0]}</span>

@@ -1,15 +1,17 @@
 /**
- * Sorting the frames inside one video group chronologically.
+ * Frame order inside one video group.
  *
  * The retrieval ranking answers "which frame is most relevant"; reading a scene
- * needs the opposite — the frames in the order they happen. Each group carries
- * its own sort button and an undo back to the ranking.
+ * needs the opposite — the frames in the order they happen. Reading is what the
+ * operator does with a group, so CHRONOLOGICAL IS THE DEFAULT, and each group
+ * carries a switch back to the ranking. What chronological order costs is the
+ * ranking itself, which is why the top frames are marked in place.
  */
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
-import { frameTimeKey, sortFramesByTime } from "../lib/media";
+import { frameTimeKey, sortFramesByTime, topRelevanceRanks } from "../lib/media";
 
 /** One frame of L21_V024, mirroring the console's shape. */
 function frame(keyframeN: number, ptsTime: number | null, score: number) {
@@ -124,46 +126,93 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("top-relevance marks", () => {
+  it("ranks the strongest frames and leaves the rest unmarked", () => {
+    const ranks = topRelevanceRanks(FRAMES);
+    expect(ranks.get("L21/L21_V024/2967")).toBe(1); // 0.98
+    expect(ranks.get("L21/L21_V024/2924")).toBe(2); // 0.95
+    expect(ranks.get("L21/L21_V024/2972")).toBe(3); // 0.93
+    expect(ranks.has("L21/L21_V024/2825")).toBe(false); // 0.91, out of the top 3
+  });
+
+  it("never marks more frames than a group has", () => {
+    expect(topRelevanceRanks(FRAMES.slice(0, 2)).size).toBe(2);
+    expect(topRelevanceRanks([]).size).toBe(0);
+    expect(topRelevanceRanks(FRAMES, 0).size).toBe(0);
+  });
+
+  it("is independent of the order the frames arrive in", () => {
+    const shuffled = [FRAMES[3], FRAMES[0], FRAMES[2], FRAMES[1]];
+    expect([...topRelevanceRanks(shuffled)]).toEqual([...topRelevanceRanks(FRAMES)]);
+  });
+});
+
 describe("frame order inside a video group", () => {
-  it("shows the retrieval ranking until the sort is used", async () => {
+  it("reads chronologically without being asked", async () => {
     const user = userEvent.setup();
     render(<App />);
     await search(user);
 
-    expect(stripOrder()).toEqual(BY_RELEVANCE);
-    expect(screen.queryByTestId("order-tag")).not.toBeInTheDocument();
-  });
-
-  it("sorts the frames of that group chronologically", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await search(user);
-
-    await user.click(screen.getByTestId("sort-frames-time"));
-
+    // The backend returns the relevance ranking; a strip out of scene order is
+    // far harder to judge than a strip out of rank order, so the console flips it.
     expect(stripOrder()).toEqual(BY_TIME);
-    expect(screen.getByTestId("order-tag")).toBeInTheDocument();
+    // Only the exception is announced — a tag on every group is noise.
+    expect(screen.queryByTestId("order-tag")).not.toBeInTheDocument();
+    expect(screen.getByTestId("sort-frames-time")).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("undo puts the relevance ranking back", async () => {
+  it("switches back to the relevance ranking on request", async () => {
     const user = userEvent.setup();
     render(<App />);
     await search(user);
-    await user.click(screen.getByTestId("sort-frames-time"));
+
     await user.click(screen.getByTestId("reset-frames-order"));
 
     expect(stripOrder()).toEqual(BY_RELEVANCE);
+    expect(screen.getByTestId("order-tag")).toHaveTextContent("theo độ liên quan");
+  });
+
+  it("goes back to chronological from the ranking", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await search(user);
+    await user.click(screen.getByTestId("reset-frames-order"));
+    await user.click(screen.getByTestId("sort-frames-time"));
+
+    expect(stripOrder()).toEqual(BY_TIME);
     expect(screen.queryByTestId("order-tag")).not.toBeInTheDocument();
   });
 
-  it("undo is only offered once there is something to undo", async () => {
+  it("offers only the switch that would change something", async () => {
     const user = userEvent.setup();
     render(<App />);
     await search(user);
 
-    expect(screen.getByTestId("reset-frames-order")).toBeDisabled();
-    await user.click(screen.getByTestId("sort-frames-time"));
+    expect(screen.getByTestId("sort-frames-time")).toBeDisabled();
     expect(screen.getByTestId("reset-frames-order")).toBeEnabled();
+    await user.click(screen.getByTestId("reset-frames-order"));
+    expect(screen.getByTestId("sort-frames-time")).toBeEnabled();
+    expect(screen.getByTestId("reset-frames-order")).toBeDisabled();
+  });
+
+  it("marks the strongest frames so the reading order does not cost the ranking", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await search(user);
+
+    // Chronological order scatters the top hits through the strip, so the reason
+    // this video is on screen at all has to be marked in place. Scattered is
+    // exactly the point: 13:28 is the second-best hit, 13:42 the best.
+    expect(screen.getAllByTestId("frame-rank").map((el) => el.textContent))
+      .toEqual(["#2", "#1", "#3"]);
+
+    const thumbs = screen.getAllByTestId("frame-thumb");
+    const topRankedThumb = thumbs[stripOrder().indexOf("L21/L21_V024/2967")];
+    expect(topRankedThumb.className).toContain("rank-1");
+    expect(within(topRankedThumb).getByTestId("frame-rank")).toHaveTextContent("#1");
+    // The weakest frame of the group carries no mark.
+    const weakest = thumbs[stripOrder().indexOf("L21/L21_V024/2825")];
+    expect(within(weakest).queryByTestId("frame-rank")).not.toBeInTheDocument();
   });
 
   it("keeps the selection on the same frame across a reorder", async () => {
@@ -174,29 +223,30 @@ describe("frame order inside a video group", () => {
     render(<App />);
     await search(user);
 
-    // Select the last-ranked frame, which is the FIRST one chronologically.
-    await user.click(screen.getAllByTestId("frame-thumb")[3]);
+    // The last-ranked frame is the FIRST one chronologically, so it sits at the
+    // head of the default strip and at the tail of the ranked one.
+    await user.click(screen.getAllByTestId("frame-thumb")[0]);
     const detail = screen.getByTestId("detail-panel");
     expect(within(detail).getByTestId("submit-id")).toHaveTextContent("L21/L21_V024/2825");
 
-    await user.click(screen.getByTestId("sort-frames-time"));
+    await user.click(screen.getByTestId("reset-frames-order"));
 
     expect(within(screen.getByTestId("detail-panel")).getByTestId("submit-id"))
       .toHaveTextContent("L21/L21_V024/2825");
-    // ...and the highlight moved with it, to the front of the sorted strip.
-    expect(screen.getAllByTestId("frame-thumb")[0].className).toContain("selected");
+    // ...and the highlight moved with it, to the end of the ranked strip.
+    expect(screen.getAllByTestId("frame-thumb")[3].className).toContain("selected");
   });
 
-  it("a new search drops the sort", async () => {
+  it("a new search goes back to the default order", async () => {
     const user = userEvent.setup();
     render(<App />);
     await search(user);
-    await user.click(screen.getByTestId("sort-frames-time"));
+    await user.click(screen.getByTestId("reset-frames-order"));
     expect(screen.getByTestId("order-tag")).toBeInTheDocument();
 
     await user.click(screen.getByTestId("search-btn"));
     await waitFor(() => expect(screen.queryByTestId("order-tag")).not.toBeInTheDocument());
-    expect(stripOrder()).toEqual(BY_RELEVANCE);
+    expect(stripOrder()).toEqual(BY_TIME);
   });
 
   it("frames with no timing stay put at the end of the strip", async () => {

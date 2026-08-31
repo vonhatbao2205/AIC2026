@@ -60,6 +60,29 @@ export function sortFramesByTime<T extends { pts_time?: number | null; frame_idx
     .map((item) => item.frame);
 }
 
+/** 1-based rank of the strongest `count` frames by fused score, keyed by id.
+ *
+ *  Chronological order is the right way to READ a scene but it throws away the
+ *  one thing the ranking said: which frame is the reason this video is on screen
+ *  at all. Marking the top few puts that back without giving up the reading
+ *  order. Linear, because a group can hold hundreds of frames and only three of
+ *  them are wanted. */
+export function topRelevanceRanks<T extends { submit_keyframe_id: string; score: number }>(
+  frames: readonly T[],
+  count = 3,
+): Map<string, number> {
+  if (count <= 0) return new Map();
+  const best: T[] = [];
+  for (const frame of frames) {
+    let at = best.length;
+    while (at > 0 && best[at - 1].score < frame.score) at -= 1;
+    if (at >= count) continue;
+    best.splice(at, 0, frame);
+    if (best.length > count) best.pop();
+  }
+  return new Map(best.map((frame, index) => [frame.submit_keyframe_id, index + 1]));
+}
+
 export function formatTime(seconds: number | null | undefined): string {
   if (seconds == null || Number.isNaN(seconds)) return "--:--";
   const m = Math.floor(seconds / 60);

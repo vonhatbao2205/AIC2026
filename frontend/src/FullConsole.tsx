@@ -179,7 +179,10 @@ export default function FullConsole({
   // Videos whose frame strip is shown chronologically instead of by relevance.
   // The retrieval ranking in `groups` is never mutated, so "undo" is just
   // dropping the id — there is no saved copy that could go stale.
-  const [timeSorted, setTimeSorted] = useState<Set<string>>(new Set());
+  // Frames read chronologically by DEFAULT — the strip is a scene, and a scene
+  // out of order is far harder to judge than a ranking out of order. This holds
+  // the EXCEPTIONS: videos the operator put back into relevance order.
+  const [byRelevance, setByRelevance] = useState<Set<string>>(new Set());
   const [latency, setLatency] = useState<LatencyBreakdown | null>(null);
   const [loading, setLoading] = useState(false);
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -292,16 +295,20 @@ export default function FullConsole({
     });
   }, [videoVisible, neighborsVisible, activeVideoId]);
 
+  // TRAKE is excluded outright: there each frame IS event i, and the DP already
+  // guarantees increasing time, so sorting the strip could only ever confuse the
+  // mapping without changing it.
+  const chronological = queryType !== "TRAKE";
   const displayGroups = useMemo(
     () =>
-      timeSorted.size === 0
+      !chronological
         ? groups
         : groups.map((group) =>
-            timeSorted.has(group.video_id)
-              ? { ...group, frames: sortFramesByTime(group.frames) }
-              : group,
+            byRelevance.has(group.video_id)
+              ? group
+              : { ...group, frames: sortFramesByTime(group.frames) },
           ),
-    [groups, timeSorted],
+    [groups, byRelevance, chronological],
   );
 
   const selectedGroup = displayGroups[selectedVideo] ?? null;
@@ -701,7 +708,7 @@ export default function FullConsole({
     setAppliedTopK(topK);
     // A new result set is a new ranking; carrying the old per-video sort into it
     // would silently reorder groups the operator never asked to reorder.
-    setTimeSorted(new Set());
+    setByRelevance(new Set());
     setDuplicateId(null);
     setPausedFrame(null);
     setTrakeVideos([]);
@@ -802,12 +809,12 @@ export default function FullConsole({
    *  `selectedFrame` is a position, so reordering the strip under it would leave
    *  the operator looking at one thumbnail while Detail, the timeline and the
    *  submit guard describe another. Only the selected video can be affected. */
-  const keepSelectionThroughReorder = useCallback((videoId: string, willSort: boolean) => {
+  const keepSelectionThroughReorder = useCallback((videoId: string, byTime: boolean) => {
     const group = groups[selectedVideo];
     if (!group || group.video_id !== videoId) return;
     const current = displayGroups[selectedVideo]?.frames[selectedFrame];
     if (!current) return;
-    const nextFrames = willSort ? sortFramesByTime(group.frames) : group.frames;
+    const nextFrames = byTime ? sortFramesByTime(group.frames) : group.frames;
     const index = nextFrames.findIndex((f) => f.submit_keyframe_id === current.submit_keyframe_id);
     if (index >= 0) setSelectedFrame(index);
   }, [groups, displayGroups, selectedVideo, selectedFrame]);
@@ -815,13 +822,13 @@ export default function FullConsole({
   const setFrameOrder = useCallback((videoId: string, byTime: boolean) => {
     // Computed outside the state updater: it moves the selection too, and an
     // updater that has side effects runs them twice under StrictMode.
-    if (timeSorted.has(videoId) === byTime) return;
-    const next = new Set(timeSorted);
-    if (byTime) next.add(videoId);
-    else next.delete(videoId);
+    if (byRelevance.has(videoId) !== byTime) return;
+    const next = new Set(byRelevance);
+    if (byTime) next.delete(videoId);
+    else next.add(videoId);
     keepSelectionThroughReorder(videoId, byTime);
-    setTimeSorted(next);
-  }, [timeSorted, keepSelectionThroughReorder]);
+    setByRelevance(next);
+  }, [byRelevance, keepSelectionThroughReorder]);
 
   const sortFramesByTimeFor = useCallback(
     (videoId: string) => setFrameOrder(videoId, true), [setFrameOrder],
@@ -837,7 +844,7 @@ export default function FullConsole({
   // and submit guard behave exactly as they do for any other search.
   const runCanvasSearch = useCallback(async (canvas: CanvasSpec) => {
     setLoading(true);
-    setTimeSorted(new Set());
+    setByRelevance(new Set());
     setDuplicateId(null);
     setPausedFrame(null);
     try {
@@ -1972,7 +1979,7 @@ export default function FullConsole({
             }
             onFeedback={onFeedback}
             onVideoFeedback={onVideoFeedback}
-            timeSorted={timeSorted}
+            relevanceOrdered={byRelevance}
             onSortByTime={sortFramesByTimeFor}
             onResetOrder={resetFrameOrderFor}
             videoSlotVideoId={videoVisible || neighborsVisible ? activeVideoId : null}

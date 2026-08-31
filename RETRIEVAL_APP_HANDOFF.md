@@ -310,6 +310,13 @@ confirm (modal) / assign chip (TRAKE) · `↑/↓` video group · `←/→` fram
 `Space` play-pause the candidate video · `Tab` switch zone · `T` toggle timeline ·
 `Esc` cancel modal/chip · `Ctrl+M` voice (if browser supports it).
 
+Inside a video group the frames read **chronologically by default**; `↺` puts
+one group back into relevance order. Reading a scene is what a group is for, and
+a strip out of scene order is harder to judge than one out of rank order. What
+that costs is the ranking, so the group's three strongest frames carry a red
+`#1`/`#2`/`#3` mark in place (`topRelevanceRanks`), and the accent selection
+border still wins over them — it says what the submit guard will act on.
+
 **TRAKE results are video cards**, not the generic `VideoGroup` list
 (`components/TrakeVideoResults.tsx` + `TrakeHeatmap.tsx`): the chain across the
 top — one thumbnail per event, the DP's pick or the strongest candidate badged
