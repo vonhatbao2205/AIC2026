@@ -1,7 +1,8 @@
 // Types mirroring the backend API contract (see backend/README and main.py).
 
 export type Channel =
-  | "image_pe" | "image_qwen" | "ocr" | "speech" | "audio" | "similar" | "object_layout" | "canvas_image";
+  | "image_pe" | "image_qwen" | "image_visual" | "ocr" | "speech" | "audio" | "similar"
+  | "object_layout" | "canvas_image";
 export type QueryType = "T-KIS" | "QA" | "V-KIS" | "TRAKE";
 export type QueryTypeHint = "auto" | QueryType;
 export type RetrievalDatabase = "btc" | "infoshotpp";

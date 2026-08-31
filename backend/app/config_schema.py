@@ -119,7 +119,7 @@ GROUPS: tuple[ConfigGroup, ...] = (
     ),
     ConfigGroup(
         "Visual reranker (optional)",
-        "Qwen3-VL-Reranker worker rescoring PE candidates; ticked per search.",
+        "Qwen3-VL-Reranker worker rescoring the merged PE+Qwen pool; ticked per search.",
         (
             ConfigKey("QWEN_RERANKER_URL", "Colab worker URL"),
             ConfigKey("QWEN_RERANKER_TOKEN", "Worker bearer token", secret=True),

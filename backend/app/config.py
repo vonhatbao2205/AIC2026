@@ -141,8 +141,11 @@ class Settings:
     # the rest. 30s timed out in practice on a 200-candidate pool.
     qwen_reranker_timeout_seconds: float = 120.0
     # Candidates retrieved from Milvus BEFORE reranking. Must exceed the result
-    # depth the operator asked for, or the reranker can only shuffle what PE
-    # already ranked highly (see reranker.md §7).
+    # depth the operator asked for, or the reranker can only shuffle what the
+    # retrievers already ranked highly (see reranker.md §7). It is also the size
+    # of the MERGED pool: each selected index retrieves this deep, the union is
+    # then cut back to this many candidates in total, so ticking a second index
+    # does not double the reranker's GPU cost — it splits the depth between them.
     qwen_reranker_candidates: int = 200
     # DeepSeek model with the server-side web_search tool, used to resolve
     # external facts after NVILA has extracted visual/ASR clues. The tool is only

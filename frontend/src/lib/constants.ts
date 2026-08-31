@@ -6,10 +6,16 @@ import type { Channel } from "../api/types";
 export const CHANNELS: Channel[] = ["image_pe", "ocr", "speech", "audio"];
 
 /** Evidence badges on a result frame: these name the index that FOUND it, so
- *  `image_pe` and `image_qwen` must stay distinguishable here. */
+ *  `image_pe` and `image_qwen` must stay distinguishable here.
+ *
+ *  `image_visual` is what a RERANKED visual search returns instead of those two:
+ *  the reranker judges one merged PE+Qwen pool and produces one ranking, so the
+ *  frame carries one visual badge. Which index actually retrieved it is not lost
+ *  — it moves into the evidence card's `models` line. */
 export const CHANNEL_LABEL: Record<Channel, string> = {
   image_pe: "PE Core",
   image_qwen: "Qwen3-VL",
+  image_visual: "visual ⚖",
   ocr: "OCR",
   speech: "speech",
   audio: "audio",

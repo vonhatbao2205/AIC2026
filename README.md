@@ -30,11 +30,15 @@ The repository contains two parts:
 - **Query understanding** via NVIDIA Nemotron (OpenAI-compatible) with a
   deterministic heuristic fallback; VI→EN translation of the visual query.
 - **Qwen3-VL visual reranker** (opt-in, off by default) — a **Rerank** tick box in the
-  query panel widens the PE candidate pool to `QWEN_RERANKER_CANDIDATES` and has
-  Qwen3-VL-Reranker-8B rescore each `(query, keyframe)` pair at frame level, before RRF
-  so a low visual score cannot overrule the OCR/speech/audio channels. Fail-open: if the
-  worker is unreachable the PE order is kept and the panel says so. Serve it with
-  `aic26_qwen3vl_reranker8b_colab_server.ipynb`; the box is hidden when no worker answers.
+  query panel widens EVERY selected image index to `QWEN_RERANKER_CANDIDATES`, merges
+  their candidates into one pool (round-robin over the two rank lists, so a frame only
+  Qwen retrieved is judged too), and has Qwen3-VL-Reranker-8B rescore each
+  `(query, keyframe)` pair at frame level. The result is a single `image_visual` ranking
+  that meets OCR/speech/audio in the RRF, so a low visual score cannot overrule the
+  channels whose evidence is not visual at all. Fail-open: if the worker is unreachable
+  the union order (RRF over the indices, never a sum of their cosines) is kept and the
+  panel says so. Serve it with `aic26_qwen3vl_reranker8b_colab_server.ipynb`; the box is
+  hidden when no worker answers.
 - **Search scope** — a checkbox filter over the dataset folders (L21–L30 +
   K01–K20), pushed down into the Milvus/Elastic queries. Each folder is one
   programme, so a topic heuristic reads the folders off the query the same way

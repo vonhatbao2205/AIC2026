@@ -15,13 +15,19 @@ from typing import Any, Literal
 # `canvas_image` is the rendered drawing encoded by PE image — the escape hatch
 # for things the detector has no label for (a rice field, a sky), deliberately
 # fused at a low weight because a sketch is far outside PE's photo distribution.
+# `image_visual` is the MERGED visual ranking: the PE and Qwen candidate pools
+# unioned and then judged together by the Qwen visual reranker. It replaces the
+# two separate `image_pe` / `image_qwen` channels whenever reranking runs, because
+# the reranker's verdict is one opinion about the frame, not one per retriever.
+# Without a reranker there is nothing to merge the two spaces with, so they stay
+# two channels and meet in the global RRF (see `SearchService._run_visual`).
 Channel = Literal[
-    "image_pe", "image_qwen", "ocr", "speech", "audio", "similar", "object_layout",
-    "canvas_image",
+    "image_pe", "image_qwen", "image_visual", "ocr", "speech", "audio", "similar",
+    "object_layout", "canvas_image",
 ]
 ALL_CHANNELS: tuple[Channel, ...] = (
-    "image_pe", "image_qwen", "ocr", "speech", "audio", "similar", "object_layout",
-    "canvas_image",
+    "image_pe", "image_qwen", "image_visual", "ocr", "speech", "audio", "similar",
+    "object_layout", "canvas_image",
 )
 
 

@@ -17,7 +17,7 @@ from ..adapters.pe_encoder import GlapEncoderClient, PeEncoderClient
 from ..adapters.qwen3_vl_encoder import Qwen3VlEncoderClient
 from ..adapters.qwen_reranker import QwenRerankerClient
 from ..config import Settings
-from ..fusion import group_by_video, reciprocal_rank_fusion
+from ..fusion import DEFAULT_RRF_K, group_by_video, reciprocal_rank_fusion
 from ..media import MediaUrlBuilder
 from ..query_parser import QueryParser
 from ..scope import ResolvedScope, resolve_scope
@@ -28,6 +28,8 @@ from ..types import Channel, ChannelHit, Evidence, FusedFrame, VideoGroup
 #: enriched so it can be submitted.
 MAX_ENRICHED_FRAMES = 1000
 IMAGE_MODELS = ("pe", "qwen3_vl")
+#: The standalone channel each retriever emits when no reranker merges them.
+VISUAL_CHANNEL: dict[str, Channel] = {"pe": "image_pe", "qwen3_vl": "image_qwen"}
 
 
 def _translation_warning(image_models: Sequence[str]) -> str | None:
@@ -81,72 +83,241 @@ class SearchService:
         return selected
 
     # ---- channel runners ----------------------------------------------
+    async def _search_visual_model(
+        self,
+        model: str,
+        queries: Sequence[str],
+        k: int,
+        categories: tuple[str, ...] = (),
+    ) -> list[dict[str, Any]]:
+        """One embedding space -> one ranked list of at most `k` rows.
+
+        QUERY EXPANSION is max-fused here and ONLY here: each variant is searched
+        separately and a frame keeps its best cosine (a frame matching ANY phrasing
+        strongly is kept). That is legal because every variant was encoded by the
+        same model into the same collection. The same trick across models would
+        not be — PE's 1280-d cosine and Qwen's 4096-d cosine have different
+        distributions, which is what rank fusion exists for.
+        """
+        encoder = self.pe if model == "pe" else self.qwen3_vl
+        searcher = (
+            self.milvus.search_image if model == "pe" else self.milvus.search_qwen_image
+        )
+        vectors = await encoder.encode_text(list(queries))
+        search = functools.partial(searcher, top_k=k, categories=categories)
+        if self.milvus.mock:
+            raws = [search(vector) for vector in vectors]
+        else:
+            raws = await asyncio.gather(
+                *(asyncio.to_thread(search, vector) for vector in vectors)
+            )
+        best: dict[str, dict[str, Any]] = {}
+        for raw in raws:
+            for row in raw:
+                kf_id = row["submit_keyframe_id"]
+                if kf_id not in best or row["score"] > best[kf_id]["score"]:
+                    best[kf_id] = row
+        return sorted(best.values(), key=lambda row: -row["score"])[:k]
+
+    @staticmethod
+    def _model_hits(model: str, rows: list[dict[str, Any]]) -> list[ChannelHit]:
+        """One retriever's rows as its own ranked channel."""
+        channel: Channel = VISUAL_CHANNEL[model]
+        return [
+            ChannelHit(
+                channel=channel,
+                submit_keyframe_id=row["submit_keyframe_id"],
+                video_id=row["video_id"],
+                keyframe_n=int(row["keyframe_n"]),
+                score=float(row["score"]),
+                rank=rank,
+                evidence=Evidence(
+                    type=channel,
+                    score=float(row["score"]),
+                    extra={"model": model},
+                ),
+            )
+            for rank, row in enumerate(rows)
+        ]
+
+    async def _run_image_model(
+        self,
+        model: str,
+        cfg: dict[str, Any],
+        top_k: int,
+        categories: tuple[str, ...] = (),
+    ) -> tuple[list[ChannelHit], float]:
+        t0 = time.perf_counter()
+        queries = [q for q in (cfg.get("queries_en") or []) if q and q.strip()]
+        if not queries:
+            return [], 0.0
+        rows = await self._search_visual_model(model, queries, top_k, categories)
+        return self._model_hits(model, rows), (time.perf_counter() - t0) * 1000
+
     async def _run_image_pe(
+        self, cfg: dict[str, Any], top_k: int, categories: tuple[str, ...] = ()
+    ) -> tuple[list[ChannelHit], float]:
+        """PE-Core text->image as a standalone ranked channel.
+
+        Reranking no longer lives here: it needs the Qwen candidates too, so it
+        moved up into `_run_visual`. This entry point is what the canvas service
+        (and the no-rerank path) uses to get PE's own list.
+        """
+        return await self._run_image_model("pe", cfg, top_k, categories)
+
+    async def _run_image_qwen(
+        self, cfg: dict[str, Any], top_k: int, categories: tuple[str, ...] = ()
+    ) -> tuple[list[ChannelHit], float]:
+        """Qwen3-VL text->image retrieval in its independent 4096-d space."""
+        return await self._run_image_model("qwen3_vl", cfg, top_k, categories)
+
+    async def _run_visual(
         self,
         cfg: dict[str, Any],
         top_k: int,
         categories: tuple[str, ...] = (),
         *,
+        image_models: tuple[str, ...] = ("pe",),
         rerank: bool = False,
         rerank_info: dict[str, Any] | None = None,
-    ) -> tuple[list[ChannelHit], float]:
-        """PE image search with QUERY EXPANSION: each query variant is searched
-        separately and the results are fused by max cosine per frame (a frame
-        matching ANY phrasing strongly is kept). One variant == plain search.
+        rrf_k: int = DEFAULT_RRF_K,
+        report: dict[str, Any] | None = None,
+    ) -> tuple[dict[Channel, list[ChannelHit]], dict[str, float], list[str]]:
+        """The whole visual stage: retrieve -> union -> rerank -> ONE ranking.
 
-        With `rerank`, Milvus is asked for a WIDER candidate pool than the caller
-        wants and Qwen3-VL rescores it before the list is cut back to `top_k`.
-        The reranker judges `(query, image)` pairs, so it has to run here — at
-        frame level, on the PE candidate union — rather than after RRF, where a
-        low visual score would overrule the OCR/speech/audio channels on frames
-        whose evidence is not visual at all.
+        THE CANDIDATE UNION HAPPENS BEFORE RERANKING. The previous topology
+        reranked the PE pool alone while Qwen ran a separate branch that only met
+        PE at the global RRF, so a frame that only Qwen retrieved was never shown
+        to the reranker at all: the one model able to judge it against the query
+        never saw it, and it arrived at fusion carrying nothing but a Qwen rank.
+        Now both retrievers fill one pool, the reranker judges that pool, and the
+        result is a single `image_visual` ranking that meets OCR / speech / audio
+        in the global RRF.
+
+        Without a reranker there is nothing to merge the two spaces into, so PE
+        and Qwen stay two channels and meet in the global RRF exactly as before —
+        that is already correct rank fusion, and their cosine values are still
+        never added.
+
+        Returns `(hits per channel, milliseconds per channel, warnings)`. A dead
+        model is a warning, not an exception: only losing EVERY selected model
+        raises, so one stopped Colab worker degrades the search instead of
+        emptying it.
         """
-        t0 = time.perf_counter()
+        # A channel the caller selected always reports a latency, even at 0.0:
+        # a missing row in the console reads as "not selected", which is a
+        # different thing from "selected and found nothing".
+        idle: dict[str, float] = {VISUAL_CHANNEL[m]: 0.0 for m in image_models}
         queries = [q for q in (cfg.get("queries_en") or []) if q and q.strip()]
-        if not queries:
-            return [], 0.0
+        if not queries or not image_models:
+            return {}, idle, []
         rerank_on = bool(rerank and self.reranker.enabled)
-        candidate_k = max(top_k, self.reranker.candidate_k) if rerank_on else top_k
-        vectors = await self.pe.encode_text(queries)
-        search = functools.partial(
-            self.milvus.search_image, top_k=candidate_k, categories=categories
+        # Reranking only reorders what it is given, so retrieve deeper than the
+        # operator asked for — a frame ranked 143rd is invisible to a reranker
+        # sent 100 candidates.
+        depth = max(top_k, self.reranker.candidate_k) if rerank_on else top_k
+
+        async def run(model: str) -> tuple[str, list[dict[str, Any]], float]:
+            started = time.perf_counter()
+            rows = await self._search_visual_model(model, queries, depth, categories)
+            return model, rows, (time.perf_counter() - started) * 1000
+
+        outcomes = await asyncio.gather(
+            *(run(model) for model in image_models), return_exceptions=True
         )
-        if self.milvus.mock:
-            raws = [search(vector) for vector in vectors]
-        else:
-            raws = await asyncio.gather(*(asyncio.to_thread(search, vector) for vector in vectors))
-        # Union variants, keep the best (max) cosine per frame.
-        best: dict[str, dict[str, Any]] = {}
-        for raw in raws:
-            for r in raw:
-                kf = r["submit_keyframe_id"]
-                if kf not in best or r["score"] > best[kf]["score"]:
-                    best[kf] = r
-        fused = sorted(best.values(), key=lambda r: -r["score"])[:candidate_k]
-        if rerank_on:
-            fused = await self._rerank_frames(queries[0], fused, rerank_info)
-        fused = fused[:top_k]
-        hits = [
-            ChannelHit(
-                channel="image_pe",
-                submit_keyframe_id=r["submit_keyframe_id"],
-                video_id=r["video_id"],
-                keyframe_n=int(r["keyframe_n"]),
-                score=float(r["score"]),
-                rank=i,
-                evidence=Evidence(
-                    type="image_pe",
-                    score=float(r["score"]),
-                    extra=(
-                        {"rerank_score": round(float(r["rerank_score"]), 4)}
-                        if r.get("rerank_score") is not None
-                        else {}
+        model_rows: dict[str, list[dict[str, Any]]] = {}
+        model_ms: dict[str, float] = {}
+        warnings: list[str] = []
+        failures: list[BaseException] = []
+        alive = 0
+        for model, outcome in zip(image_models, outcomes):
+            if isinstance(outcome, BaseException):
+                warnings.append(f"{VISUAL_CHANNEL[model]} channel unavailable: {outcome}")
+                failures.append(outcome)
+                continue
+            alive += 1
+            _, rows, ms = outcome
+            model_ms[model] = ms
+            if rows:
+                model_rows[model] = rows
+        if not alive and failures:
+            raise failures[0]
+        stage_report = report if report is not None else {}
+        stage_report.update({
+            "models": {
+                model: {"rows": len(model_rows.get(model, ())), "ms": round(ms, 1)}
+                for model, ms in model_ms.items()
+            },
+            "merged": rerank_on,
+            "rrf_k": rrf_k,
+        })
+        if not model_rows:
+            return {}, idle, warnings
+
+        if not rerank_on:
+            hits: dict[Channel, list[ChannelHit]] = {}
+            latency = dict(idle)
+            for model, rows in model_rows.items():
+                channel = VISUAL_CHANNEL[model]
+                hits[channel] = self._model_hits(model, rows[:top_k])
+                latency[channel] = model_ms[model]
+            return hits, latency, warnings
+
+        started = time.perf_counter()
+        pool = _union_visual_candidates(model_rows, rrf_k=rrf_k, pool_size=depth)
+        stage_report["pool"] = len(pool)
+        stage_report["pool_by_model"] = {
+            model: sum(1 for row in pool if model in row["retrievers"])
+            for model in model_rows
+        }
+        ranked = await self._rerank_frames(queries[0], pool, rerank_info)
+        ordered = ranked[:top_k]
+        merged: list[ChannelHit] = []
+        for rank, row in enumerate(ordered):
+            # DISPLAY ONLY. RRF fuses on rank, so this value never decides an
+            # ordering — which is what lets a rerank logit and the union's RRF
+            # score (for candidates the worker could not reach) sit in one field.
+            scored = row.get("rerank_score") is not None
+            display = float(row["rerank_score"] if scored else row["union_score"])
+            merged.append(
+                ChannelHit(
+                    channel="image_visual",
+                    submit_keyframe_id=row["submit_keyframe_id"],
+                    video_id=row["video_id"],
+                    keyframe_n=int(row["keyframe_n"]),
+                    score=display,
+                    rank=rank,
+                    evidence=Evidence(
+                        type="image_visual",
+                        score=display,
+                        extra={
+                            # Which retriever(s) actually found the frame is still
+                            # the operator's read on WHY it is here, so the merge
+                            # keeps it rather than flattening it into "visual".
+                            "models": list(row["retrievers"]),
+                            "per_model_score": {
+                                model: round(score, 6)
+                                for model, score in row["per_model_score"].items()
+                            },
+                            "union_score": round(float(row["union_score"]), 6),
+                            **(
+                                {"rerank_score": round(float(row["rerank_score"]), 4)}
+                                if scored
+                                else {}
+                            ),
+                        },
                     ),
-                ),
+                )
             )
-            for i, r in enumerate(fused)
-        ]
-        return hits, (time.perf_counter() - t0) * 1000
+        stage_report["ms"] = round((time.perf_counter() - started) * 1000, 1)
+        # The two retrievals ran concurrently, so the stage cost is the slower of
+        # them plus the union+rerank that had to wait for both.
+        retrieval_ms = max(model_ms.values(), default=0.0)
+        return (
+            {"image_visual": merged},
+            {"image_visual": retrieval_ms + stage_report["ms"]},
+            warnings,
+        )
 
     async def _rerank_frames(
         self,
@@ -154,12 +325,17 @@ class SearchService:
         rows: list[dict[str, Any]],
         info: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
-        """Reorder PE candidates by Qwen3-VL relevance. FAIL-OPEN.
+        """Reorder visual candidates by Qwen3-VL relevance. FAIL-OPEN.
 
         `retrieve()` turns any channel exception into an empty channel, so letting
-        a rerank failure escape would delete the whole PE result the moment the
+        a rerank failure escape would delete the whole visual result the moment the
         Colab tunnel drops. A refinement is not allowed to cost more than it adds:
-        every failure path here returns the PE order untouched.
+        every failure path here returns the retrieval order untouched.
+
+        `rows` is the UNION pool, so the reranker is judging PE and Qwen candidates
+        against each other — the one place in the pipeline where candidates from
+        two embedding spaces are compared by something that actually looks at the
+        image rather than by their incomparable cosine values.
 
         Only the FIRST query variant is sent. Reranking each expansion paraphrase
         would triple the GPU cost to answer a question the operator did not ask —
@@ -196,8 +372,8 @@ class SearchService:
             row["rerank_score"] = item["score"]
             ordered.append(row)
         # Frames the worker could not score (unreachable keyframe image, or cut by
-        # its own top_k) keep their PE order behind the reranked ones — dropping
-        # them would lose recall PE had already paid for.
+        # its own top_k) keep their retrieval order behind the reranked ones —
+        # dropping them would lose recall the retrievers had already paid for.
         ordered.extend(by_id.values())
         report.update({
             "ok": True,
@@ -206,56 +382,6 @@ class SearchService:
             "ms": round((time.perf_counter() - started) * 1000, 1),
         })
         return ordered
-
-    async def _run_image_qwen(
-        self,
-        cfg: dict[str, Any],
-        top_k: int,
-        categories: tuple[str, ...] = (),
-    ) -> tuple[list[ChannelHit], float]:
-        """Qwen3-VL text→image retrieval in its independent 4096-d space.
-
-        Query-expansion variants are max-fused only *within* Qwen, where cosine
-        scores are comparable. PE and Qwen remain separate ranked channels and
-        meet later in RRF; their raw cosine values are never added.
-        """
-        t0 = time.perf_counter()
-        queries = [q for q in (cfg.get("queries_en") or []) if q and q.strip()]
-        if not queries:
-            return [], 0.0
-        vectors = await self.qwen3_vl.encode_text(queries)
-        search = functools.partial(
-            self.milvus.search_qwen_image, top_k=top_k, categories=categories
-        )
-        if self.milvus.mock:
-            raws = [search(vector) for vector in vectors]
-        else:
-            raws = await asyncio.gather(*(asyncio.to_thread(search, vector) for vector in vectors))
-
-        best: dict[str, dict[str, Any]] = {}
-        for raw in raws:
-            for row in raw:
-                kf_id = row["submit_keyframe_id"]
-                if kf_id not in best or row["score"] > best[kf_id]["score"]:
-                    best[kf_id] = row
-        ranked = sorted(best.values(), key=lambda row: -row["score"])[:top_k]
-        hits = [
-            ChannelHit(
-                channel="image_qwen",
-                submit_keyframe_id=row["submit_keyframe_id"],
-                video_id=row["video_id"],
-                keyframe_n=int(row["keyframe_n"]),
-                score=float(row["score"]),
-                rank=rank,
-                evidence=Evidence(
-                    type="image_qwen",
-                    score=float(row["score"]),
-                    extra={"model": "qwen3_vl"},
-                ),
-            )
-            for rank, row in enumerate(ranked)
-        ]
-        return hits, (time.perf_counter() - t0) * 1000
 
     async def _run_similar(
         self,
@@ -521,30 +647,43 @@ class SearchService:
         filters = parsed.get("filters", {})
         unsupported = self.s.unsupported_channels
         image_models = self.resolve_image_models(image_models)
+        rrf_k = (parsed.get("rerank_policy") or {}).get("rrf_k", DEFAULT_RRF_K)
         # Per-call, so two concurrent searches never write each other's report.
         rerank_info: dict[str, Any] = {}
+        visual_info: dict[str, Any] = {}
         runners = {
             name: runner
             for name, runner in (
-                (
-                    "image_pe",
-                    functools.partial(
-                        self._run_image_pe, rerank=rerank, rerank_info=rerank_info
-                    ),
-                ),
-                ("image_qwen", self._run_image_qwen),
                 ("ocr", self._run_ocr),
                 ("speech", self._run_speech),
                 ("audio", self._run_audio),
             )
             if name not in unsupported
-            and (name != "image_pe" or "pe" in image_models)
-            and (name != "image_qwen" or "qwen3_vl" in image_models)
         }
         feedback = feedback or {}
-        tasks: dict[Channel, asyncio.Task] = {}
+        tasks: dict[str, asyncio.Task] = {}
+        # The visual stage is ONE task for both retrievers plus the reranker: the
+        # reranker has to see PE's and Qwen's candidates in the same pool, which
+        # it cannot do while they are two independent channel tasks.
+        visual_models = tuple(
+            model for model in image_models if VISUAL_CHANNEL[model] not in unsupported
+        )
+        visual_cfg = channels_cfg.get("image_pe", {})
+        if visual_cfg.get("enabled") and visual_models:
+            tasks["visual"] = asyncio.create_task(
+                self._run_visual(
+                    visual_cfg,
+                    top_k,
+                    categories,
+                    image_models=visual_models,
+                    rerank=rerank,
+                    rerank_info=rerank_info,
+                    rrf_k=rrf_k,
+                    report=visual_info,
+                )
+            )
         for name, runner in runners.items():
-            cfg = channels_cfg.get("image_pe" if name == "image_qwen" else name, {})
+            cfg = channels_cfg.get(name, {})
             if cfg.get("enabled"):
                 tasks[name] = asyncio.create_task(runner(cfg, top_k, categories))
         # Feedback-driven, not parser-driven: it exists only while the operator
@@ -576,6 +715,26 @@ class SearchService:
                 + ", ".join(self.s.ocr_missing_categories)
             )
         for name, task in tasks.items():
+            if name == "visual":
+                try:
+                    visual_hits, visual_ms, visual_warnings = await task
+                except Exception as exc:  # noqa: BLE001 - a dead stage is not an outage
+                    # Every selected retriever is gone; name the channels the
+                    # console expected so a blank visual row reads as a failure
+                    # rather than as "nothing matched".
+                    visual_warnings = [f"visual channel unavailable: {exc}"]
+                    visual_hits = {}
+                    visual_ms = {VISUAL_CHANNEL[m]: 0.0 for m in visual_models}
+                warnings.extend(visual_warnings)
+                # Weights are configured on `image_pe`: it is the master switch
+                # for the whole visual stage, whichever channel(s) it emits.
+                visual_weight = float(channels_cfg.get("image_pe", {}).get("weight") or 1.0)
+                for channel in visual_ms:
+                    hits = visual_hits.get(channel, [])
+                    channel_hits[channel] = _apply_filters(hits, filters, categories)
+                    latency["channels"][channel] = round(visual_ms[channel], 1)
+                    weights[channel] = visual_weight
+                continue
             try:
                 hits, ms = await task
             except Exception as exc:  # noqa: BLE001 - one dead channel must not kill the search
@@ -583,20 +742,20 @@ class SearchService:
                 warnings.append(f"{name} channel unavailable: {exc}")
             channel_hits[name] = _apply_filters(hits, filters, categories)
             latency["channels"][name] = round(ms, 1)
-            cfg_name = "image_pe" if name == "image_qwen" else name
-            weights[name] = float(channels_cfg.get(cfg_name, {}).get("weight") or 1.0)
+            weights[name] = float(channels_cfg.get(name, {}).get("weight") or 1.0)
+        if visual_info:
+            latency["visual"] = visual_info
         if rerank_info:
             latency["reranker"] = rerank_info
             if not rerank_info.get("ok"):
                 warnings.append(
-                    "Reranker không dùng được, giữ nguyên thứ tự PE: "
+                    "Reranker không dùng được, giữ nguyên thứ tự truy hồi: "
                     + str(rerank_info.get("error") or "unknown")
                 )
         if warnings:
             latency["warnings"] = warnings
 
         t_fuse = time.perf_counter()
-        rrf_k = (parsed.get("rerank_policy") or {}).get("rrf_k", 60)
         fused = reciprocal_rank_fusion(
             channel_hits,
             weights=weights,
@@ -646,8 +805,12 @@ class SearchService:
     ) -> dict[str, Any]:
         """Flat visual search over the selected embedding model(s).
 
-        One model keeps its own cosine order. Two models run concurrently and
-        are fused by RRF, never by adding their incompatible cosine scores.
+        Same topology as the full pipeline's visual stage. Without reranking, one
+        model keeps its own cosine order and two models are fused by RRF, never by
+        adding their incompatible cosine scores. With reranking, both retrievers
+        fill ONE candidate pool first and the reranker judges that pool — so a
+        frame only Qwen found is scored against the query like any other, instead
+        of skipping the reranker because it was not in PE's list.
         """
         t0 = time.perf_counter()
         query = (query or "").strip()
@@ -678,34 +841,18 @@ class SearchService:
         rerank_info: dict[str, Any] = {}
         model_latency: dict[str, float] = {}
 
+        # Every selected retriever over-retrieves when reranking, not just PE:
+        # the pool the reranker sees has to be deeper than the answer, in BOTH
+        # spaces, or the union is only wide on one side.
+        depth = max(top_k, self.reranker.candidate_k) if rerank_on else top_k
+
         async def run_model(model: str) -> tuple[str, list[dict[str, Any]]]:
             started = time.perf_counter()
-            encoder = self.pe if model == "pe" else self.qwen3_vl
-            searcher = (
-                self.milvus.search_image
-                if model == "pe"
-                else self.milvus.search_qwen_image
+            rows = await self._search_visual_model(
+                model, [search_text], depth, scope.categories
             )
-            vectors = await encoder.encode_text([search_text])
-            candidate_k = (
-                max(top_k, self.reranker.candidate_k)
-                if model == "pe" and rerank_on
-                else top_k
-            )
-            rows = (
-                searcher(vectors[0], top_k=candidate_k, categories=scope.categories)
-                if self.milvus.mock
-                else await asyncio.to_thread(
-                    searcher,
-                    vectors[0],
-                    top_k=candidate_k,
-                    categories=scope.categories,
-                )
-            )
-            if model == "pe" and rerank_on:
-                rows = await self._rerank_frames(search_text, list(rows), rerank_info)
             model_latency[model] = round((time.perf_counter() - started) * 1000, 1)
-            return model, list(rows)[:top_k]
+            return model, rows
 
         outcomes = await asyncio.gather(
             *(run_model(model) for model in selected), return_exceptions=True
@@ -717,7 +864,9 @@ class SearchService:
                 warnings.append(f"{model} image search unavailable: {outcome}")
                 continue
             returned_model, rows = outcome
-            model_rows[returned_model] = rows
+            # The reranker needs the full over-retrieved list; every other path
+            # only ever wants the answer depth.
+            model_rows[returned_model] = rows if rerank_on else rows[:top_k]
         if not model_rows:
             detail = "; ".join(warnings) or "no image model returned results"
             raise ServiceUnavailable(detail)
@@ -730,7 +879,26 @@ class SearchService:
                 per_model_score.setdefault(kf_id, {})[model] = float(row["score"])
                 row_by_id.setdefault(kf_id, row)
 
-        if len(model_rows) == 1:
+        if rerank_on:
+            # Union BEFORE the reranker, exactly as in `_run_visual`: one pool,
+            # one verdict, one ranking.
+            pool = _union_visual_candidates(
+                model_rows, rrf_k=DEFAULT_RRF_K, pool_size=depth
+            )
+            ordered = await self._rerank_frames(search_text, pool, rerank_info)
+            ranked_rows = [
+                {
+                    **row,
+                    "fused_score": float(
+                        row["rerank_score"]
+                        if row.get("rerank_score") is not None
+                        else row["union_score"]
+                    ),
+                    "models": list(row["retrievers"]),
+                }
+                for row in ordered[:top_k]
+            ]
+        elif len(model_rows) == 1:
             only_model, raw = next(iter(model_rows.items()))
             ranked_rows = [
                 {**row, "fused_score": float(row["score"]), "models": [only_model]}
@@ -913,6 +1081,89 @@ class SearchService:
             "video_url": self.media.video_url(g.video_id),
             "frames": [self._serialize_frame(f) for f in g.frames],
         }
+
+
+def _union_visual_candidates(
+    model_rows: dict[str, list[dict[str, Any]]],
+    *,
+    rrf_k: int = DEFAULT_RRF_K,
+    pool_size: int,
+) -> list[dict[str, Any]]:
+    """Merge the retrievers' ranked lists into ONE candidate pool to rerank.
+
+    Two rules, and they answer two different questions.
+
+    WHO GETS IN — selection is round-robin over the models' ranks, so every
+    retriever is guaranteed roughly `pool_size / n_models` of the pool. A frame
+    only Qwen found, at Qwen rank 3, is in the pool even when PE's list is longer
+    and scores higher on paper. Taking the top `pool_size` of the fused order
+    instead would let one model's deep tail crowd out the other model's head,
+    which is exactly the model-diversity loss this stage exists to prevent.
+
+    IN WHAT ORDER — RRF over the same lists, rank-only. PE cosine and Qwen cosine
+    are never added; agreement between two independent spaces shows up as two
+    rank contributions instead. That order is what the reranker receives, and,
+    more importantly, what survives untouched when the reranker is down.
+
+    With one model selected both rules collapse to "its own cosine order", so a
+    PE-only search reaches the reranker exactly as it did before.
+
+    NOTE ON DEPTH: the pool is capped at `pool_size` in total, not per model, so
+    the GPU cost of reranking does not double when a second retriever is ticked.
+    Two models therefore each contribute about half the depth one model would.
+    Raise `QWEN_RERANKER_CANDIDATES` if you want both retrievers at full depth.
+    """
+    entries: dict[str, dict[str, Any]] = {}
+    for model, rows in model_rows.items():
+        for rank, row in enumerate(rows):
+            kf_id = row["submit_keyframe_id"]
+            entry = entries.get(kf_id)
+            if entry is None:
+                entry = entries[kf_id] = {
+                    "row": dict(row),
+                    "union_score": 0.0,
+                    "retrievers": [],
+                    "per_model_score": {},
+                    "best_rank": rank,
+                }
+            entry["union_score"] += 1.0 / (rrf_k + rank + 1)
+            entry["per_model_score"][model] = float(row["score"])
+            if model not in entry["retrievers"]:
+                entry["retrievers"].append(model)
+            entry["best_rank"] = min(entry["best_rank"], rank)
+
+    selected: list[str] = []
+    seen: set[str] = set()
+    models = list(model_rows)
+    deepest = max((len(rows) for rows in model_rows.values()), default=0)
+    for rank in range(deepest):
+        for model in models:
+            rows = model_rows[model]
+            if rank >= len(rows):
+                continue
+            kf_id = rows[rank]["submit_keyframe_id"]
+            if kf_id in seen:
+                continue
+            seen.add(kf_id)
+            selected.append(kf_id)
+            if len(selected) >= pool_size:
+                break
+        if len(selected) >= pool_size:
+            break
+
+    pool = [entries[kf_id] for kf_id in selected]
+    pool.sort(
+        key=lambda e: (-e["union_score"], e["best_rank"], e["row"]["submit_keyframe_id"])
+    )
+    return [
+        {
+            **entry["row"],
+            "union_score": entry["union_score"],
+            "retrievers": [m for m in IMAGE_MODELS if m in entry["retrievers"]],
+            "per_model_score": entry["per_model_score"],
+        }
+        for entry in pool
+    ]
 
 
 def _apply_filters(

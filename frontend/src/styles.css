@@ -420,6 +420,9 @@ button { font-family: inherit; }
 }
 .badge.image_pe { color: var(--ch-vector); background: color-mix(in srgb, var(--ch-vector) 16%, transparent); }
 .badge.image_qwen { color: var(--ch-qwen); background: color-mix(in srgb, var(--ch-qwen) 16%, transparent); }
+/* The merged, reranked visual ranking. Deliberately not PE's or Qwen's colour:
+   it is neither index speaking, it is the reranker's verdict over both. */
+.badge.image_visual { color: var(--ch-vector); background: color-mix(in srgb, var(--ch-vector) 16%, transparent); border: 1px solid color-mix(in srgb, var(--ch-qwen) 45%, transparent); }
 .badge.ocr { color: var(--ch-ocr); background: color-mix(in srgb, var(--ch-ocr) 16%, transparent); }
 .badge.speech { color: var(--ch-speech); background: color-mix(in srgb, var(--ch-speech) 16%, transparent); }
 .badge.audio { color: var(--ch-audio); background: color-mix(in srgb, var(--ch-audio) 16%, transparent); }

@@ -1,6 +1,7 @@
 import type { Evidence, FrameResult, QueryType } from "../api/types";
 import { boxStyle, layoutEvidenceOf, outlineFor } from "../lib/canvas";
 import { formatTime } from "../lib/media";
+import { CHANNEL_LABEL } from "../lib/constants";
 import { ChannelBadge } from "./Badges";
 
 interface Props {
@@ -18,6 +19,11 @@ function EvidenceCard({ e }: { e: Evidence }) {
   if (e.confidence_bucket) extra.push(String(e.confidence_bucket));
   if (e.segment_role) extra.push(String(e.segment_role));
   if (e.clock) extra.push(`🕑${e.clock}`);
+  // A merged visual hit shows one badge, so the retrievers behind it have to be
+  // readable somewhere: an operator checking a frame needs to know whether both
+  // embedding spaces agreed on it or only one of them found it at all.
+  if (Array.isArray(e.models)) extra.push((e.models as string[]).map((m) => CHANNEL_LABEL[m === "pe" ? "image_pe" : "image_qwen"]).join(" + "));
+  if (typeof e.rerank_score === "number") extra.push(`rerank ${e.rerank_score.toFixed(3)}`);
   const isGlap = e.type === "audio" && (e as { match?: string }).match === "glap-vector";
   return (
     <div className="evidence" data-testid="evidence-card">

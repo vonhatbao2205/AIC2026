@@ -214,7 +214,7 @@ export default function SimpleSearch({
             <label
               className="check-toggle"
               data-testid="rerank-toggle"
-              title="Qwen3-VL chấm lại từng cặp (query, keyframe) trên tập ứng viên PE mở rộng. Chính xác hơn nhưng chậm hơn vài giây; worker lỗi thì giữ nguyên thứ tự PE."
+              title="Gộp ứng viên của mọi index ảnh đang chọn (PE + Qwen3-VL) thành một pool rồi Qwen3-VL chấm lại từng cặp (query, keyframe). Chính xác hơn nhưng chậm hơn vài giây; worker lỗi thì giữ nguyên thứ tự truy hồi."
             >
               <input
                 type="checkbox"
@@ -232,7 +232,7 @@ export default function SimpleSearch({
             >
               {rerankReport.ok
                 ? `· ↕ rerank ${rerankReport.reranked}/${rerankReport.candidates} · ${Math.round(rerankReport.ms)} ms`
-                : "· ⚠ rerank lỗi, giữ thứ tự PE"}
+                : "· ⚠ rerank lỗi, giữ thứ tự truy hồi"}
             </span>
           )}
           {latency != null && <span className="latency-mini">{latency} ms</span>}

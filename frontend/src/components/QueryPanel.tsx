@@ -242,7 +242,7 @@ export function QueryPanel(props: Props) {
           <label
             className="check-toggle"
             data-testid="rerank-toggle"
-            title="Qwen3-VL chấm lại từng cặp (query, keyframe) trên tập ứng viên PE mở rộng trước khi fuse. Chính xác hơn nhưng chậm hơn vài giây; nếu worker lỗi thì giữ nguyên thứ tự PE."
+            title="Gộp ứng viên của MỌI index ảnh đang bật (PE + Qwen3-VL) thành một pool, rồi Qwen3-VL chấm lại từng cặp (query, keyframe) trước khi fuse với OCR/speech/audio. Chính xác hơn nhưng chậm hơn vài giây; nếu worker lỗi thì giữ nguyên thứ tự truy hồi."
           >
             <input
               type="checkbox"
@@ -266,7 +266,7 @@ export function QueryPanel(props: Props) {
         >
           {rerankReport.ok
             ? `↕ Rerank: ${rerankReport.reranked}/${rerankReport.candidates} keyframe · ${Math.round(rerankReport.ms)} ms`
-            : `⚠ Rerank lỗi sau ${Math.round(rerankReport.ms)} ms — giữ nguyên thứ tự PE: ${rerankReport.error ?? "không rõ"}`}
+            : `⚠ Rerank lỗi sau ${Math.round(rerankReport.ms)} ms — giữ nguyên thứ tự truy hồi: ${rerankReport.error ?? "không rõ"}`}
         </div>
       )}
 
