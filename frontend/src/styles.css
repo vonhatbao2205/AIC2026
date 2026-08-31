@@ -462,7 +462,10 @@ button { font-family: inherit; }
 .frames-strip { display: flex; flex-wrap: wrap; gap: 10px; padding: 4px 14px 14px; }
 .thumb {
   position: relative; flex: 0 0 auto; width: 132px; cursor: pointer;
-  border: 2px solid transparent; border-radius: var(--radius-sm); overflow: hidden;
+  /* Constant width across every state on purpose: `box-sizing` is border-box, so
+     thickening the border only when a thumb is selected or top-ranked would
+     resize the image under the cursor on every arrow-key step. */
+  border: 5px solid transparent; border-radius: var(--radius-sm); overflow: hidden;
   background: var(--bg-3); transition: transform .12s, box-shadow .15s;
 }
 .thumb:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
