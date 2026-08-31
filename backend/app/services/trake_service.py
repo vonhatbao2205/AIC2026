@@ -350,8 +350,9 @@ class TrakeService:
                         frame_idx=rec.get("frame_idx"),
                         fps=rec.get("fps"),
                         via_fill=True,
-                        # The undistorted ratio, for the heatmap: `score` deliberately
-                        # squashes it onto a scale real evidence always beats.
+                        # The undistorted ratio, for the heatmap: `score` puts the
+                        # fill on a small scale that OVERLAPS real evidence, so
+                        # the heat row would misreport it.
                         fill_quality=float(h["fill_quality"]),
                     ),
                 ))

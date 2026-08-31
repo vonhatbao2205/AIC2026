@@ -85,9 +85,10 @@ class FusedFrame:
     via_fill: bool = False  # True if surfaced by TRAKE pass-2 in-video fill (fallback relevance)
     # How good a pass-2 fill was RELATIVE to the best hit that event has anywhere
     # in the index (cosine ratio, or the RRF ratio when two models were combined).
-    # `score` compresses it onto a 0.02 scale so a fill can never outrank real
-    # evidence; this keeps the undistorted value for the TRAKE heatmap, which
-    # normalizes every event on its own scale.
+    # `score` compresses it onto a small 0.02 relevance scale, which overlaps
+    # real evidence rather than sitting below it (see `FILL_SCORE_SCALE`); this
+    # keeps the undistorted value for the TRAKE heatmap, which normalizes every
+    # event on its own scale.
     fill_quality: float | None = None
 
     @property

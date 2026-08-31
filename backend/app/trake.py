@@ -12,10 +12,12 @@ Per video and event the candidates first go through a temporal NMS
 hypothesis, and keeping them would evict the genuinely different moment later in
 the video that the chain may actually need. The chain itself is then an exact
 dynamic-programming strictly-increasing chain over the surviving candidates (by
-event index AND time): it picks at most one frame per event, in order, maximizing
-(events covered, then total relevance). This is globally optimal — unlike a greedy
-left-to-right pick it never gets trapped by a locally-good early choice, and it
-can skip an event (partial sequence) when no orderable candidate exists.
+event index AND time): it picks at most one frame per event, in order,
+maximizing `(real evidence, events covered, normalized quality)` — the same
+priority, term for term, that `trake_video_score` gives the video it belongs to.
+This is globally optimal — unlike a greedy left-to-right pick it never gets
+trapped by a locally-good early choice, and it can skip an event (partial
+sequence) when no orderable candidate exists.
 
 `snap_to_keyframe` powers the (legacy) pause-frame picker.
 """
@@ -37,8 +39,13 @@ DEFAULT_PEAKS_PER_EVENT = 8
 # keeping only as chain slack (0.3 s earlier can be the difference between an
 # orderable chain and none), never at the price of a distinct peak.
 DEFAULT_PER_VIDEO_EVENT_CAP = 12
-# Pass-2 fill scores live on a 0.02 scale so they can never outrank real
-# evidence; dividing by it recovers the fill quality when the field is missing.
+# Pass-2 fill scores are put on a small 0.02 relevance scale; dividing by it
+# recovers the fill quality when the field is missing.
+#
+# It does NOT keep fills below real evidence, and nothing may assume it does: a
+# frame found by a single channel at rank 0 scores `1/(60+1) = 0.0164`, so the
+# two ranges overlap. Real-vs-fill preference is enforced explicitly, by the DP
+# objective and by `confident_coverage` in the ranking.
 FILL_SCORE_SCALE = 0.02
 
 
