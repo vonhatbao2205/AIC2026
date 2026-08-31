@@ -1,5 +1,6 @@
 import { eventColor } from "../lib/constants";
 import { formatTime } from "../lib/media";
+import { hasPeakDrag, readPeakDrag, type TrakePeakDrag } from "../lib/trakeDrag";
 
 // A TRAKE slot now holds the RAW paused frame (frame_idx computed from pts*fps),
 // not a snapped BTC keyframe — TRAKE may need frames outside the BTC keyframe set.
@@ -18,6 +19,10 @@ interface Props {
   violations: number[];
   onSetActive: (i: number) => void;
   onAssignChip: (slotIdx: number) => void;
+  /** A frame dragged straight out of a TRAKE result card (event representative
+   *  or heat peak). It goes into the slot as-is — no video load, no seek, no
+   *  pause, which is the whole point of showing the frames in the first place. */
+  onAssignPeak: (slotIdx: number, payload: TrakePeakDrag) => void;
   onClearSlot: (i: number) => void;
   onMoveSlot: (from: number, to: number) => void;
   onAddEvent: () => void;
@@ -42,6 +47,11 @@ export function TrakePanel(props: Props) {
     if (fromSlot !== "") {
       const from = Number(fromSlot);
       if (from !== slotIdx) props.onMoveSlot(from, slotIdx); // reorder events
+      return;
+    }
+    const peak = readPeakDrag(e);
+    if (peak) {
+      props.onAssignPeak(slotIdx, peak);
       return;
     }
     if (e.dataTransfer.getData("text/x-paused-frame") && props.hasPausedFrame) {
@@ -71,7 +81,10 @@ export function TrakePanel(props: Props) {
             onClick={() => props.onSetActive(i)}
             draggable={!!slot}
             onDragStart={(e) => { if (slot) e.dataTransfer.setData("text/x-slot", String(i)); }}
-            onDragOver={(e) => e.preventDefault()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (hasPeakDrag(e)) e.dataTransfer.dropEffect = "copy";
+            }}
             onDrop={(e) => onDrop(e, i)}
             style={{ ...(i === activeSlot ? { boxShadow: `0 0 0 2px ${eventColor(i)}` } : {}), cursor: slot ? "grab" : "pointer" }}
           >
@@ -90,7 +103,7 @@ export function TrakePanel(props: Props) {
               </>
             ) : (
               <div style={{ fontSize: 10, color: "var(--fg-faint)", textAlign: "center", padding: "16px 0" }}>
-                empty — pause video & press Enter, or drag chip
+                empty — kéo frame từ kết quả, hoặc pause video & Enter
               </div>
             )}
           </div>

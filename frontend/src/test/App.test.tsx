@@ -99,8 +99,8 @@ const TIMELINE = {
   heatmap: [],
 };
 
-const kfUrl = (n: number) =>
-  `https://media.test/Keyframes/Keyframes_K19/K19_V028/${String(n).padStart(3, "0")}.jpg`;
+const kfUrl = (n: number, videoId = "K19_V028") =>
+  `https://media.test/Keyframes/Keyframes_K19/${videoId}/${String(n).padStart(3, "0")}.jpg`;
 /** One TRAKE heat peak, the shape `/api/search/trake` returns per event. */
 const peak = (
   eventIndex: number,
@@ -109,9 +109,10 @@ const peak = (
   frameIdx: number,
   strength: number,
   picked = false,
+  videoId = "K19_V028",
 ) => ({
   event_index: eventIndex,
-  submit_keyframe_id: `K19/K19_V028/${String(keyframeN).padStart(3, "0")}`,
+  submit_keyframe_id: `K19/${videoId}/${String(keyframeN).padStart(3, "0")}`,
   keyframe_n: keyframeN,
   frame_idx: frameIdx,
   pts_time: pts,
@@ -119,7 +120,7 @@ const peak = (
   strength,
   via_fill: false,
   selected_by_dp: picked,
-  keyframe_url: kfUrl(keyframeN),
+  keyframe_url: kfUrl(keyframeN, videoId),
 });
 
 const TRAKE_RESPONSE = {
@@ -195,19 +196,19 @@ const TRAKE_RESPONSE = {
           event_index: 1,
           has_candidate: true,
           in_chain: true,
-          representative: peak(1, 400, 300, 9000, 0.6, true),
-          peaks: [peak(1, 400, 300, 9000, 0.6, true)],
+          representative: peak(1, 400, 300, 9000, 0.6, true, "K19_V099"),
+          peaks: [peak(1, 400, 300, 9000, 0.6, true, "K19_V099")],
         },
         {
           event_index: 2,
           has_candidate: true,
           in_chain: false,
-          representative: peak(2, 20, 100, 3000, 0.5),
-          peaks: [peak(2, 20, 100, 3000, 0.5)],
+          representative: peak(2, 20, 100, 3000, 0.5, false, "K19_V099"),
+          peaks: [peak(2, 20, 100, 3000, 0.5, false, "K19_V099")],
         },
       ],
       best_chain: [
-        { event_index: 1, submit_keyframe_id: "K19/K19_V099/400", keyframe_n: 400, frame_idx: 9000, pts_time: 300, score: 0.03, via_fill: false, keyframe_url: kfUrl(400) },
+        { event_index: 1, submit_keyframe_id: "K19/K19_V099/400", keyframe_n: 400, frame_idx: 9000, pts_time: 300, score: 0.03, via_fill: false, keyframe_url: kfUrl(400, "K19_V099") },
       ],
     },
   ],
@@ -1308,6 +1309,128 @@ describe("AIC26 retrieval console (full)", () => {
     await user.selectOptions(screen.getByTestId("retrieval-database"), "infoshotpp");
     // Those cards describe videos from a corpus that is no longer being searched.
     await waitFor(() => expect(screen.queryByTestId("trake-videos")).not.toBeInTheDocument());
+  });
+
+  /** jsdom ships no working DataTransfer, so drag tests carry their own. */
+  function dataTransfer() {
+    const store: Record<string, string> = {};
+    return {
+      dropEffect: "",
+      effectAllowed: "",
+      setData(type: string, value: string) { store[type] = value; },
+      getData(type: string) { return store[type] ?? ""; },
+      get types() { return Object.keys(store); },
+    };
+  }
+
+  async function openTrakeResults(user: ReturnType<typeof userEvent.setup>) {
+    render(<App />);
+    await user.click(screen.getByRole("tab", { name: "TRAKE" }));
+    await user.type(screen.getByTestId("query-input"), "a then b");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => expect(screen.getByTestId("trake-videos")).toBeInTheDocument());
+    return screen.getAllByTestId("trake-video-card");
+  }
+
+  it("TRAKE: heat rows show the candidate frames themselves, not just marks", async () => {
+    const user = userEvent.setup();
+    const cards = await openTrakeResults(user);
+    const e1Row = within(cards[0]).getByTestId("trake-heat-row-1");
+    const peaks = within(e1Row).getAllByTestId("trake-heat-peak");
+
+    // Every candidate carries its own keyframe image, so judging an alternative
+    // costs a glance instead of a video load, a seek and a pause.
+    expect(peaks).toHaveLength(2);
+    for (const p of peaks) {
+      expect(within(p).getByRole("presentation")).toHaveAttribute(
+        "src",
+        expect.stringContaining("/Keyframes/Keyframes_K19/K19_V028/"),
+      );
+    }
+    expect(peaks[0]).toHaveTextContent("02:00"); // the alternative moment
+    expect(peaks[1]).toHaveTextContent("08:50"); // the one the chain took
+  });
+
+  it("TRAKE: a frame dragged from the heat row lands in an event slot", async () => {
+    const user = userEvent.setup();
+    const cards = await openTrakeResults(user);
+    const e1Row = within(cards[0]).getByTestId("trake-heat-row-1");
+    const alternative = within(e1Row).getAllByTestId("trake-heat-peak")[0];
+
+    const dt = dataTransfer();
+    fireEvent.dragStart(alternative, { dataTransfer: dt });
+    fireEvent.drop(screen.getByTestId("trake-slot-1"), { dataTransfer: dt });
+
+    // frame_idx 3600 @ 120s, straight off the card — no video was ever loaded.
+    expect(screen.getByTestId("trake-slot-1")).toHaveTextContent("f3600");
+    expect(screen.getByTestId("trake-slot-1")).toHaveTextContent("02:00");
+  });
+
+  it("TRAKE: a frame dropped on an event replaces the chain's pick, and ↺ gives it back", async () => {
+    const user = userEvent.setup();
+    const cards = await openTrakeResults(user);
+    const e1Card = within(cards[0]).getByTestId("trake-event-1");
+    expect(e1Card).toHaveTextContent("08:50"); // the DP's choice
+
+    const e1Row = within(cards[0]).getByTestId("trake-heat-row-1");
+    const dt = dataTransfer();
+    fireEvent.dragStart(within(e1Row).getAllByTestId("trake-heat-peak")[0], { dataTransfer: dt });
+    fireEvent.drop(e1Card, { dataTransfer: dt });
+
+    expect(within(cards[0]).getByTestId("trake-event-1")).toHaveTextContent("02:00");
+    expect(within(cards[0]).getByTestId("trake-event-1")).toHaveTextContent("đã chọn tay");
+
+    // The backend result is never mutated, so the DP's answer is always recoverable.
+    await user.click(within(cards[0]).getByTestId("trake-event-undo-1"));
+    expect(within(cards[0]).getByTestId("trake-event-1")).toHaveTextContent("08:50");
+    expect(within(cards[0]).queryByTestId("trake-event-undo-1")).not.toBeInTheDocument();
+  });
+
+  it("TRAKE: an override that breaks chronological order is called out", async () => {
+    const user = userEvent.setup();
+    const cards = await openTrakeResults(user);
+    expect(within(cards[0]).queryByTestId("trake-order-warning")).not.toBeInTheDocument();
+
+    // Put E1's 02:00 frame into E2, which leaves E1 at 08:50 ahead of it. The
+    // organiser's parser rejects a row that is not chronological, and one
+    // rejected row blocks the whole submission — so it has to show here.
+    const e1Row = within(cards[0]).getByTestId("trake-heat-row-1");
+    const dt = dataTransfer();
+    fireEvent.dragStart(within(e1Row).getAllByTestId("trake-heat-peak")[0], { dataTransfer: dt });
+    fireEvent.drop(within(cards[0]).getByTestId("trake-event-2"), { dataTransfer: dt });
+
+    expect(within(cards[0]).getByTestId("trake-order-warning")).toHaveTextContent("E2");
+  });
+
+  it("TRAKE: a frame from another video cannot join this video's chain", async () => {
+    const user = userEvent.setup();
+    const cards = await openTrakeResults(user);
+    const otherRow = within(cards[1]).getByTestId("trake-heat-row-1");
+    const foreign = within(otherRow).getAllByTestId("trake-heat-peak")[0];
+
+    const dt = dataTransfer();
+    fireEvent.dragStart(foreign, { dataTransfer: dt });
+    fireEvent.drop(within(cards[0]).getByTestId("trake-event-1"), { dataTransfer: dt });
+
+    // Every TRAKE event has to come from the one video being submitted.
+    expect(within(cards[0]).getByTestId("trake-event-1")).toHaveTextContent("08:50");
+    expect(within(cards[0]).getByTestId("trake-event-1")).not.toHaveTextContent("đã chọn tay");
+  });
+
+  it("TRAKE: quick submit sends the operator's frame, not the one it replaced", async () => {
+    const user = userEvent.setup();
+    const cards = await openTrakeResults(user);
+    const e1Row = within(cards[0]).getByTestId("trake-heat-row-1");
+    const dt = dataTransfer();
+    fireEvent.dragStart(within(e1Row).getAllByTestId("trake-heat-peak")[0], { dataTransfer: dt });
+    fireEvent.drop(within(cards[0]).getByTestId("trake-event-1"), { dataTransfer: dt });
+
+    await user.click(within(cards[0]).getByTestId("trake-quick-submit"));
+    await waitFor(() => expect(screen.getByTestId("submit-guard")).toBeInTheDocument());
+    const ordered = screen.getByTestId("trake-ordered-ids");
+    expect(ordered).toHaveTextContent("frame 3600");   // the dragged frame
+    expect(ordered).not.toHaveTextContent("frame 15926"); // the DP's, replaced
+    expect(ordered).toHaveTextContent("frame 21030");  // E2 untouched
   });
 
   it("TRAKE: a full-coverage video can be submitted directly from the result list", async () => {

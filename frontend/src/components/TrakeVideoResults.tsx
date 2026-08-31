@@ -1,8 +1,13 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { TrakeEventEvidence, TrakeHeatPeak, TrakeVideoResult } from "../api/types";
 import { eventColor } from "../lib/constants";
 import { formatTime } from "../lib/media";
+import { hasPeakDrag, readPeakDrag, setPeakDrag, type TrakePeakDrag } from "../lib/trakeDrag";
 import { TrakeHeatmap } from "./TrakeHeatmap";
+
+/** Frames the operator has put into a video's chain by hand, replacing the DP's
+ *  pick for that event. Keyed `video_id -> event_index`. */
+export type TrakeChainOverrides = Record<string, Record<number, TrakeHeatPeak>>;
 
 interface Props {
   videos: TrakeVideoResult[];
@@ -10,11 +15,15 @@ interface Props {
   selectedVideoId: string | null;
   /** Which event slot the panel is filling; its representative is highlighted. */
   activeEventIndex: number | null;
+  overrides: TrakeChainOverrides;
   loading: boolean;
   onSelectVideo: (videoId: string) => void;
   /** Click a representative or a heat peak: select the video, seek to that
    *  moment, and arm that event's slot. */
   onPickMoment: (videoId: string, peak: TrakeHeatPeak) => void;
+  /** Drop a frame onto event Ei of this video: it replaces the chain's pick. */
+  onOverrideEvent: (videoId: string, eventIndex: number, peak: TrakeHeatPeak) => void;
+  onClearOverride: (videoId: string, eventIndex: number) => void;
   onQuickSubmit: (videoId: string) => void;
   videoSlot?: ReactNode;
   videoSlotVideoId?: string | null;
@@ -26,8 +35,8 @@ interface Props {
  *  result into the generic video group (best chain in, every other candidate
  *  thrown away before the UI ever saw it) hid exactly what the operator has to
  *  judge: whether each event really fires in this video, and whether the moments
- *  line up in the right order. Each card therefore shows one representative per
- *  event plus the full heat row behind it. */
+ *  line up in the right order. Each card therefore shows the chain across the
+ *  top and every candidate frame, in place on the video's timeline, below it. */
 export function TrakeVideoResults(props: Props) {
   const { videos, eventCount, selectedVideoId, loading } = props;
   if (loading) return <div className="empty">Searching…</div>;
@@ -39,7 +48,15 @@ export function TrakeVideoResults(props: Props) {
         const selected = video.video_id === selectedVideoId;
         const confident = video.confident_coverage >= eventCount;
         const full = video.coverage >= eventCount;
-        const span = videoSpan(video);
+        const overrides = props.overrides[video.video_id] ?? {};
+        // What each event is ACTUALLY showing: the operator's frame if they put
+        // one there, otherwise the DP's.
+        const chosen = new Map<number, TrakeHeatPeak>();
+        for (const event of video.events) {
+          const pick = overrides[event.event_index] ?? event.representative;
+          if (pick) chosen.set(event.event_index, pick);
+        }
+        const outOfOrder = orderViolations(video.events, chosen);
         return (
           <div
             key={video.video_id}
@@ -54,7 +71,7 @@ export function TrakeVideoResults(props: Props) {
                 ▮{video.trake_video_score.toFixed(3)}
               </span>
               <span
-                className={`badge ${confident ? "speech" : full ? "warn" : "warn"}`}
+                className={`badge ${confident ? "speech" : "warn"}`}
                 title={
                   confident
                     ? "Every event covered by real retrieval"
@@ -88,6 +105,15 @@ export function TrakeVideoResults(props: Props) {
                   ⚠ {video.min_event_gap.toFixed(1)}s giữa 2 event
                 </span>
               )}
+              {outOfOrder.length > 0 && (
+                <span
+                  className="badge bad"
+                  data-testid="trake-order-warning"
+                  title="TRAKE bắt buộc các event tăng dần theo thời gian; dòng nộp sai thứ tự sẽ bị loại"
+                >
+                  ⚠ sai thứ tự: E{outOfOrder.join(", E")}
+                </span>
+              )}
               {/* No prioritise/deprioritise here on purpose: `/api/search/trake`
                   takes no feedback, so the buttons re-ran the search and changed
                   nothing while telling the operator they had. A control with no
@@ -96,7 +122,7 @@ export function TrakeVideoResults(props: Props) {
                 <button
                   className="btn sm primary"
                   style={{ marginLeft: "auto", padding: "3px 10px" }}
-                  title="Fill all event slots from this video's chain and open the submit guard"
+                  title="Fill all event slots from this chain and open the submit guard"
                   data-testid="trake-quick-submit"
                   onClick={(e) => { e.stopPropagation(); props.onQuickSubmit(video.video_id); }}
                 >
@@ -109,17 +135,27 @@ export function TrakeVideoResults(props: Props) {
               {video.events.map((event) => (
                 <EventCard
                   key={event.event_index}
+                  videoId={video.video_id}
                   event={event}
+                  shown={chosen.get(event.event_index) ?? null}
+                  overridden={overrides[event.event_index] != null}
                   active={props.activeEventIndex === event.event_index}
+                  outOfOrder={outOfOrder.includes(event.event_index)}
                   onPick={(peak) => props.onPickMoment(video.video_id, peak)}
+                  onDropPeak={(peak) => props.onOverrideEvent(video.video_id, event.event_index, peak)}
+                  onClearOverride={() => props.onClearOverride(video.video_id, event.event_index)}
                 />
               ))}
             </div>
 
             <TrakeHeatmap
+              videoId={video.video_id}
               events={video.events}
-              duration={video.duration_s || span}
+              duration={video.duration_s || videoSpan(video)}
               activeEventIndex={props.activeEventIndex}
+              chosenByEvent={
+                new Map([...chosen].map(([index, peak]) => [index, peak.submit_keyframe_id]))
+              }
               onPick={(peak) => props.onPickMoment(video.video_id, peak)}
             />
 
@@ -134,43 +170,110 @@ export function TrakeVideoResults(props: Props) {
 }
 
 function EventCard(props: {
+  videoId: string;
   event: TrakeEventEvidence;
+  shown: TrakeHeatPeak | null;
+  overridden: boolean;
   active: boolean;
+  outOfOrder: boolean;
   onPick: (peak: TrakeHeatPeak) => void;
+  onDropPeak: (peak: TrakeHeatPeak) => void;
+  onClearOverride: () => void;
 }) {
-  const { event, active } = props;
-  const rep = event.representative;
+  const { event, shown, active } = props;
+  const [over, setOver] = useState(false);
   const color = eventColor(event.event_index - 1);
+  // An override IS in the chain by the operator's decision, whatever the DP said.
+  const loose = !props.overridden && !event.in_chain;
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setOver(false);
+    const payload = readPeakDrag(e);
+    // A frame from another video cannot join this video's chain — every TRAKE
+    // event has to come from the one video that is being submitted.
+    if (payload && payload.videoId === props.videoId) props.onDropPeak(payload.peak);
+  }
+
   return (
-    <button
-      type="button"
-      className={`trake-event ${active ? "active" : ""} ${event.in_chain ? "" : "loose"}`}
+    <div
+      className={`trake-event ${active ? "active" : ""} ${loose ? "loose" : ""} ${props.overridden ? "overridden" : ""} ${over ? "drop-over" : ""} ${props.outOfOrder ? "out-of-order" : ""}`}
       data-testid={`trake-event-${event.event_index}`}
       style={active ? { boxShadow: `0 0 0 2px ${color}` } : undefined}
-      disabled={!rep}
-      onClick={(e) => { e.stopPropagation(); if (rep) props.onPick(rep); }}
+      onDragOver={(e) => {
+        if (!hasPeakDrag(e)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+        setOver(true);
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={onDrop}
+      draggable={!!shown}
+      onDragStart={(e) => {
+        if (shown) setPeakDrag(e, { videoId: props.videoId, peak: shown } satisfies TrakePeakDrag);
+      }}
+      onClick={(e) => { e.stopPropagation(); if (shown) props.onPick(shown); }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && shown) {
+          e.preventDefault();
+          props.onPick(shown);
+        }
+      }}
+      title="Bấm để tua tới · kéo một frame từ bản đồ nhiệt vào đây để thay frame của chuỗi"
     >
       <span className="trake-event-head">
         <span className="event-dot" style={{ background: color }} /> E{event.event_index}
-        {rep?.via_fill && <span className="trake-event-tag">fill</span>}
+        {shown?.via_fill && <span className="trake-event-tag">fill</span>}
+        {props.overridden && (
+          <button
+            className="trake-event-undo"
+            data-testid={`trake-event-undo-${event.event_index}`}
+            title="Trả về frame do chuỗi tự chọn"
+            onClick={(e) => { e.stopPropagation(); props.onClearOverride(); }}
+          >↺</button>
+        )}
       </span>
-      {rep ? (
+      {shown ? (
         <>
-          <img src={rep.keyframe_url} alt={rep.submit_keyframe_id} loading="lazy" />
+          <img src={shown.keyframe_url} alt={shown.submit_keyframe_id} loading="lazy" />
           <span className="trake-event-meta mono">
-            {formatTime(rep.pts_time)} · {Math.round(rep.strength * 100)}%
+            {formatTime(shown.pts_time)} · {Math.round(shown.strength * 100)}%
           </span>
-          {!event.in_chain && (
+          {props.overridden && <span className="trake-event-manual">đã chọn tay</span>}
+          {loose && (
             <span className="trake-event-warn" title="No orderable position for this event — the strongest candidate is shown so you can judge the video anyway">
               ⚠ ngoài chuỗi
             </span>
           )}
         </>
       ) : (
-        <span className="trake-event-empty">không có ứng viên</span>
+        <span className="trake-event-empty">kéo một frame vào đây</span>
       )}
-    </button>
+    </div>
   );
+}
+
+/** 1-based event indices whose frame is not later than the previous event's.
+ *
+ *  The organiser's parser rejects a row that is not chronological, and one
+ *  rejected row blocks the whole submission — so an override that breaks the
+ *  order has to say so on the card, not at submit time. */
+function orderViolations(
+  events: TrakeEventEvidence[],
+  chosen: Map<number, TrakeHeatPeak>,
+): number[] {
+  const violations: number[] = [];
+  let last: number | null = null;
+  for (const event of events) {
+    const peak = chosen.get(event.event_index);
+    if (!peak) continue;
+    if (last !== null && peak.pts_time <= last) violations.push(event.event_index);
+    last = peak.pts_time;
+  }
+  return violations;
 }
 
 /** Fallback width for the heat rows when the backend could not resolve the

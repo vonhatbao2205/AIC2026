@@ -311,10 +311,20 @@ confirm (modal) / assign chip (TRAKE) · `↑/↓` video group · `←/→` fram
 `Esc` cancel modal/chip · `Ctrl+M` voice (if browser supports it).
 
 **TRAKE results are video cards**, not the generic `VideoGroup` list
-(`components/TrakeVideoResults.tsx` + `TrakeHeatmap.tsx`): one representative
-thumbnail per event — the DP's pick, or the strongest candidate badged
-`⚠ ngoài chuỗi` when no orderable position exists — over a heat row per event
-drawn from the sparse peaks the backend sends. The DP only knows a chain is
+(`components/TrakeVideoResults.tsx` + `TrakeHeatmap.tsx`): the chain across the
+top — one thumbnail per event, the DP's pick or the strongest candidate badged
+`⚠ ngoài chuỗi` when no orderable position exists — over one heat row per event
+built from the sparse peaks the backend sends. The heat rows draw **the frames
+themselves**, parked at their own timestamps: judging an alternative used to cost
+a video load, a seek and a pause each, which is why nobody looked at them.
+
+Every frame there is draggable (`lib/trakeDrag.ts`, `text/x-trake-peak`) onto an
+event slot in the sidebar — it is submitted as-is, no video needed — or onto an
+event card, where it replaces the DP's pick (`↺` restores it; the backend result
+is never mutated). A frame from another video is refused: every event of a TRAKE
+row has to come from the one video being submitted. A hand-made chain that is no
+longer chronological is called out on the card, because the organiser's parser
+rejects such a row and one rejected row blocks the whole submission. The DP only knows a chain is
 orderable, not whether it is plausible; the heat rows are where a human sees
 that E1 sits minutes away from a tight E2-E3-E4 cluster. Clicking a
 representative or a peak selects the video, seeks the player to that instant and

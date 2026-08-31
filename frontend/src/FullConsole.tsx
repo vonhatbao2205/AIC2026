@@ -39,7 +39,7 @@ import { QueryPanel } from "./components/QueryPanel";
 import { QueryUnderstanding } from "./components/QueryUnderstanding";
 import { QaAssistPanel } from "./components/QaAssistPanel";
 import { Results } from "./components/Results";
-import { TrakeVideoResults } from "./components/TrakeVideoResults";
+import { TrakeVideoResults, type TrakeChainOverrides } from "./components/TrakeVideoResults";
 import { ScopeFilter } from "./components/ScopeFilter";
 import { PausedFramePanel, type PausedFrame } from "./components/PausedFramePanel";
 import { ShortcutsModal } from "./components/ShortcutsModal";
@@ -48,6 +48,7 @@ import { SubmitGuard } from "./components/SubmitGuard";
 import { Timeline } from "./components/Timeline";
 import { TopBar } from "./components/TopBar";
 import { TrakePanel, type TrakeSlot } from "./components/TrakePanel";
+import type { TrakePeakDrag } from "./lib/trakeDrag";
 import { VideoViewer, type VideoViewerHandle } from "./components/VideoViewer";
 import { autoEvaluationId } from "./lib/dres";
 import { sortFramesByTime } from "./lib/media";
@@ -207,6 +208,10 @@ export default function FullConsole({
   // travels with it — a pin left over from another video would seek the newly
   // opened one to a timestamp that means nothing there.
   const [trakePeak, setTrakePeak] = useState<{ videoId: string; peak: TrakeHeatPeak } | null>(null);
+  // Frames the operator dragged into a video's chain, replacing the DP's pick.
+  // Kept per video so moving between cards does not lose the work, and kept
+  // OUTSIDE the backend result so `↺` can always hand the DP's answer back.
+  const [chainOverrides, setChainOverrides] = useState<TrakeChainOverrides>({});
   const [pausedFrame, setPausedFrame] = useState<PausedFrame | null>(null);
   // Which frame the OPEN guard is about to submit. Capturing a paused frame no
   // longer re-points the detail panel: the two submit paths stay independent and
@@ -405,6 +410,7 @@ export default function FullConsole({
     setGroups([]);
     setTrakeVideos([]);
     setTrakePeak(null);
+    setChainOverrides({});
     setParsed(null);
     setTimeline(null);
     setActiveVideoId(null);
@@ -574,6 +580,7 @@ export default function FullConsole({
     setGroups([]);
     setTrakeVideos([]);
     setTrakePeak(null);
+    setChainOverrides({});
     setParsed(null);
   }, [question]);
 
@@ -675,6 +682,7 @@ export default function FullConsole({
     setPausedFrame(null);
     setTrakeVideos([]);
     setTrakePeak(null);
+    setChainOverrides({});
     setQaAnalysis(null);
     setQaAnalysisError(null);
     setAnswer("");
@@ -818,6 +826,7 @@ export default function FullConsole({
       setGroups(res.groups);
       setTrakeVideos([]);
       setTrakePeak(null);
+      setChainOverrides({});
       setLatency(res.latency_ms);
       setAppliedScope(res.scope ?? null);
       setCanvasQueries(res.canvas.queries_en ?? []);
@@ -1144,6 +1153,83 @@ export default function FullConsole({
     },
     [displayGroups],
   );
+
+  /** Put a frame from a TRAKE card straight into an event slot.
+   *
+   *  This is the whole payoff of drawing the candidate frames: the operator can
+   *  see a better moment for E3 and drop it into the slot, instead of loading the
+   *  video, seeking to it and pausing on it just to find out what it looks like.
+   *  `frame_idx` comes from the keyframe map when it is known; deriving it from
+   *  `pts × fps` is the fallback, and 25 fps is the same default the rest of the
+   *  console uses when no timeline has been loaded for the video. */
+  const assignPeakToSlot = useCallback(
+    (slotIdx: number, payload: TrakePeakDrag) => {
+      const { videoId, peak } = payload;
+      const fps = (timeline?.video_id === videoId ? timeline?.fps : null) ?? 25;
+      setTrakeSlots((slots) => {
+        const next = [...slots];
+        next[slotIdx] = {
+          video_id: videoId,
+          frame_idx: peak.frame_idx ?? Math.round(peak.pts_time * fps),
+          pts_time: peak.pts_time,
+          thumbnail: peak.keyframe_url,
+          submit_keyframe_id: peak.submit_keyframe_id,
+        };
+        return next;
+      });
+      setActiveSlot((current) => Math.min(Math.max(current, slotIdx + 1), trakeSlots.length - 1));
+    },
+    [timeline, trakeSlots.length],
+  );
+
+  /** Drop a frame onto event Ei of a card: it replaces the DP's pick there. */
+  const overrideChainEvent = useCallback(
+    (videoId: string, eventIndex: number, peak: TrakeHeatPeak) => {
+      setChainOverrides((current) => ({
+        ...current,
+        [videoId]: { ...(current[videoId] ?? {}), [eventIndex]: peak },
+      }));
+      setTrakePeak({ videoId, peak });
+    },
+    [],
+  );
+
+  const clearChainOverride = useCallback((videoId: string, eventIndex: number) => {
+    setChainOverrides((current) => {
+      const forVideo = { ...(current[videoId] ?? {}) };
+      delete forVideo[eventIndex];
+      const next = { ...current };
+      if (Object.keys(forVideo).length) next[videoId] = forVideo;
+      else delete next[videoId];
+      return next;
+    });
+  }, []);
+
+  /** Fill every slot from a TRAKE card's chain — the operator's frames where they
+   *  replaced one, the DP's everywhere else — and open the guard. */
+  function trakeQuickSubmitVideo(videoId: string) {
+    const video = trakeVideos.find((item) => item.video_id === videoId);
+    if (!video) return;
+    const overrides = chainOverrides[videoId] ?? {};
+    const fps = (timeline?.video_id === videoId ? timeline?.fps : null) ?? 25;
+    const slots: (TrakeSlot | null)[] = video.events.map((event) => {
+      const peak = overrides[event.event_index] ?? event.representative;
+      if (!peak) return null;
+      return {
+        video_id: videoId,
+        frame_idx: peak.frame_idx ?? Math.round(peak.pts_time * fps),
+        pts_time: peak.pts_time,
+        thumbnail: peak.keyframe_url,
+        submit_keyframe_id: peak.submit_keyframe_id,
+      };
+    });
+    setTrakeSlots(slots);
+    selectTrakeVideo(videoId);
+    const key = `${videoId}|${slots.map((slot) => slot?.frame_idx).join(",")}`;
+    const dup = history.some((h) => h.task_id === taskScope && (h.dedup_keys || []).includes(key));
+    setDuplicateId(dup ? key : null);
+    setGuardOpen(true);
+  }
 
   // TRAKE: fill all event slots from a candidate video's frames, then open guard.
   function trakeQuickSubmit(g: VideoGroup) {
@@ -1648,6 +1734,7 @@ export default function FullConsole({
           setParsed(null);
           setTrakeVideos([]);
           setTrakePeak(null);
+          setChainOverrides({});
           setPausedFrame(null);
           setQaAnalysis(null);
           setQaAnalysisError(null);
@@ -1821,12 +1908,12 @@ export default function FullConsole({
             selectedVideoId={selectedVideoId}
             activeEventIndex={activeSlot + 1}
             loading={loading}
+            overrides={chainOverrides}
             onSelectVideo={selectTrakeVideo}
             onPickMoment={pickTrakeMoment}
-            onQuickSubmit={(videoId) => {
-              const group = displayGroups.find((g) => g.video_id === videoId);
-              if (group) trakeQuickSubmit(group);
-            }}
+            onOverrideEvent={overrideChainEvent}
+            onClearOverride={clearChainOverride}
+            onQuickSubmit={trakeQuickSubmitVideo}
             videoSlotVideoId={videoVisible || neighborsVisible ? activeVideoId : null}
             videoSlot={videoSlot}
           />
@@ -1903,6 +1990,7 @@ export default function FullConsole({
                 violations={orderViolations}
                 onSetActive={setActiveSlot}
                 onAssignChip={assignPausedFrameToSlot}
+                onAssignPeak={assignPeakToSlot}
                 onClearSlot={(i) => setTrakeSlots((s) => s.map((x, idx) => (idx === i ? null : x)))}
                 onMoveSlot={moveSlot}
                 onAddEvent={() => setTrakeSlots((s) => [...s, null])}
