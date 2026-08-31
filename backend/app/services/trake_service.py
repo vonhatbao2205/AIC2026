@@ -135,6 +135,10 @@ class TrakeService:
         gaps: dict[str, list[int]] | None = None,
         max_promising: int = 15,
         accept_ratio: float = 0.45,
+        # Hypotheses handed to the assembly DP per gap. Bounded by what the
+        # targeted search returns anyway, and the per-event NMS cap downstream
+        # keeps the candidate pool from growing.
+        max_fills_per_gap: int = 3,
         image_models: tuple[str, ...] = ("pe",),
     ) -> None:
         """Pass 2: for each `(video, missing event)` in `gaps`, search that video
@@ -308,53 +312,49 @@ class TrakeService:
         new: list[tuple[int, FusedFrame]] = []
         for (vid, i), hits in ranked_by_gap.items():
             covered = cover_pts[vid]
-            # Loosest necessary window: after some earlier-event candidate, before
-            # some later-event candidate. A pick outside it can never be ordered.
+            # Loosest NECESSARY window: after some earlier-event candidate, before
+            # some later-event candidate. It is not sufficient — with E1@90 and
+            # E2@100 a candidate at 95 clears the bound and still cannot follow
+            # E2 — which is exactly why it is used to ORDER the hypotheses and
+            # never to pick among them.
             lower = min((p for ev, ps in covered.items() if ev < i for p in ps), default=None)
             upper = max((p for ev, ps in covered.items() if ev > i for p in ps), default=None)
-
-            # An event pass 1 found nothing for gets the best hit even if it
-            # cannot be ordered — the operator still needs to see the video's own
-            # answer for the gap. An event that HAS candidates and simply could
-            # not be placed in time gets no such consolation: another unorderable
-            # frame is exactly what the DP already rejected, so only a hit that
-            # actually slots in is worth adding.
             already = seen_ids.get((vid, i), set())
-            allow_infeasible = i not in covered
-            chosen = None  # first feasible hit above floor (best, since score-sorted)
-            fallback = None  # highest-scoring hit above floor with a known pts
-            for h in hits:
+
+            candidates: list[tuple[int, int, dict[str, Any], dict[str, Any], float]] = []
+            for rank, h in enumerate(hits):
                 if h["submit_keyframe_id"] in already:
                     continue  # pass 1 already offered this frame for this event
                 rec = recs.get(h["submit_keyframe_id"])
                 pts = rec.get("pts_time") if rec else None
                 if pts is None:
                     continue
-                if fallback is None:
-                    fallback = (h, rec, pts)
-                if (lower is None or pts > lower) and (upper is None or pts < upper):
-                    chosen = (h, rec, pts)
-                    break
-            pick = chosen or (fallback if allow_infeasible else None)
-            if pick is None:
-                continue
-            h, rec, pts = pick
-            new.append((
-                i,
-                FusedFrame(
-                    submit_keyframe_id=h["submit_keyframe_id"],
-                    video_id=h["video_id"],
-                    keyframe_n=int(h["keyframe_n"]),
-                    pts_time=pts,
-                    score=round(0.02 * h["fill_quality"], 5),
-                    frame_idx=rec.get("frame_idx"),
-                    fps=rec.get("fps"),
-                    via_fill=True,
-                    # The undistorted ratio, for the heatmap: `score` deliberately
-                    # squashes it onto a scale real evidence always beats.
-                    fill_quality=float(h["fill_quality"]),
-                ),
-            ))
+                placeable = (lower is None or pts > lower) and (upper is None or pts < upper)
+                candidates.append((0 if placeable else 1, rank, h, rec, pts))
+            # Retrieval was already paid for down to top-3 per gap, and the
+            # assembly DP is precisely the machinery for choosing among ordered
+            # alternatives. Committing to one hit here threw the rest away before
+            # the DP could see them: pick E2's best at 80 s and E3's best at 20 s
+            # and the chain is dead, while E2@30 + E3@70 would have completed it.
+            # So hand the DP the hypotheses and let it solve.
+            candidates.sort(key=lambda item: (item[0], item[1]))
+            for _, _, h, rec, pts in candidates[:max_fills_per_gap]:
+                new.append((
+                    i,
+                    FusedFrame(
+                        submit_keyframe_id=h["submit_keyframe_id"],
+                        video_id=h["video_id"],
+                        keyframe_n=int(h["keyframe_n"]),
+                        pts_time=pts,
+                        score=round(0.02 * h["fill_quality"], 5),
+                        frame_idx=rec.get("frame_idx"),
+                        fps=rec.get("fps"),
+                        via_fill=True,
+                        # The undistorted ratio, for the heatmap: `score` deliberately
+                        # squashes it onto a scale real evidence always beats.
+                        fill_quality=float(h["fill_quality"]),
+                    ),
+                ))
 
         for i, fr in new:
             event_frames[i].append(fr)

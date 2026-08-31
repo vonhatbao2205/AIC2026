@@ -1485,6 +1485,48 @@ describe("AIC26 retrieval console (full)", () => {
     expect(screen.getByTestId("trake-slot-0")).toHaveTextContent("f3000");
   });
 
+  it("TRAKE: a slot refuses a frame from a different video", async () => {
+    const user = userEvent.setup();
+    const cards = await openTrakeResults(user);
+
+    // E1 from the first video...
+    const own = within(within(cards[0]).getByTestId("trake-heat-row-1")).getAllByTestId("trake-heat-peak")[0];
+    const dt1 = dataTransfer();
+    fireEvent.dragStart(own, { dataTransfer: dt1 });
+    fireEvent.drop(screen.getByTestId("trake-slot-0"), { dataTransfer: dt1 });
+    expect(screen.getByTestId("trake-slot-0")).toHaveTextContent("f3600");
+
+    // ...then E2 from a DIFFERENT one. The row names one video and lists frame
+    // indices under it, so this frame would be submitted as if it came from the
+    // first video — well-formed and wrong.
+    const foreign = within(within(cards[1]).getByTestId("trake-heat-row-1")).getAllByTestId("trake-heat-peak")[0];
+    const dt2 = dataTransfer();
+    fireEvent.dragStart(foreign, { dataTransfer: dt2 });
+    fireEvent.drop(screen.getByTestId("trake-slot-1"), { dataTransfer: dt2 });
+
+    expect(screen.getByTestId("trake-slot-1")).toHaveTextContent("empty");
+    expect(await screen.findByText(/Chuỗi đang dùng K19_V028/)).toBeInTheDocument();
+  });
+
+  it("TRAKE: the guard blocks a chain that is not chronological", async () => {
+    const user = userEvent.setup();
+    const cards = await openTrakeResults(user);
+
+    // Put E1's 02:00 frame into E2, leaving E1 at 08:50 ahead of it.
+    const e1Row = within(cards[0]).getByTestId("trake-heat-row-1");
+    const dt = dataTransfer();
+    fireEvent.dragStart(within(e1Row).getAllByTestId("trake-heat-peak")[0], { dataTransfer: dt });
+    fireEvent.drop(within(cards[0]).getByTestId("trake-event-2"), { dataTransfer: dt });
+
+    await user.click(within(cards[0]).getByTestId("trake-quick-submit"));
+    await waitFor(() => expect(screen.getByTestId("submit-guard")).toBeInTheDocument());
+
+    // The parser rejects a row out of order, and one rejected row blocks the
+    // whole submission — so the guard must refuse, not merely warn.
+    expect(screen.getByTestId("guard-order-violation")).toBeInTheDocument();
+    expect(screen.getByTestId("confirm-submit")).toBeDisabled();
+  });
+
   it("TRAKE: a full-coverage video can be submitted directly from the result list", async () => {
     const user = userEvent.setup();
     render(<App />);

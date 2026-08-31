@@ -257,8 +257,16 @@ one hypothesis, and spending the cap on them dropped the genuinely different
 moment later in the video that the chain needed. Each surviving video is then
 assembled with the same **exact DP** — a maximum-weight strictly-increasing chain
 over (event index, `pts_time`) that picks ≤1 frame per event, maximizing (events
-covered, then total relevance). It is globally optimal (unlike greedy) and can
-skip an event for a partial sequence.
+covered, then REAL evidence, then quality). It is globally optimal (unlike
+greedy) and can skip an event for a partial sequence.
+
+Real evidence is its own term because the scales genuinely overlap: a pass-2 fill
+scores `0.02 x quality` while a frame found by one channel at rank 0 scores
+`1/(60+1) = 0.0164`, so a `(coverage, relevance)` DP trades a real frame for a
+strong fill at equal coverage — and the ranking, which counts
+`confident_coverage`, then marks the video down for the swap the DP made. The
+quality term is the per-event normalized `strength`, not the raw score, so an
+event whose scores run high cannot decide the chain on its own.
 
 `trake_video_score` encodes the lexicographic ranking
 `(confident_coverage, coverage, chain quality)` as one number in [0, 1]: with
@@ -286,11 +294,13 @@ video. Videos are then tiered by how many events the chain is still missing
 (one short is a single query from a full chain) and, inside a tier, by the
 preliminary `trake_video_score`.
 
-An event pass 1 found nothing for still accepts the best hit even when it cannot
-be ordered — the operator needs to see the video's own answer for the gap. An
-event that has candidates and merely could not be placed accepts only a hit that
-actually slots between its neighbours: another unorderable frame is exactly what
-the DP just rejected. Across two image models, RRF decides the fill's *order*
+Pass 2 hands the assembly DP up to three hypotheses per gap rather than choosing
+one. Retrieval had already paid for top-3, and the DP is the only thing that can
+see the gaps together: E2's best at 80 s plus E3's best at 20 s is a dead chain,
+while E2@30 + E3@70 completes it. The temporal window
+`[min(earlier candidates), max(later candidates)]` is a NECESSARY condition only
+— with E1@90 and E2@100, a candidate at 95 clears it and still cannot follow E2 —
+so it orders the hypotheses and never picks among them. Across two image models, RRF decides the fill's *order*
 while `fill_quality` stays the model-local `score / that model's best hit`;
 normalising RRF by the gap's own top reported every winning candidate as 1.0,
 including one that had just scraped past the 45% floor.
@@ -357,6 +367,13 @@ changed nothing while telling the operator they had.
 Opening the player (`v`, or the neighbour strip with `k`) scrolls it into view:
 it is rendered inside the result card it belongs to, so a group holding hundreds
 of keyframes opened it well below the viewport.
+
+A TRAKE row names ONE video and lists a frame index per event under it, so a
+frame from another video would be submitted as though it came from the named one
+— well-formed and wrong, invisible to everything downstream. That is refused when
+the frame is assigned to a slot, and refused again (independently) by the submit
+guard, which also blocks a chain that is not chronological rather than only
+warning about it.
 
 **Frame-pick**: `requestVideoFrameCallback` tracks the latest `mediaTime`. The
 inline video opens **paused on the frame it was opened to show** and every seek

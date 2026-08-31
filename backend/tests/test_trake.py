@@ -139,6 +139,64 @@ def test_via_fill_excluded_from_confidence_metrics():
     assert d["frames"][1]["via_fill"] is True
 
 
+def test_dp_keeps_real_evidence_over_a_fill_that_outscores_it():
+    """The RRF scale and the fill scale genuinely overlap.
+
+    A frame found by one channel at rank 0 scores `1/(60+1) = .0164`; a
+    full-quality pass-2 fill scores `.02 x 1.0 = .0200`. Both chains here cover
+    two events, so a `(coverage, relevance)` DP would take the fill — and then
+    the ranking, which counts real evidence, would mark the video down for the
+    swap the DP itself made."""
+    e1 = [
+        _frame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.0164),
+        _frame("K01/K01_V001/002", "K01_V001", 2, 20.0, 0.0200, via_fill=True, fill_quality=1.0),
+    ]
+    e2 = [_frame("K01/K01_V001/040", "K01_V001", 40, 40.0, 0.0164)]
+
+    assert sum(f.score for f in (e1[1], e2[0])) > sum(f.score for f in (e1[0], e2[0]))
+
+    video = _video(build_trake_videos([e1, e2]), "K01_V001")
+    assert video.coverage == 2
+    assert video.confident_coverage == 2  # not 1
+    assert [f.pts_time for f in video.sequence.frames] == [10.0, 40.0]
+    assert video.filled_events == 0
+
+
+def test_dp_still_takes_a_fill_when_it_buys_coverage():
+    # Coverage is the first key and stays there: without the fill, E2 is simply
+    # not covered, and a 1-of-2 chain of pure evidence is not the better answer.
+    e1 = [_frame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.0164)]
+    e2 = [_frame("K01/K01_V001/002", "K01_V001", 2, 20.0, 0.0200, via_fill=True, fill_quality=1.0)]
+    video = _video(build_trake_videos([e1, e2]), "K01_V001")
+    assert video.coverage == 2
+    assert video.confident_coverage == 1
+    assert video.filled_events == 1
+
+
+def test_dp_quality_term_is_normalized_per_event():
+    """The tie-break is per-event strength, not the raw score sum.
+
+    E1's fused scores run an order of magnitude above E2's, so a raw sum lets E1
+    decide the chain alone. Here E1's best (@20s) blocks E2's best (@15s), and
+    taking it costs E2 90% of its own best to save E1 20% of its own — a trade
+    the raw sum makes (it only sees .0010 against .0200) and the normalized view
+    refuses, which is also how the video score reads the same chain."""
+    e1 = [
+        _frame("K01/K01_V001/010", "K01_V001", 10, 10.0, 0.0800),  # 0.80 of E1's best
+        _frame("K01/K01_V001/020", "K01_V001", 20, 20.0, 0.1000),  # 1.00 of E1's best
+    ]
+    e2 = [
+        _frame("K01/K01_V001/015", "K01_V001", 15, 15.0, 0.0100),  # 1.00 of E2's best
+        _frame("K01/K01_V001/030", "K01_V001", 30, 30.0, 0.0010),  # 0.10 of E2's best
+    ]
+    # Raw sums prefer 20s -> 30s (.1010) over 10s -> 15s (.0900).
+    assert 0.1000 + 0.0010 > 0.0800 + 0.0100
+    video = _video(build_trake_videos([e1, e2]), "K01_V001")
+    assert [f.pts_time for f in video.sequence.frames] == [10.0, 15.0]
+    # ...and the chain the DP handed over is the one the ranking rewards.
+    assert abs(video.min_quality - 0.80) < 1e-9
+
+
 def test_real_coverage_outranks_fill_heavy_coverage():
     # Fill-heavy video: 1 genuine event + 2 in-video fills -> coverage 3 but confident 1.
     fake_e1 = [_frame("K02/K02_V001/001", "K02_V001", 1, 10.0, 0.90)]

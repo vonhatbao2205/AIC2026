@@ -189,12 +189,14 @@ def _wire(settings, hits, recs):
 
 
 @pytest.mark.asyncio
-async def test_fill_prefers_temporally_feasible_frame(settings):
+async def test_fill_lets_the_assembly_dp_pick_the_orderable_frame(settings):
+    from app.trake import build_trake_videos
     from app.types import FusedFrame
 
     # E2 is missing in K01_V001 (covers E1@10s, E3@50s). In-video search yields a
-    # higher-scoring frame AFTER E3 (90s, infeasible) and a lower-scoring one that
-    # slots between E1 and E3 (30s). Order-aware fill must take the 30s frame.
+    # higher-scoring frame AFTER E3 (90s, unorderable) and a lower-scoring one
+    # that slots between E1 and E3 (30s). Both are offered; the DP takes the 30s
+    # frame because that is the one that completes the chain.
     hits = [
         {"submit_keyframe_id": "K01/K01_V001/090", "video_id": "K01_V001", "keyframe_n": 90, "score": 0.90},
         {"submit_keyframe_id": "K01/K01_V001/030", "video_id": "K01_V001", "keyframe_n": 30, "score": 0.70},
@@ -211,10 +213,70 @@ async def test_fill_prefers_temporally_feasible_frame(settings):
         [FusedFrame("K01/K01_V001/050", "K01_V001", 50, 50.0, 0.9)],
     ]
     await trake._fill_missing_events(events, ef)
-    pts = [f.pts_time for f in ef[1]]
-    assert 30.0 in pts
-    assert 90.0 not in pts
-    assert ef[1] and all(f.via_fill for f in ef[1])
+    assert all(f.via_fill for f in ef[1])
+    chain = build_trake_videos(ef)[0].sequence
+    assert [f.pts_time for f in chain.frames] == [10.0, 30.0, 50.0]
+
+
+@pytest.mark.asyncio
+async def test_fill_hands_the_dp_alternatives_it_can_actually_combine(settings):
+    """Two gaps at once, where each gap's BEST hit is unorderable next to the
+    other's.
+
+    E2's strongest is at 80 s and E3's at 20 s: committing to the best of each,
+    one gap at a time, produces 80 -> 20 and a dead chain. The second-best of
+    each — 30 s and 70 s — completes E1@10 -> 30 -> 70 -> E4@100. Retrieval had
+    already paid for both, so the choice belongs to the DP, which is the only
+    thing here that can see the gaps together."""
+    from app.trake import build_trake_videos
+    from app.types import FusedFrame
+
+    per_event_hits = {
+        1: [
+            {"submit_keyframe_id": "K01/K01_V001/080", "video_id": "K01_V001", "keyframe_n": 80, "score": 0.90},
+            {"submit_keyframe_id": "K01/K01_V001/030", "video_id": "K01_V001", "keyframe_n": 30, "score": 0.70},
+        ],
+        2: [
+            {"submit_keyframe_id": "K01/K01_V001/020", "video_id": "K01_V001", "keyframe_n": 20, "score": 0.90},
+            {"submit_keyframe_id": "K01/K01_V001/070", "video_id": "K01_V001", "keyframe_n": 70, "score": 0.70},
+        ],
+    }
+    recs = {
+        "K01/K01_V001/080": {"pts_time": 80.0, "frame_idx": 2000, "fps": 25.0},
+        "K01/K01_V001/030": {"pts_time": 30.0, "frame_idx": 750, "fps": 25.0},
+        "K01/K01_V001/020": {"pts_time": 20.0, "frame_idx": 500, "fps": 25.0},
+        "K01/K01_V001/070": {"pts_time": 70.0, "frame_idx": 1750, "fps": 25.0},
+    }
+
+    class _EventVectorEncoder:
+        """One distinguishable vector per event, so the search stub can answer by
+        EVENT rather than by call order — the gap searches run under
+        `asyncio.gather`, whose completion order is not the submission order."""
+
+        async def encode_text(self, texts):
+            return [[float(index), 0.2] for index, _ in enumerate(texts)]
+
+    class _PerGapMilvus(_StubMilvus):
+        def search_image(self, vector, top_k=10, video_id=None):
+            if video_id is None:
+                return [{"submit_keyframe_id": "ref", "video_id": "X", "keyframe_n": 1, "score": 1.0}]
+            return per_event_hits[int(vector[0])]
+
+    trake = _wire(settings, [], recs)
+    trake.search.pe = _EventVectorEncoder()
+    trake.search.milvus = _PerGapMilvus([])
+    events = [{"event_index": j + 1, "image_pe_queries_en": ["q"]} for j in range(4)]
+    ef = [
+        [FusedFrame("K01/K01_V001/001", "K01_V001", 1, 10.0, 0.9)],
+        [],
+        [],
+        [FusedFrame("K01/K01_V001/100", "K01_V001", 100, 100.0, 0.9)],
+    ]
+    await trake._fill_missing_events(events, ef, gaps={"K01_V001": [1, 2]})
+
+    chain = build_trake_videos(ef)[0].sequence
+    assert chain.coverage == 4
+    assert [f.pts_time for f in chain.frames] == [10.0, 30.0, 70.0, 100.0]
 
 
 @pytest.mark.asyncio

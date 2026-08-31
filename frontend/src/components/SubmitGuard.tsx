@@ -65,10 +65,23 @@ export function SubmitGuard(props: Props) {
   // Only a pure text answer has no segment to widen.
   const hasSegment = resolvedMode !== "text" && resolvedMode !== "item";
   const taskLabel = preview?.task_name ?? props.taskNameOverride ?? "";
+  // Two ways a TRAKE row can be malformed in a way the export cannot see, so the
+  // guard is where they have to stop rather than where they are mentioned:
+  //
+  //   - Frames from more than one video. The row names ONE video (the first
+  //     filled slot's) and lists frame indices under it, so a frame from another
+  //     video is submitted as though it came from this one — a wrong answer that
+  //     looks perfectly well-formed.
+  //   - Events not increasing in time. The organiser's parser rejects the row,
+  //     and one rejected row blocks the whole submission.
+  const slotVideos = new Set(filledSlots.map((slot) => slot.video_id));
+  const mixedVideos = isTrake && slotVideos.size > 1;
+  const outOfOrder = isTrake && orderViolations.length > 0;
   // A format error means DRES would reject (or misread) this answer — the guard
   // holds it here instead of spending a wrong submit on it.
   const blocked =
     (isTrake ? filledSlots.length === 0 : (!pausedFrame && !frame) || missingFrameIdx) ||
+    mixedVideos || outOfOrder ||
     Boolean(props.dresEnabled ? previewError : props.csvError);
   const thumbUrl = pausedFrame?.thumbnail ?? frame?.keyframe_url ?? null;
   const previewAlt = pausedFrame
@@ -94,8 +107,17 @@ export function SubmitGuard(props: Props) {
               {props.dresEnabled ? `task ${taskLabel || "này"}` : props.questionId ?? "câu hỏi này"}.
             </div>
           )}
-          {isTrake && orderViolations.length > 0 && (
-            <div className="dup-warn">⚠ Order violation at E{orderViolations.join(", E")} — events must increase in time.</div>
+          {mixedVideos && (
+            <div className="dup-warn" data-testid="guard-mixed-videos">
+              ⛔ Các event đang thuộc {slotVideos.size} video khác nhau ({[...slotVideos].join(", ")}).
+              Một dòng TRAKE chỉ được lấy frame từ MỘT video.
+            </div>
+          )}
+          {outOfOrder && (
+            <div className="dup-warn" data-testid="guard-order-violation">
+              ⛔ Sai thứ tự ở E{orderViolations.join(", E")} — event phải tăng dần theo thời gian, dòng sai
+              thứ tự sẽ bị parser loại và chặn cả bài nộp.
+            </div>
           )}
           {props.dresEnabled && previewError && (
             <div className="dup-warn" data-testid="guard-format-error">⚠ {previewError}</div>

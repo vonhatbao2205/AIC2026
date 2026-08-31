@@ -56,6 +56,10 @@ class TrakeCandidateFrame:
     frame_idx: int | None = None
     via_fill: bool = False  # came from pass-2 in-video fill (small 0.02-scale score)
     fill_quality: float | None = None  # fill strength on its own [0,1] scale
+    # `score` normalized against this event's best hit anywhere (see
+    # `candidate_strength`). Filled in before assembly and used as the DP's
+    # quality term, so chain selection and video ranking optimise one thing.
+    strength: float = 0.0
 
 
 @dataclass
@@ -229,27 +233,43 @@ def _best_increasing_chain(
     per_event: list[list[TrakeCandidateFrame]], n_events: int
 ) -> list[TrakeCandidateFrame | None]:
     """Exact DP: lexicographic best chain of candidates with strictly increasing
-    (event_index, pts_time). The state value is compared lexicographically as
-    (coverage, relevance), so adding one covered event always dominates any
-    relevance difference.
-    Returns one pick per event (None where that event isn't covered)."""
+    (event_index, pts_time).
+
+    The state is compared as `(coverage, real evidence, quality)` — the SAME
+    priority the video ranking uses, so the chain the DP hands over is the chain
+    the ranking is about to reward.
+
+    `real evidence` has to be its own term rather than an emergent property of the
+    scores. A pass-2 fill scores `0.02 x quality`, while a frame found by a single
+    channel at rank 0 scores `1/(60+1) = 0.0164`: a strong fill genuinely
+    outweighs real evidence on the raw sum, so a `(coverage, relevance)` DP would
+    trade a real frame for a fill at equal coverage — and then the ranking, which
+    counts `confident_coverage`, would punish the video for the swap the DP made.
+
+    Quality is per-event normalized `strength`, not raw score, so an event whose
+    scores happen to run high cannot dominate the sum for events where they run
+    low. Returns one pick per event (None where that event isn't covered)."""
     nodes: list[TrakeCandidateFrame] = [c for cands in per_event for c in cands]
     if not nodes:
         return [None] * n_events
     # Topological order for the (event, time) DAG: ascending event then time.
     nodes.sort(key=lambda c: (c.event_index, c.pts_time))
     m = len(nodes)
-    dp: list[tuple[int, float]] = [(0, 0.0)] * m
+    dp: list[tuple[int, int, float]] = [(0, 0, 0.0)] * m
     parent = [-1] * m
-    best_i, best_val = -1, (-1, float("-inf"))
+    best_i, best_val = -1, (-1, -1, float("-inf"))
     for i in range(m):
         ni = nodes[i]
-        best_prev, best_j = (0, 0.0), -1
+        best_prev, best_j = (0, 0, 0.0), -1
         for j in range(i):
             nj = nodes[j]
             if nj.event_index < ni.event_index and nj.pts_time < ni.pts_time and dp[j] > best_prev:
                 best_prev, best_j = dp[j], j
-        dp[i] = (best_prev[0] + 1, best_prev[1] + ni.score)
+        dp[i] = (
+            best_prev[0] + 1,
+            best_prev[1] + (0 if ni.via_fill else 1),
+            best_prev[2] + ni.strength,
+        )
         parent[i] = best_j
         if dp[i] > best_val:
             best_val, best_i = dp[i], i
@@ -390,6 +410,13 @@ def _assemble_one_video(
 ) -> TrakeVideoResult | None:
     """Diversify, run the exact DP, and describe the result of one video."""
     n_events = len(per_event)
+    # Normalize once, here: the DP, the heat peaks and the video score all read
+    # the same number, so none of them can drift onto its own scale.
+    for idx, candidates in enumerate(per_event):
+        reference = references[idx] if idx < len(references) else 0.0
+        for candidate in candidates:
+            candidate.strength = candidate_strength(candidate, reference)
+
     for_dp: list[list[TrakeCandidateFrame]] = []
     peaks_per_slot: list[list[TrakeCandidateFrame]] = []
     for candidates in per_event:
@@ -420,7 +447,6 @@ def _assemble_one_video(
 
     events: list[TrakeEventEvidence] = []
     for idx in range(n_events):
-        reference = references[idx] if idx < len(references) else 0.0
         pick = picks[idx]
         heat = [
             TrakeHeatPeak(
@@ -429,7 +455,7 @@ def _assemble_one_video(
                 keyframe_n=c.keyframe_n,
                 pts_time=c.pts_time,
                 score=c.score,
-                strength=candidate_strength(c, reference),
+                strength=c.strength,
                 frame_idx=c.frame_idx,
                 via_fill=c.via_fill,
                 selected_by_dp=pick is not None and c.submit_keyframe_id == pick.submit_keyframe_id,
@@ -446,7 +472,7 @@ def _assemble_one_video(
                     keyframe_n=pick.keyframe_n,
                     pts_time=pick.pts_time,
                     score=pick.score,
-                    strength=candidate_strength(pick, reference),
+                    strength=pick.strength,
                     frame_idx=pick.frame_idx,
                     via_fill=pick.via_fill,
                     selected_by_dp=True,
@@ -472,10 +498,7 @@ def _assemble_one_video(
     # too just threw away the one signal that separates two videos with identical
     # coverage: a chain closed by a convincing fill is worth more than the same
     # chain closed by one that barely cleared the acceptance floor.
-    strengths = [
-        candidate_strength(p, references[p.event_index - 1] if p.event_index - 1 < len(references) else 0.0)
-        for p in chain
-    ]
+    strengths = [p.strength for p in chain]
     mean_quality = sum(strengths) / len(strengths) if strengths else 0.0
     min_quality = min(strengths) if strengths else 0.0
     chain_times = sorted(p.pts_time for p in chain)

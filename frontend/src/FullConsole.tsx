@@ -1067,6 +1067,15 @@ export default function FullConsole({
   const assignPausedFrameToSlot = useCallback(
     (slotIdx: number) => {
       if (!pausedFrame) return;
+      // Same rule as a dragged frame: one video per row (see `assignPeakToSlot`).
+      const held = trakeSlots.find((slot): slot is TrakeSlot => slot !== null);
+      if (held && held.video_id !== pausedFrame.video_id) {
+        setToast({
+          msg: `Chuỗi đang dùng ${held.video_id}. Xoá các ô trước khi lấy frame từ ${pausedFrame.video_id}.`,
+          kind: "bad",
+        });
+        return;
+      }
       setTrakeSlots((slots) => {
         const next = [...slots];
         next[slotIdx] = {
@@ -1080,7 +1089,7 @@ export default function FullConsole({
       setActiveSlot(Math.min(slotIdx + 1, trakeSlots.length - 1));
       setPausedFrame(null);
     },
-    [pausedFrame, trakeSlots.length],
+    [pausedFrame, trakeSlots],
   );
 
   // Effective frame_idx for a result frame: prefer the exact value from the
@@ -1197,6 +1206,19 @@ export default function FullConsole({
   const assignPeakToSlot = useCallback(
     (slotIdx: number, payload: TrakePeakDrag) => {
       const { videoId, peak } = payload;
+      // A TRAKE row names ONE video and then lists a frame per event inside it.
+      // Mixing videos across slots produces a row that is not merely wrong but
+      // wrong in a way nothing downstream can see: the export takes the video id
+      // from the first filled slot and writes every frame index under it, so a
+      // frame from another video is submitted as if it came from this one.
+      const held = trakeSlots.find((slot): slot is TrakeSlot => slot !== null);
+      if (held && held.video_id !== videoId) {
+        setToast({
+          msg: `Chuỗi đang dùng ${held.video_id}. Xoá các ô trước khi lấy frame từ ${videoId}.`,
+          kind: "bad",
+        });
+        return;
+      }
       const fps = (timeline?.video_id === videoId ? timeline?.fps : null) ?? 25;
       setTrakeSlots((slots) => {
         const next = [...slots];
@@ -1211,7 +1233,7 @@ export default function FullConsole({
       });
       setActiveSlot((current) => Math.min(Math.max(current, slotIdx + 1), trakeSlots.length - 1));
     },
-    [timeline, trakeSlots.length],
+    [timeline, trakeSlots],
   );
 
   /** Drop a frame onto event Ei of a card: it replaces the DP's pick there. */
