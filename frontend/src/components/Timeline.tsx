@@ -16,11 +16,28 @@ interface Props {
   onSeek: (t: number) => void;
 }
 
-// Lean keyframe filmstrip timeline (OCR/speech/audio/heatmap tracks removed for speed).
+/** Scrub bar with the markers that matter — playhead, selection, TRAKE events,
+ *  QA hotspots — and NO keyframe filmstrip.
+ *
+ *  The filmstrip sampled the keyframes down to ~60 thumbnails, which sounds
+ *  cheap and is not: ~60 x 150 KB is roughly 9 MB fetched every time a video is
+ *  opened, all of it inside the viewport so `loading="lazy"` defers nothing.
+ *  Over a tunnel that was the visible stutter. Everything the strip was actually
+ *  used for survives: click the bar to seek, and the markers still say where the
+ *  events and hotspots are. */
 export function Timeline({ data, playhead, selectedPts, eventMarkers = [], qaHotspots = [], onSeek }: Props) {
   const duration = data.duration || data.keyframes.at(-1)?.pts_time || 1;
   const pct = (t: number) => `${Math.min(100, Math.max(0, (t / duration) * 100))}%`;
-  const stride = Math.ceil((data.keyframes.length || 1) / 60) || 1;
+
+  // Seeking used to mean clicking a thumbnail. With the strip gone the bar
+  // itself has to take the click, or removing the images would quietly remove
+  // the ability to jump anywhere in the clip.
+  function seekFromClick(event: React.MouseEvent<HTMLDivElement>) {
+    const box = event.currentTarget.getBoundingClientRect();
+    if (box.width <= 0) return;
+    const ratio = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width));
+    onSeek(ratio * duration);
+  }
 
   return (
     <div className="timeline" data-testid="timeline">
@@ -31,20 +48,14 @@ export function Timeline({ data, playhead, selectedPts, eventMarkers = [], qaHot
       </div>
 
       <div className="tl-row">
-        <span className="tl-label">frames</span>
-        <div className="tl-area" style={{ height: 40 }}>
-          <div className="tl-track film" />
-          {data.keyframes.filter((_, i) => i % stride === 0).map((kf) => (
-            <img
-              key={kf.submit_keyframe_id}
-              className="tl-film-frame"
-              src={kf.keyframe_url}
-              style={{ left: pct(kf.pts_time ?? 0) }}
-              title={`#${kf.keyframe_n} ${formatTime(kf.pts_time)}`}
-              onClick={() => onSeek(kf.pts_time ?? 0)}
-              loading="lazy"
-            />
-          ))}
+        <span className="tl-label">seek</span>
+        <div
+          className="tl-area tl-seekable"
+          data-testid="timeline-seek"
+          onClick={seekFromClick}
+          title="Bấm để nhảy tới vị trí đó"
+        >
+          <div className="tl-track" />
           {selectedPts != null && (
             <div className="tl-playhead" style={{ left: pct(selectedPts), background: "var(--accent)" }} />
           )}

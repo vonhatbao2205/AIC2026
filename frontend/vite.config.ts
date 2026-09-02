@@ -2,6 +2,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+// Public hostname when the dev server is exposed through a tunnel, e.g.
+// `VITE_TUNNEL_HOST=app.baoencoder.site npm run dev`. Only HMR needs it: the
+// browser derives the websocket URL from the page, so behind a tunnel it would
+// dial `wss://<host>:5173`, a port the tunnel does not publish. Left unset, the
+// dev server behaves exactly as before for local work.
+const tunnelHost = process.env.VITE_TUNNEL_HOST;
+
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -12,7 +19,12 @@ export default defineConfig({
     port: 5173,
     // Allow access through a tunnel (ngrok/cloudflared) — Vite 5.4+ blocks unknown
     // Host headers; bare LAN IPs are allowed by default but tunnel domains are not.
-    allowedHosts: [".ngrok-free.app", ".ngrok.app", ".ngrok.io", ".trycloudflare.com", "unarranged-venus-ovately.ngrok-free.dev"],
+    allowedHosts: [".ngrok-free.app", ".ngrok.app", ".ngrok.io", ".trycloudflare.com", "unarranged-venus-ovately.ngrok-free.dev", ".ts.net", ".baoencoder.site"],
+    // Tunnels terminate TLS on 443, so the HMR client has to be told that
+    // instead of guessing from `server.port`.
+    ...(tunnelHost
+      ? { hmr: { protocol: "wss" as const, host: tunnelHost, clientPort: 443 } }
+      : {}),
     proxy: {
       // Proxy API calls to the backend during dev.
       "/api": {

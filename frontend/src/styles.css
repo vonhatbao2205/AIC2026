@@ -562,7 +562,11 @@ button { font-family: inherit; }
 /* ---- Timeline ---- */
 .timeline { padding: 12px 14px; background: var(--bg-1); border-top: 1px solid var(--line); }
 .tl-track { position: relative; height: 22px; margin-bottom: 3px; background: var(--bg-3); border-radius: 5px; overflow: hidden; }
+/* `.film` giữ lại cho bản cũ; filmstrip đã bỏ vì ~9 MB ảnh mỗi lần mở video. */
 .tl-track.film { height: 42px; }
+/* Cả dải là vùng bấm để seek, nên con trỏ phải nói điều đó. */
+.tl-area.tl-seekable { cursor: pointer; }
+.tl-area.tl-seekable:hover .tl-track { background: var(--bg-2); }
 .tl-label { font-size: 9.5px; color: var(--fg-faint); text-transform: uppercase; letter-spacing: 0.5px; width: 50px; display: inline-block; }
 .tl-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .tl-area { position: relative; flex: 1; }

@@ -785,7 +785,11 @@ describe("AIC26 retrieval console (full)", () => {
 
     await user.click(screen.getAllByTestId("qa-answer-option")[0]);
     expect(await screen.findByTestId("video-viewer")).toBeInTheDocument();
+    // Timeline vẫn còn, chỉ bỏ dải ảnh keyframe: marker hotspot là thứ nói cho
+    // operator biết bằng chứng nằm ở đâu trong clip, và nó không tốn byte nào.
     await waitFor(() => expect(screen.getByTestId("qa-timeline-marker")).toBeInTheDocument());
+    // ...còn dải ảnh phải biến mất — chính nó là ~9 MB mỗi lần mở video.
+    expect(document.querySelectorAll(".tl-film-frame")).toHaveLength(0);
 
     await user.click(screen.getByTestId("open-submit"));
     expect(await screen.findByTestId("qa-answer")).toHaveValue("Bản tin thời sự HTV7");
@@ -1199,6 +1203,35 @@ describe("AIC26 retrieval console (full)", () => {
     expect(scrollIntoView).toHaveBeenCalled();
     expect(scrollIntoView.mock.calls[0][0]).toMatchObject({ block: "center" });
     scrollIntoView.mockRestore();
+  });
+
+  it("timeline seeks by click and carries no keyframe images", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByTestId("query-input"), "bản tin");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => expect(screen.getByTestId("results")).toBeInTheDocument());
+    (document.activeElement as HTMLElement)?.blur();
+    fireEvent.keyDown(window, { key: "v" });
+    const video = (await screen.findByTestId("video-viewer")) as HTMLVideoElement;
+    await waitFor(() => expect(screen.getByTestId("timeline-seek")).toBeInTheDocument());
+
+    // Cái đắt đỏ đã biến mất: ~60 thumbnail x ~150 KB nạp cùng lúc mỗi lần mở
+    // một video, tất cả nằm trong khung nhìn nên loading="lazy" không hoãn được.
+    expect(document.querySelectorAll(".tl-film-frame")).toHaveLength(0);
+
+    // ...nhưng khả năng nhảy tới một điểm bất kỳ thì không được mất theo. Trước
+    // đây seek là bấm vào một thumbnail; giờ cả dải nhận click.
+    const bar = screen.getByTestId("timeline-seek");
+    bar.getBoundingClientRect = () => ({
+      left: 0, width: 1000, top: 0, height: 22, right: 1000, bottom: 22, x: 0, y: 0, toJSON: () => ({}),
+    }) as DOMRect;
+    Object.defineProperty(video, "currentTime", { configurable: true, writable: true, value: 0 });
+
+    fireEvent.click(bar, { clientX: 250 });   // 25% của dải
+
+    // fixture TIMELINE.duration = 30 -> 25% = 7,5s
+    expect(video.currentTime).toBe(7.5);
   });
 
   it("Ctrl+/ toggles the keyboard shortcuts help", async () => {
