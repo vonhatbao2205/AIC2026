@@ -323,6 +323,7 @@ async def parse_query(req: ParseRequest):
         req.previous_hints,
         req.manual_overrides.model_dump(),
         use_llm=req.use_llm,
+        translate=req.translate,
     )
     return parsed
 
@@ -357,6 +358,7 @@ async def search_simple(req: SimpleSearchRequest):
             scope_spec=req.scope.model_dump(),
             rerank=req.rerank,
             image_models=req.image_models,
+            translate=req.translate,
         )
     except ServiceUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -1163,8 +1165,12 @@ def _should_ground_with_web(mode: str, visual: dict, candidates: list[dict]) -> 
 
 @app.post("/api/transcribe")
 async def transcribe_endpoint(audio: UploadFile = File(...), translate: bool = True):
-    """Whisper speech-to-text for cross-browser voice input. Returns the Vietnamese
-    transcript and (optionally) its English translation."""
+    """Whisper speech-to-text for cross-browser voice input.
+
+    Always returns what was actually said (`text`). `text_en` is the VI→EN
+    translation and is `null` when the console's translate tick box is off, so
+    dictating a query never silently rewrites the operator's words.
+    """
     from .transcribe import available, transcribe_audio
 
     if not available():

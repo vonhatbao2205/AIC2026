@@ -37,6 +37,10 @@ export default function SimpleSearch({
   const [translated, setTranslated] = useState<string | null>(null);
   // Qwen3-VL reranking, default off — same opt-in contract as the console.
   const [rerank, setRerank] = useState(false);
+  // VI→EN translation, default on: PE-Core is English-centric, so an
+  // untranslated Vietnamese query returns frames that look plausible and are
+  // not. Off searches with the words as typed.
+  const [translate, setTranslate] = useState(true);
   // InfoShot++ can search either image index or RRF-fuse both. The component
   // prevents an empty selection; the request helper is a second safety net.
   const [imageModels, setImageModels] = useState<ImageEmbeddingModel[]>(() => [...DEFAULT_IMAGE_MODELS]);
@@ -115,6 +119,7 @@ export default function SimpleSearch({
         scopeRequest(scopeMode, scopeSelection),
         rerank,
         imageModelsForSearch(retrievalDatabase, imageModels),
+        translate,
       );
       setResults(res.results);
       setMode(res.mode);
@@ -210,6 +215,19 @@ export default function SimpleSearch({
             value={imageModels}
             onChange={setImageModels}
           />
+          <label
+            className="check-toggle"
+            data-testid="translate-toggle"
+            title="Dịch query sang tiếng Anh trước khi tìm (PE-Core là encoder tiếng Anh). Tắt khi query đã là tiếng Anh, chứa tên riêng, hoặc bị dịch sai — lúc đó hệ thống tìm đúng chữ bạn gõ."
+          >
+            <input
+              type="checkbox"
+              checked={translate}
+              data-testid="translate-checkbox"
+              onChange={(event) => setTranslate(event.target.checked)}
+            />
+            <span>Dịch VI→EN</span>
+          </label>
           {rerankAvailable && (
             <label
               className="check-toggle"

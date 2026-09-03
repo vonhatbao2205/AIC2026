@@ -163,6 +163,13 @@ export default function FullConsole({
   // Qwen3-VL reranking. Default OFF: it needs a second GPU worker running
   // and costs seconds per search, so the operator opts in per query.
   const [rerank, setRerank] = useState(false);
+  // VI→EN translation of the visual query. Default ON: PE-Core is an
+  // English-centric encoder, so a Vietnamese query it never sees translated
+  // returns plausible-looking keyframes that do not match. Off is the escape
+  // hatch for the queries where translating is the wrong move — already
+  // English, a proper noun, or a phrase the translator keeps mangling — and it
+  // governs voice input too, so dictation stops rewriting what was said.
+  const [translate, setTranslate] = useState(true);
   // Kept per console tab: two simultaneous tasks may intentionally search
   // different InfoShot++ indices. BTC is normalized to PE-only at request time.
   const [imageModels, setImageModels] = useState<ImageEmbeddingModel[]>(() => [...DEFAULT_IMAGE_MODELS]);
@@ -726,7 +733,7 @@ export default function FullConsole({
     setCanvasQueries([]);
     try {
       if (queryType === "TRAKE") {
-        const res = await api.searchTrake({ retrieval_database: retrievalDatabase, image_models: imageModelsForSearch(retrievalDatabase, imageModels), query, scope: scopeRequest(scopeMode, scopeSelection), previous_hints: hints, manual_overrides: overrides, use_llm: useLLM, expand, top_k: Math.max(topK, TRAKE_MIN_TOP_K) });
+        const res = await api.searchTrake({ retrieval_database: retrievalDatabase, image_models: imageModelsForSearch(retrievalDatabase, imageModels), query, scope: scopeRequest(scopeMode, scopeSelection), previous_hints: hints, manual_overrides: overrides, use_llm: useLLM, expand, translate, top_k: Math.max(topK, TRAKE_MIN_TOP_K) });
         setParsed(res.parsed);
         setAppliedScope(res.scope ?? null);
         const grp: VideoGroup[] = res.sequences.map((s) => ({
@@ -776,6 +783,7 @@ export default function FullConsole({
           feedback,
           use_llm: useLLM,
           expand,
+          translate,
           rerank,
           top_k: topK,
           // Results are grouped by video and the backend then keeps only the
@@ -802,7 +810,7 @@ export default function FullConsole({
       setLoading(false);
     }
     // `topK` is read here, not watched: nothing re-runs a search when it moves.
-  }, [queryState, hints, overrides, queryType, feedback, useLLM, expand, rerank, imageModels, retrievalDatabase, topK, scopeMode, scopeSelection]);
+  }, [queryState, hints, overrides, queryType, feedback, useLLM, expand, translate, rerank, imageModels, retrievalDatabase, topK, scopeMode, scopeSelection]);
 
   // The tab rail shows a spinner per tab, so the parent has to know which tabs
   // are still running after an import kicked all of them off at once.
@@ -1897,6 +1905,8 @@ export default function FullConsole({
             onToggleExpand={() => setExpand((v) => !v)}
             rerank={rerank}
             onToggleRerank={setRerank}
+            translate={translate}
+            onToggleTranslate={setTranslate}
             rerankAvailable={Boolean(health?.capabilities.visual_rerank)}
             rerankReport={latency?.reranker ?? null}
             imageModelSelector={

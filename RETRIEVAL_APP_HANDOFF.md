@@ -104,10 +104,10 @@ All endpoints are under `/api`. Responses are JSON.
 | Method | Path | Body / Notes |
 |---|---|---|
 | GET | `/api/health` | service reachability + `mode` (`mock`/`live`) + `capabilities` flags + `warnings[]` |
-| POST | `/api/query/parse` | `{query, query_type_hint, previous_hints[], manual_overrides}` → routing JSON |
-| POST | `/api/search` | `{query, query_type_hint, previous_hints[], manual_overrides, parsed?, feedback?, image_models?, top_k, max_videos}` |
-| POST | `/api/search/simple` | `{query, top_k, scope?, rerank?, image_models?}` → flat keyframe list, no parser and no group-by-video |
-| POST | `/api/search/trake` | `{query, previous_hints[], manual_overrides, image_models?}` → `videos[]` (video-centric: per-event heat peaks + representatives + best chain) **and** `sequences[]` (the same assembly as flat chains) |
+| POST | `/api/query/parse` | `{query, query_type_hint, previous_hints[], manual_overrides, translate?}` → routing JSON |
+| POST | `/api/search` | `{query, query_type_hint, previous_hints[], manual_overrides, parsed?, feedback?, image_models?, translate?, top_k, max_videos}` |
+| POST | `/api/search/simple` | `{query, top_k, scope?, rerank?, image_models?, translate?}` → flat keyframe list, no parser and no group-by-video |
+| POST | `/api/search/trake` | `{query, previous_hints[], manual_overrides, image_models?, translate?}` → `videos[]` (video-centric: per-event heat peaks + representatives + best chain) **and** `sequences[]` (the same assembly as flat chains) |
 | POST | `/api/answers/generate` | `{query, query_type_hint, scope?, limit<=100, params?, answer_text?, event_count?, groups?/sequences?}` → the ordered answer list (§10). Pass `groups`/`sequences` to rank a result already on screen instead of searching again; `event_count` is the TRAKE row width taken from the statement |
 | GET | `/api/canvas/palette` | V-KIS canvas vocabulary: 16 OD colours + canonical labels (+ `colorable`) |
 | POST | `/api/search/canvas` | `{canvas{objects[{label,bbox,color,required}], action_text, mode}}` → same group shape, plus `object_layout` evidence |

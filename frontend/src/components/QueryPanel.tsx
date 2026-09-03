@@ -26,6 +26,13 @@ interface Props {
   rerankAvailable: boolean;
   /** Last search's rerank outcome, so a failed refinement is visible. */
   rerankReport?: RerankerReport | null;
+  /** VI→EN translation of the query. On by default — PE-Core is English-centric,
+   *  so an untranslated Vietnamese query returns plausible frames that do not
+   *  match it. Off is for the cases where translating is the wrong move: an
+   *  English query, a proper noun, or a phrase the translator keeps mangling.
+   *  It also governs voice input, so dictation never rewrites what was said. */
+  translate: boolean;
+  onToggleTranslate: (next: boolean) => void;
   /** InfoShot++ image-vector picker; omitted for profiles that have one index. */
   imageModelSelector?: React.ReactNode;
   /** Keyframes to retrieve. Applied on the NEXT search, never on change. */
@@ -40,7 +47,7 @@ interface Props {
 }
 
 export function QueryPanel(props: Props) {
-  const { query, setQuery, hints, onAppendHint, onClearHints, onSearch, loading, parsed, queryType, inputRef, useLLM, onToggleLLM, expand, onToggleExpand, rerank, onToggleRerank, rerankAvailable, rerankReport, imageModelSelector, topK, onTopK, appliedTopK, scopeFilter } = props;
+  const { query, setQuery, hints, onAppendHint, onClearHints, onSearch, loading, parsed, queryType, inputRef, useLLM, onToggleLLM, expand, onToggleExpand, rerank, onToggleRerank, rerankAvailable, rerankReport, translate, onToggleTranslate, imageModelSelector, topK, onTopK, appliedTopK, scopeFilter } = props;
   const [listening, setListening] = useState(false);
   const [voiceMsg, setVoiceMsg] = useState<string | null>(null);
   const [interim, setInterim] = useState("");
@@ -84,9 +91,21 @@ export function QueryPanel(props: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Voice input follows the same tick box as the query: dictating must never
+  // rewrite what the operator said behind their back. `translate` is read
+  // through a ref because the recogniser's `onend` fires long after the handler
+  // that started it closed over the value.
+  const translateRef = useRef(translate);
+  useEffect(() => { translateRef.current = translate; }, [translate]);
+
   async function finishViToEn(vi: string) {
     const base = baseRef.current;
     if (!vi.trim()) { setVoiceMsg(null); return; }
+    if (!translateRef.current) {
+      setQuery((base ? base + " " : "") + vi);
+      setVoiceMsg(null);
+      return;
+    }
     setVoiceMsg("Đang dịch VI→EN…");
     try {
       const { text_en } = await api.translate(vi);
@@ -161,8 +180,10 @@ export function QueryPanel(props: Props) {
       if (!blob.size) { setVoiceMsg(null); return; }
       setVoiceMsg("Đang nhận dạng (Whisper)…");
       try {
-        const { text, text_en } = await api.transcribe(blob); // already VI→EN translated
-        const out = (text_en || text || "").trim();
+        // The backend only translates when asked; `text` is always what was said.
+        const wantsEnglish = translateRef.current;
+        const { text, text_en } = await api.transcribe(blob, wantsEnglish);
+        const out = ((wantsEnglish ? text_en || text : text) || "").trim();
         if (out) setQuery((baseRef.current ? baseRef.current + " " : "") + out);
         setVoiceMsg(out ? null : "Không nhận được giọng nói.");
       } catch (e) {
@@ -218,7 +239,7 @@ export function QueryPanel(props: Props) {
           className={`btn sm ${listening ? "danger" : ""}`}
           data-testid="voice-btn"
           onClick={toggleVoice}
-          title={`Voice input (Ctrl+M) — ${useSpeech ? "browser speech, live" : "Whisper (server)"}`}
+          title={`Voice input (Ctrl+M) — ${useSpeech ? "browser speech, live" : "Whisper (server)"}${translate ? ", dịch sang tiếng Anh" : ", giữ nguyên lời nói"}`}
         >
           {listening ? "● rec" : "🎙 voice"}
         </button>
@@ -238,6 +259,19 @@ export function QueryPanel(props: Props) {
         >
           {expand ? "🔎 Expand on" : "Expand off"}
         </button>
+        <label
+          className="check-toggle"
+          data-testid="translate-toggle"
+          title="Dịch query sang tiếng Anh trước khi tìm (PE-Core là encoder tiếng Anh, nên query tiếng Việt chưa dịch sẽ trả về keyframe trông hợp lý nhưng sai). Tắt khi query đã là tiếng Anh, chứa tên riêng, hoặc bị dịch sai — lúc đó hệ thống tìm đúng chữ bạn gõ. Cũng áp dụng cho voice input."
+        >
+          <input
+            type="checkbox"
+            checked={translate}
+            data-testid="translate-checkbox"
+            onChange={(event) => onToggleTranslate(event.target.checked)}
+          />
+          <span>Dịch VI→EN</span>
+        </label>
         {rerankAvailable && (
           <label
             className="check-toggle"

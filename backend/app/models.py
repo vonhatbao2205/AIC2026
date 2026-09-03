@@ -56,6 +56,11 @@ class ParseRequest(BaseModel):
     previous_hints: list[str] = Field(default_factory=list)
     manual_overrides: ManualOverrides = Field(default_factory=ManualOverrides)
     use_llm: bool = False
+    #: VI→EN translation of the visual query, ticked on by default in the console.
+    #: Off sends the operator's own words to the image encoders — right for an
+    #: English query, a proper noun, or a phrase the translator keeps mangling.
+    #: `TRANSLATE_TO_EN=false` still disables it globally.
+    translate: bool = True
 
 
 class FeedbackState(BaseModel):
@@ -77,6 +82,11 @@ class SearchRequest(ImageModelSelection):
     feedback: FeedbackState | None = None
     use_llm: bool = False
     expand: bool = False  # Nemotron query expansion (extra visual paraphrases)
+    #: VI→EN translation of the visual query, ticked on by default in the console.
+    #: Off sends the operator's own words to the image encoders — right for an
+    #: English query, a proper noun, or a phrase the translator keeps mangling.
+    #: `TRANSLATE_TO_EN=false` still disables it globally.
+    translate: bool = True
     # Qwen3-VL rescoring of the PE candidate pool. Off by default: it needs a
     # second GPU worker and costs seconds, so it is the operator's call per
     # search rather than something the console does behind their back.
@@ -92,6 +102,11 @@ class SimpleSearchRequest(ImageModelSelection):
     scope: SearchScope = Field(default_factory=SearchScope)
     top_k: int = 60
     rerank: bool = False
+    #: VI→EN translation of the visual query, ticked on by default in the console.
+    #: Off sends the operator's own words to the image encoders — right for an
+    #: English query, a proper noun, or a phrase the translator keeps mangling.
+    #: `TRANSLATE_TO_EN=false` still disables it globally.
+    translate: bool = True
 
 
 class TranslateRequest(BaseModel):
@@ -106,6 +121,11 @@ class TrakeSearchRequest(ImageModelSelection):
     parsed: dict[str, Any] | None = None
     use_llm: bool = False
     expand: bool = False  # Nemotron query expansion per event
+    #: VI→EN translation of the visual query, ticked on by default in the console.
+    #: Off sends the operator's own words to the image encoders — right for an
+    #: English query, a proper noun, or a phrase the translator keeps mangling.
+    #: `TRANSLATE_TO_EN=false` still disables it globally.
+    translate: bool = True
     # Wide per-event candidate pool so the video containing all events surfaces a
     # frame for each event (the DP then assembles the ordered sequence).
     top_k: int = Field(default=400, ge=1, le=1000)
@@ -136,6 +156,11 @@ class AnswerGenerateRequest(ImageModelSelection):
     feedback: FeedbackState | None = None
     use_llm: bool = False
     expand: bool = False
+    #: VI→EN translation of the visual query, ticked on by default in the console.
+    #: Off sends the operator's own words to the image encoders — right for an
+    #: English query, a proper noun, or a phrase the translator keeps mangling.
+    #: `TRANSLATE_TO_EN=false` still disables it globally.
+    translate: bool = True
     top_k: int = Field(default=400, ge=1, le=1000)
     max_videos: int = Field(default=100, ge=1, le=500)
     #: 100 is the organisers' hard cap on answers per query.

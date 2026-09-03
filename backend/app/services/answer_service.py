@@ -162,6 +162,7 @@ class AnswerService:
             "feedback": req.get("feedback"),
             "use_llm": bool(req.get("use_llm")),
             "expand": bool(req.get("expand")),
+            "translate": bool(req.get("translate", True)),
             "top_k": int(req.get("top_k") or default_top_k),
             "max_videos": int(req.get("max_videos") or DEFAULT_MAX_VIDEOS),
         }

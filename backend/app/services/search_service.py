@@ -840,6 +840,7 @@ class SearchService:
         scope_spec: dict[str, Any] | None = None,
         rerank: bool = False,
         image_models: Any = None,
+        translate: bool = True,
     ) -> dict[str, Any]:
         """Flat visual search over the selected embedding model(s).
 
@@ -865,9 +866,12 @@ class SearchService:
                 "latency_ms": 0,
             }
         # Use the same translated visual query for a fair PE/Qwen rank ensemble.
+        # `translate` is the operator's tick box: off means the query goes to the
+        # encoders exactly as typed (an English query, a proper noun, a phrase
+        # the translator keeps mangling).
         search_text = query
         translation_failed = False
-        if self.s.translate_to_en and not self.s.mock_mode:
+        if translate and self.s.translate_to_en and not self.s.mock_mode:
             from ..translate import translate_vi_to_en_status
 
             search_text, translated_ok = await translate_vi_to_en_status(
@@ -1071,6 +1075,7 @@ class SearchService:
                 req.get("previous_hints"),
                 req.get("manual_overrides"),
                 use_llm=req.get("use_llm", False),
+                translate=bool(req.get("translate", True)),
             )
             parse_ms = (time.perf_counter() - t_parse) * 1000
 

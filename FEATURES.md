@@ -31,6 +31,7 @@ Toàn bộ tính năng hiện có của hệ thống truy hồi video AIC26 (bac
 - **LLM tùy chọn** (toggle **🧠 LLM on**): NVIDIA NIM (mặc định `qwen/qwen3-next-80b-a3b-instruct`) trả JSON routing đầy đủ. Có cache theo query; JSON retry 1 lần; lỗi/chậm → fallback heuristic.
   - **Slim-schema** (opt-in `SLIM_PARSE=true`): nhanh ~2× nhưng A/B cho thấy đôi khi sai query_type → mặc định TẮT.
 - **Dịch VI→EN** (mặc định bật, `TRANSLATE_TO_EN`): khi LLM off, dịch query → `image_pe` (PE cần tiếng Anh); OCR/speech giữ tiếng Việt. TRAKE dịch từng event.
+  - **Checkbox "Dịch VI→EN"** cạnh nút Search (cả Console lẫn Simple, mặc định **bật**): tắt = tìm **đúng chữ đã gõ**, không gọi dịch, và nếu LLM parser đang bật thì bản rewrite tiếng Anh của nó cũng bị bỏ (query thị giác quay về tiếng Việt gốc). Dùng khi query đã là tiếng Anh, có tên riêng, hoặc bị dịch sai. Gửi kèm `translate` trong `/api/search`, `/api/search/simple`, `/api/search/trake`, `/api/query/parse`, `/api/answers/generate`. `TRANSLATE_TO_EN=false` vẫn tắt toàn cục — checkbox chỉ tắt được chứ không bật ngược lại.
 - **Query expansion** (toggle **🔎 Expand**): model nhanh (`NVIDIA_FAST_MODEL`, vd `meta/llama-3.1-8b-instruct`) sinh 2-3 mô tả thị giác/ query → backend search từng biến thể, **fuse max-cosine** → tăng recall cho concept khó (vd "The Thing"). Lọc bỏ biến thể không phải tiếng Anh.
 - **Panel Query Understanding**: type+confidence, EN visual (clamp "xem thêm"), kênh được route, negations.
 
@@ -195,7 +196,7 @@ Vòng sơ tuyển chấm `Final = (R@1 + R@5 + R@20 + R@50 + R@100) / 5`, mỗi 
 - Nút **🎙 voice** / phím **Ctrl+M** (mọi nơi).
 - **Web Speech API** (Chrome/Edge): interim realtime (`…đang nói`), nói liên tục, lang vi-VN.
 - **Whisper backend** (`POST /api/transcribe`, faster-whisper, `WHISPER_MODEL`): chạy **mọi trình duyệt kể cả Brave** (Brave tắt Web Speech → tự fallback Whisper). Trả transcript VI + bản dịch EN.
-- **Tự dịch VI→EN** sau khi nói (Whisper trả sẵn; Web Speech gọi `/api/translate`).
+- **Dịch sau khi nói theo đúng checkbox "Dịch VI→EN"**: bật → Whisper trả sẵn bản EN (Web Speech gọi `/api/translate`); tắt → giữ **nguyên lời nói** trong ô query (`/api/transcribe?translate=false` trả `text_en: null`). Trước đây voice input luôn dịch, không có cách nào giữ lại tiếng Việt.
 
 ## 13. Phím tắt
 `/` focus query · `Enter` search / mở guard / xác nhận / gán paused frame cho TRAKE · `↑↓` chọn video · `←→` chọn frame · `v` hiện/ẩn video · `Space` play/pause và capture raw frame · `Tab` đổi vùng · `T` ẩn/hiện timeline · `Esc` đóng modal/xóa paused frame · `Ctrl+M` voice · `Ctrl+/` **bảng phím tắt**. Nút **?** ở top bar mở keymap.
@@ -233,7 +234,7 @@ Vòng sơ tuyển chấm `Final = (R@1 + R@5 + R@20 + R@50 + R@100) / 5`, mỗi 
 | GET | `/api/submit/history` | lịch sử submit + verdict |
 | DELETE | `/api/submit/history` | xoá log local: `?ids=a,b` (từng mục), `?task_id=` (1 task), không tham số = tất cả; luôn backup |
 | POST | `/api/translate` | dịch VI→EN |
-| POST | `/api/transcribe` | Whisper STT (audio→text+EN) |
+| POST | `/api/transcribe` | Whisper STT (audio→text + EN); `?translate=false` → `text_en: null`, giữ nguyên lời nói |
 
 ## 16. Cấu hình (env, xem `backend/.env.example`)
 `ELASTIC_ENDPOINT/API_KEY` · `MILVUS_ENDPOINT/TOKEN` · `PE_ENCODER_URL`(+`_TOKEN`) · `GLAP_ENCODER_URL` (mặc định = PE) · `NVILA_BASE_URL/TOKEN` · `NVILA_TIMEOUT_SECONDS/MAX_CANDIDATES` · `DEEPSEEK_API_KEY` · `DEEPSEEK_GROUNDING_*` · `MEDIA_BASE_URL` · `NVIDIA_API_KEY/BASE_URL` · `NVIDIA_MODEL` (parse) · `NVIDIA_FAST_MODEL` (expansion) · `SLIM_PARSE` · `TRANSLATE_TO_EN` · `WHISPER_MODEL` · `DRES_BASE_URL` · `DRES_USERNAME/PASSWORD` · `DRES_SESSION` · `DRES_EVALUATION_ID` · `DRES_SEGMENT_PAD_MS` · `IDX_*` · `MILVUS_IMAGE_COLLECTION` · `MILVUS_AUDIO_COLLECTION` · `AIC26_MOCK_MODE` · `CORS_ORIGINS`.

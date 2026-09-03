@@ -46,6 +46,7 @@ class TrakeService:
                 req.get("previous_hints"),
                 req.get("manual_overrides"),
                 use_llm=req.get("use_llm", False),
+                translate=bool(req.get("translate", True)),
             )
         if req.get("expand"):
             await self.search.expand_image_queries(parsed)

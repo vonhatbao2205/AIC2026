@@ -137,6 +137,8 @@ export const api = {
     scope?: SearchScope,
     rerank = false,
     image_models: ImageEmbeddingModel[] = ["pe"],
+    /** VI→EN translation of the query. Off searches with the words as typed. */
+    translate = true,
   ) =>
     request<SimpleSearchResponse>("/api/search/simple", {
       method: "POST",
@@ -146,14 +148,15 @@ export const api = {
         retrieval_database,
         rerank,
         image_models,
+        translate,
         ...(scope ? { scope } : {}),
       }),
     }),
 
-  parse: (query: string, hint: QueryTypeHint, previous_hints: string[], overrides: ManualOverrides, use_llm = false) =>
+  parse: (query: string, hint: QueryTypeHint, previous_hints: string[], overrides: ManualOverrides, use_llm = false, translate = true) =>
     request<ParsedQuery>("/api/query/parse", {
       method: "POST",
-      body: JSON.stringify({ query, query_type_hint: hint, previous_hints, manual_overrides: overrides, use_llm }),
+      body: JSON.stringify({ query, query_type_hint: hint, previous_hints, manual_overrides: overrides, use_llm, translate }),
     }),
 
   search: (body: {
@@ -168,6 +171,9 @@ export const api = {
     feedback?: FeedbackState;
     use_llm?: boolean;
     expand?: boolean;
+    /** VI→EN translation of the visual query (operator tick box, on by default).
+     *  Off sends the query to the image encoders exactly as typed. */
+    translate?: boolean;
     /** Qwen3-VL rescoring of the PE candidate pool (operator tick box). */
     rerank?: boolean;
     top_k?: number;
@@ -178,7 +184,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
-  searchTrake: (body: { retrieval_database: RetrievalDatabase; image_models: ImageEmbeddingModel[]; query: string; scope?: SearchScope; previous_hints: string[]; manual_overrides: ManualOverrides; use_llm?: boolean; expand?: boolean; top_k?: number }) =>
+  searchTrake: (body: { retrieval_database: RetrievalDatabase; image_models: ImageEmbeddingModel[]; query: string; scope?: SearchScope; previous_hints: string[]; manual_overrides: ManualOverrides; use_llm?: boolean; expand?: boolean; translate?: boolean; top_k?: number }) =>
     request<TrakeSearchResponse>("/api/search/trake", {
       method: "POST",
       body: JSON.stringify(body),
@@ -201,6 +207,8 @@ export const api = {
     feedback?: FeedbackState;
     use_llm?: boolean;
     expand?: boolean;
+    /** VI→EN translation of the visual query; on unless the operator unticks it. */
+    translate?: boolean;
     top_k?: number;
     max_videos?: number;
     limit?: number;
@@ -304,10 +312,19 @@ export const api = {
       body: JSON.stringify({ text }),
     }),
 
-  transcribe: async (audio: Blob): Promise<{ text: string; text_en: string | null }> => {
+  /** Whisper speech-to-text. `text` is always what was said; `text_en` is the
+   *  VI→EN translation, and is null when `translate` is off — dictation then
+   *  leaves the operator's own words in the query box. */
+  transcribe: async (
+    audio: Blob,
+    translate = true,
+  ): Promise<{ text: string; text_en: string | null }> => {
     const form = new FormData();
     form.append("audio", audio, "voice.webm");
-    const resp = await fetch(`${BASE}/api/transcribe`, { method: "POST", body: form });
+    const resp = await fetch(`${BASE}/api/transcribe?translate=${translate}`, {
+      method: "POST",
+      body: form,
+    });
     if (!resp.ok) {
       let detail: unknown = null;
       try {

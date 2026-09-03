@@ -468,20 +468,39 @@ class QueryParser:
         previous_hints: list[str] | None = None,
         manual_overrides: dict[str, Any] | None = None,
         use_llm: bool = False,
+        translate: bool = True,
     ) -> dict[str, Any]:
+        """Parse one query. `translate` is the operator's per-search tick box.
+
+        Off means "search with the words I typed": no VI→EN call, and the visual
+        query keeps the original text even when the LLM parser handed back an
+        English rewrite. `TRANSLATE_TO_EN=false` still disables it globally, so
+        the tick box can only ever turn translation off, never force it on where
+        the deployment has ruled it out.
+        """
         previous_hints = previous_hints or []
-        cache_key = (query.strip(), query_type_hint, tuple(previous_hints), use_llm)
+        # `translate` belongs in the key: the same query parsed with and without
+        # translation are two different results, and sharing one cache entry
+        # would serve whichever ran first to both.
+        cache_key = (query.strip(), query_type_hint, tuple(previous_hints), use_llm, translate)
 
         base = self._cache.get(cache_key)
         if base is None:
+            translate_on = translate and self.s.translate_to_en and not self.s.mock_mode
             parsed: dict[str, Any] | None = None
             if use_llm and self.s.has_llm and not self.s.mock_mode:
                 parsed = await self._llm_parse(query, query_type_hint, previous_hints)
             if parsed is None:
                 parsed = heuristic_parse(query, query_type_hint, previous_hints)
                 # LLM off → translate VI→EN so the PE visual query is English.
-                if self.s.translate_to_en and not self.s.mock_mode:
+                if translate_on:
                     await self._apply_translation(parsed)
+            elif not translate:
+                # The LLM parser translates as part of parsing, so honouring the
+                # tick box here means undoing that rewrite — otherwise "no
+                # translation" would still search with English the operator
+                # never wrote.
+                _drop_translation(parsed)
             base = parsed
             # A failed VI→EN translation is transient — a rate limit, or the
             # network buckling under a bulk run. `translate.py` refuses to cache
@@ -697,6 +716,28 @@ def apply_manual_overrides(parsed: dict[str, Any], overrides: dict[str, Any]) ->
         if name in channels:
             channels[name]["enabled"] = False
             channels[name]["reason"] = (channels[name].get("reason") or "") + " [disabled by operator]"
+    return parsed
+
+
+def _drop_translation(parsed: dict[str, Any]) -> dict[str, Any]:
+    """Put the operator's own words back into the visual query.
+
+    Used when the translate tick box is off but the parse came from the LLM,
+    which rewrites the query into English as part of its job. Only the visual
+    (image) queries are touched: OCR/speech were always Vietnamese.
+    """
+    q_vi = parsed.get("normalized_vi") or parsed.get("original_query") or ""
+    parsed["translated_en_visual"] = ""
+    parsed.pop("translation_failed", None)
+    if not q_vi.strip():
+        return parsed
+    img = (parsed.get("channels") or {}).get("image_pe")
+    if isinstance(img, dict):
+        img["queries_en"] = [q_vi]
+    for event in (parsed.get("trake") or {}).get("events", []) or []:
+        source = event.get("description_vi") or q_vi
+        event["description_en_visual"] = ""
+        event["image_pe_queries_en"] = [source]
     return parsed
 
 
