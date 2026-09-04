@@ -3,6 +3,7 @@ import type { TrakeEventEvidence, TrakeHeatPeak, TrakeVideoResult } from "../api
 import { eventColor } from "../lib/constants";
 import { formatTime } from "../lib/media";
 import { hasPeakDrag, readPeakDrag, setPeakDrag, type TrakePeakDrag } from "../lib/trakeDrag";
+import { SearchThinking } from "./SearchThinking";
 import { TrakeHeatmap } from "./TrakeHeatmap";
 
 /** Frames the operator has put into a video's chain by hand, replacing the DP's
@@ -39,8 +40,8 @@ interface Props {
  *  top and every candidate frame, in place on the video's timeline, below it. */
 export function TrakeVideoResults(props: Props) {
   const { videos, eventCount, selectedVideoId, loading } = props;
-  if (loading) return <div className="empty">Searching…</div>;
-  if (!videos.length) return <div className="empty">No results. Enter a query and press Enter.</div>;
+  if (loading) return <SearchThinking />;
+  if (!videos.length) return <div className="empty">GPT-6 Astra is ready. Enter a query to begin.</div>;
 
   return (
     <div className="trake-videos" data-testid="trake-videos">

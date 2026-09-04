@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { FrameResult, VideoGroup } from "../api/types";
 import { formatTime, topRelevanceRanks } from "../lib/media";
 import { ChannelBadges } from "./Badges";
+import { SearchThinking } from "./SearchThinking";
 
 type ViewMode = "grouped" | "flat";
 
@@ -40,8 +41,8 @@ function isGlap(f: FrameResult): boolean {
 
 export function Results(props: Props) {
   const { groups, viewMode, selectedVideo, selectedFrame, expanded, loading } = props;
-  if (loading) return <div className="empty">Searching…</div>;
-  if (!groups.length) return <div className="empty">No results. Enter a query and press Enter.</div>;
+  if (loading) return <SearchThinking />;
+  if (!groups.length) return <div className="empty">GPT-6 Astra is ready. Enter a query to begin.</div>;
 
   if (viewMode === "flat") {
     // Flatten every frame and sort by fused score = the raw top-K ranking.

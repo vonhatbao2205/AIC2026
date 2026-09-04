@@ -764,6 +764,44 @@ button { font-family: inherit; }
 .status-pill.undecidable { background: color-mix(in srgb, var(--warn) 20%, transparent); color: var(--warn); }
 
 .empty { color: var(--fg-faint); font-size: 13px; padding: 36px 16px; text-align: center; }
+.search-thinking {
+  min-height: clamp(220px, 42vh, 390px);
+  display: grid; place-content: center; gap: 7px;
+  padding: 36px 20px; text-align: center;
+}
+.search-thinking-main {
+  min-width: 270px; display: flex; align-items: center; justify-content: center; gap: 8px;
+  color: var(--fg-dim); font-size: 13px;
+}
+.search-thinking-logo {
+  width: 16px; height: 16px; display: inline-flex; flex: 0 0 auto;
+  line-height: 1;
+  animation: search-thinking-breathe 2.4s ease-in-out infinite;
+}
+.search-thinking-logo img {
+  display: block; width: 100%; height: 100%; object-fit: contain;
+  filter: invert(1) drop-shadow(0 0 5px rgba(255, 255, 255, 0.22));
+}
+:root[data-theme="light"] .search-thinking-logo img { filter: none; }
+.search-thinking-verb {
+  min-width: 92px; text-align: left; color: var(--fg); font-weight: 600;
+  animation: search-thinking-enter 180ms ease-out both;
+}
+.search-thinking-time {
+  min-width: 26px; text-align: left; color: var(--fg-faint); font-size: 10.5px;
+}
+.search-thinking-subline {
+  color: var(--fg-faint); font-size: 11.5px;
+  animation: search-thinking-enter 240ms ease-out both;
+}
+@keyframes search-thinking-breathe {
+  0%, 100% { opacity: 0.58; transform: scale(0.94); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@keyframes search-thinking-enter {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .warn-banner { background: color-mix(in srgb, var(--warn) 12%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); color: var(--warn); padding: 9px 18px; font-size: 12.5px; }
 .latency-mini { font-family: var(--mono); font-size: 11px; color: var(--fg-faint); }
 .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--bg-2); border: 1px solid var(--line-2); padding: 11px 18px; border-radius: var(--radius); z-index: 200; font-size: 13px; box-shadow: var(--shadow-2); }

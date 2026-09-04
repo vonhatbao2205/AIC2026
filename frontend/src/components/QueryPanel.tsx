@@ -228,7 +228,7 @@ export function QueryPanel(props: Props) {
       />
       <div className="row mt">
         <button className="btn primary" data-testid="search-btn" onClick={onSearch} disabled={loading}>
-          {loading ? "Searching…" : "Search"} <span className="kbd">↵</span>
+          {loading ? "Đang xử lý…" : "Search"} <span className="kbd">↵</span>
         </button>
         {queryType === "T-KIS" && (
           <button className="btn sm" onClick={onAppendHint} title="Combine this as an additional hint">
