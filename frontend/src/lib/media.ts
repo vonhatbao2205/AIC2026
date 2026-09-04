@@ -18,15 +18,15 @@ export function keyframeUrlFromSubmitId(baseUrl: string, submitKeyframeId: strin
   return `${baseUrl.replace(/\/$/, "")}/Keyframes/Keyframes_${group}/${videoId}/${frameName}`;
 }
 
-/** The same video under the fallback origin, or null when the swap does not apply.
+/** The same media asset under the fallback origin, or null when the swap does not apply.
  *
- *  A dead origin kills every video at once — the tunnel is down, or the bucket
- *  is unreachable — so the retry is an origin swap, not a per-URL alternative.
+ *  A dead origin can affect every asset it serves at once, so the retry is an
+ *  origin swap rather than a separately stored alternative for every URL.
  *  Returns null when there is no fallback configured, when the URL does not
  *  actually come from the primary origin (nothing to swap), or when the two
  *  origins are the same, which would dress a single point of failure up as
  *  redundancy and retry against the host that just failed. */
-export function swapVideoOrigin(
+export function swapMediaOrigin(
   url: string,
   primary: string | undefined,
   fallback: string | undefined,
@@ -37,6 +37,9 @@ export function swapVideoOrigin(
   if (from === to || !url.startsWith(from)) return null;
   return to + url.slice(from.length);
 }
+
+/** Backward-compatible, video-specific name used by the video player. */
+export const swapVideoOrigin = swapMediaOrigin;
 
 export function videoUrl(baseUrl: string, videoId: string): string {
   const group = groupFromVideoId(videoId);

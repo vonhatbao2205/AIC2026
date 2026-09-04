@@ -108,6 +108,11 @@ class Settings:
     # Active keyframe/video origins for the profile handling this request.
     keyframe_media_base_url: str = "https://media.example.com"
     keyframe_media_base_url_2: str = HF_MEDIA_BASE_URL
+    # Where the console retries a keyframe when its primary origin fails. The
+    # active alias is selected per retrieval profile below, just like the base.
+    keyframe_media_fallback_base_url: str = ""
+    keyframe_media_fallback_base_url_1: str = ""
+    keyframe_media_fallback_base_url_2: str = ""
     # Videos are split the same way keyframes are, because the two origins do not
     # hold the same corpus: the Hugging Face bucket carries the 873 InfoShot++
     # videos (L21–L30) only, so pointing profile 1 at it would 404 every K01–K20
@@ -311,6 +316,7 @@ class Settings:
                 ocr_missing_categories=(),
                 milvus_image_collection=self.milvus_image_collection_1,
                 keyframe_media_base_url=self.media_base_url,
+                keyframe_media_fallback_base_url=self.keyframe_media_fallback_base_url_1.rstrip("/"),
                 video_media_base_url=(self.video_media_base_url_1 or self.media_base_url).rstrip("/"),
                 video_media_fallback_base_url=self.video_media_fallback_base_url_1.rstrip("/"),
             )
@@ -327,6 +333,7 @@ class Settings:
             milvus_image_collection=self.milvus_image_collection_2,
             milvus_qwen3_vl_image_collection=self.milvus_qwen3_vl_image_collection_2,
             keyframe_media_base_url=self.keyframe_media_base_url_2,
+            keyframe_media_fallback_base_url=self.keyframe_media_fallback_base_url_2.rstrip("/"),
             video_media_base_url=(self.video_media_base_url_2 or self.media_base_url).rstrip("/"),
             video_media_fallback_base_url=self.video_media_fallback_base_url_2.rstrip("/"),
         )
@@ -490,6 +497,12 @@ def get_settings() -> Settings:
         media_base_url=media_base_url,
         keyframe_media_base_url=media_base_url,
         keyframe_media_base_url_2=(_env("KEYFRAME_MEDIA_BASE_URL_2") or HF_MEDIA_BASE_URL).rstrip("/"),
+        keyframe_media_fallback_base_url_1=(
+            _env("KEYFRAME_MEDIA_FALLBACK_BASE_URL_1") or ""
+        ).rstrip("/"),
+        keyframe_media_fallback_base_url_2=(
+            _env("KEYFRAME_MEDIA_FALLBACK_BASE_URL_2") or ""
+        ).rstrip("/"),
         # Set VIDEO_MEDIA_BASE_URL_1 to the HF base too, once K01–K20 videos have
         # been migrated there; until then profile 1 must keep its R2 origin.
         video_media_base_url_1=(_env("VIDEO_MEDIA_BASE_URL_1") or media_base_url).rstrip("/"),

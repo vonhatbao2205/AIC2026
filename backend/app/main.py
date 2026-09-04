@@ -204,10 +204,11 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
         "ok": ok,
         "mode": "mock" if settings.mock_mode else "live",
         "services": services,
-        # The console needs the video origins, not just the built URLs: when the
-        # primary is down EVERY video URL is dead at once, so the retry is an
-        # origin swap rather than something to attach to each URL individually.
+        # The console needs the origins, not just the built URLs: when a primary
+        # is down every asset under it fails, so the retry swaps the origin.
         "media": {
+            "keyframe_base_url": selected_settings.keyframe_media_base_url,
+            "keyframe_fallback_base_url": selected_settings.keyframe_media_fallback_base_url,
             "video_base_url": selected_settings.video_media_base_url,
             "video_fallback_base_url": selected_settings.video_media_fallback_base_url,
         },

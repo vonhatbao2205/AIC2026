@@ -1,6 +1,6 @@
 from dataclasses import replace
 
-from app.config import Settings
+from app.config import Settings, get_settings
 from app.media import MediaUrlBuilder
 
 
@@ -11,7 +11,8 @@ def configured_settings() -> Settings:
         milvus_endpoint_2="https://infoshot.milvus.test",
         milvus_token_2="infoshot-token",
         media_base_url="https://media.r2.test",
-        keyframe_media_base_url_2="https://huggingface.test/bucket/resolve",
+        keyframe_media_base_url_2="https://keyframe.r2.test",
+        keyframe_media_fallback_base_url_2="https://huggingface.test/bucket/resolve",
         idx_keyframe_map_1="btc-map",
         idx_keyframe_map_2="infoshot-map",
         idx_ocr_1="btc-ocr",
@@ -41,7 +42,7 @@ def test_btc_profile_keeps_full_dataset_endpoints():
     assert profile.has_glap is False  # no encoder configured in this fixture
 
 
-def test_infoshot_profile_splits_hf_keyframes_from_r2_video():
+def test_infoshot_profile_uses_r2_keyframes_with_hf_fallback():
     profile = configured_settings().for_retrieval_database("infoshotpp")
     media = MediaUrlBuilder(profile.keyframe_media_base_url, profile.media_base_url)
 
@@ -55,8 +56,27 @@ def test_infoshot_profile_splits_hf_keyframes_from_r2_video():
     assert profile.ocr_missing_categories == ("L26",)
     assert profile.milvus_image_collection == "infoshot-images"
     assert profile.has_glap is False
-    assert media.keyframe_url("L26_V001", 1).startswith("https://huggingface.test/")
+    assert media.keyframe_url("L26_V001", 1).startswith("https://keyframe.r2.test/")
+    assert profile.keyframe_media_fallback_base_url == (
+        "https://huggingface.test/bucket/resolve"
+    )
     assert media.video_url("L26_V001").startswith("https://media.r2.test/")
+
+
+def test_infoshot_keyframe_origins_are_loaded_from_env(monkeypatch):
+    monkeypatch.setenv("KEYFRAME_MEDIA_BASE_URL_2", "https://keyframe.r2.test/")
+    monkeypatch.setenv(
+        "KEYFRAME_MEDIA_FALLBACK_BASE_URL_2",
+        "https://huggingface.test/bucket/resolve/",
+    )
+    get_settings.cache_clear()
+
+    profile = get_settings().for_retrieval_database("infoshotpp")
+
+    assert profile.keyframe_media_base_url == "https://keyframe.r2.test"
+    assert profile.keyframe_media_fallback_base_url == (
+        "https://huggingface.test/bucket/resolve"
+    )
 
 
 def test_video_origin_is_split_per_profile_like_the_keyframe_origin():

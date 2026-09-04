@@ -220,7 +220,8 @@ Key variables (full list in [backend/.env.example](backend/.env.example)):
 | `QWEN3_VL_ENCODER_URL`, `QWEN3_VL_ENCODER_TOKEN` | optional InfoShot++ Qwen3-VL text encoder tunnel/auth |
 | `MILVUS_QWEN3_VL_IMAGE_COLLECTION_2` | InfoShot++ native 4096-d Qwen image collection |
 | `MEDIA_BASE_URL` | Cloudflare R2: BTC keyframes và video của cả hai profile |
-| `KEYFRAME_MEDIA_BASE_URL_2` | Hugging Face public base cho keyframe InfoShot++ |
+| `KEYFRAME_MEDIA_BASE_URL_2` | Cloudflare R2 public base cho keyframe InfoShot++ |
+| `KEYFRAME_MEDIA_FALLBACK_BASE_URL_2` | Hugging Face fallback khi keyframe InfoShot++ trên R2 tải lỗi |
 | `NVIDIA_API_KEY` | enables the Nemotron query parser (else heuristics) |
 | `DRES_BASE_URL` | official DRES host (SELab: `http://10.0.1.21:20740`) |
 | `DRES_USERNAME`, `DRES_PASSWORD` | participant account — the backend logs in (Client API v2) and keeps the session |

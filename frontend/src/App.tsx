@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "./api/client";
+import { installKeyframeFallback } from "./lib/keyframeFallback";
 import Workspace from "./Workspace";
 import SimpleSearch from "./SimpleSearch";
 import { SettingsModal } from "./components/SettingsModal";
@@ -22,6 +23,31 @@ export default function App() {
   // Bumped after a config import so the console re-reads /api/health against the
   // services the backend has just rebuilt.
   const [configVersion, setConfigVersion] = useState(0);
+
+  // One delegated listener covers every keyframe rendered by either app view.
+  // Reinstall it when the selected dataset or imported configuration changes.
+  useEffect(() => {
+    let disposed = false;
+    let uninstall = () => {};
+
+    api
+      .health(retrievalDatabase)
+      .then((health) => {
+        if (disposed) return;
+        uninstall = installKeyframeFallback(
+          health.media?.keyframe_base_url,
+          health.media?.keyframe_fallback_base_url,
+        );
+      })
+      .catch(() => {
+        /* backend unavailable: images remain on the URLs already returned */
+      });
+
+    return () => {
+      disposed = true;
+      uninstall();
+    };
+  }, [retrievalDatabase, configVersion]);
 
   useEffect(() => {
     // A freshly downloaded build carries no credentials. Open the setup screen

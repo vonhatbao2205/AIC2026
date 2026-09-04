@@ -70,7 +70,8 @@ GROUPS: tuple[ConfigGroup, ...] = (
         "Where keyframes and videos are served from.",
         (
             ConfigKey("MEDIA_BASE_URL", "Cloudflare R2 base (BTC keyframes, default video origin)", required=True),
-            ConfigKey("KEYFRAME_MEDIA_BASE_URL_2", "Hugging Face base for InfoShot++ keyframes"),
+            ConfigKey("KEYFRAME_MEDIA_BASE_URL_2", "Cloudflare R2 base for InfoShot++ keyframes"),
+            ConfigKey("KEYFRAME_MEDIA_FALLBACK_BASE_URL_2", "Hugging Face fallback for InfoShot++ keyframes"),
             ConfigKey("VIDEO_MEDIA_BASE_URL_1", "Video origin cho BTC (trống = MEDIA_BASE_URL)"),
             ConfigKey("VIDEO_MEDIA_BASE_URL_2", "Video origin cho InfoShot++ (HF bucket)"),
         ),
