@@ -16,6 +16,13 @@ import {
 import type { AnswerGenProgress } from "../lib/answerGen";
 import type { ImportMode, ImportedSubmission } from "../lib/submissionImport";
 import { planImport } from "../lib/submissionImport";
+import {
+  hasRowDrag,
+  planReorder,
+  readRowDrag,
+  setRowDrag,
+  type OrderChange,
+} from "../lib/submissionOrder";
 import { SubmissionFrameEditor, type CommitMode, type FrameEdit } from "./SubmissionFrameEditor";
 
 /** Rows shown per question before the operator asks for the rest. */
@@ -76,6 +83,10 @@ interface Props {
   questions: ImportedQuestion[];
   rows: SubmissionRow[];
   onChangeRow: (rowId: string, patch: Partial<SubmissionRow>) => void;
+  /** Rewrite the rank of a question's answers — drag-and-drop and Alt+↑/↓.
+   *  The plan is computed here because only this component knows the order the
+   *  rows are actually shown in. An empty plan means nothing moved. */
+  onReorderRows: (changes: OrderChange[], label: string) => void;
   onDeleteRow: (rowId: string) => void;
   onAddRow: (questionId: string) => void;
   /** Copy a row (with an edited frame) into a new answer for the same question. */
@@ -636,6 +647,76 @@ export function SubmissionPanel(props: Props) {
     [flatRows, selected?.rowId],
   );
 
+  /** Send one ranking change for the whole team.
+   *
+   *  Rank is the score — `R@k` is a max over the first k answers — so moving an
+   *  answer up is the same class of edit as changing its frame, and it is
+   *  written, undoable and visible on every other screen. The index is taken
+   *  from the QUESTION's full list, never from the visible slice: the two only
+   *  coincide while a question is expanded. */
+  const reorder = useCallback(
+    (questionId: string, rowId: string, targetRowId: string) => {
+      if (rowId === targetRowId) return;
+      const list = byQuestion.get(questionId) ?? [];
+      const from = list.findIndex((row) => row.id === rowId);
+      const to = list.findIndex((row) => row.id === targetRowId);
+      if (from < 0 || to < 0) return;
+      const plan = planReorder(list, from, to);
+      if (!plan.length) return;
+      // Past the fold the row would land out of sight, and the button would read
+      // as a no-op on a question showing only its first ten answers.
+      if (to >= COLLAPSED_ROWS) setExpanded((current) => new Set(current).add(questionId));
+      props.onReorderRows(plan, `${questionId}: hạng ${from + 1} → ${to + 1}`);
+      // Follow the row, so ↑/↓ and Alt+↑/↓ keep acting on what was just moved.
+      setSelected({ rowId, slot: 0 });
+    },
+    [byQuestion, props],
+  );
+
+  /** Alt+↑/↓: move the selected answer one rank. The keyboard path exists
+   *  because a hundred-row question does not fit on screen, and dragging rank 60
+   *  to rank 1 through an auto-scrolling table is not a thing anyone can do
+   *  under a clock. */
+  const nudge = useCallback(
+    (delta: number) => {
+      if (!selectedRow) return;
+      const list = byQuestion.get(selectedRow.questionId) ?? [];
+      const from = list.findIndex((row) => row.id === selectedRow.id);
+      const to = from + delta;
+      if (from < 0 || to < 0 || to >= list.length) return;
+      reorder(selectedRow.questionId, selectedRow.id, list[to].id);
+    },
+    [byQuestion, reorder, selectedRow],
+  );
+
+  /** Which row the pointer is currently over, and from which side.
+   *
+   *  `dragover` fires continuously, so the state is only written when the target
+   *  actually changes — otherwise every mouse move re-renders the table. */
+  const [dropTarget, setDropTarget] = useState<{ rowId: string; below: boolean } | null>(null);
+  /** The row being dragged, so it can be dimmed and its own line hidden. */
+  const [dragging, setDragging] = useState<string | null>(null);
+  /** Rows are only draggable while the grip is held. Making every `<tr>`
+   *  permanently draggable is what breaks selecting text inside its inputs. */
+  const [gripped, setGripped] = useState<string | null>(null);
+
+  const endDrag = useCallback(() => {
+    setDropTarget(null);
+    setDragging(null);
+    setGripped(null);
+  }, []);
+
+  // A grip pressed and then released anywhere else — a click that never became a
+  // drag — would otherwise leave that row permanently draggable, and a
+  // draggable `<tr>` is exactly what stops the mouse selecting text in its own
+  // cells.
+  useEffect(() => {
+    if (!gripped) return;
+    const release = () => setGripped(null);
+    window.addEventListener("mouseup", release);
+    return () => window.removeEventListener("mouseup", release);
+  }, [gripped]);
+
   useEffect(() => {
     function isTyping() {
       const element = document.activeElement;
@@ -663,13 +744,17 @@ export function SubmissionPanel(props: Props) {
       }
       if (isTyping() || editorOpen) return;
       switch (event.key) {
+        // Alt moves the ANSWER, not the cursor: same key, one modifier, the way
+        // every list editor does it.
         case "ArrowDown":
           event.preventDefault();
-          move(1);
+          if (event.altKey) nudge(1);
+          else move(1);
           break;
         case "ArrowUp":
           event.preventDefault();
-          move(-1);
+          if (event.altKey) nudge(-1);
+          else move(-1);
           break;
         case "ArrowRight":
           if (selectedRow && selectedRow.frames.length > 1) {
@@ -700,7 +785,7 @@ export function SubmissionPanel(props: Props) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [move, selectedRow, slot, previewOpen, editorOpen, props]);
+  }, [move, nudge, selectedRow, slot, previewOpen, editorOpen, props]);
 
   /** Write a re-picked frame into the slot that was edited — either over the
    *  selected row, or as a second answer to the same question. */
@@ -853,7 +938,8 @@ export function SubmissionPanel(props: Props) {
       </div>
 
       <div className="hint-text" style={{ marginTop: 0 }}>
-        ↑↓ chọn dòng · ←→ chọn sự kiện (TRAKE) · <b>P</b> xem ảnh keyframe · <b>V</b> mở video để
+        ↑↓ chọn dòng · ←→ chọn sự kiện (TRAKE) · kéo <b>⠿</b> hoặc <b>Alt+↑↓</b> đổi thứ hạng ·{" "}
+        <b>P</b> xem ảnh keyframe · <b>V</b> mở video để
         đổi frame · <b>Delete</b> xoá dòng · <b>Ctrl+Z</b> hoàn tác · <b>Ctrl+E</b> export
       </div>
       {unsent.length > 0 && (
@@ -1087,7 +1173,7 @@ export function SubmissionPanel(props: Props) {
             <table className="submission-table">
               <thead>
                 <tr>
-                  <th style={{ width: 28 }}>#</th>
+                  <th style={{ width: 44 }} title="Thứ hạng — kéo ⠿ hoặc Alt+↑/↓ để đổi">#</th>
                   <th style={{ width: 70 }}>ai</th>
                   <th style={{ width: 120 }}>video</th>
                   <th>{question.kind === "trake" ? `frames (${question.eventCount ?? "N"})` : "frame_idx"}</th>
@@ -1104,6 +1190,8 @@ export function SubmissionPanel(props: Props) {
                   const dirty = draftDiffers(row, draft);
                   const isSelected = selected?.rowId === row.id;
                   const activeSlot = isSelected ? slot : 0;
+                  const isDragging = dragging === row.id;
+                  const target = dropTarget?.rowId === row.id && !isDragging ? dropTarget : null;
                   return (
                     <tr
                       key={row.id}
@@ -1111,8 +1199,46 @@ export function SubmissionPanel(props: Props) {
                         rowProblems.length || duplicate ? "bad-row" : "",
                         isSelected ? "selected-row" : "",
                         dirty ? "draft-row" : "",
+                        isDragging ? "dragging-row" : "",
+                        target ? (target.below ? "drop-below" : "drop-above") : "",
                       ].join(" ").trim()}
                       onClick={() => setSelected({ rowId: row.id, slot: 0 })}
+                      // Armed by the grip only, so text inside the cells stays
+                      // selectable — a permanently draggable `<tr>` swallows
+                      // click-and-drag inside its own inputs.
+                      draggable={gripped === row.id}
+                      onDragStart={(event) => {
+                        setRowDrag(event, { questionId: question.id, rowId: row.id });
+                        setDragging(row.id);
+                      }}
+                      onDragEnd={endDrag}
+                      onDragOver={(event) => {
+                        if (!hasRowDrag(event)) return;
+                        // Without this the browser refuses the drop outright.
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                        if (isDragging) return;
+                        // Which side the line is drawn on follows the direction
+                        // of travel: a row moving down lands after its target,
+                        // one moving up lands before it. That is exactly what
+                        // `planReorder` does, so the hint cannot lie.
+                        const source = dragging
+                          ? questionRows.findIndex((item) => item.id === dragging)
+                          : -1;
+                        const below = source >= 0 && source < index;
+                        if (dropTarget?.rowId !== row.id || dropTarget.below !== below) {
+                          setDropTarget({ rowId: row.id, below });
+                        }
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        const payload = readRowDrag(event);
+                        endDrag();
+                        // A drop from another question is not a reorder: it would
+                        // silently re-attribute an answer. Refuse it.
+                        if (!payload || payload.questionId !== question.id) return;
+                        reorder(question.id, payload.rowId, row.id);
+                      }}
                       data-testid={`row-${question.id}-${index}`}
                     >
                       <td className="mono dim">
@@ -1120,6 +1246,22 @@ export function SubmissionPanel(props: Props) {
                           className={`sync-dot ${row.syncState ?? "local"}`}
                           title={row.syncState ?? "local"}
                         />
+                        <span
+                          className="row-grip"
+                          role="button"
+                          tabIndex={-1}
+                          title="Kéo để đổi thứ hạng · Alt+↑/↓"
+                          aria-label={`Kéo dòng ${index + 1} để đổi thứ hạng`}
+                          data-testid={`grip-${question.id}-${index}`}
+                          // Pointer down arms the row. Releasing disarms it —
+                          // here, or through the window listener when the button
+                          // comes up somewhere else — so a click that never
+                          // became a drag leaves no draggable row behind.
+                          onMouseDown={() => setGripped(row.id)}
+                          onMouseUp={() => setGripped(null)}
+                        >
+                          ⠿
+                        </span>
                         {index + 1}
                       </td>
                       <td className="mono dim" data-testid={`row-user-${question.id}-${index}`}>

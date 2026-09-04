@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /** What reached PostgREST, in order. */
 const updates: Record<string, unknown>[] = [];
+/** Calls to `reorder_submissions`, and whether the project has that function. */
+const rpcCalls: { name: string; args: Record<string, unknown> }[] = [];
+let rpcMissing = false;
 const inserts: Record<string, unknown>[] = [];
 const deletes: { filters: Record<string, unknown>; ids?: string[] }[] = [];
 /** Pages the fake `select` hands back, keyed by the requested offset. */
@@ -88,6 +91,27 @@ function makeBuilder() {
 
 function makeClient() {
   return {
+    rpc: vi.fn((name: string, args: Record<string, unknown>) => {
+      rpcCalls.push({ name, args });
+      if (rpcMissing) {
+        // What PostgREST answers when migration 004 has not been run.
+        return Promise.resolve({
+          data: null,
+          error: { code: "PGRST202", message: "Could not find the function public.reorder_submissions" },
+        });
+      }
+      const ids = (args.p_ids ?? []) as string[];
+      const stamps = (args.p_created_at ?? []) as string[];
+      return Promise.resolve({
+        data: ids.map((id, index) => ({
+          ...serverRow,
+          id,
+          created_at: stamps[index],
+          revision: 2,
+        })),
+        error: null,
+      });
+    }),
     from: vi.fn(() => makeBuilder()),
     channel: vi.fn(() => ({ on: vi.fn().mockReturnThis(), subscribe: vi.fn().mockReturnThis() })),
     removeChannel: vi.fn(),
@@ -110,6 +134,7 @@ vi.mock("../lib/supabase", () => ({
 }));
 
 const { useSharedSubmission } = await import("../hooks/useSharedSubmission");
+const { planReorder } = await import("../lib/submissionOrder");
 
 const baseRow = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -125,6 +150,8 @@ beforeEach(() => {
   updates.length = 0;
   inserts.length = 0;
   deletes.length = 0;
+  rpcCalls.length = 0;
+  rpcMissing = false;
   selectRanges.length = 0;
   selectPages = [[]];
   serverRow = { id: baseRow.id, room: "test-room", question_id: baseRow.questionId };
@@ -201,6 +228,126 @@ describe("clearing a question", () => {
     // No session yet: fall back to the room rather than deleting across rooms.
     expect(deletes[0].filters).toMatchObject({ question_id: "query-p1-2-kis", room: "test-room" });
     expect(deletes[0].ids).toBeUndefined();
+  });
+});
+
+describe("reordering answers", () => {
+  /** Three answers to one question, a millisecond apart, already on the server. */
+  function ranked() {
+    return ["a", "b", "c"].map((suffix, index) => ({
+      ...baseRow,
+      id: `row-${suffix}`,
+      frames: [index],
+      createdAt: new Date(Date.parse("2026-09-04T10:00:00.000Z") + index).toISOString(),
+    }));
+  }
+
+  it("writes the whole permutation as ONE statement", async () => {
+    // Rank is the score. Sending it as N sequential PATCHes would leave the
+    // list visibly half-reordered on four other screens, and a tab closed
+    // halfway would leave an order nobody chose.
+    const { result } = renderHook(() => useSharedSubmission());
+    const list = ranked();
+    await act(async () => result.current.addRows(list));
+    await waitFor(() => expect(inserts).toHaveLength(3));
+
+    await act(async () =>
+      result.current.reorderRows(planReorder(result.current.rows, 2, 0), "hạng 3 → 1"),
+    );
+
+    expect(result.current.rows.map((row) => row.id)).toEqual(["row-c", "row-a", "row-b"]);
+    await waitFor(() => expect(rpcCalls).toHaveLength(1));
+    expect(rpcCalls[0].name).toBe("reorder_submissions");
+    expect((rpcCalls[0].args.p_ids as string[]).sort()).toEqual(["row-a", "row-b", "row-c"]);
+    // Ordering only: no frames, no answer text, so it cannot clobber a
+    // teammate's edit to a row it moves past.
+    expect(updates).toHaveLength(0);
+  });
+
+  it("falls back to one write per row when migration 004 is missing", async () => {
+    // The outbox is a strict FIFO that stops on the first failure, so retrying
+    // a call that can never succeed would wedge every later answer behind it.
+    rpcMissing = true;
+    const { result } = renderHook(() => useSharedSubmission());
+    await act(async () => result.current.addRows(ranked()));
+    await waitFor(() => expect(inserts).toHaveLength(3));
+
+    await act(async () => result.current.reorderRows(planReorder(result.current.rows, 2, 0)));
+
+    await waitFor(() => expect(updates).toHaveLength(3));
+    // Still only the ordering column.
+    expect(Object.keys(updates[0])).toEqual(["created_at"]);
+    expect(result.current.rows.map((row) => row.id)).toEqual(["row-c", "row-a", "row-b"]);
+    expect(result.current.error).toBeNull();
+    expect(result.current.pending).toBe(0);
+  });
+
+  it("refreshes the revision of a content edit queued behind the move", async () => {
+    // The reorder bumps `revision` on every row it touches. A queued update
+    // still stating the old number would match zero rows and be reported as a
+    // conflict the operator never caused.
+    const { result } = renderHook(() => useSharedSubmission());
+    await act(async () => result.current.addRows(ranked()));
+    await waitFor(() => expect(inserts).toHaveLength(3));
+
+    await act(async () => {
+      result.current.reorderRows(planReorder(result.current.rows, 2, 0));
+      result.current.updateRow("row-c", { frames: [4242] });
+    });
+
+    await waitFor(() => expect(updates).toHaveLength(1));
+    expect(updates[0].frames).toEqual([4242]);
+    expect(result.current.conflicts).toEqual([]);
+    expect(result.current.rows.find((row) => row.id === "row-c")?.frames).toEqual([4242]);
+  });
+
+  it("drops a row a teammate deleted mid-drag instead of refusing the move", async () => {
+    const { result } = renderHook(() => useSharedSubmission());
+    await act(async () => result.current.addRows(ranked()));
+    await waitFor(() => expect(inserts).toHaveLength(3));
+    const plan = planReorder(result.current.rows, 2, 0);
+    await act(async () => result.current.deleteRow("row-b"));
+
+    await act(async () => result.current.reorderRows(plan));
+
+    expect(result.current.rows.map((row) => row.id)).toEqual(["row-c", "row-a"]);
+    await waitFor(() => expect(rpcCalls).toHaveLength(1));
+    expect(rpcCalls[0].args.p_ids).not.toContain("row-b");
+  });
+
+  it("ignores an empty plan rather than writing nothing to the server", async () => {
+    const { result } = renderHook(() => useSharedSubmission());
+    await act(async () => result.current.addRows(ranked()));
+    await waitFor(() => expect(inserts).toHaveLength(3));
+
+    await act(async () => result.current.reorderRows(planReorder(result.current.rows, 1, 1)));
+
+    expect(rpcCalls).toHaveLength(0);
+    // …and no undo step either: Ctrl+Z must not be spent on a drag that
+    // dropped the row back where it started.
+    expect(result.current.undoLabel).toBe("thêm 3 dòng");
+  });
+
+  it("undoes a move by writing the ranking back, not by patching rows", async () => {
+    const { result } = renderHook(() => useSharedSubmission());
+    await act(async () => result.current.addRows(ranked()));
+    await waitFor(() => expect(inserts).toHaveLength(3));
+    await act(async () =>
+      result.current.reorderRows(planReorder(result.current.rows, 2, 0), "hạng 3 → 1"),
+    );
+    await waitFor(() => expect(rpcCalls).toHaveLength(1));
+
+    let label: string | null = null;
+    await act(async () => {
+      label = result.current.undo();
+    });
+
+    expect(label).toBe("hạng 3 → 1");
+    expect(result.current.rows.map((row) => row.id)).toEqual(["row-a", "row-b", "row-c"]);
+    // A second ordering write, not a row update: `update` never sends
+    // `created_at`, so undoing through it would come back on the next reload.
+    await waitFor(() => expect(rpcCalls).toHaveLength(2));
+    expect(updates).toHaveLength(0);
   });
 });
 

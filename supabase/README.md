@@ -16,8 +16,15 @@ local UI ×5  ──submit──►  submissions (Postgres)  ──realtime─�
      indexes, realtime publication, `revision` trigger and RLS policies.
    - `supabase/migrations/002_shared_question_pack.sql` — sessions, the shared
      question pack and the atomic `publish_question_pack` function.
+   - `supabase/migrations/003_idempotent_publish.sql` — re-publishing the same
+     pack keeps the session, and with it every answer already written to it.
+   - `supabase/migrations/004_reorder_submissions.sql` — `reorder_submissions`,
+     which rewrites a question's ranking in one statement. **Optional**: without
+     it the console falls back to one write per moved row, which works but is
+     slower and shows the reorder arriving piecemeal on the other screens.
 2. Check **Database → Replication** lists `submissions`, `submission_sessions`
    and `session_questions` in `supabase_realtime`.
+3. Paste `supabase/verify.sql` into the SQL Editor — every row must come back ✅.
 
 ## Per machine
 
@@ -75,10 +82,12 @@ image requests on five machines.
 | key | action |
 |---|---|
 | `↑` `↓` | move between rows |
+| `Alt`+`↑` `↓` | move the selected ANSWER one rank |
 | `←` `→` | move between events of a TRAKE row |
 | `P` | load and show the keyframe picture of the selected frame |
 | `V` | open the video at that frame to re-pick it |
 | `Delete` | remove the row |
+| `Ctrl+Z` | undo the last action, reorders included |
 | `Ctrl+E` | export `submission.zip` |
 
 In the video editor, pausing only produces a *draft*. Nothing is written until
@@ -90,6 +99,38 @@ every pause would make the row jump on four other screens.
 it is null for a frame taken straight off the video, and the preview says
 `RAW VIDEO FRAME` rather than showing a neighbouring keyframe that is not what
 would be exported.
+
+## Rank is an edit, so reordering is a write
+
+The preliminary round scores `Final = (R@1 + R@5 + R@20 + R@50 + R@100) / 5` — a
+max over the first *k* answers — so the same frame at rank 1 scores the whole
+query and at rank 100 scores a fifth of it. Dragging the `⠿` grip of rank 7 onto
+rank 1 (or pressing `Alt`+`↑`) is therefore the same class of change as
+re-picking a frame: it is written to Postgres, it appears on every teammate's
+screen, and `Ctrl+Z` puts it back.
+
+There is no `rank` column. `created_at` **is** the order key — `sortRows` sorts by
+it and the CSV is written in that order — so a reorder rewrites `created_at` on
+the rows the move passes, and nothing else. Three consequences worth knowing:
+
+- **Only the rows that move are written.** Rank 7 → rank 1 is seven timestamps,
+  not a hundred.
+- **The instants are permuted, not replaced.** The answers keep the same slice of
+  the table's timeline instead of jumping past every other question's rows.
+- **Ties are broken on the way through.** Two rows sharing a millisecond left the
+  uuid tiebreak deciding rank 1; a reorder normalises the whole question, so the
+  order it produces is the order that comes back on the next load.
+
+The write touches the ordering column alone, so it can never clobber the frames
+or the answer text a teammate is editing on a row it moves past. It does bump
+`revision` on those rows — the server's copies are merged straight back, which is
+what keeps a content edit queued behind the drag from being reported as a
+conflict nobody caused.
+
+One thing it does not survive: pressing **✨ sinh lại** on a question rebuilds the
+generated block with fresh timestamps, so hand-picked answers return to the head
+of that question. That is the documented rule ("dòng bạn tự chấm luôn đứng
+trước"), not the reorder failing — reorder after regenerating, not before.
 
 ## Concurrency
 

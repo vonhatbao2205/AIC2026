@@ -1,4 +1,4 @@
--- Paste into the Supabase SQL Editor after running 001 and 002.
+-- Paste into the Supabase SQL Editor after running 001, 002, 003 and 004.
 -- Every row must come back ✅. This checks what the app actually depends on at
 -- runtime, not just that the migrations parsed.
 with checks as (
@@ -29,6 +29,11 @@ with checks as (
          exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                  where n.nspname = 'public' and p.proname = 'publish_question_pack'),
          'publish atomic'
+  union all
+  select 'function reorder_submissions',
+         exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                 where n.nspname = 'public' and p.proname = 'reorder_submissions'),
+         'kéo-thả đổi thứ hạng trong 1 câu lệnh (thiếu thì app tự ghi từng dòng)'
   union all
   select 'trigger revision',
          exists (select 1 from pg_trigger where tgname = 'submissions_touch' and not tgisinternal),

@@ -21,6 +21,7 @@ import {
   type ImportedSubmission,
 } from "./lib/submissionImport";
 import { newRowId } from "./lib/sharedSubmission";
+import type { OrderChange } from "./lib/submissionOrder";
 import { readZipTextFiles, ZipError } from "./lib/zip";
 
 interface Props {
@@ -270,6 +271,14 @@ export default function Workspace(props: Props) {
 
   const changeRow = useCallback(
     (rowId: string, patch: Partial<SubmissionRow>) => shared.updateRow(rowId, patch),
+    [shared],
+  );
+
+  /** Rank is scored (`R@k` is a max over the first k answers), so reordering is
+   *  a shared write like any other — it goes through the same outbox and shows
+   *  up on every teammate's screen. */
+  const reorderRows = useCallback(
+    (changes: OrderChange[], label: string) => shared.reorderRows(changes, label),
     [shared],
   );
 
@@ -543,6 +552,7 @@ export default function Workspace(props: Props) {
               questions={questions}
               rows={rows}
               onChangeRow={changeRow}
+              onReorderRows={reorderRows}
               onDeleteRow={deleteRow}
               onAddRow={addBlankRow}
               onCloneRow={cloneRow}

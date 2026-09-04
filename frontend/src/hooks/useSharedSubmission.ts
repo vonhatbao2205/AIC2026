@@ -20,7 +20,9 @@ import {
 } from "../lib/supabase";
 import {
   MISSING_TABLE_HINT,
+  REORDER_FUNCTION,
   describeSupabaseError,
+  isMissingFunctionError,
   isMissingTableError,
   mergeRow,
   newRowId,
@@ -30,6 +32,7 @@ import {
   sortRows,
   type SubmissionRecord,
 } from "../lib/sharedSubmission";
+import { planRestore, type OrderChange } from "../lib/submissionOrder";
 import type { SubmissionRow } from "../lib/submission";
 import { useDisplayName } from "./useDisplayName";
 
@@ -55,6 +58,11 @@ export interface UndoStep {
   /** Bulk answer writes, put back one request per distinct previous value
    *  rather than one per row. */
   answers: { answer: string; ids: string[] }[];
+  /** Ranking to write back, as the instants that restore it. Separate from
+   *  `restore` because putting an order back is an ordering write, not a
+   *  content write: the row update path deliberately never sends `created_at`,
+   *  so a drag undone through it would come back on the next reload. */
+  order: OrderChange[];
   /** Consecutive steps sharing a key collapse into the first one. Typing in a
    *  cell fires an update per keystroke; without this, Ctrl+Z would walk back
    *  one character at a time. */
@@ -86,6 +94,13 @@ export interface SharedSubmission {
    *  The generator produces the frames; the text is a human judgement typed
    *  once, so per-row edits would be 100 round trips for one decision. */
   setAnswerForQuestion: (questionId: string, answer: string) => void;
+  /** Rewrite the rank of some answers — the drag-and-drop path.
+   *
+   *  Takes the plan (`planReorder` in `lib/submissionOrder`) rather than a
+   *  from/to pair: which rows have to move is a property of the question's
+   *  current list, and computing it here would mean re-deriving the display
+   *  order the panel already holds. An empty plan is a no-op, not a write. */
+  reorderRows: (changes: OrderChange[], label?: string) => void;
   deleteRow: (id: string) => void;
   /** Remove many rows as one write — regenerating a question replaces up to a
    *  hundred of them at once. */
@@ -111,6 +126,10 @@ type Op =
   | { kind: "insert"; row: SubmissionRow }
   | { kind: "insert_many"; rows: SubmissionRow[] }
   | { kind: "answer_many"; ids: string[]; answer: string }
+  // Ordering only. Deliberately NOT an `update`: it must not carry frames or
+  // answer text, so a drag can never overwrite an edit a teammate is making to
+  // one of the rows it moves past.
+  | { kind: "reorder"; changes: OrderChange[] }
   | { kind: "delete_many"; ids: string[] }
   // Clearing a question deletes BY QUESTION, not by the ids this client happens
   // to hold: a teammate may have added a row a second ago that this client has
@@ -173,6 +192,24 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
   rowsRef.current = rows;
   const flushing = useRef(false);
 
+  /** Take the server's version of rows a write just touched.
+   *
+   *  Two jobs. The rows are merged so every client agrees, and the revisions
+   *  they carry are pushed into any content edit still queued for the same row:
+   *  a reorder bumps `revision` on every row it moves, so a queued `update`
+   *  would otherwise state a number the server has already passed and be
+   *  reported as a conflict the operator never caused. */
+  const acceptServerRows = useCallback((fresh: SubmissionRow[]) => {
+    if (!fresh.length) return;
+    const revisions = new Map(fresh.map((row) => [row.id, row.revision ?? 1]));
+    outbox.current = outbox.current.map((queued) =>
+      queued.kind === "update" && revisions.has(queued.id)
+        ? { ...queued, expectedRevision: revisions.get(queued.id) as number }
+        : queued,
+    );
+    setRows((current) => sortRows(fresh.reduce(mergeRow, current)));
+  }, []);
+
   const flush = useCallback(async () => {
     const supabase = getSupabase();
     if (!supabase || flushing.current) return;
@@ -211,9 +248,37 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
             // are merged straight back so every revision stays current — without
             // that, the next single-row edit would send a stale revision and be
             // reported as a conflict nobody caused.
-            const fresh = ((data ?? []) as SubmissionRecord[]).map(recordToRow);
-            if (fresh.length) {
-              setRows((current) => sortRows(fresh.reduce(mergeRow, current)));
+            acceptServerRows(((data ?? []) as SubmissionRecord[]).map(recordToRow));
+          } else if (op.kind === "reorder") {
+            // One statement for the whole permutation. Dragging rank 7 to rank 1
+            // moves seven rows; as seven PATCHes over contest wifi the list
+            // would be visibly half-reordered on the other four screens, and a
+            // tab closed halfway would leave an order nobody chose.
+            const { data, error: rpcError } = await supabase.rpc(REORDER_FUNCTION, {
+              p_ids: op.changes.map((change) => change.id),
+              p_created_at: op.changes.map((change) => change.createdAt),
+            });
+            if (rpcError && !isMissingFunctionError(rpcError)) throw rpcError;
+            if (!rpcError) {
+              acceptServerRows(((data ?? []) as SubmissionRecord[]).map(recordToRow));
+            } else {
+              // Migration 004 has not been run on this project. Retrying would
+              // wedge the outbox behind a call that can never succeed, so fall
+              // back to one PATCH per moved row — slower, same result, and still
+              // only the ordering column.
+              const fresh: SubmissionRow[] = [];
+              for (const change of op.changes) {
+                const { data: one, error: updateError } = await supabase
+                  .from(SUBMISSIONS_TABLE)
+                  .update({ created_at: change.createdAt })
+                  .eq("id", change.id)
+                  .select();
+                if (updateError) throw updateError;
+                for (const record of (one ?? []) as SubmissionRecord[]) {
+                  fresh.push(recordToRow(record));
+                }
+              }
+              acceptServerRows(fresh);
             }
           } else if (op.kind === "update") {
             {
@@ -280,7 +345,7 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
     } finally {
       flushing.current = false;
     }
-  }, [user]);
+  }, [acceptServerRows, user]);
 
   const enqueue = useCallback(
     (op: Op) => {
@@ -396,7 +461,8 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
     const restore = part.restore ?? [];
     const remove = part.remove ?? [];
     const answers = part.answers ?? [];
-    if (!restore.length && !remove.length && !answers.length) return;
+    const order = part.order ?? [];
+    if (!restore.length && !remove.length && !answers.length && !order.length) return;
     const questionIds = [
       ...new Set([
         ...(part.questionIds ?? []),
@@ -408,6 +474,10 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
       open.restore.push(...restore);
       open.remove.push(...remove);
       open.answers.push(...answers);
+      // Earliest wins: a second drag inside one transaction must not overwrite
+      // the instant that puts the row back where the transaction found it.
+      const known = new Set(open.order.map((change) => change.id));
+      open.order.push(...order.filter((change) => !known.has(change.id)));
       open.questionIds = [...new Set([...open.questionIds, ...questionIds])];
       return;
     }
@@ -417,7 +487,7 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
       if (part.coalesceKey && last?.coalesceKey === part.coalesceKey) return current;
       return [
         ...current,
-        { label, questionIds, restore, remove, answers, coalesceKey: part.coalesceKey },
+        { label, questionIds, restore, remove, answers, order, coalesceKey: part.coalesceKey },
       ].slice(-UNDO_DEPTH);
     });
   }, []);
@@ -427,7 +497,14 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
       run();
       return;
     }
-    const step: UndoStep = { label, questionIds: [], restore: [], remove: [], answers: [] };
+    const step: UndoStep = {
+      label,
+      questionIds: [],
+      restore: [],
+      remove: [],
+      answers: [],
+      order: [],
+    };
     recording.current = step;
     try {
       run();
@@ -476,6 +553,11 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
         questionIds: complete.map((row) => row.questionId),
         remove: complete.map((row) => row.id),
       });
+      // The ref is mirrored the way `updateRow` mirrors it: within one
+      // synchronous action — undoing a transaction, say — a later mutator has to
+      // see the rows this one just put back, and `setRows` has not re-rendered
+      // yet at that point.
+      rowsRef.current = sortRows([...rowsRef.current, ...complete]);
       setRows((current) => sortRows([...current, ...complete]));
       enqueue({ kind: "insert_many", rows: complete });
     },
@@ -526,6 +608,66 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
     [applyAnswer, record],
   );
 
+  /** Apply a ranking plan: new `created_at` for the rows that move.
+   *
+   *  Rank is the score — `R@k` is a max over the first k answers — so this is a
+   *  shared write like any other, not a local view preference. It touches only
+   *  the ordering column, which is what makes it safe to run while a teammate
+   *  is editing the frames of a row it moves past.
+   */
+  const reorderRows = useCallback(
+    (changes: OrderChange[], label = "đổi thứ hạng") => {
+      if (!changes.length) return;
+      const wanted = new Map<string, string>();
+      for (const change of changes) {
+        // A row the plan names may have been deleted by a teammate between the
+        // drag starting and this call. Reordering the rest is still exactly what
+        // the operator asked for, so drop the ghost rather than the whole move.
+        if (rowsRef.current.some((row) => row.id === change.id)) {
+          wanted.set(change.id, change.createdAt);
+        }
+      }
+      if (!wanted.size) return;
+      const questionIds = [
+        ...new Set(
+          rowsRef.current
+            .filter((row) => wanted.has(row.id))
+            .map((row) => row.questionId),
+        ),
+      ];
+      const plan = [...wanted].map(([id, createdAt]) => ({ id, createdAt }));
+      // Built from the slots the question occupies right now, not from the raw
+      // `createdAt` of the moved rows: a row that had no stamp, or shared one
+      // with its neighbour, has no instant to hand back, and undoing into that
+      // ambiguity would leave the uuid tiebreak — not the operator — deciding
+      // rank 1.
+      record(label, {
+        questionIds,
+        order: questionIds.flatMap((questionId) =>
+          planRestore(
+            rowsRef.current.filter((row) => row.questionId === questionId),
+            plan,
+          ),
+        ),
+      });
+      const next = sortRows(
+        rowsRef.current.map((row) =>
+          wanted.has(row.id)
+            ? {
+                ...row,
+                createdAt: wanted.get(row.id) as string,
+                syncState: (shared ? "pending" : "local") as SubmissionRow["syncState"],
+              }
+            : row,
+        ),
+      );
+      rowsRef.current = next;
+      setRows(next);
+      enqueue({ kind: "reorder", changes: plan });
+    },
+    [enqueue, record, shared],
+  );
+
   const updateRow = useCallback(
     (id: string, patch: Partial<SubmissionRow>) => {
       const current = rowsRef.current.find((row) => row.id === id);
@@ -573,6 +715,7 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
       const doomed = new Set(ids);
       const before = rowsRef.current.filter((row) => doomed.has(row.id));
       record(`xoá ${before.length} dòng`, { restore: before });
+      rowsRef.current = rowsRef.current.filter((row) => !doomed.has(row.id));
       setRows((current) => current.filter((row) => !doomed.has(row.id)));
       enqueue({ kind: "delete_many", ids: [...doomed] });
     },
@@ -601,7 +744,7 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
     const step = undoStack[undoStack.length - 1];
     if (!step) return null;
     setUndoStack((current) => current.slice(0, -1));
-    if (!step.restore.length && !step.remove.length && !step.answers.length) {
+    if (!step.restore.length && !step.remove.length && !step.answers.length && !step.order.length) {
       return `${step.label} — thao tác này không đổi gì`;
     }
     applying.current = true;
@@ -621,11 +764,15 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
         }
       }
       for (const group of step.answers) applyAnswer(group.ids, group.answer);
+      // Last: `restore` and `addRows` above may have put rows back, and the
+      // ranking has to be written over the list that includes them. Rows a
+      // teammate has since deleted are dropped by `reorderRows` itself.
+      if (step.order.length) reorderRows(step.order);
     } finally {
       applying.current = false;
     }
     return step.label;
-  }, [addRows, applyAnswer, deleteRows, undoStack, updateRow]);
+  }, [addRows, applyAnswer, deleteRows, reorderRows, undoStack, updateRow]);
 
   const dismissConflict = useCallback((id: string) => {
     setConflicts((current) => current.filter((item) => item !== id));
@@ -643,6 +790,7 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
     addRow,
     addRows,
     setAnswerForQuestion,
+    reorderRows,
     updateRow,
     deleteRow,
     deleteRows,

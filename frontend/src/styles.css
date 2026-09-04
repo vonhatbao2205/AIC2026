@@ -1009,6 +1009,23 @@ button { font-family: inherit; }
 
 .submission-table tr.selected-row { outline: 1px solid var(--accent); outline-offset: -1px; }
 .submission-table tr { cursor: pointer; }
+
+/* Reordering answers. Rank is scored, so the handle has to look like a control
+   rather than decoration — and it is the ONLY draggable part of the row, so a
+   click-and-drag inside a cell still selects text. */
+.row-grip {
+  display: inline-block; cursor: grab; user-select: none;
+  color: var(--fg-faint); font-size: 12px; line-height: 1;
+  padding: 0 3px; margin-right: 2px; letter-spacing: -1px;
+}
+.row-grip:hover { color: var(--accent); }
+.row-grip:active { cursor: grabbing; }
+.submission-table tr.dragging-row { opacity: 0.4; }
+/* An insertion line, not a highlight: where the answer LANDS is the whole
+   question, and a filled row says "replace this one". Drawn with an inset
+   shadow because a border would shift the row by a pixel mid-drag. */
+.submission-table tr.drop-above td { box-shadow: inset 0 2px 0 0 var(--accent); }
+.submission-table tr.drop-below td { box-shadow: inset 0 -2px 0 0 var(--accent); }
 .keyframe-cell { font-size: 11px; }
 
 .preview-overlay {

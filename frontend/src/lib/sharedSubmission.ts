@@ -25,6 +25,11 @@ export interface SubmissionRecord {
   updated_at?: string;
 }
 
+/** Postgres function that rewrites a question's ranking in one statement.
+ *  Defined by `supabase/migrations/004_reorder_submissions.sql`; optional, see
+ *  `isMissingFunctionError`. */
+export const REORDER_FUNCTION = "reorder_submissions";
+
 export function newRowId(): string {
   const cryptoObj = globalThis.crypto as Crypto | undefined;
   if (cryptoObj && typeof cryptoObj.randomUUID === "function") return cryptoObj.randomUUID();
@@ -194,3 +199,18 @@ export function isMissingTableError(error: unknown): boolean {
 export const MISSING_TABLE_HINT =
   "Chưa có bảng `public.submissions`. Mở Supabase → SQL Editor và chạy " +
   "supabase/migrations/001_shared_submission.sql, rồi tải lại trang.";
+
+/** The project has not run migration 004, so `reorder_submissions` is missing.
+ *
+ *  Not an error the operator should ever see: the outbox is a strict FIFO that
+ *  stops on the first failure, so retrying a call that can never succeed would
+ *  wedge every later write behind it. The caller falls back to one PATCH per
+ *  moved row instead. */
+export function isMissingFunctionError(error: unknown): boolean {
+  const detail = error as { code?: string; message?: string } | null;
+  if (!detail) return false;
+  // PGRST202: PostgREST could not find the function in its schema cache.
+  // 42883: Postgres itself has no such function.
+  if (detail.code === "PGRST202" || detail.code === "42883") return true;
+  return /could not find the function|function .+ does not exist/i.test(detail.message ?? "");
+}
