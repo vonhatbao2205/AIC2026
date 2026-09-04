@@ -8,6 +8,7 @@ interface Props {
   frame: FrameResult | null;
   queryType: QueryType;
   onSubmit: () => void;
+  onAddToSticky: () => void;
   onCopyId: (id: string) => void;
 }
 
@@ -102,7 +103,7 @@ function CanvasMatchSummary({ frame }: { frame: FrameResult }) {
 // Always describes the selected result keyframe. A captured raw frame lives in
 // PausedFramePanel and is submitted from there, so this panel never changes
 // identity underneath the operator.
-export function DetailPanel({ frame, queryType, onSubmit, onCopyId }: Props) {
+export function DetailPanel({ frame, queryType, onSubmit, onAddToSticky, onCopyId }: Props) {
   if (!frame) {
     return (
       <div className="panel">
@@ -138,6 +139,9 @@ export function DetailPanel({ frame, queryType, onSubmit, onCopyId }: Props) {
         <button className="btn primary" data-testid="open-submit" onClick={onSubmit}>
           {queryType === "TRAKE" ? "Submit sequence" : "Submit result frame"}{" "}
           <span className="kbd">↵</span>
+        </button>
+        <button className="btn" data-testid="sticky-add-result" onClick={onAddToSticky}>
+          + Sticky
         </button>
       </div>
       <h3>Evidence · explain match</h3>

@@ -58,7 +58,7 @@ import { DEFAULT_IMAGE_MODELS, imageModelsForSearch } from "./lib/imageModels";
 import { DEFAULT_SCOPE_MODE, orderCategories, scopeRequest } from "./lib/scope";
 import { VIDEO_COARSE_STEP_S, VIDEO_FINE_STEP_S, seekDeltaForKey } from "./lib/videoSeek";
 import { validateIncreasingOrder } from "./lib/snap";
-import { findDuplicate, rowToCsvLine, type SubmissionRow } from "./lib/submission";
+import { MAX_ROWS_PER_QUESTION, findDuplicate, rowToCsvLine, type SubmissionRow } from "./lib/submission";
 
 /** What a submit hands to the Workspace to become one CSV row. */
 export interface SubmissionDraft {
@@ -73,6 +73,8 @@ export interface SubmissionDraft {
   ptsTimes: (number | null)[];
   retrievalDatabase: RetrievalDatabase;
 }
+
+export type StickyAddResult = "added" | "full";
 
 /** The submit guard acts on exactly one of these; they never shadow each other. */
 type GuardTarget = "result" | "paused";
@@ -128,6 +130,11 @@ interface ConsoleProps {
   /** Rows already collected for this tab's question, for the duplicate check. */
   questionRows: SubmissionRow[];
   onSubmitRow: (draft: SubmissionDraft) => void;
+  /** Save locally without touching the shared Submission table. */
+  onAddStickyRow: (draft: SubmissionDraft) => StickyAddResult;
+  onToggleSticky: () => void;
+  stickyOpen: boolean;
+  stickyCount: number;
   /** Bumped by an import to make this tab search on its own. */
   autoRunToken: number;
   onBusyChange: (busy: boolean) => void;
@@ -144,6 +151,7 @@ export default function FullConsole({
   onSimpleMode, onShowSettings, configVersion = 0, retrievalDatabase, onRetrievalDatabase,
   active, queryType, onQueryType, questions, question, onSelectQuestion, onImportQuestions,
   importing, importError, onOpenSubmission, onSearchAll, searchingAll, questionRows, onSubmitRow,
+  onAddStickyRow, onToggleSticky, stickyOpen, stickyCount,
   autoRunToken, onBusyChange, onAutoRunDone,
 }: ConsoleProps) {
   // `runSearch` shadows this with an explicit override, so the state itself is
@@ -1449,6 +1457,33 @@ export default function FullConsole({
     setGuardOpen(true);
   }
 
+  /** Add the current result/sequence/raw pause to the per-machine scratchpad. */
+  function addToSticky(target: GuardTarget = "result") {
+    if (!question) {
+      setToast({ msg: "Chọn câu hỏi cho tab này trước khi ghim candidate.", kind: "bad" });
+      return;
+    }
+    const draft = buildDraft(target);
+    if (!draft) {
+      setToast({ msg: "Chưa xác định được video/frame để ghim.", kind: "bad" });
+      return;
+    }
+    if (question.kind === "trake" && question.eventCount && draft.frames.length !== question.eventCount) {
+      setToast({
+        msg: `Câu TRAKE cần đủ ${question.eventCount} frame trước khi ghim.`,
+        kind: "bad",
+      });
+      return;
+    }
+    const result = onAddStickyRow(draft);
+    if (result === "full") {
+      setToast({ msg: `Sticky note đã đủ ${MAX_ROWS_PER_QUESTION} candidate.`, kind: "bad" });
+      return;
+    }
+    if (!stickyOpen) onToggleSticky();
+    setToast({ msg: `Đã ghim candidate vào ${question.id}.`, kind: "ok" });
+  }
+
   /** The request behind both the guard's preview and the actual submit.
    *  DRES v2 needs a millisecond window, so `fps` rides along for the frames
    *  whose pts_time is unknown (the backend derives ms = frame_idx / fps). */
@@ -1600,6 +1635,10 @@ export default function FullConsole({
         setKeymapOpen((o) => !o);
         return;
       }
+      // While the floating note is open it owns navigation, preview, video and
+      // delete. Letting this hidden handler run too would move/delete a Search
+      // selection behind the window.
+      if (stickyOpen) return;
       if (e.key === "Escape") {
         if (keymapOpen) setKeymapOpen(false);
         else if (guardOpen) setGuardOpen(false);
@@ -1729,7 +1768,7 @@ export default function FullConsole({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guardOpen, guardTarget, keymapOpen, pausedFrame, queryType, activeSlot, groups.length, selectedGroup, selectedFrameObj, selectedVideoId, videoVisible, activeVideoId, submitting, assignPausedFrameToSlot, neighborsVisible, neighborKeyframes, neighborIndex, neighborAnchorIndex]);
+  }, [guardOpen, guardTarget, keymapOpen, pausedFrame, queryType, activeSlot, groups.length, selectedGroup, selectedFrameObj, selectedVideoId, videoVisible, activeVideoId, submitting, assignPausedFrameToSlot, neighborsVisible, neighborKeyframes, neighborIndex, neighborAnchorIndex, stickyOpen]);
 
   /** Scrub the open inline video by `delta` seconds (clamped by the viewer). */
   function nudgeVideo(delta: number) {
@@ -1868,6 +1907,9 @@ export default function FullConsole({
           importing={importing}
           importError={importError}
           rowCount={questionRows.length}
+          stickyCount={stickyCount}
+          stickyOpen={stickyOpen}
+          onOpenSticky={onToggleSticky}
           onOpenSubmission={onOpenSubmission}
           onSearchAll={onSearchAll}
           searchingAll={searchingAll}
@@ -2067,6 +2109,7 @@ export default function FullConsole({
             queryType={queryType}
             activeTrakeSlot={activeSlot}
             onSubmitPaused={() => openGuard("paused")}
+            onAddToSticky={() => addToSticky("paused")}
             onAssignToTrake={() => assignPausedFrameToSlot(activeSlot)}
             onClear={() => setPausedFrame(null)}
           />
@@ -2096,6 +2139,7 @@ export default function FullConsole({
             frame={selectedFrameObj}
             queryType={queryType}
             onSubmit={() => openGuard("result")}
+            onAddToSticky={() => addToSticky("result")}
             onCopyId={copyId}
           />
           <HistorySidebar

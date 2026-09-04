@@ -49,6 +49,7 @@ const GROUPS: Group[] = [
   {
     title: "General",
     rows: [
+      { keys: ["`"], desc: "Open / close the local Sticky Note" },
       { keys: ["Esc"], desc: "Close modal / clear paused frame / close this help" },
       { keys: ["Ctrl", "/"], desc: "Toggle this shortcuts help" },
     ],

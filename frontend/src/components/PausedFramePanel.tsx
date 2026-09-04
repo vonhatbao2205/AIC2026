@@ -16,6 +16,7 @@ interface Props {
   queryType: QueryType;
   activeTrakeSlot: number;
   onSubmitPaused: () => void;
+  onAddToSticky: () => void;
   onAssignToTrake: () => void;
   onClear: () => void;
 }
@@ -87,6 +88,11 @@ export function PausedFramePanel(props: Props) {
                 onClick={props.onSubmitPaused}
               >
                 Submit paused frame <span className="kbd">⇧↵</span>
+              </button>
+            )}
+            {!isTrake && (
+              <button className="btn sm" data-testid="sticky-add-paused" onClick={props.onAddToSticky}>
+                + Sticky
               </button>
             )}
             <button className="btn sm ghost" onClick={props.onClear}>

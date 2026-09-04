@@ -10,7 +10,14 @@
  *  Kept free of React and of Supabase so the arithmetic that decides which
  *  answer scores the query can be tested on its own.
  */
-import type { SubmissionRow } from "./submission";
+/** Anything ranked by `created_at`: a Submission row, or a sticky-note
+ *  candidate. The maths below only ever reads these two fields, and the sticky
+ *  note deliberately reuses it — a draft list that ranked by different rules
+ *  than the table it feeds would reorder itself on the way across. */
+export interface Ranked {
+  id: string;
+  createdAt?: string;
+}
 
 /** Drag payload for one answer row. The question id travels with it because a
  *  drop into another question's table is not a reorder — it would silently
@@ -55,7 +62,7 @@ export function readRowDrag(event: React.DragEvent): SubmissionRowDrag | null {
 }
 
 /** The row's `created_at` as an instant, or NaN when it has none. */
-function createdMs(row: SubmissionRow): number {
+function createdMs(row: Ranked): number {
   const parsed = Date.parse(row.createdAt ?? "");
   return Number.isNaN(parsed) ? Number.NaN : parsed;
 }
@@ -63,7 +70,7 @@ function createdMs(row: SubmissionRow): number {
 /** Same instant, one spelling. The two sides format it differently — the client
  *  writes `…T19:04:00.123Z`, PostgREST answers `…T19:04:00.123456+00:00` — so a
  *  plain string compare would report a change on every single row. */
-function normalisedIso(row: SubmissionRow): string | null {
+function normalisedIso(row: Ranked): string | null {
   const stamp = createdMs(row);
   return Number.isFinite(stamp) ? new Date(stamp).toISOString() : null;
 }
@@ -82,7 +89,7 @@ function normalisedIso(row: SubmissionRow): string | null {
  *
  *  `rows` must already be in display order (which is what `sortRows` produces).
  */
-export function orderSlots(rows: readonly SubmissionRow[]): number[] {
+export function orderSlots(rows: readonly Ranked[]): number[] {
   const stamps = rows.map(createdMs);
   const firstFinite = stamps.find((value) => Number.isFinite(value));
   // Nothing was ever stamped: any monotone base is as good as another.
@@ -109,7 +116,7 @@ export function moveIndex<T>(items: readonly T[], from: number, to: number): T[]
  *  that as "no write".
  */
 export function planReorder(
-  rows: readonly SubmissionRow[],
+  rows: readonly Ranked[],
   from: number,
   to: number,
 ): OrderChange[] {
@@ -138,7 +145,7 @@ export function planReorder(
  *  of the undo write too.
  */
 export function planRestore(
-  rows: readonly SubmissionRow[],
+  rows: readonly Ranked[],
   after: readonly OrderChange[],
 ): OrderChange[] {
   const applied = new Map(after.map((change) => [change.id, change.createdAt]));

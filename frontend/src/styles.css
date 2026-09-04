@@ -1035,6 +1035,66 @@ button { font-family: inherit; }
 .preview-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; }
 .preview-img { max-width: 100%; max-height: 46vh; border-radius: 6px; display: block; margin: 0 auto; }
 
+/* ---- Per-machine Sticky Note ----
+   A floating scratchpad sits above Search but below real modals. Its geometry is
+   inline because it is persisted; everything visual remains theme-driven here. */
+.sticky-note-window {
+  position: fixed; z-index: 80; display: flex; flex-direction: column;
+  min-width: 320px; min-height: 200px; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--warn) 62%, var(--line-2));
+  border-radius: 10px; background: var(--bg-1);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .42), 0 0 0 1px rgba(255, 255, 255, .025);
+}
+.sticky-toggle.active { color: var(--warn); background: color-mix(in srgb, var(--warn) 11%, transparent); }
+.sticky-note-head {
+  flex: none; min-height: 42px; display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px 6px 10px; cursor: move; user-select: none; touch-action: none;
+  color: var(--fg); background: color-mix(in srgb, var(--warn) 15%, var(--bg-2));
+  border-bottom: 1px solid color-mix(in srgb, var(--warn) 28%, var(--line));
+}
+.sticky-note-pin { color: var(--warn); font-size: 10px; transform: rotate(45deg); }
+.sticky-note-title { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.sticky-note-title b { font-size: 12px; }
+.sticky-note-title .mono {
+  max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--fg-faint); font-size: 9.5px;
+}
+.sticky-note-count { color: var(--fg-dim); font-size: 10px; white-space: nowrap; }
+.sticky-push { color: var(--fg); border-color: color-mix(in srgb, var(--warn) 55%, var(--line)); }
+.sticky-note-close {
+  width: 25px; height: 25px; padding: 0; border: 0; border-radius: 5px;
+  color: var(--fg-dim); background: transparent; font-size: 19px; line-height: 1; cursor: pointer;
+}
+.sticky-note-close:hover { color: var(--fg); background: var(--bg-hover); }
+.sticky-note-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px; }
+.sticky-note-empty {
+  height: 100%; min-height: 90px; display: grid; place-items: center; text-align: center;
+  padding: 18px; color: var(--fg-faint); font-size: 12px;
+}
+.sticky-note-warning {
+  margin-bottom: 6px; padding: 5px 7px; border-radius: 5px;
+  background: color-mix(in srgb, var(--bad) 11%, transparent); color: var(--bad); font-size: 10.5px;
+}
+.sticky-note-table-wrap { overflow-x: auto; }
+.sticky-note-table { min-width: 475px; font-size: 11px; }
+.sticky-note-table .cell-input { font-size: 11px; padding: 2px 4px; }
+.sticky-note-table tr.sticky-note-pushed { opacity: .64; }
+.sticky-note-table tr.sticky-note-pushed.selected-row { opacity: .82; }
+.sticky-pushed-mark { color: var(--ok); margin-left: 3px; font-weight: 700; }
+.row-grip.disabled { cursor: default; color: var(--fg-faint); opacity: .45; }
+.sticky-note-foot {
+  flex: none; min-height: 30px; display: flex; align-items: center; gap: 6px;
+  padding: 4px 12px 5px 8px; border-top: 1px solid var(--line);
+  color: var(--fg-faint); background: var(--bg-2); font-size: 9.5px;
+}
+.sticky-note-foot span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sticky-note-resize {
+  position: absolute; right: 0; bottom: 0; width: 15px; height: 15px;
+  cursor: nwse-resize; touch-action: none;
+  background: linear-gradient(135deg, transparent 45%, var(--fg-faint) 46%, var(--fg-faint) 53%, transparent 54%, transparent 66%, var(--fg-faint) 67%, var(--fg-faint) 74%, transparent 75%);
+  opacity: .58;
+}
+
 .modal.wide { width: min(920px, 94vw); }
 .frame-edit-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0 6px;

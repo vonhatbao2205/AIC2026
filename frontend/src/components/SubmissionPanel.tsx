@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "../api/client";
 import type { RetrievalDatabase } from "../api/types";
 import type { ImportedQuestion } from "../lib/questions";
 import { packSummary } from "../lib/questionPack";
@@ -24,6 +23,7 @@ import {
   type OrderChange,
 } from "../lib/submissionOrder";
 import { SubmissionFrameEditor, type CommitMode, type FrameEdit } from "./SubmissionFrameEditor";
+import { FramePreview } from "./FramePreview";
 
 /** Rows shown per question before the operator asks for the rest. */
 const COLLAPSED_ROWS = 10;
@@ -159,68 +159,6 @@ function draftDiffers(row: SubmissionRow, draft: RowDraft | undefined): boolean 
     return true;
   }
   return false;
-}
-
-/** Lazily resolved keyframe picture for exactly one row.
- *
- *  The table itself never loads media: a hundred answers would otherwise mean a
- *  hundred image requests on five machines. Only the frame being looked at is
- *  fetched, and only once the operator asks for it. */
-function FramePreview(props: {
-  videoId: string;
-  frameIdx: number;
-  keyframeId: string | null;
-  retrievalDatabase: RetrievalDatabase;
-  onClose: () => void;
-  onOpenVideo: () => void;
-}) {
-  const { keyframeId, retrievalDatabase } = props;
-  const [url, setUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setUrl(null);
-    setError(null);
-    if (!keyframeId) return;
-    let cancelled = false;
-    api
-      .keyframe(keyframeId, retrievalDatabase)
-      .then((info) => !cancelled && setUrl(info.keyframe_url))
-      .catch(() => !cancelled && setError("Không resolve được ảnh keyframe."));
-    return () => {
-      cancelled = true;
-    };
-  }, [keyframeId, retrievalDatabase]);
-
-  return (
-    <div className="preview-overlay" data-testid="frame-preview">
-      <div className="preview-head">
-        <span className="mono">
-          {props.videoId} · frame {props.frameIdx}
-          {keyframeId ? ` · ${keyframeId}` : ""}
-        </span>
-        <div className="spacer" />
-        <button className="btn sm ghost" onClick={props.onOpenVideo}>V · mở video</button>
-        <button className="btn sm ghost" onClick={props.onClose}>P · đóng</button>
-      </div>
-      {keyframeId ? (
-        error ? (
-          <div className="dup-warn">⚠ {error}</div>
-        ) : url ? (
-          <img className="preview-img" src={url} alt={keyframeId} />
-        ) : (
-          <div className="empty">Đang tải ảnh…</div>
-        )
-      ) : (
-        // A frame taken from a paused video need not be an extracted keyframe.
-        // Showing the nearest one would quietly misrepresent what gets exported.
-        <div className="empty" data-testid="preview-raw">
-          RAW VIDEO FRAME — frame {props.frameIdx} không phải keyframe đã trích, nên không có
-          ảnh tĩnh. Bấm <b>V</b> để mở video đúng tại frame này.
-        </div>
-      )}
-    </div>
-  );
 }
 
 /** The bulk-generation control: how many answers, which questions, and progress.

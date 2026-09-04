@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FullConsole, { type SubmissionDraft } from "./FullConsole";
 import { SubmissionPanel, type AutoGenOptions } from "./components/SubmissionPanel";
+import { StickyNoteWindow } from "./components/StickyNoteWindow";
 import { SUBMISSION_VIEW, TabRail, type ActiveView, type ConsoleTab } from "./components/TabRail";
 import type { QueryType, RetrievalDatabase } from "./api/types";
 import { parseQuestionPack, type ImportedQuestion } from "./lib/questions";
@@ -12,7 +13,8 @@ import {
 } from "./lib/submission";
 import { useSharedSubmission } from "./hooks/useSharedSubmission";
 import { useSharedSession } from "./hooks/useSharedSession";
-import { defaultSessionName, packSummary } from "./lib/questionPack";
+import { useStickyNotes } from "./hooks/useStickyNotes";
+import { defaultSessionName, packHash, packSummary } from "./lib/questionPack";
 import { generateAll, type AnswerGenProgress } from "./lib/answerGen";
 import {
   parseSubmissionPack,
@@ -49,6 +51,9 @@ export default function Workspace(props: Props) {
   // answering, localStorage only caches them for an offline stretch.
   const pack = useSharedSession();
   const questions = pack.questions;
+  // The content hash, rather than a server session id, also works in solo mode
+  // and stays stable while the same pack moves from cache to a live session.
+  const sticky = useStickyNotes(questions.length ? packHash(questions) : null);
   const [tabs, setTabs] = useState<ConsoleTab[]>(() => [newTab()]);
   // Derived, never hardcoded: tab ids come from a counter, so a literal "tab-1"
   // would leave the workspace pointing at nothing on any later mount.
@@ -100,6 +105,27 @@ export default function Workspace(props: Props) {
     for (const row of rows) counts.set(row.questionId, (counts.get(row.questionId) ?? 0) + 1);
     return counts;
   }, [rows]);
+  const activeTab = active === SUBMISSION_VIEW ? null : tabs.find((tab) => tab.id === active) ?? null;
+  const activeQuestion = activeTab?.questionId
+    ? questionById.get(activeTab.questionId) ?? null
+    : null;
+  const activeCandidates = sticky.candidatesFor(activeQuestion?.id ?? null);
+
+  // One workspace-level owner means exactly one listener even though every
+  // Search tab stays mounted. The physical Backquote code also covers keyboard
+  // layouts whose printable `key` is not a grave accent.
+  useEffect(() => {
+    if (active === SUBMISSION_VIEW) return;
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.key !== "`" && event.code !== "Backquote") || event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+      }
+      event.preventDefault();
+      sticky.toggle();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [active, sticky.toggle]);
 
   // ---- tabs ----
   const patchTab = useCallback((id: string, patch: Partial<ConsoleTab>) => {
@@ -252,6 +278,46 @@ export default function Workspace(props: Props) {
       shared.addRow({ id: newRowId(), source: "submit", ...draft });
     },
     [rows, shared],
+  );
+
+  /** Park one Search result locally. Duplicates stay advisory, like they are in
+   *  Submission: the operator may intentionally keep alternate QA answers. */
+  const addStickyRow = useCallback(
+    (draft: SubmissionDraft): "added" | "full" => {
+      const current = sticky.candidatesFor(draft.questionId);
+      if (current.length >= MAX_ROWS_PER_QUESTION) return "full";
+      const { questionId: _questionId, ...candidate } = draft;
+      sticky.add(draft.questionId, candidate);
+      return "added";
+    },
+    [sticky],
+  );
+
+  /** The only bridge from the local scratchpad to shared state. `pushedAt`
+   *  changes only after the optimistic bulk write is accepted by the store, so
+   *  a later click can select exactly the candidates added since this one. */
+  const pushSticky = useCallback(
+    (questionId: string) => {
+      const pending = sticky.pending(questionId);
+      if (!pending.length) return;
+      const occupied = rows.filter((row) => row.questionId === questionId).length;
+      if (occupied + pending.length > MAX_ROWS_PER_QUESTION) return;
+      shared.transaction(`push ${pending.length} sticky candidate`, () => {
+        shared.addRows(
+          pending.map((candidate) => {
+            const { id: _noteId, pushedAt: _pushedAt, ...row } = candidate;
+            return {
+              ...row,
+              id: newRowId(),
+              questionId,
+              source: "submit" as const,
+            };
+          }),
+        );
+      });
+      sticky.markPushed(questionId, pending.map((candidate) => candidate.id));
+    },
+    [rows, shared, sticky],
   );
 
   const addBlankRow = useCallback(
@@ -539,6 +605,10 @@ export default function Workspace(props: Props) {
                 searchingAll={busyTabs.size > 0 || autoRunRemaining > 0}
                 questionRows={question ? rows.filter((row) => row.questionId === question.id) : []}
                 onSubmitRow={addRow}
+                onAddStickyRow={addStickyRow}
+                onToggleSticky={sticky.toggle}
+                stickyOpen={sticky.window.open}
+                stickyCount={sticky.candidatesFor(question?.id ?? null).filter((candidate) => !candidate.pushedAt).length}
                 autoRunToken={tab.autoRunToken}
                 onBusyChange={(busy) => busyRef.current(tab.id, busy)}
                 onAutoRunDone={() => autoRunDoneRef.current(tab.id)}
@@ -623,6 +693,34 @@ export default function Workspace(props: Props) {
           </div>
         )}
       </div>
+      {active !== SUBMISSION_VIEW && (
+        <StickyNoteWindow
+          question={activeQuestion}
+          candidates={activeCandidates}
+          submissionCount={activeQuestion ? rowCounts.get(activeQuestion.id) ?? 0 : 0}
+          window={sticky.window}
+          defaultRetrievalDatabase={props.retrievalDatabase}
+          onWindow={sticky.setWindow}
+          onAdd={(draft) => {
+            if (activeQuestion) addStickyRow({ ...draft, questionId: activeQuestion.id });
+          }}
+          onUpdate={(id, patch) => {
+            if (activeQuestion) sticky.update(activeQuestion.id, id, patch);
+          }}
+          onRemove={(id) => {
+            if (activeQuestion) sticky.remove(activeQuestion.id, id);
+          }}
+          onReorder={(changes) => {
+            if (activeQuestion) sticky.reorder(activeQuestion.id, changes);
+          }}
+          onClear={() => {
+            if (activeQuestion) sticky.clear(activeQuestion.id);
+          }}
+          onPush={() => {
+            if (activeQuestion) pushSticky(activeQuestion.id);
+          }}
+        />
+      )}
     </div>
   );
 }

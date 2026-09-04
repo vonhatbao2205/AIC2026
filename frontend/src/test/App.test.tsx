@@ -1766,6 +1766,54 @@ describe("AIC26 retrieval console (full)", () => {
 });
 
 describe("query pack + submission table", () => {
+  it("toggles a per-question sticky note with the Backquote shortcut", async () => {
+    render(<App />);
+    expect(screen.queryByTestId("sticky-note")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "`", code: "Backquote" });
+    expect(await screen.findByTestId("sticky-note")).toHaveTextContent("chưa chọn câu hỏi");
+
+    fireEvent.keyDown(window, { key: "`", code: "Backquote" });
+    await waitFor(() => expect(screen.queryByTestId("sticky-note")).not.toBeInTheDocument());
+  });
+
+  it("pushes only sticky candidates added since the previous push", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await screen.findByTestId("detail-panel");
+
+    await user.click(screen.getByTestId("sticky-add-result"));
+    const note = await screen.findByTestId("sticky-note");
+    expect(within(note).getAllByTestId(/^sticky-row-\d+$/)).toHaveLength(1);
+    expect(within(note).getByTestId("sticky-push")).toHaveTextContent("Push 1");
+
+    await user.click(within(note).getByTestId("sticky-push"));
+    await waitFor(() => expect(within(note).getByTestId("sticky-push")).toBeDisabled());
+    expect(within(note).getByText("✓")).toBeInTheDocument();
+
+    await user.click(within(note).getByTestId("sticky-close"));
+    await user.click(screen.getByTestId("open-submission"));
+    const firstBlock = await screen.findByTestId("submission-query-p1-1-kis");
+    expect(within(firstBlock).getAllByTestId(/^row-query-p1-1-kis-\d+$/)).toHaveLength(1);
+    expect(screen.getByTestId("csv-query-p1-1-kis")).toHaveTextContent("K01_V001,0");
+
+    await user.click(screen.getByTestId("submission-back"));
+    await user.click(screen.getAllByTestId("frame-thumb")[1]);
+    await user.click(screen.getByTestId("sticky-add-result"));
+    const reopened = await screen.findByTestId("sticky-note");
+    expect(within(reopened).getAllByTestId(/^sticky-row-\d+$/)).toHaveLength(2);
+    // The first candidate remains as history, but is not part of this push.
+    expect(within(reopened).getByTestId("sticky-push")).toHaveTextContent("Push 1");
+
+    await user.click(within(reopened).getByTestId("sticky-push"));
+    await user.click(within(reopened).getByTestId("sticky-close"));
+    await user.click(screen.getByTestId("open-submission"));
+    const finalBlock = await screen.findByTestId("submission-query-p1-1-kis");
+    expect(within(finalBlock).getAllByTestId(/^row-query-p1-1-kis-\d+$/)).toHaveLength(2);
+    expect(screen.getByTestId("csv-query-p1-1-kis").textContent).toContain("K01_V001,450");
+  });
+
   it("opens one tab per question, on the right query type, and searches them all", async () => {
     render(<App />);
     await importPack();

@@ -11,6 +11,9 @@ interface Props {
   importError: string | null;
   /** Rows already collected for the selected question. */
   rowCount: number;
+  stickyCount: number;
+  stickyOpen: boolean;
+  onOpenSticky: () => void;
   onOpenSubmission: () => void;
   /** Open one tab per question and search them all, the way an import does. */
   onSearchAll: () => void;
@@ -71,6 +74,15 @@ export function QuestionBar(props: Props) {
       {props.importError && <span className="dres-warn">{props.importError}</span>}
 
       <div className="spacer" />
+      <button
+        className={`btn sm ghost sticky-toggle${props.stickyOpen ? " active" : ""}`}
+        onClick={props.onOpenSticky}
+        data-testid="sticky-toggle"
+        aria-pressed={props.stickyOpen}
+        title="Mở/đóng sticky note (`) — draft chỉ lưu trên máy này"
+      >
+        ◆ Sticky{props.stickyCount ? ` (${props.stickyCount})` : ""} <span className="kbd">`</span>
+      </button>
       <button className="btn sm ghost" onClick={props.onOpenSubmission} data-testid="open-submission">
         Submission
       </button>
