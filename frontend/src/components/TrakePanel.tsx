@@ -8,8 +8,12 @@ export interface TrakeSlot {
   video_id: string;
   frame_idx: number;
   pts_time: number;
-  thumbnail?: string | null; // data URL captured from the exact paused frame
-  submit_keyframe_id?: string; // nearest BTC keyframe, display only
+  /** Direct keyframe URL, or an ephemeral data URL captured from an exact raw frame. */
+  thumbnail?: string | null;
+  submit_keyframe_id?: string; // extracted keyframe provenance, absent for raw frames
+  /** Whether a restored thumbnail came from its keyframe image or was freshly
+   *  extracted from the exact raw-frame timestamp. */
+  thumbnail_kind?: "exact" | "exact-raw";
 }
 
 interface Props {
@@ -30,7 +34,18 @@ interface Props {
 }
 
 function SlotThumb({ slot }: { slot: TrakeSlot }) {
-  if (slot.thumbnail) return <img src={slot.thumbnail} alt={`frame ${slot.frame_idx}`} />;
+  if (slot.thumbnail) {
+    return (
+      <div className="trake-slot-thumb">
+        <img src={slot.thumbnail} alt={`frame ${slot.frame_idx}`} />
+        {slot.thumbnail_kind === "exact-raw" && (
+          <span title="Ảnh được trích lại từ video tại đúng thời điểm raw frame">
+            raw exact
+          </span>
+        )}
+      </div>
+    );
+  }
   return (
     <div style={{ height: 54, borderRadius: 5, background: "var(--bg-3)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--fg-faint)", fontSize: 9 }}>
       no preview

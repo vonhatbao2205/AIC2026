@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import FullConsole, { type SubmissionDraft } from "./FullConsole";
+import FullConsole, {
+  type StickyTrakeRestoreRequest,
+  type SubmissionDraft,
+} from "./FullConsole";
 import { SubmissionPanel, type AutoGenOptions } from "./components/SubmissionPanel";
 import { StickyNoteWindow } from "./components/StickyNoteWindow";
 import { SUBMISSION_VIEW, TabRail, type ActiveView, type ConsoleTab } from "./components/TabRail";
@@ -24,6 +27,7 @@ import {
 } from "./lib/submissionImport";
 import { newRowId } from "./lib/sharedSubmission";
 import type { OrderChange } from "./lib/submissionOrder";
+import type { NoteCandidate } from "./lib/stickyNotes";
 import { readZipTextFiles, ZipError } from "./lib/zip";
 
 interface Props {
@@ -58,6 +62,10 @@ export default function Workspace(props: Props) {
   // Derived, never hardcoded: tab ids come from a counter, so a literal "tab-1"
   // would leave the workspace pointing at nothing on any later mount.
   const [active, setActive] = useState<ActiveView>(() => tabs[0].id);
+  const [stickyTrakeRestore, setStickyTrakeRestore] = useState<
+    (StickyTrakeRestoreRequest & { tabId: string }) | null
+  >(null);
+  const stickyRestoreSeq = useRef(0);
   // Where "back" goes from the Submission view: the console tab last looked at,
   // falling back to the first one if that tab has since been closed.
   const lastConsoleTab = useRef<string>(tabs[0].id);
@@ -366,6 +374,28 @@ export default function Workspace(props: Props) {
     [rows, shared, sticky],
   );
 
+  const restoreStickyTrake = useCallback(
+    (candidate: NoteCandidate) => {
+      if (!activeTab || !activeQuestion || activeTab.queryType !== "TRAKE" || activeQuestion.kind !== "trake") {
+        return;
+      }
+      stickyRestoreSeq.current += 1;
+      setStickyTrakeRestore({
+        id: stickyRestoreSeq.current,
+        tabId: activeTab.id,
+        candidate,
+      });
+      // This is an explicit "return to TRAKE" action, so reveal the right bar
+      // it targets instead of leaving the floating note over it.
+      sticky.setWindow({ open: false });
+    },
+    [activeQuestion, activeTab, sticky],
+  );
+
+  const finishStickyTrakeRestore = useCallback((id: number) => {
+    setStickyTrakeRestore((current) => current?.id === id ? null : current);
+  }, []);
+
   const addBlankRow = useCallback(
     (questionId: string) => {
       shared.addRow({
@@ -655,6 +685,8 @@ export default function Workspace(props: Props) {
                 onToggleSticky={sticky.toggle}
                 stickyOpen={sticky.window.open}
                 stickyCount={sticky.candidatesFor(question?.id ?? null).filter((candidate) => candidate.pushState === "draft").length}
+                stickyTrakeRestore={stickyTrakeRestore?.tabId === tab.id ? stickyTrakeRestore : null}
+                onStickyTrakeRestoreDone={finishStickyTrakeRestore}
                 autoRunToken={tab.autoRunToken}
                 onBusyChange={(busy) => busyRef.current(tab.id, busy)}
                 onAutoRunDone={() => autoRunDoneRef.current(tab.id)}
@@ -765,6 +797,7 @@ export default function Workspace(props: Props) {
           onPush={() => {
             if (activeQuestion) pushSticky(activeQuestion.id);
           }}
+          onRestoreTrake={restoreStickyTrake}
         />
       )}
     </div>

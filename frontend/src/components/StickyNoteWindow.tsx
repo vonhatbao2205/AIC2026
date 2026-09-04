@@ -21,6 +21,8 @@ interface Props {
   onReorder: (changes: ReturnType<typeof planReorder>) => void;
   onClear: () => void;
   onPush: () => void;
+  /** Restore one saved TRAKE sequence into the active Search tab's event bar. */
+  onRestoreTrake: (candidate: NoteCandidate) => void;
 }
 
 interface RowDraft {
@@ -116,10 +118,10 @@ export function StickyNoteWindow(props: Props) {
   }, []);
 
   const commitDraft = useCallback(
-    (candidate: NoteCandidate) => {
+    (candidate: NoteCandidate): NoteCandidate => {
       const draft = draftsRef.current[candidate.id];
       discardDraft(candidate.id);
-      if (!draft) return;
+      if (!draft) return candidate;
       const patch: Partial<NoteCandidate> = {};
       const videoId = draft.videoId ?? candidate.videoId;
       if (videoId !== candidate.videoId) patch.videoId = videoId;
@@ -148,6 +150,7 @@ export function StickyNoteWindow(props: Props) {
         patch.ptsTimes = candidate.frames.map(() => null);
       }
       if (Object.keys(patch).length) props.onUpdate(candidate.id, patch);
+      return { ...candidate, ...patch };
     },
     [discardDraft, props],
   );
@@ -422,7 +425,7 @@ export function StickyNoteWindow(props: Props) {
                       <th>frame</th>
                       <th style={{ width: 118 }}>keyframe</th>
                       {question.kind === "qa" && <th>answer</th>}
-                      <th style={{ width: 30 }} />
+                      <th style={{ width: question.kind === "trake" ? 92 : 30 }} />
                     </tr>
                   </thead>
                   <tbody>
@@ -547,6 +550,19 @@ export function StickyNoteWindow(props: Props) {
                             </td>
                           )}
                           <td>
+                            {question.kind === "trake" && (
+                              <button
+                                className="btn sm ghost sticky-restore-trake"
+                                data-testid={`sticky-restore-trake-${index}`}
+                                title="Nạp chuỗi này về TRAKE events"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  props.onRestoreTrake(commitDraft(candidate));
+                                }}
+                              >
+                                ↩ TRAKE
+                              </button>
+                            )}
                             <button
                               className="cell-delete"
                               aria-label={`Xoá candidate ${index + 1}`}

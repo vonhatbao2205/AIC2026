@@ -58,7 +58,9 @@ import { DEFAULT_IMAGE_MODELS, imageModelsForSearch } from "./lib/imageModels";
 import { DEFAULT_SCOPE_MODE, orderCategories, scopeRequest } from "./lib/scope";
 import { VIDEO_COARSE_STEP_S, VIDEO_FINE_STEP_S, seekDeltaForKey } from "./lib/videoSeek";
 import { validateIncreasingOrder } from "./lib/snap";
+import { extractVideoThumbnails } from "./lib/videoThumbnail";
 import { MAX_ROWS_PER_QUESTION, findDuplicate, rowToCsvLine, type SubmissionRow } from "./lib/submission";
+import type { NoteCandidate } from "./lib/stickyNotes";
 
 /** What a submit hands to the Workspace to become one CSV row. */
 export interface SubmissionDraft {
@@ -75,6 +77,14 @@ export interface SubmissionDraft {
 }
 
 export type StickyAddResult = "added" | "full";
+
+/** A one-shot command from the floating Sticky window back into this Search
+ *  tab. The id prevents a parent re-render from restoring the same sequence a
+ *  second time. */
+export interface StickyTrakeRestoreRequest {
+  id: number;
+  candidate: NoteCandidate;
+}
 
 /** The submit guard acts on exactly one of these; they never shadow each other. */
 type GuardTarget = "result" | "paused";
@@ -135,6 +145,8 @@ interface ConsoleProps {
   onToggleSticky: () => void;
   stickyOpen: boolean;
   stickyCount: number;
+  stickyTrakeRestore: StickyTrakeRestoreRequest | null;
+  onStickyTrakeRestoreDone: (id: number) => void;
   /** Bumped by an import to make this tab search on its own. */
   autoRunToken: number;
   onBusyChange: (busy: boolean) => void;
@@ -152,6 +164,7 @@ export default function FullConsole({
   active, queryType, onQueryType, questions, question, onSelectQuestion, onImportQuestions,
   importing, importError, onOpenSubmission, onSearchAll, searchingAll, questionRows, onSubmitRow,
   onAddStickyRow, onToggleSticky, stickyOpen, stickyCount,
+  stickyTrakeRestore, onStickyTrakeRestoreDone,
   autoRunToken, onBusyChange, onAutoRunDone,
 }: ConsoleProps) {
   // `runSearch` shadows this with an explicit override, so the state itself is
@@ -248,6 +261,114 @@ export default function FullConsole({
   const [keymapOpen, setKeymapOpen] = useState(false);
   const [guardOpen, setGuardOpen] = useState(false);
   const [answer, setAnswer] = useState("");
+
+  // Restore a whole saved sequence, then hydrate every slot with an image. Raw
+  // thumbnails are re-extracted from the video at their exact stored pts_time;
+  // the data URLs live only in these slots and never enter Sticky localStorage.
+  useEffect(() => {
+    if (!stickyTrakeRestore) return;
+    const { id, candidate } = stickyTrakeRestore;
+    let cancelled = false;
+    const expected = question?.eventCount ?? candidate.frames.length;
+    if (queryType !== "TRAKE" || question?.kind !== "trake") {
+      setToast({ msg: "Chỉ có thể nạp candidate vào một tab TRAKE.", kind: "bad" });
+      onStickyTrakeRestoreDone(id);
+      return;
+    }
+    if (candidate.frames.length !== expected || candidate.frames.some((frame) => !Number.isFinite(frame))) {
+      setToast({ msg: `Candidate cần đúng ${expected} frame TRAKE.`, kind: "bad" });
+      onStickyTrakeRestoreDone(id);
+      return;
+    }
+    const knownTimes = candidate.ptsTimes.map((value) =>
+      typeof value === "number" && Number.isFinite(value) ? value : null,
+    );
+    const orderValues = candidate.frames.map((frame, index) => knownTimes[index] ?? frame / 25);
+    if (validateIncreasingOrder(orderValues).length) {
+      setToast({ msg: "Không thể nạp: thứ tự TRAKE trong Sticky không tăng dần.", kind: "bad" });
+      onStickyTrakeRestoreDone(id);
+      return;
+    }
+
+    const baseSlots: TrakeSlot[] = candidate.frames.map((frame, index) => ({
+      video_id: candidate.videoId,
+      frame_idx: frame,
+      pts_time: knownTimes[index] ?? frame / 25,
+      ...(candidate.keyframeIds[index]
+        ? { submit_keyframe_id: candidate.keyframeIds[index] as string }
+        : {}),
+    }));
+    setTrakeSlots(baseSlots);
+    setActiveSlot(0);
+    setPausedFrame(null);
+    setToast({ msg: `Đang nạp ${baseSlots.length} ảnh TRAKE từ Sticky…`, kind: "ok" });
+
+    void (async () => {
+      let failed = 0;
+      const rawIndices = candidate.keyframeIds.flatMap((keyframeId, index) =>
+        keyframeId ? [] : [index],
+      );
+      const timelinePromise = rawIndices.length
+        ? api.timeline(candidate.videoId, candidate.retrievalDatabase)
+        : null;
+      const exactKeyframes = await Promise.all(baseSlots.map(async (slot, index): Promise<TrakeSlot> => {
+        const keyframeId = candidate.keyframeIds[index] ?? null;
+        if (!keyframeId) return slot;
+        try {
+          const info = await api.keyframe(keyframeId, candidate.retrievalDatabase);
+          return { ...slot, thumbnail: info.keyframe_url, thumbnail_kind: "exact" };
+        } catch {
+          failed += 1;
+          return slot;
+        }
+      }));
+      let hydrated = exactKeyframes;
+      if (timelinePromise) {
+        try {
+          const videoTimeline = await timelinePromise;
+          const fps = videoTimeline.fps || 25;
+          const rawTimes = rawIndices.map((index) =>
+            knownTimes[index] ?? candidate.frames[index] / fps,
+          );
+          const rawThumbnails = await extractVideoThumbnails(videoTimeline.video_url, rawTimes);
+          hydrated = hydrated.map((slot, index) => {
+            const rawPosition = rawIndices.indexOf(index);
+            if (rawPosition < 0) return slot;
+            const thumbnail = rawThumbnails[rawPosition] ?? null;
+            if (!thumbnail) failed += 1;
+            return {
+              ...slot,
+              pts_time: rawTimes[rawPosition],
+              thumbnail,
+              thumbnail_kind: thumbnail ? "exact-raw" : undefined,
+            };
+          });
+        } catch {
+          failed += rawIndices.length;
+        }
+      }
+      if (cancelled) return;
+      setTrakeSlots((current) => {
+        const sameSequence = current.length === baseSlots.length && current.every(
+          (slot, index) =>
+            slot?.video_id === baseSlots[index].video_id &&
+            slot?.frame_idx === baseSlots[index].frame_idx,
+        );
+        return sameSequence ? hydrated : current;
+      });
+      setToast({
+        msg: failed
+          ? `Đã nạp TRAKE; ${failed} ảnh preview không tải được.`
+          : `Đã nạp ${hydrated.length} TRAKE event cùng ảnh chính xác.`,
+        kind: failed ? "bad" : "ok",
+      });
+      onStickyTrakeRestoreDone(id);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [onStickyTrakeRestoreDone, question?.eventCount, question?.kind, queryType, stickyTrakeRestore]);
 
   // ---- DRES (official evaluation server) ----
   // The run and the open task come from the server; `pinnedEvaluationId` is set

@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { seekElementBy } from "../lib/videoSeek";
+import { captureVideoThumbnail } from "../lib/videoThumbnail";
 
 export interface VideoViewerHandle {
   toggle: () => void;
@@ -138,27 +139,11 @@ export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoVi
         rvfcId.current = null;
       }
     }
-    function captureThumbnail(): string | null {
-      try {
-        const w = v!.videoWidth, h = v!.videoHeight;
-        if (!w || !h) return null;
-        const scale = Math.min(1, 320 / w);
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.round(w * scale);
-        canvas.height = Math.round(h * scale);
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return null;
-        ctx.drawImage(v!, 0, 0, canvas.width, canvas.height);
-        return canvas.toDataURL("image/jpeg", 0.7); // throws if the frame is CORS-tainted
-      } catch {
-        return null;
-      }
-    }
     function handlePause() {
       const rawTime = supportsRVFC && hasPresentedFrame.current
         ? latestMediaTime.current
         : v!.currentTime;
-      onPausedRef.current?.(rawTime, captureThumbnail());
+      onPausedRef.current?.(rawTime, captureVideoThumbnail(v!));
       stopTracking();
     }
     function handleTimeUpdate() {
@@ -179,7 +164,7 @@ export const VideoViewer = forwardRef<VideoViewerHandle, Props>(function VideoVi
       hasPresentedFrame.current = false;
       latestMediaTime.current = v!.currentTime;
       onTimeRef.current?.(v!.currentTime);
-      if (v!.paused) onPausedRef.current?.(v!.currentTime, captureThumbnail());
+      if (v!.paused) onPausedRef.current?.(v!.currentTime, captureVideoThumbnail(v!));
     }
 
     // A dead origin surfaces as a media error on the element. Retry the same

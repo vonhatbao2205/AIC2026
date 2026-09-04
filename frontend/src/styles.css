@@ -1083,6 +1083,14 @@ button { font-family: inherit; }
 .sticky-note-table tr.sticky-note-queued { opacity: .78; }
 .sticky-pushed-mark { color: var(--ok); margin-left: 3px; font-weight: 700; }
 .sticky-queued-mark { color: var(--warn); margin-left: 3px; font-weight: 700; }
+.sticky-restore-trake { margin-right: 3px; padding: 1px 4px; white-space: nowrap; }
+.trake-slot-thumb { position: relative; }
+.trake-slot-thumb img { display: block; width: 100%; }
+.trake-slot-thumb span {
+  position: absolute; right: 3px; bottom: 3px; padding: 1px 3px;
+  border-radius: 3px; background: rgba(0, 0, 0, .72); color: var(--warn);
+  font: 8px/1.25 var(--mono); text-transform: uppercase;
+}
 .row-grip.disabled { cursor: default; color: var(--fg-faint); opacity: .45; }
 .sticky-note-foot {
   flex: none; min-height: 30px; display: flex; align-items: center; gap: 6px;

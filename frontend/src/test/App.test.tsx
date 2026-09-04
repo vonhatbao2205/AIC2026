@@ -4,6 +4,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import { buildZipBytes } from "../lib/zip";
 import { buildSubmissionFiles } from "../lib/submission";
+import { extractVideoThumbnails } from "../lib/videoThumbnail";
+
+vi.mock("../lib/videoThumbnail", async () => {
+  const actual = await vi.importActual<typeof import("../lib/videoThumbnail")>("../lib/videoThumbnail");
+  return {
+    ...actual,
+    extractVideoThumbnails: vi.fn(async (_url: string, times: readonly number[]) =>
+      times.map((time) => `data:image/jpeg;base64,raw-${time}`),
+    ),
+  };
+});
 
 /** A query pack shaped like the organiser's: one .txt per question, type in the name. */
 const PACK = [
@@ -1817,6 +1828,57 @@ describe("query pack + submission table", () => {
     const finalBlock = await screen.findByTestId("submission-query-p1-1-kis");
     expect(within(finalBlock).getAllByTestId(/^row-query-p1-1-kis-\d+$/)).toHaveLength(2);
     expect(screen.getByTestId("csv-query-p1-1-kis").textContent).toContain("K01_V001,450");
+  });
+
+  it("restores a Sticky TRAKE sequence with keyframe previews, including a raw event", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await importPack();
+    await openTab(user, 2);
+    const card = (await screen.findAllByTestId("trake-video-card"))[0];
+
+    // Start with the retrieved chain, then replace E1 by an exact paused raw
+    // frame. Sticky stores raw provenance as keyframeIds[0] === null.
+    await user.click(within(card).getByTestId("trake-quick-submit"));
+    await user.click(within(screen.getByTestId("submit-guard")).getByRole("button", { name: "Cancel" }));
+    const firstSlot = screen.getByTestId("trake-slot-0");
+    await user.click(within(firstSlot).getByText("✕"));
+    await user.click(firstSlot);
+    (document.activeElement as HTMLElement)?.blur();
+    fireEvent.keyDown(window, { key: "v" });
+    const video = await screen.findByTestId("video-viewer") as HTMLVideoElement;
+    Object.defineProperty(video, "currentTime", { configurable: true, writable: true, value: 120 });
+    fireEvent.seeked(video);
+    await user.click(await screen.findByTestId("assign-paused-frame"));
+    expect(firstSlot).toHaveTextContent("f3000");
+
+    await user.click(screen.getByTestId("sticky-add-result"));
+    for (const index of [0, 1]) {
+      await user.click(within(screen.getByTestId(`trake-slot-${index}`)).getByText("✕"));
+    }
+    fireEvent.keyDown(window, { key: "`", code: "Backquote" });
+    const note = await screen.findByTestId("sticky-note");
+    await user.click(within(note).getByTestId("sticky-restore-trake-0"));
+
+    await waitFor(() => expect(screen.queryByTestId("sticky-note")).not.toBeInTheDocument());
+    const restoredRaw = screen.getByTestId("trake-slot-0");
+    const restoredKeyframe = screen.getByTestId("trake-slot-1");
+    expect(restoredRaw).toHaveTextContent("f3000");
+    expect(restoredKeyframe).toHaveTextContent("f21030");
+    await waitFor(() => expect(within(restoredRaw).getByRole("img")).toBeInTheDocument());
+    expect(within(restoredRaw).getByText("raw exact")).toHaveAttribute(
+      "title",
+      "Ảnh được trích lại từ video tại đúng thời điểm raw frame",
+    );
+    expect(within(restoredRaw).getByRole("img")).toHaveAttribute(
+      "src",
+      "data:image/jpeg;base64,raw-120",
+    );
+    expect(within(restoredKeyframe).getByRole("img")).toHaveAttribute(
+      "src",
+      expect.stringContaining("/Keyframes/"),
+    );
+    expect(extractVideoThumbnails).toHaveBeenCalledWith(expect.stringContaining(".mp4"), [120]);
   });
 
   it("opens one tab per question, on the right query type, and searches them all", async () => {

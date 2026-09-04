@@ -67,6 +67,7 @@ function renderNote(overrides: Partial<React.ComponentProps<typeof StickyNoteWin
     onReorder: vi.fn(),
     onClear: vi.fn(),
     onPush: vi.fn(),
+    onRestoreTrake: vi.fn(),
     ...overrides,
   };
   return { ...render(<StickyNoteWindow {...props} />), props };
@@ -175,5 +176,16 @@ describe("StickyNoteWindow", () => {
     expect(screen.getByTitle("Đang chờ Supabase xác nhận; hệ thống sẽ tự thử lại")).toHaveTextContent("◌");
     expect(screen.getByTitle("Supabase đã nhận; sửa nội dung sẽ đưa candidate vào lượt push kế tiếp")).toHaveTextContent("✓");
     expect(screen.getByTestId("sticky-push")).toBeDisabled();
+  });
+
+  it("offers a reverse load action for a TRAKE candidate", () => {
+    const onRestoreTrake = vi.fn();
+    renderNote({
+      question: { ...QUESTION, kind: "trake", queryType: "TRAKE", eventCount: 1 },
+      onRestoreTrake,
+    });
+
+    fireEvent.click(screen.getByTestId("sticky-restore-trake-0"));
+    expect(onRestoreTrake).toHaveBeenCalledWith(candidates[0]);
   });
 });
