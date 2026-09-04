@@ -1080,7 +1080,9 @@ button { font-family: inherit; }
 .sticky-note-table .cell-input { font-size: 11px; padding: 2px 4px; }
 .sticky-note-table tr.sticky-note-pushed { opacity: .64; }
 .sticky-note-table tr.sticky-note-pushed.selected-row { opacity: .82; }
+.sticky-note-table tr.sticky-note-queued { opacity: .78; }
 .sticky-pushed-mark { color: var(--ok); margin-left: 3px; font-weight: 700; }
+.sticky-queued-mark { color: var(--warn); margin-left: 3px; font-weight: 700; }
 .row-grip.disabled { cursor: default; color: var(--fg-faint); opacity: .45; }
 .sticky-note-foot {
   flex: none; min-height: 30px; display: flex; align-items: center; gap: 6px;

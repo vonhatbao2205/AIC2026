@@ -1784,13 +1784,16 @@ describe("query pack + submission table", () => {
     await screen.findByTestId("detail-panel");
 
     await user.click(screen.getByTestId("sticky-add-result"));
+    expect(screen.queryByTestId("sticky-note")).not.toBeInTheDocument();
+    expect(await screen.findByText("Đã ghim candidate vào query-p1-1-kis.")).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "`", code: "Backquote" });
     const note = await screen.findByTestId("sticky-note");
     expect(within(note).getAllByTestId(/^sticky-row-\d+$/)).toHaveLength(1);
     expect(within(note).getByTestId("sticky-push")).toHaveTextContent("Push 1");
 
     await user.click(within(note).getByTestId("sticky-push"));
     await waitFor(() => expect(within(note).getByTestId("sticky-push")).toBeDisabled());
-    expect(within(note).getByText("✓")).toBeInTheDocument();
+    expect(within(note).queryByText("✓")).not.toBeInTheDocument();
 
     await user.click(within(note).getByTestId("sticky-close"));
     await user.click(screen.getByTestId("open-submission"));
@@ -1801,6 +1804,8 @@ describe("query pack + submission table", () => {
     await user.click(screen.getByTestId("submission-back"));
     await user.click(screen.getAllByTestId("frame-thumb")[1]);
     await user.click(screen.getByTestId("sticky-add-result"));
+    expect(screen.queryByTestId("sticky-note")).not.toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "`", code: "Backquote" });
     const reopened = await screen.findByTestId("sticky-note");
     expect(within(reopened).getAllByTestId(/^sticky-row-\d+$/)).toHaveLength(2);
     // The first candidate remains as history, but is not part of this push.

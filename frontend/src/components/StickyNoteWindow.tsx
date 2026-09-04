@@ -76,7 +76,11 @@ export function StickyNoteWindow(props: Props) {
     Math.max(0, (selectedCandidate?.frames.length ?? 1) - 1),
   );
   const pending = useMemo(
-    () => candidates.filter((candidate) => !candidate.pushedAt),
+    () => candidates.filter((candidate) => candidate.pushState === "draft"),
+    [candidates],
+  );
+  const queuedCount = useMemo(
+    () => candidates.filter((candidate) => candidate.pushState === "queued").length,
     [candidates],
   );
   const validationErrors = useMemo(() => {
@@ -167,10 +171,10 @@ export function StickyNoteWindow(props: Props) {
       const from = candidates.findIndex((candidate) => candidate.id === sourceId);
       const to = candidates.findIndex((candidate) => candidate.id === targetId);
       if (from < 0 || to < 0) return;
-      // A pushed row is history. Moving it would claim that Submission was
+      // A queued/synced row is history. Moving it would claim that Submission was
       // reordered too, even though this intentionally local window cannot make
       // that shared write. Editing its content re-arms it as a fresh candidate.
-      if (candidates[from].pushedAt || candidates[to].pushedAt) return;
+      if (candidates[from].pushState !== "draft" || candidates[to].pushState !== "draft") return;
       const changes = planReorder(candidates, from, to);
       if (changes.length) props.onReorder(changes);
       setSelected({ id: sourceId, slot: 0 });
@@ -180,10 +184,10 @@ export function StickyNoteWindow(props: Props) {
 
   const nudge = useCallback(
     (delta: number) => {
-      if (!selectedCandidate || selectedCandidate.pushedAt) return;
+      if (!selectedCandidate || selectedCandidate.pushState !== "draft") return;
       const from = candidates.findIndex((candidate) => candidate.id === selectedCandidate.id);
       const to = from + delta;
-      if (to < 0 || to >= candidates.length || candidates[to].pushedAt) return;
+      if (to < 0 || to >= candidates.length || candidates[to].pushState !== "draft") return;
       reorder(selectedCandidate.id, candidates[to].id);
     },
     [candidates, reorder, selectedCandidate],
@@ -309,7 +313,13 @@ export function StickyNoteWindow(props: Props) {
       keyframeIds[slot] = edit.keyframeId;
       ptsTimes[slot] = edit.ptsTime;
       if (mode === "new") {
-        const { id: _id, createdAt: _createdAt, pushedAt: _pushedAt, ...draft } = selectedCandidate;
+        const {
+          id: _id,
+          createdAt: _createdAt,
+          pushState: _pushState,
+          submissionRowId: _submissionRowId,
+          ...draft
+        } = selectedCandidate;
         props.onAdd({ ...draft, frames, keyframeIds, ptsTimes });
       } else {
         props.onUpdate(selectedCandidate.id, { frames, keyframeIds, ptsTimes });
@@ -347,7 +357,10 @@ export function StickyNoteWindow(props: Props) {
             <span className="mono">{question?.id ?? "chưa chọn câu hỏi"}</span>
           </div>
           <span className="sticky-note-count">
-            {pending.length ? `${pending.length} chưa push` : `${candidates.length} candidate`}
+            {pending.length > 0 && `${pending.length} nháp`}
+            {pending.length > 0 && queuedCount > 0 && " · "}
+            {queuedCount > 0 && `${queuedCount} đang đồng bộ`}
+            {pending.length === 0 && queuedCount === 0 && `${candidates.length} candidate`}
           </span>
           <div className="spacer" />
           <button
@@ -425,16 +438,17 @@ export function StickyNoteWindow(props: Props) {
                           key={candidate.id}
                           className={[
                             isSelected ? "selected-row" : "",
-                            candidate.pushedAt ? "sticky-note-pushed" : "",
+                            candidate.pushState === "synced" ? "sticky-note-pushed" : "",
+                            candidate.pushState === "queued" ? "sticky-note-queued" : "",
                             duplicate ? "bad-row" : "",
                             isDragging ? "dragging-row" : "",
                             target ? (target.below ? "drop-below" : "drop-above") : "",
                           ].join(" ").trim()}
                           data-testid={`sticky-row-${index}`}
                           onClick={() => setSelected({ id: candidate.id, slot: 0 })}
-                          draggable={gripped === candidate.id && !candidate.pushedAt}
+                          draggable={gripped === candidate.id && candidate.pushState === "draft"}
                           onDragStart={(event) => {
-                            if (candidate.pushedAt) return;
+                            if (candidate.pushState !== "draft") return;
                             setRowDrag(event, { questionId: question.id, rowId: candidate.id });
                             setDragging(candidate.id);
                           }}
@@ -444,7 +458,7 @@ export function StickyNoteWindow(props: Props) {
                             setGripped(null);
                           }}
                           onDragOver={(event) => {
-                            if (!hasRowDrag(event) || candidate.pushedAt) return;
+                            if (!hasRowDrag(event) || candidate.pushState !== "draft") return;
                             event.preventDefault();
                             const source = candidates.findIndex((item) => item.id === dragging);
                             const below = source >= 0 && source < index;
@@ -461,23 +475,31 @@ export function StickyNoteWindow(props: Props) {
                         >
                           <td className="mono dim">
                             <span
-                              className={`row-grip${candidate.pushedAt ? " disabled" : ""}`}
+                              className={`row-grip${candidate.pushState !== "draft" ? " disabled" : ""}`}
                               role="button"
                               aria-label={`Kéo candidate ${index + 1}`}
                               data-testid={`sticky-grip-${index}`}
-                              title={candidate.pushedAt ? "Đã push — thứ hạng sửa ở Submission" : "Kéo để đổi thứ tự"}
-                              onMouseDown={() => !candidate.pushedAt && setGripped(candidate.id)}
+                              title={candidate.pushState !== "draft" ? "Đã chuyển sang Submission — thứ hạng sửa ở đó" : "Kéo để đổi thứ tự"}
+                              onMouseDown={() => candidate.pushState === "draft" && setGripped(candidate.id)}
                               onMouseUp={() => setGripped(null)}
                             >
                               ⠿
                             </span>
                             {index + 1}
-                            {candidate.pushedAt && (
+                            {candidate.pushState === "synced" && (
                               <span
                                 className="sticky-pushed-mark"
-                                title="Đã push; sửa nội dung sẽ đưa candidate vào lượt push kế tiếp"
+                                title="Supabase đã nhận; sửa nội dung sẽ đưa candidate vào lượt push kế tiếp"
                               >
                                 ✓
+                              </span>
+                            )}
+                            {candidate.pushState === "queued" && (
+                              <span
+                                className="sticky-queued-mark"
+                                title="Đang chờ Supabase xác nhận; hệ thống sẽ tự thử lại"
+                              >
+                                ◌
                               </span>
                             )}
                           </td>

@@ -1480,7 +1480,6 @@ export default function FullConsole({
       setToast({ msg: `Sticky note đã đủ ${MAX_ROWS_PER_QUESTION} candidate.`, kind: "bad" });
       return;
     }
-    if (!stickyOpen) onToggleSticky();
     setToast({ msg: `Đã ghim candidate vào ${question.id}.`, kind: "ok" });
   }
 

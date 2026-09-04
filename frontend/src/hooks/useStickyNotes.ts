@@ -8,7 +8,7 @@
  *  localStorage is the source of truth, not a cache: nothing else holds these
  *  candidates, so a reload mid-contest has to bring them all back.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_NOTE_WINDOW,
   applyOrder,
@@ -29,8 +29,13 @@ import type { OrderChange } from "../lib/submissionOrder";
 import { newRowId } from "../lib/sharedSubmission";
 
 /** Everything a candidate needs except the fields the store owns. */
-export type NoteDraft = Omit<NoteCandidate, "id" | "createdAt" | "pushedAt"> &
+export type NoteDraft = Omit<NoteCandidate, "id" | "createdAt" | "pushState" | "submissionRowId"> &
   Partial<Pick<NoteCandidate, "createdAt">>;
+
+export interface NoteQueueAssignment {
+  candidateId: string;
+  submissionRowId: string;
+}
 
 export interface StickyNotes {
   /** Candidates of one question, in rank order. Empty for an unassigned tab. */
@@ -44,8 +49,10 @@ export interface StickyNotes {
   /** The candidates a push would send: unpushed only, in note order, restamped
    *  so no two of them tie. Empty means the button has nothing to do. */
   pending: (questionId: string | null) => NoteCandidate[];
-  /** Record that these candidates reached the Submission table. */
-  markPushed: (questionId: string, ids: string[]) => void;
+  /** Reserve Submission ids and persist `queued` before the optimistic write. */
+  queue: (questionId: string, assignments: NoteQueueAssignment[]) => NoteCandidate[];
+  /** Record server confirmation for the matching Submission row ids. */
+  markSynced: (questionId: string, submissionRowIds: string[]) => void;
   window: NoteWindow;
   setWindow: (patch: Partial<NoteWindow>) => void;
   toggle: () => void;
@@ -69,6 +76,8 @@ export function nextNoteCreatedAt(): string {
 export function useStickyNotes(packId: string | null = null): StickyNotes {
   const [store, setStore] = useState<NoteStore>(() => loadNotes());
   const [win, setWin] = useState<NoteWindow>(() => loadWindow());
+  const storeRef = useRef(store);
+  storeRef.current = store;
 
   useEffect(() => {
     saveNotes(store);
@@ -85,7 +94,12 @@ export function useStickyNotes(packId: string | null = null): StickyNotes {
     if (!packId) return;
     setStore((current) => {
       const next = keepOnlyPack(current, packId);
-      return Object.keys(next).length === Object.keys(current).length ? current : next;
+      if (Object.keys(next).length === Object.keys(current).length) return current;
+      // Draft ownership is localStorage, so pack cleanup is persisted in the
+      // same turn rather than waiting for React's post-render effect.
+      storeRef.current = next;
+      saveNotes(next);
+      return next;
     });
   }, [packId]);
 
@@ -122,18 +136,24 @@ export function useStickyNotes(packId: string | null = null): StickyNotes {
   const write = useCallback(
     (questionId: string, change: (current: NoteCandidate[]) => NoteCandidate[]) => {
       const key = keyOf(questionId);
-      setStore((current) => {
-        const next = change(current[key] ?? []);
-        // An emptied note is deleted rather than stored as `[]` — the store is
-        // keyed by every question this browser has ever opened, and dead keys
-        // accumulate for the life of the localStorage entry.
-        if (!next.length) {
-          if (!(key in current)) return current;
-          const { [key]: _dropped, ...rest } = current;
-          return rest;
-        }
-        return { ...current, [key]: next };
-      });
+      const current = storeRef.current;
+      const changed = change(current[key] ?? []);
+      // An emptied note is deleted rather than stored as `[]` — the store is
+      // keyed by every question this browser has ever opened, and dead keys
+      // accumulate for the life of the localStorage entry.
+      let next: NoteStore;
+      if (!changed.length) {
+        if (!(key in current)) return;
+        const { [key]: _dropped, ...rest } = current;
+        next = rest;
+      } else {
+        next = { ...current, [key]: changed };
+      }
+      // This synchronous mirror is important for queueing: `queued` and its
+      // Submission row id must survive a reload before addRows starts.
+      storeRef.current = next;
+      saveNotes(next);
+      setStore(next);
     },
     [keyOf],
   );
@@ -144,7 +164,7 @@ export function useStickyNotes(packId: string | null = null): StickyNotes {
         ...draft,
         id: newRowId(),
         createdAt: draft.createdAt ?? nextNoteCreatedAt(),
-        pushedAt: null,
+        pushState: "draft",
       };
       write(questionId, (current) => sortCandidates([...current, candidate]));
       return candidate;
@@ -164,23 +184,19 @@ export function useStickyNotes(packId: string | null = null): StickyNotes {
       ].some((field) => field in patch);
       write(questionId, (current) =>
         sortCandidates(
-          current.map((candidate) =>
-            candidate.id === id
-              ? {
-                  ...candidate,
-                  ...patch,
-                  ...(changesDraft
-                    ? {
-                        pushedAt: null,
-                        // The old instant already belongs to the Submission row
-                        // created by the first push. Reusing it for the edited
-                        // version would create a rank tie there.
-                        ...(candidate.pushedAt ? { createdAt: nextNoteCreatedAt() } : {}),
-                      }
-                    : {}),
-                }
-              : candidate,
-          ),
+          current.map((candidate) => {
+            if (candidate.id !== id) return candidate;
+            const next = { ...candidate, ...patch };
+            if (changesDraft) {
+              // Editing a queued/synced candidate makes a new version. The old
+              // Submission row keeps its immutable id; the edited note gets a
+              // fresh id only when the operator pushes it again.
+              if (candidate.pushState !== "draft") next.createdAt = nextNoteCreatedAt();
+              next.pushState = "draft";
+              delete next.submissionRowId;
+            }
+            return next;
+          }),
         ),
       );
     },
@@ -214,17 +230,42 @@ export function useStickyNotes(packId: string | null = null): StickyNotes {
     [candidatesFor],
   );
 
-  const markPushed = useCallback(
-    (questionId: string, ids: string[]) => {
-      if (!ids.length) return;
-      const at = new Date().toISOString();
-      const done = new Set(ids);
+  const queue = useCallback(
+    (questionId: string, assignments: NoteQueueAssignment[]): NoteCandidate[] => {
+      if (!assignments.length) return [];
+      const assigned = new Map(assignments.map((item) => [item.candidateId, item.submissionRowId]));
+      const planned = new Map(pushPlan(candidatesFor(questionId)).map((item) => [item.id, item]));
+      const queued: NoteCandidate[] = [];
+      write(questionId, (current) =>
+        current.map((candidate) => {
+          const submissionRowId = assigned.get(candidate.id);
+          const ordered = planned.get(candidate.id);
+          if (!submissionRowId || !ordered || candidate.pushState !== "draft") return candidate;
+          const next: NoteCandidate = {
+            ...candidate,
+            createdAt: ordered.createdAt,
+            submissionRowId,
+            pushState: "queued",
+          };
+          queued.push(next);
+          return next;
+        }),
+      );
+      return queued;
+    },
+    [candidatesFor, write],
+  );
+
+  const markSynced = useCallback(
+    (questionId: string, submissionRowIds: string[]) => {
+      if (!submissionRowIds.length) return;
+      const done = new Set(submissionRowIds);
       write(questionId, (current) =>
         current.map((candidate) =>
-          // Never re-stamped: `pushedAt` records the first crossing, and a
-          // candidate that already went is not part of a later push.
-          done.has(candidate.id) && !candidate.pushedAt
-            ? { ...candidate, pushedAt: at }
+          candidate.pushState === "queued" &&
+          candidate.submissionRowId &&
+          done.has(candidate.submissionRowId)
+            ? { ...candidate, pushState: "synced" }
             : candidate,
         ),
       );
@@ -258,12 +299,13 @@ export function useStickyNotes(packId: string | null = null): StickyNotes {
       reorder,
       clear,
       pending,
-      markPushed,
+      queue,
+      markSynced,
       window: win,
       setWindow,
       toggle,
     }),
-    [add, candidatesFor, clear, markPushed, pending, remove, reorder, setWindow, toggle, win],
+    [add, candidatesFor, clear, markSynced, pending, queue, remove, reorder, setWindow, toggle, win],
   );
 }
 

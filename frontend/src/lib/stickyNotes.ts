@@ -38,10 +38,13 @@ export interface NoteCandidate {
    *  into the Submission row verbatim on push, so a pushed candidate sits
    *  exactly where a frame submitted the moment it was noted would have sat. */
   createdAt: string;
-  /** Set the moment this candidate became a Submission row. Null while it is
-   *  still a draft — and this field alone is what makes a second push send the
-   *  three frames added since the first one rather than all eight again. */
-  pushedAt: string | null;
+  /** Stable id reserved before the optimistic Submission insert starts. It is
+   *  the recovery handle after a reload: the client can ask the server whether
+   *  this exact row landed and enqueue it again when it did not. */
+  submissionRowId?: string;
+  /** `queued` means handed to the optimistic Submission store, not delivered.
+   *  Only an observed server-backed row may advance this to `synced`. */
+  pushState: "draft" | "queued" | "synced";
 }
 
 /** Every note this browser holds, keyed by `noteKey`. */
@@ -113,6 +116,21 @@ export function loadNotes(): NoteStore {
         }
         const frames = rawCandidate.frames.map(Number).filter(Number.isFinite).map(Math.round);
         const created = Date.parse(rawCandidate.createdAt ?? "");
+        const submissionRowId = typeof rawCandidate.submissionRowId === "string"
+          ? rawCandidate.submissionRowId
+          : undefined;
+        const rawState = rawCandidate.pushState;
+        // `pushedAt` is the pre-state-machine format. There is no row id with
+        // which to reconcile those old entries, so preserve their old visible
+        // meaning while every new push uses the recoverable protocol.
+        const legacyPushed = typeof (rawCandidate as Partial<NoteCandidate> & { pushedAt?: unknown }).pushedAt === "string";
+        const pushState = rawState === "synced"
+          ? "synced"
+          : rawState === "queued" && submissionRowId
+            ? "queued"
+            : legacyPushed
+              ? "synced"
+              : "draft";
         return [{
           id: rawCandidate.id,
           videoId: rawCandidate.videoId,
@@ -131,7 +149,8 @@ export function loadNotes(): NoteStore {
           createdAt: Number.isFinite(created)
             ? new Date(created).toISOString()
             : new Date(0).toISOString(),
-          pushedAt: typeof rawCandidate.pushedAt === "string" ? rawCandidate.pushedAt : null,
+          ...(submissionRowId ? { submissionRowId } : {}),
+          pushState,
         }];
       });
       if (candidates.length) store[key] = candidates;
@@ -201,9 +220,11 @@ export function clampWindow(
   };
 }
 
-/** Candidates that have not reached the Submission table yet. */
+/** Candidates that have not been handed to the Submission store yet. Queued
+ *  candidates are deliberately excluded so a second click cannot duplicate an
+ *  insert that is merely waiting for Supabase. */
 export function unpushed(candidates: readonly NoteCandidate[]): NoteCandidate[] {
-  return candidates.filter((candidate) => !candidate.pushedAt);
+  return candidates.filter((candidate) => candidate.pushState === "draft");
 }
 
 /** What one push hands to the Submission store.

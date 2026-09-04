@@ -89,6 +89,9 @@ export interface SharedSubmission {
    *  per question; queueing them one by one would put thousands of round trips
    *  in the outbox and take minutes to drain over a contest network. */
   addRows: (rows: SubmissionRow[]) => void;
+  /** Rebuild a lost insert outbox from durable Sticky Note ids. The server is
+   *  checked first, so retrying after an ambiguous response is idempotent. */
+  ensureRows: (rows: SubmissionRow[]) => void;
   updateRow: (id: string, patch: Partial<SubmissionRow>) => void;
   /** Write one Q&A answer into every row of a question, as a single write.
    *  The generator produces the frames; the text is a human judgement typed
@@ -125,6 +128,7 @@ export interface SharedSubmission {
 type Op =
   | { kind: "insert"; row: SubmissionRow }
   | { kind: "insert_many"; rows: SubmissionRow[] }
+  | { kind: "ensure_insert_many"; rows: SubmissionRow[] }
   | { kind: "answer_many"; ids: string[]; answer: string }
   // Ordering only. Deliberately NOT an `update`: it must not carry frames or
   // answer text, so a drag can never overwrite an edit a teammate is making to
@@ -234,6 +238,33 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
             const ids = new Set(op.rows.map((row) => row.id));
             setRows((current) =>
               current.map((row) => (ids.has(row.id) ? { ...row, syncState: "synced" } : row)),
+            );
+          } else if (op.kind === "ensure_insert_many") {
+            // A Sticky queue survives reload while this in-memory outbox does
+            // not. Check ids before rebuilding the insert: the previous request
+            // may have committed even when its response never reached us.
+            const ids = op.rows.map((row) => row.id);
+            const { data: found, error: lookupError } = await supabase
+              .from(SUBMISSIONS_TABLE)
+              .select("*")
+              .in("id", ids);
+            if (lookupError) throw lookupError;
+            const remote = ((found ?? []) as SubmissionRecord[]).map(recordToRow);
+            acceptServerRows(remote);
+            const present = new Set(remote.map((row) => row.id));
+            const missing = op.rows.filter((row) => !present.has(row.id));
+            if (missing.length) {
+              const records = missing.map((row) =>
+                rowToRecord(row, SUBMISSION_ROOM, user, sessionRef.current),
+              );
+              const { error: insertError } = await supabase.from(SUBMISSIONS_TABLE).insert(records);
+              if (insertError) throw insertError;
+            }
+            const confirmed = new Set(ids);
+            setRows((current) =>
+              current.map((row) =>
+                confirmed.has(row.id) ? { ...row, syncState: "synced" } : row,
+              ),
             );
           } else if (op.kind === "answer_many") {
             const { data, error: answerError } = await supabase
@@ -564,6 +595,46 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
     [enqueue, record, shared, user],
   );
 
+  const ensureRows = useCallback(
+    (incoming: SubmissionRow[]) => {
+      if (!shared || !incoming.length) return;
+      const inFlight = new Set<string>();
+      for (const op of outbox.current) {
+        if (op.kind === "insert") inFlight.add(op.row.id);
+        else if (op.kind === "insert_many" || op.kind === "ensure_insert_many") {
+          for (const row of op.rows) inFlight.add(row.id);
+        }
+      }
+      const seen = new Set<string>();
+      const recover = incoming.filter((row) => {
+        if (seen.has(row.id) || inFlight.has(row.id)) return false;
+        seen.add(row.id);
+        return rowsRef.current.find((current) => current.id === row.id)?.syncState !== "synced";
+      });
+      if (!recover.length) return;
+      const complete: SubmissionRow[] = recover.map((row) => {
+        const cached = rowsRef.current.find((current) => current.id === row.id);
+        return {
+          ...cached,
+          ...row,
+          sessionId: row.sessionId ?? cached?.sessionId ?? sessionRef.current,
+          submittedBy: row.submittedBy || cached?.submittedBy || user,
+          revision: cached?.revision ?? row.revision ?? 1,
+          createdAt: row.createdAt ?? cached?.createdAt ?? nextCreatedAt(),
+          syncState: "pending",
+        };
+      });
+      const recoveredIds = new Set(complete.map((row) => row.id));
+      rowsRef.current = sortRows([
+        ...rowsRef.current.filter((row) => !recoveredIds.has(row.id)),
+        ...complete,
+      ]);
+      setRows(rowsRef.current);
+      enqueue({ kind: "ensure_insert_many", rows: complete });
+    },
+    [enqueue, shared, user],
+  );
+
   /** Write one answer onto a named set of rows, as a single request. Undo needs
    *  this too: putting a bulk fill back means one write per distinct previous
    *  answer, not one per row. */
@@ -789,6 +860,7 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
     user,
     addRow,
     addRows,
+    ensureRows,
     setAnswerForQuestion,
     reorderRows,
     updateRow,

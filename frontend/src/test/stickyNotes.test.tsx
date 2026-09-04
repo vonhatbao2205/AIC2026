@@ -12,7 +12,7 @@ import { planReorder } from "../lib/submissionOrder";
 
 const BASE = Date.parse("2026-09-04T10:00:00.000Z");
 
-function candidate(index: number, pushedAt: string | null = null): NoteCandidate {
+function candidate(index: number, pushState: NoteCandidate["pushState"] = "draft"): NoteCandidate {
   return {
     id: `note-${index}`,
     videoId: "K01_V001",
@@ -22,7 +22,8 @@ function candidate(index: number, pushedAt: string | null = null): NoteCandidate
     ptsTimes: [index],
     retrievalDatabase: "btc",
     createdAt: new Date(BASE + index).toISOString(),
-    pushedAt,
+    ...(pushState === "draft" ? {} : { submissionRowId: `submission-${index}` }),
+    pushState,
   };
 }
 
@@ -53,7 +54,7 @@ describe("sticky note storage model", () => {
   });
 
   it("pushes only candidates not sent before and keeps their order timestamps", () => {
-    const list = [candidate(1, "2026-09-04T11:00:00.000Z"), candidate(2), candidate(3)];
+    const list = [candidate(1, "synced"), candidate(2), candidate(3)];
     const plan = pushPlan(list);
 
     expect(plan.map((item) => item.id)).toEqual(["note-2", "note-3"]);
@@ -75,7 +76,7 @@ describe("sticky note storage model", () => {
 });
 
 describe("useStickyNotes", () => {
-  it("persists per-pack candidates and only re-arms a pushed candidate after an edit", async () => {
+  it("persists queued ids, confirms sync separately, and re-arms only after an edit", async () => {
     const { result, unmount } = renderHook(() => useStickyNotes("pack-a"));
     act(() => {
       result.current.add("q-1", {
@@ -88,12 +89,30 @@ describe("useStickyNotes", () => {
       });
     });
     const id = result.current.candidatesFor("q-1")[0].id;
-    act(() => result.current.markPushed("q-1", [id]));
+    let queued: NoteCandidate[] = [];
+    act(() => {
+      queued = result.current.queue("q-1", [{
+        candidateId: id,
+        submissionRowId: "11111111-1111-4111-8111-111111111111",
+      }]);
+    });
+    expect(queued[0]).toMatchObject({
+      pushState: "queued",
+      submissionRowId: "11111111-1111-4111-8111-111111111111",
+    });
     expect(result.current.pending("q-1")).toHaveLength(0);
+    expect(localStorage.getItem("aic26_sticky_notes")).toContain('"pushState":"queued"');
+    act(() => result.current.markSynced("q-1", ["11111111-1111-4111-8111-111111111111"]));
+    expect(result.current.candidatesFor("q-1")[0].pushState).toBe("synced");
     const firstCreatedAt = result.current.candidatesFor("q-1")[0].createdAt;
 
     act(() => result.current.update("q-1", id, { answer: "new answer" }));
     expect(result.current.pending("q-1").map((item) => item.id)).toEqual([id]);
+    expect(result.current.candidatesFor("q-1")[0]).toMatchObject({
+      pushState: "draft",
+      answer: "new answer",
+    });
+    expect(result.current.candidatesFor("q-1")[0]).not.toHaveProperty("submissionRowId");
     expect(result.current.candidatesFor("q-1")[0].createdAt).not.toBe(firstCreatedAt);
     await waitFor(() => expect(localStorage.getItem("aic26_sticky_notes")).toContain("new answer"));
 

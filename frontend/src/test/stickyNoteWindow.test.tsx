@@ -22,7 +22,7 @@ const candidates: NoteCandidate[] = [1, 2, 3].map((index) => ({
   ptsTimes: [index],
   retrievalDatabase: "btc",
   createdAt: new Date(Date.parse("2026-09-04T10:00:00.000Z") + index).toISOString(),
-  pushedAt: null,
+  pushState: "draft",
 }));
 
 function dataTransfer() {
@@ -157,5 +157,23 @@ describe("StickyNoteWindow", () => {
     fireEvent(resize, pointer("pointerdown", 2, 740, 500));
     fireEvent(resize, pointer("pointermove", 2, 800, 550));
     expect(onWindow).toHaveBeenCalledWith({ w: 680, h: 450 });
+  });
+
+  it("shows queued separately and displays a check only after server sync", () => {
+    const queued: NoteCandidate = {
+      ...candidates[0],
+      pushState: "queued",
+      submissionRowId: "11111111-1111-4111-8111-111111111111",
+    };
+    const synced: NoteCandidate = {
+      ...candidates[1],
+      pushState: "synced",
+      submissionRowId: "22222222-2222-4222-8222-222222222222",
+    };
+    renderNote({ candidates: [queued, synced] });
+
+    expect(screen.getByTitle("Đang chờ Supabase xác nhận; hệ thống sẽ tự thử lại")).toHaveTextContent("◌");
+    expect(screen.getByTitle("Supabase đã nhận; sửa nội dung sẽ đưa candidate vào lượt push kế tiếp")).toHaveTextContent("✓");
+    expect(screen.getByTestId("sticky-push")).toBeDisabled();
   });
 });

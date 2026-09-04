@@ -11,6 +11,8 @@ const deletes: { filters: Record<string, unknown>; ids?: string[] }[] = [];
 /** Pages the fake `select` hands back, keyed by the requested offset. */
 let selectPages: Record<string, unknown>[][] = [[]];
 const selectRanges: [number, number][] = [];
+/** Rows returned by the id lookup used to rebuild a lost Sticky outbox. */
+let lookupRows: Record<string, unknown>[] = [];
 
 function thenable<T>(value: T) {
   return { then: (resolve: (v: T) => unknown) => Promise.resolve(value).then(resolve) };
@@ -29,7 +31,10 @@ function makeBuilder() {
     },
     in: (_column: string, values: string[]) => {
       filters.in = values;
-      return builder;
+      return Object.assign(builder, thenable({
+        data: lookupRows.filter((row) => values.includes(String(row.id))),
+        error: null,
+      }));
     },
     order: () => builder,
     range: (from: number, to: number) => {
@@ -154,11 +159,45 @@ beforeEach(() => {
   rpcMissing = false;
   selectRanges.length = 0;
   selectPages = [[]];
+  lookupRows = [];
   serverRow = { id: baseRow.id, room: "test-room", question_id: baseRow.questionId };
   localStorage.clear();
 });
 
 describe("shared submission writes", () => {
+  it("recreates a Sticky insert lost with the in-memory outbox", async () => {
+    const { result } = renderHook(() => useSharedSubmission("session-1"));
+    await act(async () => result.current.ensureRows([{ ...baseRow }]));
+
+    await waitFor(() => expect(inserts).toHaveLength(1));
+    await waitFor(() => expect(result.current.rows[0].syncState).toBe("synced"));
+    expect(inserts[0].id).toBe(baseRow.id);
+  });
+
+  it("confirms an existing Sticky row without inserting it twice", async () => {
+    lookupRows = [{
+      id: baseRow.id,
+      room: "test-room",
+      session_id: "session-1",
+      question_id: baseRow.questionId,
+      retrieval_database: "btc",
+      video_id: baseRow.videoId,
+      frames: baseRow.frames,
+      keyframe_ids: baseRow.keyframeIds,
+      pts_times: baseRow.ptsTimes,
+      answer: "",
+      submitted_by: "Tester",
+      source: "submit",
+      revision: 1,
+      created_at: "2026-09-04T10:00:00.000Z",
+    }];
+    const { result } = renderHook(() => useSharedSubmission("session-1"));
+    await act(async () => result.current.ensureRows([{ ...baseRow }]));
+
+    await waitFor(() => expect(result.current.rows[0].syncState).toBe("synced"));
+    expect(inserts).toHaveLength(0);
+  });
+
   it("sends the EDITED row, not the one that was there before", async () => {
     // Regression: the update op used to look the row up from a ref at flush
     // time. `flush()` runs in the same tick as the optimistic setRows, so the

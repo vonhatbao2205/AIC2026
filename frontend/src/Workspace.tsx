@@ -110,6 +110,43 @@ export default function Workspace(props: Props) {
     ? questionById.get(activeTab.questionId) ?? null
     : null;
   const activeCandidates = sticky.candidatesFor(activeQuestion?.id ?? null);
+  const queuedSticky = useMemo(
+    () => questions.flatMap((question) =>
+      sticky.candidatesFor(question.id)
+        .filter((candidate) => candidate.pushState === "queued" && candidate.submissionRowId)
+        .map((candidate) => ({ questionId: question.id, candidate })),
+    ),
+    [questions, sticky.candidatesFor],
+  );
+
+  // A Sticky candidate is "synced" only after its reserved Submission row is
+  // observed as server-backed. If the page was reloaded while the old in-memory
+  // outbox was pending, ensureRows checks that id on Supabase and recreates the
+  // insert only when it is genuinely absent.
+  useEffect(() => {
+    if (!queuedSticky.length || !shared.shared) return;
+    const submissionById = new Map(rows.map((row) => [row.id, row]));
+    const confirmedByQuestion = new Map<string, string[]>();
+    const recover: SubmissionRow[] = [];
+    for (const { questionId, candidate } of queuedSticky) {
+      const submissionRowId = candidate.submissionRowId as string;
+      if (submissionById.get(submissionRowId)?.syncState === "synced") {
+        const confirmed = confirmedByQuestion.get(questionId) ?? [];
+        confirmed.push(submissionRowId);
+        confirmedByQuestion.set(questionId, confirmed);
+        continue;
+      }
+      const {
+        id: _noteId,
+        pushState: _pushState,
+        submissionRowId: _submissionRowId,
+        ...draft
+      } = candidate;
+      recover.push({ ...draft, id: submissionRowId, questionId, source: "submit" });
+    }
+    for (const [questionId, ids] of confirmedByQuestion) sticky.markSynced(questionId, ids);
+    if (recover.length) shared.ensureRows(recover);
+  }, [queuedSticky, rows, shared.ensureRows, shared.shared, sticky.markSynced]);
 
   // One workspace-level owner means exactly one listener even though every
   // Search tab stays mounted. The physical Backquote code also covers keyboard
@@ -293,29 +330,38 @@ export default function Workspace(props: Props) {
     [sticky],
   );
 
-  /** The only bridge from the local scratchpad to shared state. `pushedAt`
-   *  changes only after the optimistic bulk write is accepted by the store, so
-   *  a later click can select exactly the candidates added since this one. */
+  /** The only bridge from the local scratchpad to shared state. Queue ids are
+   *  persisted before the optimistic write; the reconciliation effect above is
+   *  solely responsible for advancing them to `synced`. */
   const pushSticky = useCallback(
     (questionId: string) => {
       const pending = sticky.pending(questionId);
       if (!pending.length) return;
       const occupied = rows.filter((row) => row.questionId === questionId).length;
       if (occupied + pending.length > MAX_ROWS_PER_QUESTION) return;
-      shared.transaction(`push ${pending.length} sticky candidate`, () => {
+      const queued = sticky.queue(
+        questionId,
+        pending.map((candidate) => ({ candidateId: candidate.id, submissionRowId: newRowId() })),
+      );
+      if (!queued.length) return;
+      shared.transaction(`push ${queued.length} sticky candidate`, () => {
         shared.addRows(
-          pending.map((candidate) => {
-            const { id: _noteId, pushedAt: _pushedAt, ...row } = candidate;
+          queued.map((candidate) => {
+            const {
+              id: _noteId,
+              pushState: _pushState,
+              submissionRowId,
+              ...row
+            } = candidate;
             return {
               ...row,
-              id: newRowId(),
+              id: submissionRowId as string,
               questionId,
               source: "submit" as const,
             };
           }),
         );
       });
-      sticky.markPushed(questionId, pending.map((candidate) => candidate.id));
     },
     [rows, shared, sticky],
   );
@@ -608,7 +654,7 @@ export default function Workspace(props: Props) {
                 onAddStickyRow={addStickyRow}
                 onToggleSticky={sticky.toggle}
                 stickyOpen={sticky.window.open}
-                stickyCount={sticky.candidatesFor(question?.id ?? null).filter((candidate) => !candidate.pushedAt).length}
+                stickyCount={sticky.candidatesFor(question?.id ?? null).filter((candidate) => candidate.pushState === "draft").length}
                 autoRunToken={tab.autoRunToken}
                 onBusyChange={(busy) => busyRef.current(tab.id, busy)}
                 onAutoRunDone={() => autoRunDoneRef.current(tab.id)}
