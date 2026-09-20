@@ -23,18 +23,18 @@ export function scopeButtonLabel(
 ): string {
   const total = catalogue?.categories.length ?? 0;
   if (mode === "manual") {
-    if (!selected.length || selected.length === total) return `Tất cả${total ? ` (${total})` : ""}`;
+    if (!selected.length || selected.length === total) return `All${total ? ` (${total})` : ""}`;
     if (selected.length <= 3) return selected.join(", ");
-    return `${selected.length} thư mục`;
+    return `${selected.length} folders`;
   }
-  if (mode === "all") return `Tất cả${total ? ` (${total})` : ""}`;
+  if (mode === "all") return `All${total ? ` (${total})` : ""}`;
   // Auto: the button reports what the LAST search actually ran on, because
   // that is the only scope the operator can act on; before then it is a promise.
   if (applied?.active) {
-    const topics = applied.matched_topics.map((topic) => topic.label_vi).join(", ");
-    return `Tự động · ${topics || `${applied.categories.length} thư mục`}`;
+    const topics = applied.matched_topics.map((topic) => topic.label_en ?? topic.topic_id.replaceAll("_", " ")).join(", ");
+    return `Auto · ${topics || `${applied.categories.length} folders`}`;
   }
-  return "Tự động";
+  return "Auto";
 }
 
 /** Folders a group's "select all" checkbox covers, within this profile. */

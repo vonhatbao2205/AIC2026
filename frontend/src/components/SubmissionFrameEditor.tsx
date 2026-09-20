@@ -90,7 +90,7 @@ export function SubmissionFrameEditor(props: Props) {
       .catch((error) => {
         if (cancelled) return;
         setLoadError(
-          error instanceof ApiError ? `Không tải được video (${error.status})` : "Không tải được video",
+          error instanceof ApiError ? `Could not load video (${error.status})` : "Could not load video",
         );
       });
     return () => {
@@ -140,8 +140,8 @@ export function SubmissionFrameEditor(props: Props) {
       <div className="modal wide" onClick={(event) => event.stopPropagation()}>
         <div className="modal-head">
           <h2>
-            Sửa frame · {videoId}
-            {props.slotCount > 1 ? ` · sự kiện ${props.slot + 1}/${props.slotCount}` : ""}
+            Edit frame · {videoId}
+            {props.slotCount > 1 ? ` · event ${props.slot + 1}/${props.slotCount}` : ""}
           </h2>
           <button className="btn sm ghost" onClick={props.onCancel}>esc</button>
         </div>
@@ -155,41 +155,41 @@ export function SubmissionFrameEditor(props: Props) {
               onPaused={onPaused}
             />
           ) : (
-            !loadError && <div className="empty">Đang mở video…</div>
+            !loadError && <div className="empty">Opening video…</div>
           )}
 
           <div className="frame-edit-grid">
             <div>
-              <div className="k">Đang lưu</div>
+              <div className="k">Saved frame</div>
               <div className="v mono" data-testid="editor-original">
                 frame {frameIdx} · {formatTime(originalTime)}
               </div>
             </div>
             <div>
-              <div className="k">Frame đang dừng</div>
+              <div className="k">Paused frame</div>
               <div className="v mono" data-testid="editor-candidate">
                 {candidate
                   ? `frame ${candidate.frameIdx} · ${formatTime(candidate.ptsTime ?? 0)}`
-                  : "— tạm dừng video để chọn —"}
+                  : "— pause the video to select —"}
               </div>
             </div>
           </div>
           <div className="hint-text">
-            Tua bằng <b>←</b>/<b>→</b> (±5s) hoặc <b>a</b>/<b>d</b> (±1s). Tạm dừng video đúng
-            khoảnh khắc cần nộp, rồi chọn ghi đè dòng hiện tại hay thêm một
-            dòng mới cho cùng câu hỏi. Frame lấy ở đây là frame thật của video nên có thể không
-            phải keyframe đã trích — khi đó preview sẽ báo raw frame thay vì hiện ảnh tĩnh.
+            Seek with <b>←</b>/<b>→</b> (±5s) or <b>a</b>/<b>d</b> (±1s). Pause at the
+            moment to submit, then replace the current row or add a
+            new row for the same question. This selects an actual video frame, which may not
+            be an extracted keyframe. In that case, the preview indicates a raw frame instead of showing a still image.
           </div>
         </div>
         <div className="modal-foot">
-          <button className="btn ghost" onClick={props.onCancel}>Huỷ</button>
+          <button className="btn ghost" onClick={props.onCancel}>Cancel</button>
           <button
             className="btn ghost"
             disabled={!candidate}
             data-testid="editor-commit-new"
             onClick={() => candidate && props.onCommit(candidate, "new")}
           >
-            + Thêm dòng mới
+            + Add new row
           </button>
           <button
             className="btn primary"
@@ -197,7 +197,7 @@ export function SubmissionFrameEditor(props: Props) {
             data-testid="editor-commit"
             onClick={() => candidate && props.onCommit(candidate, "replace")}
           >
-            Sửa dòng này
+            Update this row
           </button>
         </div>
       </div>

@@ -59,7 +59,7 @@ export function SearchThinking() {
   const subline = sublineAt(elapsedSeconds);
 
   return (
-    <div className="search-thinking" role="status" aria-label="Đang tìm kiếm">
+    <div className="search-thinking" role="status" aria-label="Searching">
       <div className="search-thinking-main" aria-hidden="true">
         <span className="search-thinking-logo" data-testid="search-thinking-logo">
           <img src={chatGptLogo} alt="" draggable={false} />

@@ -47,20 +47,20 @@ export function HistorySidebar({ history, taskScope, taskLabel, onDelete }: Prop
 
       {selected.size > 0 && (
         <div className="row hist-selection" data-testid="history-selection">
-          <span>{selected.size} mục đã chọn</span>
+          <span>{selected.size} items selected</span>
           <div className="spacer" />
           <button className="btn sm" onClick={deleteSelected} data-testid="history-delete-selected">
-            Xoá đã chọn
+            Delete selected
           </button>
-          <button className="btn sm ghost" onClick={() => setSelected(new Set())}>bỏ chọn</button>
+          <button className="btn sm ghost" onClick={() => setSelected(new Set())}>deselect</button>
         </div>
       )}
 
       {confirming && (
         <div className="dup-warn" data-testid="history-clear-confirm">
           {/* The log is what the dedup guard remembers, so say what is lost. */}
-          ⚠ Xoá log local (đã nộp lên DRES vẫn còn) — sau khi xoá, những đáp án này sẽ
-          KHÔNG còn bị cảnh báo nộp trùng. Bản sao lưu được ghi cạnh file history.
+          ⚠ Delete local history (DRES submissions remain). Deleted entries will
+          no longer trigger duplicate warnings. A backup is saved next to the history file.
           <div className="row" style={{ gap: 8, marginTop: 8 }}>
             <button
               className="btn sm"
@@ -68,16 +68,16 @@ export function HistorySidebar({ history, taskScope, taskLabel, onDelete }: Prop
               onClick={() => { onDelete({ taskId: taskScope }); setConfirming(false); }}
               data-testid="history-clear-task"
             >
-              task {taskLabel ?? "này"} ({inTask})
+              task {taskLabel ?? "current"} ({inTask})
             </button>
             <button
               className="btn sm"
               onClick={() => { onDelete({}); setSelected(new Set()); setConfirming(false); }}
               data-testid="history-clear-all"
             >
-              tất cả ({history.length})
+              all ({history.length})
             </button>
-            <button className="btn sm ghost" onClick={() => setConfirming(false)}>huỷ</button>
+            <button className="btn sm ghost" onClick={() => setConfirming(false)}>cancel</button>
           </div>
         </div>
       )}
@@ -99,7 +99,7 @@ export function HistorySidebar({ history, taskScope, taskLabel, onDelete }: Prop
                   className="hist-pick"
                   checked={selected.has(h.id)}
                   onChange={() => toggle(h.id)}
-                  aria-label={`Chọn bài nộp ${h.task_name ?? h.task_id}`}
+                  aria-label={`Select submission ${h.task_name ?? h.task_id}`}
                   data-testid={`history-pick-${h.id}`}
                 />
                 <span className="badge image_pe">{h.query_type}</span>
@@ -114,8 +114,8 @@ export function HistorySidebar({ history, taskScope, taskLabel, onDelete }: Prop
                 <div className="spacer" />
                 <button
                   className="icon-btn sm hist-del"
-                  title="Xoá mục này khỏi log"
-                  aria-label="Xoá mục này"
+                  title="Delete this history entry"
+                  aria-label="Delete this entry"
                   onClick={() => onDelete({ ids: [h.id] })}
                   data-testid={`history-delete-${h.id}`}
                 >

@@ -38,7 +38,7 @@ export function DresBar(props: Props) {
 
       {!status?.configured ? (
         <span className="dres-warn" data-testid="dres-offline">
-          chưa cấu hình — đặt DRES_USERNAME / DRES_PASSWORD trong backend/.env
+          not configured — set DRES_USERNAME / DRES_PASSWORD in backend/.env
         </span>
       ) : (
         <>
@@ -51,7 +51,7 @@ export function DresBar(props: Props) {
             data-testid="dres-evaluation"
             value={pinned ? evaluationId ?? "" : ""}
             onChange={(e) => props.onSelect(e.target.value || null)}
-            title="Evaluation run — trống = tự chọn theo loại truy vấn"
+            title="Evaluation run — leave empty to select by query type"
           >
             <option value="">auto{active ? ` · ${active.name}` : ""}</option>
             {evaluations.map((e) => (
@@ -80,7 +80,7 @@ export function DresBar(props: Props) {
             </>
           ) : (
             <span className="dres-warn" data-testid="dres-no-task">
-              {error ?? "chưa có task nào được mở"}
+              {error ?? "no task is currently open"}
             </span>
           )}
           {task && error && <span className="dres-warn">{error}</span>}

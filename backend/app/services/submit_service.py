@@ -105,7 +105,7 @@ def _ms_from(
         center_ms = (float(frame_idx) / float(fps)) * 1000.0
     if center_ms is None:
         raise SubmitFormatError(
-            "Thiếu thời điểm để nộp: cần timestamp (pts_time) hoặc frame_idx + fps."
+            "Missing submission time: provide a timestamp (pts_time) or frame_idx + fps."
         )
     start = int(round(center_ms)) - int(pad_ms)
     end = int(round(center_ms)) + int(pad_ms)
@@ -130,13 +130,13 @@ def build_answers(
 
     text = (payload.get("answer") or "").strip()
     if mode in {"text", "temporal_text"} and not text:
-        raise SubmitFormatError("Task QA cần `text` (đáp án) — ô answer đang trống.")
+        raise SubmitFormatError("QA tasks require `text` (answer); the answer field is empty.")
     if mode == "text":
         return [{"text": text}]
 
     media_item = _clean_media_item_name(payload.get("video_id"))
     if not media_item:
-        raise SubmitFormatError("Thiếu `mediaItemName` (video_id) cho task KIS/QA/TRAKE.")
+        raise SubmitFormatError("Missing `mediaItemName` (video_id) for KIS/QA/TRAKE tasks.")
 
     if mode == "item":
         return [{"mediaItemName": media_item}]
@@ -155,7 +155,7 @@ def build_answers(
         return [{"mediaItemName": media_item, "start": start, "end": end, "text": text}]
 
     if mode != "temporal":
-        raise SubmitFormatError(f"answer_mode không hợp lệ: {mode!r}")
+        raise SubmitFormatError(f"Invalid answer_mode: {mode!r}")
 
     events = payload.get("events") or []
     if events:
@@ -226,13 +226,13 @@ def answer_shape_mismatch(task_type: str | None, mode: str) -> str | None:
         return None
     if is_qa_task_type(task_type) and mode not in {"text", "temporal_text"}:
         return (
-            f"Task DRES là “{task_type}” (cần `text`) nhưng payload đang gửi "
-            f"“{mode}” — đáp án bạn gõ SẼ BỊ BỎ. Đổi 'answer as' về auto."
+            f"DRES task “{task_type}” requires `text`, but the payload uses "
+            f"“{mode}”; your answer WILL BE OMITTED. Set 'answer as' to auto."
         )
     if not is_qa_task_type(task_type) and mode in {"text", "temporal_text"}:
         return (
-            f"Task DRES là “{task_type}” (cần `mediaItemName` + start/end) nhưng "
-            f"payload đang kèm `text` — DRES có thể chấm sai. Đổi 'answer as' về auto."
+            f"DRES task “{task_type}” requires `mediaItemName` + start/end, but "
+            f"the payload includes `text`; DRES may evaluate it incorrectly. Set 'answer as' to auto."
         )
     return None
 
@@ -411,10 +411,10 @@ class SubmitService:
             if len(pool) == 1:
                 return str(pool[0]["id"])
         if not active:
-            raise SubmitFormatError("DRES không có evaluation nào cho tài khoản này.")
+            raise SubmitFormatError("No DRES evaluations are available for this account.")
         names = ", ".join(str(e.get("name")) for e in active)
         raise SubmitFormatError(
-            f"Không tự chọn được evaluation cho {query_type} — hãy chọn thủ công (có: {names})."
+            f"Could not select an evaluation for {query_type}; select one manually (available: {names})."
         )
 
     async def task_hint(
@@ -441,10 +441,10 @@ class SubmitService:
             "warnings": [],
         }
         if not template_id:
-            base["warnings"].append("Chưa có task nào được mở.")
+            base["warnings"].append("No task is currently open.")
             return base
         if state.get("taskStatus") != "RUNNING":
-            base["warnings"].append("Task chưa chạy; nhập thủ công hint đã được công bố nếu cần.")
+            base["warnings"].append("Task has not started; manually enter released hints if needed.")
             return base
 
         key = (resolved, template_id)
@@ -452,7 +452,7 @@ class SubmitService:
         if raw is None:
             raw = await self.dres.task_hint(resolved, template_id)
         if raw is None:
-            base["warnings"].append("DRES chưa cho xem đề bài của task này.")
+            base["warnings"].append("DRES has not released this task description.")
             return base
         self._hint_cache[key] = raw
 
@@ -461,7 +461,7 @@ class SubmitService:
         warnings: list[str] = []
         elapsed = state.get("timeElapsed")
         if not isinstance(elapsed, (int, float)) or isinstance(elapsed, bool) or not math.isfinite(elapsed) or elapsed < 0:
-            base["warnings"].append("Không xác minh được thời gian reveal; nhập thủ công hint đã công bố.")
+            base["warnings"].append("Could not verify hint release time; manually enter released hints.")
             return base
         visible = []
         for element in raw.get("sequence") or []:
@@ -477,7 +477,7 @@ class SubmitService:
                 texts.append(content)
             elif len(content) > _MAX_HINT_CONTENT:
                 # A base64 video hint can be tens of MB; keep the console usable.
-                warnings.append(f"Hint {content_type.lower()} quá lớn ({len(content) // 1_000_000} MB) — xem trên DRES viewer.")
+                warnings.append(f"The {content_type.lower()} hint is too large ({len(content) // 1_000_000} MB); open it in the DRES viewer.")
                 continue
             elements.append(
                 {"content_type": content_type, "content": content, "offset": element.get("offset") or 0}
@@ -496,7 +496,7 @@ class SubmitService:
         task = await self.dres.current_task(evaluation_id)
         if not task or not task.get("name"):
             raise SubmitFormatError(
-                "Evaluation này chưa mở task nào (currentTask trống) — không thể nộp."
+                "No task is open in this evaluation (currentTask is empty); submission is unavailable."
             )
         return str(task["name"])
 
@@ -531,12 +531,12 @@ class SubmitService:
                 resolved_task = task_name or open_task.get("name")
                 if not resolved_task:
                     raise SubmitFormatError(
-                        "Evaluation này chưa mở task nào (currentTask trống) — không thể nộp."
+                        "No task is open in this evaluation (currentTask is empty); submission is unavailable."
                     )
             except (DresError, DresNotConfigured) as exc:
                 warnings.append(f"DRES: {exc}")
         else:
-            warnings.append("DRES chưa cấu hình — submit chỉ lưu local history.")
+            warnings.append("DRES is not configured; submissions are saved to local history only.")
 
         mode = resolve_answer_mode(query_type, answer_mode)
         # The DRES task type is the authority on the answer shape, not the tab the

@@ -39,7 +39,7 @@ function SlotThumb({ slot }: { slot: TrakeSlot }) {
       <div className="trake-slot-thumb">
         <img src={slot.thumbnail} alt={`frame ${slot.frame_idx}`} />
         {slot.thumbnail_kind === "exact-raw" && (
-          <span title="Ảnh được trích lại từ video tại đúng thời điểm raw frame">
+          <span title="Image extracted from the video at the exact raw-frame timestamp">
             raw exact
           </span>
         )}
@@ -118,7 +118,7 @@ export function TrakePanel(props: Props) {
               </>
             ) : (
               <div style={{ fontSize: 10, color: "var(--fg-faint)", textAlign: "center", padding: "16px 0" }}>
-                empty — kéo frame từ kết quả, hoặc pause video & Enter
+                empty — drag a result frame here, or pause the video and press Enter
               </div>
             )}
           </div>

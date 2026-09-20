@@ -31,7 +31,7 @@ export function QaAssistPanel(props: Props) {
 
       {props.available === false && (
         <div className="qa-service-warn">
-          Worker chưa online. Chạy Colab NVILA và cấu hình <span className="mono">NVILA_BASE_URL</span>.
+          Worker offline. Start the NVILA Colab worker and configure <span className="mono">NVILA_BASE_URL</span>.
         </div>
       )}
 
@@ -87,7 +87,7 @@ export function QaAssistPanel(props: Props) {
           </div>
 
           {!props.analysis.answerable && (
-            <div className="qa-service-warn">NVILA chưa thấy bằng chứng đủ chắc — hãy mở rộng query/candidates.</div>
+            <div className="qa-service-warn">NVILA found insufficient evidence; broaden the query or candidate set.</div>
           )}
 
           <div className="qa-answer-list">
@@ -104,7 +104,7 @@ export function QaAssistPanel(props: Props) {
                   <span className="qa-answer-rank">A{index + 1}</span>
                   <span className="qa-answer-copy">
                     <b>{candidate.answer}</b>
-                    <span>{candidate.reason || "Model không cung cấp lý do xác minh."}</span>
+                    <span>{candidate.reason || "The model did not provide a verification reason."}</span>
                     <span className={`qa-answer-source ${candidate.source}`}>
                       {candidate.source === "web" ? "Web grounded" : candidate.source === "hybrid" ? "NVILA + web" : "NVILA visual"}
                     </span>
@@ -130,7 +130,7 @@ export function QaAssistPanel(props: Props) {
           </div>
 
           {props.analysis.candidate_answers.length === 0 && (
-            <div className="qa-service-warn">Không có answer candidate hợp lệ; output 0%/placeholder đã bị loại.</div>
+            <div className="qa-service-warn">No valid answer candidates; zero-confidence and placeholder outputs were removed.</div>
           )}
 
           {props.analysis.hotspots.length > 0 && (

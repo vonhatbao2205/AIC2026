@@ -277,14 +277,14 @@ export default function Workspace(props: Props) {
       const parsed = parseQuestionPack(entries);
       if (!parsed.length) {
         throw new ZipError(
-          "Không tìm thấy file câu hỏi nào. Tên file phải dạng <tên>-<số>-<kis|qa|trake>.txt",
+          "No question files found. Filenames must follow <name>-<number>-<kis|qa|trake>.txt",
         );
       }
       setPendingPack(parsed);
       // The publish decision lives in the Submission view; go where it is shown.
       setActive(SUBMISSION_VIEW);
     } catch (error) {
-      setImportError(error instanceof Error ? error.message : "Import thất bại");
+      setImportError(error instanceof Error ? error.message : "Import failed");
     } finally {
       setImporting(false);
     }
@@ -308,7 +308,7 @@ export default function Workspace(props: Props) {
       openTabsFor(pendingPack);
       setPendingPack(null);
     } catch (error) {
-      setImportError(error instanceof Error ? error.message : "Không publish được gói câu hỏi");
+      setImportError(error instanceof Error ? error.message : "Could not publish the question pack");
     }
   }, [pendingPack, pack, openTabsFor]);
 
@@ -502,7 +502,7 @@ export default function Workspace(props: Props) {
         // without also removing the ones it wrote would leave the question with
         // both sets.
         shared.transaction(
-          fresh.length === 1 ? `sinh lại ${fresh[0].questionId}` : `sinh lại ${fresh.length} câu`,
+          fresh.length === 1 ? `regenerate ${fresh[0].questionId}` : `regenerate ${fresh.length} questions`,
           () => {
             shared.deleteRows(
               fresh.flatMap((outcome) =>
@@ -521,7 +521,7 @@ export default function Workspace(props: Props) {
         const failures = outcomes.filter((outcome) => outcome.error);
         if (failures.length) {
           setGenError(
-            `${failures.length}/${targets.length} câu không sinh được đáp án: ` +
+            `${failures.length}/${targets.length} questions failed to generate answers: ` +
               failures.map((failure) => `${failure.questionId} (${failure.error})`).join("; "),
           );
         } else if (!fresh.length) {
@@ -531,13 +531,13 @@ export default function Workspace(props: Props) {
           const skipped = outcomes.filter((outcome) => outcome.skipped).length;
           setGenError(
             skipped === outcomes.length
-              ? `Không sinh thêm dòng nào: ${skipped} câu đã đủ ${options.limit} dòng. ` +
-                "Tăng giới hạn hoặc xoá bớt dòng rồi thử lại."
-              : "Không sinh thêm dòng nào — hệ thống không trả về đáp án nào mới.",
+              ? `No rows added: ${skipped} questions already have ${options.limit} rows. ` +
+                "Increase the limit or remove some rows and try again."
+              : "No rows added; the system returned no new answers.",
           );
         }
       } catch (error) {
-        setGenError(error instanceof Error ? error.message : "Sinh đáp án thất bại");
+        setGenError(error instanceof Error ? error.message : "Answer generation failed");
       } finally {
         genAbort.current = null;
         setGenRunning(false);
@@ -563,7 +563,7 @@ export default function Workspace(props: Props) {
       try {
         setPendingAnswers(parseSubmissionPack(await readZipTextFiles(file), questions));
       } catch (error) {
-        setAnswerImportError(error instanceof Error ? error.message : "Đọc file thất bại");
+        setAnswerImportError(error instanceof Error ? error.message : "Could not read file");
       } finally {
         setAnswerImporting(false);
       }
@@ -580,7 +580,7 @@ export default function Workspace(props: Props) {
       const targets = new Set(plan.write.map((file) => file.questionId));
       // Same shape as regeneration, and the same reason to be one step: undoing
       // only the delete would leave both the old and the imported rows.
-      shared.transaction(`import đáp án ${targets.size} câu`, () => {
+      shared.transaction(`import answers for ${targets.size} questions`, () => {
         shared.deleteRows(rows.filter((row) => targets.has(row.questionId)).map((row) => row.id));
         shared.addRows(
           plan.write.flatMap((file) =>
@@ -617,7 +617,7 @@ export default function Workspace(props: Props) {
         setExportError(error.message);
         return;
       }
-      setExportError(error instanceof Error ? error.message : "Export thất bại");
+      setExportError(error instanceof Error ? error.message : "Export failed");
     }
   }, [questions, rows]);
 
@@ -716,7 +716,7 @@ export default function Workspace(props: Props) {
               backLabel={(() => {
                 const target = tabs.find((tab) => tab.id === lastConsoleTab.current) ?? tabs[0];
                 const question = target?.questionId ? questionById.get(target.questionId) : null;
-                return question ? `${target.queryType} · #${question.order}` : target?.queryType ?? "Tìm kiếm";
+                return question ? `${target.queryType} · #${question.order}` : target?.queryType ?? "Search";
               })()}
               onImport={importPack}
               importing={importing}

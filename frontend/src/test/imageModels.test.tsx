@@ -337,7 +337,7 @@ describe("Simple Search reports which index answered", () => {
     const user = userEvent.setup();
     simpleSearchExtras = {
       image_models: ["pe"],
-      warnings: ["qwen3_vl image search unavailable: Qwen3-VL encoder không phản hồi sau 120s"],
+      warnings: ["qwen3_vl image search unavailable: Qwen3-VL encoder did not respond after 120s"],
     };
     await openSimpleSearchOnInfoshotpp(user);
     await user.click(screen.getByTestId("image-model-qwen3_vl"));

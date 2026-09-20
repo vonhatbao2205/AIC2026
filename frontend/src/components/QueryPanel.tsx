@@ -106,7 +106,7 @@ export function QueryPanel(props: Props) {
       setVoiceMsg(null);
       return;
     }
-    setVoiceMsg("Đang dịch VI→EN…");
+    setVoiceMsg("Translating VI→EN…");
     try {
       const { text_en } = await api.translate(vi);
       setQuery((base ? base + " " : "") + (text_en || vi));
@@ -140,7 +140,7 @@ export function QueryPanel(props: Props) {
     rec.onerror = (e: any) => {
       const err = e?.error;
       if (err === "not-allowed" || err === "service-not-allowed") {
-        setVoiceMsg("Cần cấp quyền micro cho trang này.");
+        setVoiceMsg("Allow microphone access for this page.");
       } else if (err === "network") {
         // Web Speech backend unreachable → fall back to server Whisper.
         try { rec.stop(); } catch { /* ignore */ }
@@ -154,7 +154,7 @@ export function QueryPanel(props: Props) {
       if (vi) void finishViToEn(vi);
     };
     recRef.current = rec;
-    try { rec.start(); setListening(true); } catch { setVoiceMsg("Không khởi động được micro."); }
+    try { rec.start(); setListening(true); } catch { setVoiceMsg("Could not start the microphone."); }
   }
 
   async function startWhisper() {
@@ -164,7 +164,7 @@ export function QueryPanel(props: Props) {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
-      setVoiceMsg("Cần cấp quyền micro cho trang này.");
+      setVoiceMsg("Allow microphone access for this page.");
       setListening(false);
       return;
     }
@@ -178,22 +178,22 @@ export function QueryPanel(props: Props) {
       setListening(false);
       const blob = new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" });
       if (!blob.size) { setVoiceMsg(null); return; }
-      setVoiceMsg("Đang nhận dạng (Whisper)…");
+      setVoiceMsg("Transcribing (Whisper)…");
       try {
         // The backend only translates when asked; `text` is always what was said.
         const wantsEnglish = translateRef.current;
         const { text, text_en } = await api.transcribe(blob, wantsEnglish);
         const out = ((wantsEnglish ? text_en || text : text) || "").trim();
         if (out) setQuery((baseRef.current ? baseRef.current + " " : "") + out);
-        setVoiceMsg(out ? null : "Không nhận được giọng nói.");
+        setVoiceMsg(out ? null : "No speech detected.");
       } catch (e) {
-        setVoiceMsg(e instanceof ApiError && typeof e.detail === "string" ? e.detail : "Whisper không khả dụng (backend chưa bật?).");
+        setVoiceMsg(e instanceof ApiError && typeof e.detail === "string" ? e.detail : "Whisper unavailable (is the backend running?).");
       }
     };
     mr.start();
     mediaRef.current = mr;
     setListening(true);
-    setVoiceMsg("● Đang ghi… bấm lại để dừng");
+    setVoiceMsg("● Recording… click again to stop");
   }
 
   function toggleVoice() {
@@ -216,7 +216,7 @@ export function QueryPanel(props: Props) {
         ref={inputRef}
         className="query-input"
         data-testid="query-input"
-        placeholder="Mô tả cảnh / nội dung cần tìm…  (Enter to search, Shift+Enter newline)"
+        placeholder="Describe the scene or content to find…  (Enter to search, Shift+Enter newline)"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => {
@@ -228,7 +228,7 @@ export function QueryPanel(props: Props) {
       />
       <div className="row mt">
         <button className="btn primary" data-testid="search-btn" onClick={onSearch} disabled={loading}>
-          {loading ? "Đang xử lý…" : "Search"} <span className="kbd">↵</span>
+          {loading ? "Processing…" : "Search"} <span className="kbd">↵</span>
         </button>
         {queryType === "T-KIS" && (
           <button className="btn sm" onClick={onAppendHint} title="Combine this as an additional hint">
@@ -239,7 +239,7 @@ export function QueryPanel(props: Props) {
           className={`btn sm ${listening ? "danger" : ""}`}
           data-testid="voice-btn"
           onClick={toggleVoice}
-          title={`Voice input (Ctrl+M) — ${useSpeech ? "browser speech, live" : "Whisper (server)"}${translate ? ", dịch sang tiếng Anh" : ", giữ nguyên lời nói"}`}
+          title={`Voice input (Ctrl+M) — ${useSpeech ? "browser speech, live" : "Whisper (server)"}${translate ? ", translate to English" : ", keep the original speech"}`}
         >
           {listening ? "● rec" : "🎙 voice"}
         </button>
@@ -262,7 +262,7 @@ export function QueryPanel(props: Props) {
         <label
           className="check-toggle"
           data-testid="translate-toggle"
-          title="Dịch query sang tiếng Anh trước khi tìm (PE-Core là encoder tiếng Anh, nên query tiếng Việt chưa dịch sẽ trả về keyframe trông hợp lý nhưng sai). Tắt khi query đã là tiếng Anh, chứa tên riêng, hoặc bị dịch sai — lúc đó hệ thống tìm đúng chữ bạn gõ. Cũng áp dụng cho voice input."
+          title="Translate the query to English for PE-Core. Disable for English queries, proper names or incorrect translations to search the original text. Also applies to voice input."
         >
           <input
             type="checkbox"
@@ -270,13 +270,13 @@ export function QueryPanel(props: Props) {
             data-testid="translate-checkbox"
             onChange={(event) => onToggleTranslate(event.target.checked)}
           />
-          <span>Dịch VI→EN</span>
+          <span>Translate VI→EN</span>
         </label>
         {rerankAvailable && (
           <label
             className="check-toggle"
             data-testid="rerank-toggle"
-            title="Gộp ứng viên của MỌI index ảnh đang bật (PE + Qwen3-VL) thành một pool, rồi Qwen3-VL chấm lại từng cặp (query, keyframe) trước khi fuse với OCR/speech/audio. Chính xác hơn nhưng chậm hơn vài giây; nếu worker lỗi thì giữ nguyên thứ tự truy hồi."
+            title="Pool candidates from all enabled image indices (PE + Qwen3-VL), then rerank query–keyframe pairs with Qwen3-VL before fusion with OCR/speech/audio. Adds latency; worker failures preserve retrieval order."
           >
             <input
               type="checkbox"
@@ -300,7 +300,7 @@ export function QueryPanel(props: Props) {
         >
           {rerankReport.ok
             ? `↕ Rerank: ${rerankReport.reranked}/${rerankReport.candidates} keyframe · ${Math.round(rerankReport.ms)} ms`
-            : `⚠ Rerank lỗi sau ${Math.round(rerankReport.ms)} ms — giữ nguyên thứ tự truy hồi: ${rerankReport.error ?? "không rõ"}`}
+            : `⚠ Reranking failed after ${Math.round(rerankReport.ms)} ms — preserve retrieval order: ${rerankReport.error ?? "unknown"}`}
         </div>
       )}
 
@@ -316,14 +316,14 @@ export function QueryPanel(props: Props) {
           step={20}
           value={topK}
           data-testid="topk-slider"
-          aria-label="Số keyframe truy hồi"
+          aria-label="Number of keyframes to retrieve"
           onChange={(event) => onTopK(Number(event.target.value))}
         />
         <span className="mono topk-value" data-testid="topk-value">{topK}</span>
       </div>
       {appliedTopK != null && appliedTopK !== topK && (
         <div className="hint-text" data-testid="topk-dirty">
-          Đang hiển thị {appliedTopK} keyframe — bấm <b>Search</b> để tải lại với {topK}.
+          Showing {appliedTopK} keyframes — click <b>Search</b> to reload with {topK}.
         </div>
       )}
       {listening && interim && (
@@ -347,13 +347,13 @@ export function QueryPanel(props: Props) {
       )}
       {showRewrite && (
         <div className="row mt" style={{ fontSize: 11 }}>
-          <span style={{ color: "var(--ch-speech)" }} title="Đã tự động áp dụng cho kênh vector (PE). Không cần bấm gì.">
+          <span style={{ color: "var(--ch-speech)" }} title="Automatically applied to PE vector search. No action needed.">
             EN vector ✓
           </span>
           <span className="mono" style={{ color: "var(--ch-vector)" }}>{rewrite}</span>
           <button
             className="btn sm ghost"
-            title="Chỉ chép bản tiếng Anh vào ô query để bạn chỉnh tay (không bắt buộc)."
+            title="Copy the English translation into the query field for optional editing."
             onClick={() => setQuery(rewrite!)}
           >
             edit

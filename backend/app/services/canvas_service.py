@@ -61,7 +61,7 @@ class CanvasService:
                 "canvas": _canvas_echo(canvas, []),
                 "groups": [],
                 "latency_ms": {"total_ms": 0.0, "channels": {}},
-                "warnings": ["Canvas trống — kéo ít nhất một object vào khung."],
+                "warnings": ["Canvas is empty; drag at least one object into the drawing area."],
                 "mode": "mock" if self.s.mock_mode else "live",
             }
 
@@ -205,7 +205,7 @@ class CanvasService:
                 evidence=Evidence(
                     type="canvas_image",
                     score=float(item["score"]),
-                    text="khớp ảnh vẽ (PE image)",
+                    text="drawing match (PE image)",
                 ),
             )
             for rank, item in enumerate(raw)

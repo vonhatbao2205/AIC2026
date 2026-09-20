@@ -177,14 +177,14 @@ export function Results(props: Props) {
                 <span className="fb video-fb order-fb">
                   <button
                     className={byTime ? "on" : ""}
-                    title="Sắp xếp frame trong video theo thời gian tăng dần (mặc định)"
+                    title="Sort video frames chronologically (default)"
                     aria-pressed={byTime}
                     disabled={byTime}
                     data-testid="sort-frames-time"
                     onClick={(e) => { e.stopPropagation(); props.onSortByTime(g.video_id); }}
                   >⏱</button>
                   <button
-                    title={byTime ? "Xếp lại theo thứ hạng độ liên quan" : "Đang theo thứ tự độ liên quan"}
+                    title={byTime ? "Sort by relevance" : "Currently sorted by relevance"}
                     disabled={!byTime}
                     data-testid="reset-frames-order"
                     onClick={(e) => { e.stopPropagation(); props.onResetOrder(g.video_id); }}
@@ -194,8 +194,8 @@ export function Results(props: Props) {
               {/* Only the exception is announced: chronological is the default,
                   and a tag on every group is noise the operator stops reading. */}
               {!props.trakeEventCount && !g.progressive && !byTime && (
-                <span className="order-tag" data-testid="order-tag" title="Frame đang xếp theo thứ hạng độ liên quan">
-                  theo độ liên quan
+                <span className="order-tag" data-testid="order-tag" title="Frames are sorted by relevance">
+                  by relevance
                 </span>
               )}
               {!props.trakeEventCount && g.ambiguous && <span className="ambiguous-tag" title="Top frames split into distant time clusters">⚠ ambiguous</span>}
@@ -213,14 +213,14 @@ export function Results(props: Props) {
             </div>
             {g.progressive && <div className="phm-evidence">
               <strong>#{gi + 1} · {g.progressive.trajectory.map(r => r ?? "—").join(" → ")}</strong>
-              {g.progressive.dispersed && <span>Bằng chứng nằm ở các đoạn cách xa nhau; kiểm tra đúng moment.</span>}
-              {g.progressive.moment_source === "historical_evidence" && <span>Chưa có moment từ cumulative hiện tại; đang hiển thị bằng chứng cũ.</span>}
+              {g.progressive.dispersed && <span>Evidence spans distant segments; verify the answer moment.</span>}
+              {g.progressive.moment_source === "historical_evidence" && <span>No moment from the current cumulative query; showing historical evidence.</span>}
               {g.progressive.hint_evidence.map((h, hi) => <div key={h.hint_id}>
-                H{hi + 1}: {h.status === "observed" ? "có bằng chứng" : h.status === "localization_only" ? "chỉ hỗ trợ định vị; không cộng điểm xếp hạng" : h.status === "not_used" ? "không dùng trong baseline hiện tại" : h.status === "unobserved" ? "chưa quan sát trong top-K" : "channel không khả dụng"}
-                {h.frames.map(f => <button className="btn sm" key={f.submit_keyframe_id} title={`Mở timeline tại ${f.submit_keyframe_id}`} onClick={() => {
+                H{hi + 1}: {h.status === "observed" ? "evidence found" : h.status === "localization_only" ? "localization only; no ranking contribution" : h.status === "not_used" ? "not used in this baseline" : h.status === "unobserved" ? "not observed in top-K" : "channel unavailable"}
+                {h.frames.map(f => <button className="btn sm" key={f.submit_keyframe_id} title={`Open timeline at ${f.submit_keyframe_id}`} onClick={() => {
                   const fi = g.frames.findIndex(x => x.submit_keyframe_id === f.submit_keyframe_id);
                   if (fi >= 0) (props.onInspectEvidence ?? props.onSelectFrame)(gi, fi);
-                }}>{formatTime(f.pts_time)} · {Array.from(new Set(f.evidence.map(e => String(e.origin ?? "global")))).join("/")}{f.evidence.some(e => e.rank_eligible === false) && " · có evidence không tính điểm"}</button>)}
+                }}>{formatTime(f.pts_time)} · {Array.from(new Set(f.evidence.map(e => String(e.origin ?? "global")))).join("/")}{f.evidence.some(e => e.rank_eligible === false) && " · includes evidence excluded from ranking"}</button>)}
               </div>)}
             </div>}
             {isOpen && (
@@ -239,7 +239,7 @@ export function Results(props: Props) {
                         <span
                           className="kf-top-rank"
                           data-testid="frame-rank"
-                          title={`Hạng ${rank} về độ liên quan trong video này`}
+                          title={`Relevance rank ${rank} within this video`}
                         >#{rank}</span>
                       )}
                       <div className="chips">

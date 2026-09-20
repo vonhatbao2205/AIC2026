@@ -206,25 +206,25 @@ describe("row validation", () => {
 
   it("flags a TRAKE row with the wrong number of events", () => {
     const problems = validateRows([row({ frames: [1, 2, 3] })], trake);
-    expect(problems.some((p) => p.message.includes("cần đúng 4 frame"))).toBe(true);
+    expect(problems.some((p) => p.message.includes("requires exactly 4 frames"))).toBe(true);
   });
 
   it("flags TRAKE frames that do not increase", () => {
     const problems = validateRows([row({ frames: [10, 9, 30, 40] })], trake);
-    expect(problems.some((p) => p.message.includes("tăng dần"))).toBe(true);
+    expect(problems.some((p) => p.message.includes("increasing chronological order"))).toBe(true);
   });
 
   it("flags an over-long or empty QA answer", () => {
-    expect(validateRows([row({ answer: "" })], qa).some((p) => p.message.includes("thiếu answer"))).toBe(true);
+    expect(validateRows([row({ answer: "" })], qa).some((p) => p.message.includes("missing answer"))).toBe(true);
     expect(
-      validateRows([row({ answer: "x".repeat(101) })], qa).some((p) => p.message.includes("> 100")),
+      validateRows([row({ answer: "x".repeat(101) })], qa).some((p) => p.message.includes("exceeds 100")),
     ).toBe(true);
   });
 
   it("says so when the event count could not be read, instead of going quiet", () => {
     const unknown = { ...trake, eventCount: null };
     const problems = validateRows([row({ frames: [1, 2, 3] })], unknown);
-    const notice = problems.find((p) => p.message.includes("không đọc được số sự kiện"));
+    const notice = problems.find((p) => p.message.includes("could not determine the event count"));
     expect(notice?.severity).toBe("warning");
   });
 
@@ -236,7 +236,7 @@ describe("row validation", () => {
       [row({ id: "a", frames: [1, 2, 3] }), row({ id: "b", frames: [4, 5] })],
       unknown,
     );
-    const blocker = problems.find((p) => p.message.includes("không đồng nhất"));
+    const blocker = problems.find((p) => p.message.includes("inconsistent"));
     expect(blocker?.severity).toBe("error");
     expect(blocker?.message).toContain("2 / 3");
     // Rows that agree are left alone — the count is unverifiable, not wrong.
@@ -424,7 +424,7 @@ describe("supabase error reporting", () => {
     expect(describeSupabaseError(new Error("boom"))).toBe("boom");
     expect(describeSupabaseError("plain")).toBe("plain");
     expect(describeSupabaseError({ weird: 1 })).toBe('{"weird":1}');
-    expect(describeSupabaseError(null)).toBe("Lỗi không xác định");
+    expect(describeSupabaseError(null)).toBe("Unknown error");
   });
 
   it("recognises the un-run migration and says what to do about it", () => {
@@ -528,7 +528,7 @@ describe("Q&A answer text", () => {
     const problems = validateRows(rows, question);
     const answerProblems = problems.filter((p) => p.message.includes("answer"));
     expect(answerProblems).toHaveLength(1);
-    expect(answerProblems[0].message).toContain("cả 100 dòng sẽ bị chặn");
+    expect(answerProblems[0].message).toContain("all 100 rows will be blocked");
     // Still blocks the export — the organisers require an answer.
     expect(answerProblems[0].severity).toBe("error");
     expect(auditSubmission([question], rows).errors.length).toBe(1);
@@ -541,7 +541,7 @@ describe("Q&A answer text", () => {
     const messages = validateRows(rows, question)
       .filter((p) => p.message.includes("answer"))
       .map((p) => p.message);
-    expect(messages).toEqual(["dòng 2: thiếu answer", "dòng 3: thiếu answer"]);
+    expect(messages).toEqual(["row 2: missing answer", "row 3: missing answer"]);
   });
 
   it("knows when a question is missing its answer everywhere", () => {
@@ -557,7 +557,7 @@ describe("Q&A answer text", () => {
   it("still rejects an over-long answer per row", () => {
     const rows = [row("a", "x".repeat(MAX_ANSWER_LENGTH + 1))];
     expect(validateRows(rows, question).map((p) => p.message)).toContain(
-      `dòng 1: answer dài ${MAX_ANSWER_LENGTH + 1} > ${MAX_ANSWER_LENGTH} ký tự`,
+      `row 1: answer length ${MAX_ANSWER_LENGTH + 1} exceeds ${MAX_ANSWER_LENGTH} characters`,
     );
   });
 });
@@ -634,9 +634,9 @@ describe("importing an exported submission.zip", () => {
     const file = parsed.files[0];
     expect(file.rows).toHaveLength(1);
     expect(file.problems).toEqual([
-      "query-p1-1-kis dòng 2: thiếu tên video",
-      'query-p1-1-kis dòng 3: "abc" không phải frame hợp lệ',
-      "query-p1-1-kis dòng 4: không có frame nào",
+      "query-p1-1-kis row 2: missing video name",
+      'query-p1-1-kis row 3: "abc" is not a valid frame',
+      "query-p1-1-kis row 4: no frames",
     ]);
   });
 
@@ -656,7 +656,7 @@ describe("importing an exported submission.zip", () => {
     ).toThrow(ZipError);
     expect(() =>
       parseSubmissionPack([{ name: "query-p1-1-kis.txt", text: "x" }], questions),
-    ).toThrow(/gói CÂU HỎI/);
+    ).toThrow(/QUESTION pack/);
   });
 
   it("caps a question at a hundred rows and says it did", () => {
@@ -666,7 +666,7 @@ describe("importing an exported submission.zip", () => {
       questions,
     );
     expect(parsed.files[0].rows).toHaveLength(MAX_ROWS_PER_QUESTION);
-    expect(parsed.files[0].problems[0]).toContain("105 dòng");
+    expect(parsed.files[0].problems[0]).toContain("105 rows");
   });
 
   it("plans the write against what is already on screen", () => {
@@ -756,7 +756,7 @@ describe("export completeness and refusal", () => {
     const rows = [good({ id: "a" }), good({ id: "b" })];
     const audit = auditSubmission(pack, rows);
     expect(audit.errors).toHaveLength(0);
-    expect(audit.warnings.map((w) => w.message).join(" ")).toContain("trùng");
+    expect(audit.warnings.map((w) => w.message).join(" ")).toContain("duplicates");
     expect(() => buildSubmissionZip(pack, rows)).not.toThrow();
   });
 });

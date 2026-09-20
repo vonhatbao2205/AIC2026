@@ -116,7 +116,7 @@ export interface SharedSubmission {
   transaction: (label: string, run: () => void) => void;
   /** Put the last action back. Returns its label, or null when nothing is left.
    *
-   *  NOT available for "xoá hết": that deletes by question on the server on
+   *  NOT available for "clear all": that deletes by question on the server on
    *  purpose, so this client never holds the rows a teammate added seconds ago
    *  and could only restore a subset — silently dropping their work. Clearing a
    *  question therefore discards the undo steps that touch it. */
@@ -137,7 +137,7 @@ type Op =
   | { kind: "delete_many"; ids: string[] }
   // Clearing a question deletes BY QUESTION, not by the ids this client happens
   // to hold: a teammate may have added a row a second ago that this client has
-  // not seen yet, and "xoá hết" means the question, not "the rows I know about".
+  // not seen yet, and "clear all" means the question, not "the rows I know about".
   | { kind: "delete_question"; questionId: string; sessionId: string | null }
   // The edited row travels WITH the op. Reading it back from a ref at flush
   // time raced React: `flush()` runs in the same tick as the optimistic
@@ -560,7 +560,7 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
         createdAt: row.createdAt ?? nextCreatedAt(),
         syncState: shared ? "pending" : "local",
       };
-      record("thêm dòng", { questionIds: [complete.questionId], remove: [complete.id] });
+      record("add row", { questionIds: [complete.questionId], remove: [complete.id] });
       setRows((current) => sortRows([...current, complete]));
       enqueue({ kind: "insert", row: complete });
     },
@@ -580,7 +580,7 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
         createdAt: row.createdAt ?? nextCreatedAt(),
         syncState: (shared ? "pending" : "local") as SubmissionRow["syncState"],
       }));
-      record(`thêm ${complete.length} dòng`, {
+      record(`add ${complete.length} rows`, {
         questionIds: complete.map((row) => row.questionId),
         remove: complete.map((row) => row.id),
       });
@@ -667,7 +667,7 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
         if (ids) ids.push(row.id);
         else groups.set(row.answer, [row.id]);
       }
-      record(`điền answer cho ${questionId}`, {
+      record(`fill answer for ${questionId}`, {
         questionIds: [questionId],
         answers: [...groups].map(([previous, ids]) => ({ answer: previous, ids })),
       });
@@ -687,7 +687,7 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
    *  is editing the frames of a row it moves past.
    */
   const reorderRows = useCallback(
-    (changes: OrderChange[], label = "đổi thứ hạng") => {
+    (changes: OrderChange[], label = "reorder") => {
       if (!changes.length) return;
       const wanted = new Map<string, string>();
       for (const change of changes) {
@@ -748,7 +748,7 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
         ...patch,
         syncState: shared ? "pending" : "local",
       };
-      record("sửa dòng", { restore: [current], coalesceKey: `update:${id}` });
+      record("edit row", { restore: [current], coalesceKey: `update:${id}` });
       rowsRef.current = rowsRef.current.map((row) => (row.id === id ? next : row));
       setRows((rows) => rows.map((row) => (row.id === id ? next : row)));
       if (!shared) return;
@@ -773,7 +773,7 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
   const deleteRow = useCallback(
     (id: string) => {
       const doomed = rowsRef.current.find((row) => row.id === id);
-      if (doomed) record("xoá dòng", { restore: [doomed] });
+      if (doomed) record("delete row", { restore: [doomed] });
       setRows((current) => current.filter((row) => row.id !== id));
       enqueue({ kind: "delete", id });
     },
@@ -785,7 +785,7 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
       if (!ids.length) return;
       const doomed = new Set(ids);
       const before = rowsRef.current.filter((row) => doomed.has(row.id));
-      record(`xoá ${before.length} dòng`, { restore: before });
+      record(`delete ${before.length} rows`, { restore: before });
       rowsRef.current = rowsRef.current.filter((row) => !doomed.has(row.id));
       setRows((current) => current.filter((row) => !doomed.has(row.id)));
       enqueue({ kind: "delete_many", ids: [...doomed] });
@@ -816,7 +816,7 @@ export function useSharedSubmission(sessionId: string | null = null): SharedSubm
     if (!step) return null;
     setUndoStack((current) => current.slice(0, -1));
     if (!step.restore.length && !step.remove.length && !step.answers.length && !step.order.length) {
-      return `${step.label} — thao tác này không đổi gì`;
+      return `${step.label} — this action made no changes`;
     }
     applying.current = true;
     try {

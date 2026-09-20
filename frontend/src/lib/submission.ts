@@ -130,7 +130,7 @@ export class SubmissionFormatError extends Error {
 
   constructor(problems: SubmissionProblem[]) {
     super(
-      `Không export: ${problems.length} lỗi định dạng.\n` +
+      `Cannot export: ${problems.length} formatting errors.\n` +
         problems.map((problem) => `• ${problem.questionId} ${problem.message}`).join("\n"),
     );
     this.name = "SubmissionFormatError";
@@ -165,38 +165,38 @@ export function validateRows(rows: SubmissionRow[], question: ImportedQuestion):
   // Still an error — the organisers require an answer — just stated once.
   const collapsedAnswer = qaAnswerMissingEverywhere(rows, question);
   if (collapsedAnswer) {
-    fail(rows[0].id, `chưa có answer — cả ${rows.length} dòng sẽ bị chặn`);
+    fail(rows[0].id, `missing answer — all ${rows.length} rows will be blocked`);
   }
   rows.forEach((row, index) => {
-    const where = `dòng ${index + 1}`;
+    const where = `row ${index + 1}`;
     if (!row.videoId.trim()) {
-      fail(row.id, `${where}: thiếu tên video`);
+      fail(row.id, `${where}: missing video name`);
     } else if (/\.mp4$/i.test(row.videoId.trim())) {
-      fail(row.id, `${where}: tên video không được có đuôi .mp4`);
+      fail(row.id, `${where}: video name must not include the .mp4 extension`);
     }
     if (!row.frames.length || row.frames.some((frame) => !Number.isInteger(frame) || frame < 0)) {
-      fail(row.id, `${where}: frame phải là số nguyên ≥ 0`);
+      fail(row.id, `${where}: frame must be an integer ≥ 0`);
     }
     if (question.kind === "trake" && question.eventCount && row.frames.length !== question.eventCount) {
-      fail(row.id, `${where}: cần đúng ${question.eventCount} frame (đang có ${row.frames.length})`);
+      fail(row.id, `${where}: requires exactly ${question.eventCount} frames (found ${row.frames.length})`);
     }
     if (question.kind === "trake" && row.frames.some((frame, i) => i > 0 && frame <= row.frames[i - 1])) {
-      fail(row.id, `${where}: frame phải tăng dần theo thời gian`);
+      fail(row.id, `${where}: frames must be in increasing chronological order`);
     }
     if (question.kind === "qa") {
       // Itemised only once SOME rows have an answer: then which ones are blank
       // is real per-row information rather than the same sentence repeated.
       if (!row.answer.trim()) {
-        if (!collapsedAnswer) fail(row.id, `${where}: thiếu answer`);
+        if (!collapsedAnswer) fail(row.id, `${where}: missing answer`);
       } else if (row.answer.length > MAX_ANSWER_LENGTH) {
-        fail(row.id, `${where}: answer dài ${row.answer.length} > ${MAX_ANSWER_LENGTH} ký tự`);
+        fail(row.id, `${where}: answer length ${row.answer.length} exceeds ${MAX_ANSWER_LENGTH} characters`);
       }
     }
     const key = rowKey(row, question.kind);
     const previous = seen.get(key);
     // Predicting the same frame twice wastes a line but is not a format error.
     if (previous) {
-      problems.push({ rowId: row.id, message: `${where}: trùng với dòng ${previous}`, severity: "warning" });
+      problems.push({ rowId: row.id, message: `${where}: duplicates row ${previous}`, severity: "warning" });
     } else {
       seen.set(key, String(index + 1));
     }
@@ -212,18 +212,18 @@ export function validateRows(rows: SubmissionRow[], question: ImportedQuestion):
     const widths = [...new Set(rows.map((row) => row.frames.length))].sort((a, b) => a - b);
     problems.push({
       rowId: rows[0].id,
-      message: "không đọc được số sự kiện từ đề — hãy tự kiểm tra số frame mỗi dòng",
+      message: "could not determine the event count; check the number of frames in each row",
       severity: "warning",
     });
     if (widths.length > 1) {
       fail(
         rows[0].id,
-        `số frame không đồng nhất giữa các dòng (${widths.join(" / ")}) — mỗi dòng TRAKE phải có đúng một frame cho mỗi sự kiện`,
+        `inconsistent frame counts across rows (${widths.join(" / ")}); each TRAKE row must contain exactly one frame per event`,
       );
     }
   }
   if (rows.length > MAX_ROWS_PER_QUESTION) {
-    fail(rows[MAX_ROWS_PER_QUESTION]?.id ?? "", `quá ${MAX_ROWS_PER_QUESTION} dòng (đang có ${rows.length})`);
+    fail(rows[MAX_ROWS_PER_QUESTION]?.id ?? "", `exceeds ${MAX_ROWS_PER_QUESTION} rows (found ${rows.length})`);
   }
   return problems;
 }

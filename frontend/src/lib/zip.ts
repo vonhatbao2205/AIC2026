@@ -29,7 +29,7 @@ function findEocd(view: DataView): number {
   for (let offset = view.byteLength - 22; offset >= start; offset -= 1) {
     if (view.getUint32(offset, true) === EOCD_SIG) return offset;
   }
-  throw new ZipError("Không tìm thấy cấu trúc ZIP (thiếu End of Central Directory).");
+  throw new ZipError("Invalid ZIP structure (missing End of Central Directory).");
 }
 
 async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
@@ -37,8 +37,8 @@ async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
     .DecompressionStream;
   if (!Decompressor) {
     throw new ZipError(
-      "Trình duyệt này không hỗ trợ DecompressionStream — hãy dùng Chrome/Edge 80+, " +
-        "Firefox 113+ hoặc Safari 16.4+ để import file zip nén.",
+      "This browser does not support DecompressionStream. Use Chrome/Edge 80+, " +
+        "Firefox 113+ or Safari 16.4+ to import compressed ZIP files.",
     );
   }
   const stream = new Blob([data as BlobPart]).stream().pipeThrough(new Decompressor("deflate-raw"));
@@ -58,7 +58,7 @@ export async function readZipTextFiles(blob: Blob): Promise<ZipTextEntry[]> {
   const entries: ZipTextEntry[] = [];
   for (let index = 0; index < count; index += 1) {
     if (view.getUint32(pointer, true) !== CENTRAL_HEADER_SIG) {
-      throw new ZipError(`Central directory hỏng ở entry ${index + 1}.`);
+      throw new ZipError(`Invalid central directory at entry ${index + 1}.`);
     }
     const method = view.getUint16(pointer + 10, true);
     const compressedSize = view.getUint32(pointer + 20, true);
@@ -71,7 +71,7 @@ export async function readZipTextFiles(blob: Blob): Promise<ZipTextEntry[]> {
 
     if (name.endsWith("/")) continue; // directory entry
     if (view.getUint32(localOffset, true) !== LOCAL_HEADER_SIG) {
-      throw new ZipError(`Local header hỏng cho ${name}.`);
+      throw new ZipError(`Invalid local header for ${name}.`);
     }
     // The local header repeats the name/extra lengths and they may differ from
     // the central copy, so the data offset must be computed from the local one.
@@ -83,7 +83,7 @@ export async function readZipTextFiles(blob: Blob): Promise<ZipTextEntry[]> {
     let content: Uint8Array;
     if (method === 0) content = raw;
     else if (method === 8) content = await inflateRaw(raw);
-    else throw new ZipError(`${name}: phương thức nén ${method} không được hỗ trợ.`);
+    else throw new ZipError(`${name}: compression method ${method} is not supported.`);
     entries.push({ name, text: decoder.decode(content) });
   }
   return entries;

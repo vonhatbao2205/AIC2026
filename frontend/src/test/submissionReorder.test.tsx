@@ -175,7 +175,7 @@ describe("dragging an answer to a new rank", () => {
       `${QUESTION.id}-row-9`,
       `${QUESTION.id}-row-10`,
     ]);
-    expect(label).toContain("hạng 7 → 1");
+    expect(label).toContain("rank 7 → 1");
   });
 
   it("only rewrites the rows the move passes", () => {

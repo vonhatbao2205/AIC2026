@@ -72,7 +72,7 @@ export function ProgressivePanel({ config, initialText, onSnapshot, onBusy }: Pr
       callbacks.current.onSnapshot(result);
     } catch (cause) {
       if (owner !== generation.current) return;
-      const detail = cause instanceof ApiError && typeof cause.detail === "string" ? cause.detail : "Không nhận được kết quả. Retry dùng lại cùng request ID.";
+      const detail = cause instanceof ApiError && typeof cause.detail === "string" ? cause.detail : "No response received. Retry reuses the same request ID.";
       setError(detail);
       // A definite server failure consumes a revision; resync before allowing a
       // new attempt. An ambiguous network failure must retry the identical body.
@@ -87,7 +87,7 @@ export function ProgressivePanel({ config, initialText, onSnapshot, onBusy }: Pr
           if (syncError instanceof ApiError && syncError.status === 410) {
             session.current = null;
             pending.current = null;
-            setError("Session đã hết hạn. Chạy lại để tạo session và replay các hint hiện hành.");
+            setError("Session expired. Run again to create a session and replay the active hints.");
           }
         }
       }
@@ -103,30 +103,30 @@ export function ProgressivePanel({ config, initialText, onSnapshot, onBusy }: Pr
   const locked = busy || pending.current !== null;
   return <section className="phm-panel" aria-label="Progressive Hint Memory">
     <strong>Progressive Hint Memory</strong>
-    <p>Toàn corpus · {config.image_models.join(" + ")} · 200 hits/model/view · {config.hybrid ? "hybrid" : "visual"}. Parser heuristic; expansion, reranker và TARA tắt.</p>
+    <p>Full corpus · {config.image_models.join(" + ")} · 200 hits/model/view · {config.hybrid ? "hybrid" : "visual"}. Heuristic parser; expansion, reranking and TARA disabled.</p>
     {ledger.map((hint, i) => <div className="phm-hint" key={hint.hint_id}>
       <label><input type="checkbox" checked={hint.enabled} disabled={locked} onChange={e => {
         setLedger(ledger.map(h => h.hint_id === hint.hint_id ? { ...h, enabled: e.target.checked } : h)); setDirty(true);
       }} /> H{i + 1} · {hint.input_mode}</label>
-      <textarea aria-label={`Nội dung hint ${i + 1}`} value={hint.raw_text} disabled={locked} onChange={e => {
+      <textarea aria-label={`Hint text ${i + 1}`} value={hint.raw_text} disabled={locked} onChange={e => {
         setLedger(ledger.map(h => h.hint_id === hint.hint_id ? { ...h, raw_text: e.target.value } : h)); setDirty(true);
       }} />
     </div>)}
-    <label>Hint đã công bố
-      <select aria-label="Kiểu hint" value={mode} disabled={locked} onChange={e => setMode(e.target.value as typeof mode)}>
-        <option value="delta">Phần mô tả mới</option><option value="cumulative">Mô tả tích lũy</option>
+    <label>Released hint
+      <select aria-label="Hint type" value={mode} disabled={locked} onChange={e => setMode(e.target.value as typeof mode)}>
+        <option value="delta">New description</option><option value="cumulative">Cumulative description</option>
       </select>
-      <textarea aria-label="Hint mới" value={draft} disabled={locked} onChange={e => setDraft(e.target.value)} placeholder="Nhập hint đã được tiết lộ…" />
+      <textarea aria-label="New hint" value={draft} disabled={locked} onChange={e => setDraft(e.target.value)} placeholder="Enter a released hint…" />
     </label>
-    <button className="btn primary" disabled={locked || ledger.some(h => !h.raw_text.trim())} onClick={() => void run()}> {busy ? "Đang truy hồi…" : "Áp dụng hint và tìm kiếm"}</button>
+    <button className="btn primary" disabled={locked || ledger.some(h => !h.raw_text.trim())} onClick={() => void run()}> {busy ? "Retrieving…" : "Apply hints and search"}</button>
     {pending.current && !busy && <button className="btn" onClick={() => void run(true)}>Retry request</button>}
-    {dirty && <p role="status">Ledger đã sửa; bấm áp dụng để replay. Kết quả đang xem thuộc revision trước.</p>}
+    {dirty && <p role="status">Hints edited. Apply to replay them. The displayed results belong to the previous revision.</p>}
     {error && <p role="alert">{error}</p>}
     {snapshot && <div aria-live="polite">
-      <p>{snapshot.mode} · lượt {snapshot.turn} · revision {snapshot.committed_revision}{snapshot.degraded ? " · degraded" : ""}</p>
-      <p>{snapshot.hint_ledger?.length ?? 0} hint độc lập có hiệu lực · {snapshot.revision_latency_ms ?? snapshot.latency_ms?.total_ms ?? 0} ms{snapshot.no_op ? " · không có hint mới" : ""}</p>
-      <p>Top-1 streak: {snapshot.stability?.top1_streak ?? 0} · giao top-10: {snapshot.stability?.top10_jaccard?.toFixed(2) ?? "—"}. Ổn định không đồng nghĩa đúng.</p>
-      <p>Revision: {snapshot.revision_budget?.query_vectors ?? 0} query vectors · {snapshot.revision_budget?.index_calls ?? 0} index calls. Lượt cuối: {snapshot.budget?.admitted_pairs ?? 0}/16 cặp rescue/backfill.</p>
+      <p>{snapshot.mode} · turn {snapshot.turn} · revision {snapshot.committed_revision}{snapshot.degraded ? " · degraded" : ""}</p>
+      <p>{snapshot.hint_ledger?.length ?? 0} active independent hints · {snapshot.revision_latency_ms ?? snapshot.latency_ms?.total_ms ?? 0} ms{snapshot.no_op ? " · no new hints" : ""}</p>
+      <p>Top-1 streak: {snapshot.stability?.top1_streak ?? 0} · top-10 overlap: {snapshot.stability?.top10_jaccard?.toFixed(2) ?? "—"}. Stability does not imply correctness.</p>
+      <p>Revision: {snapshot.revision_budget?.query_vectors ?? 0} query vectors · {snapshot.revision_budget?.index_calls ?? 0} index calls. Last turn: {snapshot.budget?.admitted_pairs ?? 0}/16 rescue/backfill pairs.</p>
       {snapshot.warnings?.map(w => <p key={w}>{w}</p>)}
     </div>}
   </section>;

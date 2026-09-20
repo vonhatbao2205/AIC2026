@@ -33,7 +33,7 @@ export function SettingsModal({ open, onClose, onApplied }: Props) {
     try {
       setStatus(await api.config());
     } catch {
-      setError("Không đọc được cấu hình từ backend.");
+      setError("Could not read backend configuration.");
     }
   }, []);
 
@@ -68,7 +68,7 @@ export function SettingsModal({ open, onClose, onApplied }: Props) {
       setError(
         e instanceof ApiError && typeof e.detail === "string"
           ? e.detail
-          : "Import thất bại — kiểm tra lại file .env.",
+          : "Import failed — check the .env file.",
       );
     } finally {
       setBusy(false);
@@ -82,7 +82,7 @@ export function SettingsModal({ open, onClose, onApplied }: Props) {
       setStatus(await api.reloadConfig());
       onApplied?.();
     } catch {
-      setError("Reload thất bại.");
+      setError("Reload failed.");
     } finally {
       setBusy(false);
     }
@@ -103,7 +103,7 @@ export function SettingsModal({ open, onClose, onApplied }: Props) {
     <div className="modal-backdrop" onClick={onClose} data-testid="settings-modal">
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 720 }}>
         <div className="modal-head">
-          <h2>Cấu hình · Configuration</h2>
+          <h2>Configuration</h2>
           <button className="btn sm ghost" onClick={onClose}>
             esc
           </button>
@@ -112,23 +112,23 @@ export function SettingsModal({ open, onClose, onApplied }: Props) {
         <div className="modal-body">
           {needsSetup && (
             <div className="cfg-banner bad" data-testid="settings-needs-setup">
-              <strong>Chưa cấu hình.</strong> Import file <code>.env</code> của nhóm để kết nối
-              Elastic, Milvus, encoder và media. Thiếu:{" "}
+              <strong>Not configured.</strong> Import your team's <code>.env</code> file to connect
+              Elastic, Milvus, encoders and media. Missing:{" "}
               <span className="mono">{missing.join(", ")}</span>
             </div>
           )}
           {status?.mock_mode && (
             <div className="cfg-banner warn">
-              Đang chạy <strong>mock mode</strong> — kết quả là fixture cố định, không phải dữ liệu
-              thật. Đặt <span className="mono">AIC26_MOCK_MODE=false</span> trong .env để dùng thật.
+              Running in <strong>mock mode</strong> — results are fixed fixtures, not live
+              data. Set <span className="mono">AIC26_MOCK_MODE=false</span> in .env to use live services.
             </div>
           )}
 
           <div className="cfg-group" data-testid="settings-identity">
             <div className="cfg-group-head">
-              <span className="cfg-group-name">Tên của bạn</span>
+              <span className="cfg-group-name">Your name</span>
               <span className="cfg-group-sum">
-                Hiện cạnh mỗi dòng bạn nộp trong tab Submission.
+                Shown beside each row you add in the Submission tab.
               </span>
             </div>
             <div className="cfg-name-row">
@@ -136,7 +136,7 @@ export function SettingsModal({ open, onClose, onApplied }: Props) {
                 className="cfg-name-input"
                 type="text"
                 value={name}
-                placeholder="ví dụ: Bao"
+                placeholder="e.g. Bao"
                 maxLength={40}
                 data-testid="settings-name-input"
                 onChange={(e) => {
@@ -152,19 +152,19 @@ export function SettingsModal({ open, onClose, onApplied }: Props) {
                 onClick={saveName}
                 data-testid="settings-name-save"
               >
-                Lưu tên
+                Save name
               </button>
             </div>
             <div className="cfg-name-hint">
               {nameSaved ? (
                 <span className="cfg-name-ok" data-testid="settings-name-saved">
-                  Đã lưu{name.trim() ? "" : " — để trống thì các dòng của bạn hiện là “unknown”"}.
-                  Áp dụng ngay, không cần tải lại trang.
+                  Saved{name.trim() ? "" : " — leave blank to display “unknown” on your rows"}.
+                  Takes effect immediately; no reload required.
                 </span>
               ) : isSupabaseConfigured() ? (
-                "Lưu trên máy này thôi — mỗi máy trong nhóm đặt tên riêng một lần."
+                "Saved on this device only. Set a name once on each team device."
               ) : (
-                "Chưa bật đồng bộ Supabase, nên tên này chỉ dùng cho bảng nộp bài cục bộ."
+                "Supabase sync is disabled; this name is only used for local submissions."
               )}
             </div>
           </div>
@@ -194,31 +194,31 @@ export function SettingsModal({ open, onClose, onApplied }: Props) {
             {file ? (
               <>
                 <div className="cfg-drop-main mono">{file.name}</div>
-                <div className="cfg-drop-sub">{(file.size / 1024).toFixed(1)} KB — sẵn sàng import</div>
+                <div className="cfg-drop-sub">{(file.size / 1024).toFixed(1)} KB — ready to import</div>
               </>
             ) : (
               <>
-                <div className="cfg-drop-main">Kéo thả file .env vào đây</div>
-                <div className="cfg-drop-sub">hoặc bấm để chọn file</div>
+                <div className="cfg-drop-main">Drop a .env file here</div>
+                <div className="cfg-drop-sub">or click to choose a file</div>
               </>
             )}
           </div>
 
           <div className="cfg-actions">
-            <label className="cfg-check" title="Xoá mọi giá trị hiện có, chỉ giữ những gì trong file">
+            <label className="cfg-check" title="Remove existing values and use only those in the file">
               <input
                 type="checkbox"
                 checked={replace}
                 onChange={(e) => setReplace(e.target.checked)}
               />
-              Thay thế toàn bộ cấu hình
+              Replace entire configuration
             </label>
             <div className="spacer" />
             <a className="btn sm ghost" href={api.configTemplateUrl()} download=".env">
-              Tải .env mẫu
+              Download .env template
             </a>
             <button className="btn sm ghost" onClick={doReload} disabled={busy}>
-              Đọc lại từ đĩa
+              Reload from disk
             </button>
             <button
               className="btn sm primary"
@@ -226,27 +226,27 @@ export function SettingsModal({ open, onClose, onApplied }: Props) {
               disabled={!file || busy}
               data-testid="settings-import"
             >
-              {busy ? "Đang áp dụng…" : "Import & áp dụng"}
+              {busy ? "Applying…" : "Import & apply"}
             </button>
           </div>
 
           {error && <div className="cfg-banner bad">{error}</div>}
           {result && (
             <div className="cfg-banner ok" data-testid="settings-result">
-              Đã áp dụng <strong>{result.applied.length}</strong> biến
-              {result.replaced ? " (thay thế toàn bộ)" : ""}.
+              Applied <strong>{result.applied.length}</strong> variables
+              {result.replaced ? " (full replacement)" : ""}.
               {result.ignored_blank.length > 0 &&
-                ` Bỏ qua ${result.ignored_blank.length} dòng trống (giá trị cũ được giữ).`}
-              {result.unknown.length > 0 && ` Không nằm trong schema: ${result.unknown.join(", ")}.`}
-              {result.rejected.length > 0 && ` Từ chối: ${result.rejected.join(", ")}.`}
+                ` Skipped ${result.ignored_blank.length} blank values (existing values kept).`}
+              {result.unknown.length > 0 && ` Unknown configuration keys: ${result.unknown.join(", ")}.`}
+              {result.rejected.length > 0 && ` Rejected: ${result.rejected.join(", ")}.`}
             </div>
           )}
 
           {status && (
             <>
               <div className="cfg-path">
-                Ghi vào <span className="mono">{status.env_path}</span>
-                {status.env_exists ? "" : " (chưa tồn tại)"}
+                Write to <span className="mono">{status.env_path}</span>
+                {status.env_exists ? "" : " (does not exist yet)"}
               </div>
               {status.groups.map((group) => (
                 <div className="cfg-group" key={group.name}>
@@ -263,7 +263,7 @@ export function SettingsModal({ open, onClose, onApplied }: Props) {
                               className={`health-dot ${k.set ? "ok" : k.required ? "bad" : "warn"}`}
                             />
                             {k.key}
-                            {k.required && <span className="cfg-req" title="bắt buộc">*</span>}
+                            {k.required && <span className="cfg-req" title="required">*</span>}
                           </td>
                           <td className="cfg-label">{k.label}</td>
                           <td className="cfg-value mono">
@@ -271,7 +271,7 @@ export function SettingsModal({ open, onClose, onApplied }: Props) {
                             {k.from_process_env && (
                               <span
                                 className="cfg-envtag"
-                                title="Đến từ biến môi trường của container — import file sẽ không đổi được giá trị này"
+                                title="Set by a container environment variable; importing a file cannot override it"
                               >
                                 env
                               </span>

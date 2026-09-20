@@ -24,7 +24,7 @@ export function TaskHintPanel({ hint, loading, error, inQuery, onUseAsQuery, onR
   return (
     <div className="panel task-hint" data-testid="task-hint-panel">
       <h3>
-        Đề bài{hint?.task_name ? ` · ${hint.task_name}` : ""}
+        Task description{hint?.task_name ? ` · ${hint.task_name}` : ""}
         <button className="btn sm ghost" onClick={onRefresh} style={{ float: "right" }} data-testid="task-hint-refresh">
           ⟳
         </button>
@@ -44,9 +44,9 @@ export function TaskHintPanel({ hint, loading, error, inQuery, onUseAsQuery, onR
               onClick={onUseAsQuery}
               disabled={inQuery}
               data-testid="task-hint-use"
-              title="Đưa nguyên văn đề bài vào ô truy vấn"
+              title="Copy the task description into the query field"
             >
-              {inQuery ? "đang ở ô truy vấn" : "→ dùng làm truy vấn"}
+              {inQuery ? "already in query" : "→ use as query"}
             </button>
             <button
               className="btn sm ghost"
@@ -58,9 +58,9 @@ export function TaskHintPanel({ hint, loading, error, inQuery, onUseAsQuery, onR
           </div>
         </>
       ) : loading ? (
-        <div className="empty" style={{ padding: 10 }}>đang tải đề bài…</div>
+        <div className="empty" style={{ padding: 10 }}>loading task description…</div>
       ) : !error ? (
-        <div className="empty" style={{ padding: 10 }}>Task đang mở chưa có đề bài dạng chữ.</div>
+        <div className="empty" style={{ padding: 10 }}>The current task has no text description.</div>
       ) : null}
 
       {media.map((element, i) => (

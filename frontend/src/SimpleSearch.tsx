@@ -78,7 +78,7 @@ export default function SimpleSearch({
         });
       },
       () => {
-        if (!cancelled) setScopeError("Không tải được danh sách thư mục — tạm thời tìm toàn bộ.");
+        if (!cancelled) setScopeError("Could not load folders; searching the entire dataset for now.");
       },
     );
     return () => {
@@ -130,7 +130,7 @@ export default function SimpleSearch({
       setWarnings(res.warnings ?? []);
       setAnsweredModels(res.image_models ?? [...DEFAULT_IMAGE_MODELS]);
     } catch (e) {
-      let msg = "Search failed — backend không chạy? (kiểm tra http://localhost:8000/api/health)";
+      let msg = "Search failed — is the backend running? (check http://localhost:8000/api/health)";
       if (e instanceof ApiError) {
         msg = typeof e.detail === "string" ? e.detail : `Search failed (HTTP ${e.status})`;
       }
@@ -160,12 +160,12 @@ export default function SimpleSearch({
             value={retrievalDatabase}
             onChange={(event) => onRetrievalDatabase(event.target.value as RetrievalDatabase)}
           >
-            <option value="btc">BTC · đầy đủ</option>
-            <option value="infoshotpp">InfoShot++ · chọn embedding</option>
+            <option value="btc">BTC · all channels</option>
+            <option value="infoshotpp">InfoShot++ · select embedding</option>
           </select>
           <span style={{ flex: 1 }} />
-          <button className="btn sm ghost" onClick={onShowSettings} title="Cấu hình — import .env">
-            ⚙ Cấu hình
+          <button className="btn sm ghost" onClick={onShowSettings} title="Settings — import .env">
+            ⚙ Settings
           </button>
           <ThemeToggle />
         </div>
@@ -175,7 +175,7 @@ export default function SimpleSearch({
             ref={inputRef}
             className="simple-input"
             data-testid="query-input"
-            placeholder="Nhập mô tả cảnh cần tìm (tiếng Anh cho kết quả tốt nhất)…"
+            placeholder="Describe the scene to find (English works best)…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
@@ -183,13 +183,13 @@ export default function SimpleSearch({
             }}
           />
           <button className="btn primary" data-testid="search-btn" onClick={runSearch} disabled={loading}>
-            {loading ? "Đang tìm…" : "Search"}
+            {loading ? "Searching…" : "Search"}
           </button>
         </div>
 
         <div className="simple-controls">
           <label className="slider-label">
-            Số keyframe: <b data-testid="topk-value">{topK}</b>
+            Keyframes: <b data-testid="topk-value">{topK}</b>
           </label>
           <input
             type="range"
@@ -218,7 +218,7 @@ export default function SimpleSearch({
           <label
             className="check-toggle"
             data-testid="translate-toggle"
-            title="Dịch query sang tiếng Anh trước khi tìm (PE-Core là encoder tiếng Anh). Tắt khi query đã là tiếng Anh, chứa tên riêng, hoặc bị dịch sai — lúc đó hệ thống tìm đúng chữ bạn gõ."
+            title="Translate the query to English for PE-Core. Disable for English queries, proper names or incorrect translations to search the original text."
           >
             <input
               type="checkbox"
@@ -226,13 +226,13 @@ export default function SimpleSearch({
               data-testid="translate-checkbox"
               onChange={(event) => setTranslate(event.target.checked)}
             />
-            <span>Dịch VI→EN</span>
+            <span>Translate VI→EN</span>
           </label>
           {rerankAvailable && (
             <label
               className="check-toggle"
               data-testid="rerank-toggle"
-              title="Gộp ứng viên của mọi index ảnh đang chọn (PE + Qwen3-VL) thành một pool rồi Qwen3-VL chấm lại từng cặp (query, keyframe). Chính xác hơn nhưng chậm hơn vài giây; worker lỗi thì giữ nguyên thứ tự truy hồi."
+              title="Pool candidates from selected image indices (PE + Qwen3-VL), then rerank query–keyframe pairs with Qwen3-VL. Adds latency; worker failures preserve retrieval order."
             >
               <input
                 type="checkbox"
@@ -250,13 +250,13 @@ export default function SimpleSearch({
             >
               {rerankReport.ok
                 ? `· ↕ rerank ${rerankReport.reranked}/${rerankReport.candidates} · ${Math.round(rerankReport.ms)} ms`
-                : "· ⚠ rerank lỗi, giữ thứ tự truy hồi"}
+                : "· ⚠ reranking failed; preserving retrieval order"}
             </span>
           )}
           {latency != null && <span className="latency-mini">{latency} ms</span>}
-          {results.length > 0 && <span className="latency-mini">· {results.length} kết quả</span>}
+          {results.length > 0 && <span className="latency-mini">· {results.length} results</span>}
           {translated && (
-            <span className="latency-mini" title="Query đã được dịch sang tiếng Anh cho PE encoder">
+            <span className="latency-mini" title="Query translated to English for the PE encoder">
               🌐 EN: <b style={{ color: "var(--ch-vector)" }}>{translated}</b>
             </span>
           )}
@@ -265,8 +265,8 @@ export default function SimpleSearch({
 
       {mode === "mock" && (
         <div className="simple-warn" data-testid="mock-banner">
-          ⚠ Backend đang ở <b>mock mode</b> — kết quả là dữ liệu giả cố định, không phụ thuộc query.
-          Tắt mock (<span className="mono">AIC26_MOCK_MODE=false</span> trong <span className="mono">backend/.env</span>) và khởi động lại backend.
+          ⚠ Backend is in <b>mock mode</b>; results are fixed fixtures and do not depend on the query.
+          Disable mock mode (<span className="mono">AIC26_MOCK_MODE=false</span> in <span className="mono">backend/.env</span>) and restart the backend.
         </div>
       )}
       {error && <div className="simple-error" data-testid="error">{error}</div>}
@@ -276,7 +276,7 @@ export default function SimpleSearch({
 
       <main className="kf-grid" data-testid="results">
         {results.length === 0 && !loading && !error && (
-          <div className="kf-empty">Nhập query và nhấn Enter để tìm keyframe.</div>
+          <div className="kf-empty">Enter a query and press Enter to find keyframes.</div>
         )}
         {results.map((r, i) => (
           <figure key={r.submit_keyframe_id} className="kf-card" data-testid="kf-card">

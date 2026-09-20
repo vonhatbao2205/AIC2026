@@ -145,4 +145,4 @@ async def test_search_warns_when_the_visual_query_stayed_vietnamese(settings, mo
 
     res = await svc.search({"query": VI, "parsed": parsed})
 
-    assert any("Không dịch được" in warning for warning in res["warnings"])
+    assert any("Could not translate" in warning for warning in res["warnings"])

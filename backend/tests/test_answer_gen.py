@@ -590,7 +590,7 @@ def test_generate_endpoint_says_why_a_trake_question_got_no_answers():
     body = response.json()
     assert body["answers"] == []
     assert body["diagnostics"] == {"n_sequences": 1, "n_complete": 0, "event_count": 4}
-    assert any("4 sự kiện" in w for w in body["warnings"])
+    assert any("4 events" in w for w in body["warnings"])
 
 
 def test_generate_endpoint_honours_the_width_the_client_sends():

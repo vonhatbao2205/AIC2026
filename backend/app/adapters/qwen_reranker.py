@@ -126,16 +126,16 @@ class QwenRerankerClient:
             # downloads every keyframe before it can score anything. Say which
             # knob to turn instead of reporting a bare timeout.
             raise QwenRerankerUnavailable(
-                f"quá {timeout:.0f}s không phản hồi khi chấm {len(documents)} keyframe "
-                f"({type(exc).__name__}). Tăng QWEN_RERANKER_TIMEOUT_SECONDS hoặc giảm "
+                f"no response after {timeout:.0f}s while scoring {len(documents)} keyframes "
+                f"({type(exc).__name__}). Increase QWEN_RERANKER_TIMEOUT_SECONDS or reduce "
                 "QWEN_RERANKER_CANDIDATES."
             ) from exc
         except httpx.HTTPStatusError as exc:
             body = exc.response.text.strip()[:200]
             raise QwenRerankerUnavailable(
-                f"worker trả HTTP {exc.response.status_code}"
+                f"worker returned HTTP {exc.response.status_code}"
                 + (f": {body}" if body else "")
-                + (" — QWEN_RERANKER_TOKEN có khớp secret của notebook không?"
+                + (" — does QWEN_RERANKER_TOKEN match the notebook secret?"
                    if exc.response.status_code == 401 else "")
             ) from exc
         except Exception as exc:  # noqa: BLE001 - normalized for the fail-open caller
@@ -143,7 +143,7 @@ class QwenRerankerClient:
             # operator staring at a reason that says nothing. The class name is
             # the minimum useful detail, so it is never dropped.
             detail = str(exc).strip() or type(exc).__name__
-            raise QwenRerankerUnavailable(f"không gọi được worker: {detail}") from exc
+            raise QwenRerankerUnavailable(f"could not reach worker: {detail}") from exc
         if not isinstance(data, dict):
             raise QwenRerankerUnavailable("Qwen reranker returned a non-object response")
         scores = data.get("scores")

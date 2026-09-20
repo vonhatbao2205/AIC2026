@@ -19,12 +19,12 @@ const OPTIONS: { id: ImageEmbeddingModel; label: string; title: string }[] = [
   {
     id: "pe",
     label: "PE Core",
-    title: "Tìm bằng embedding PE Core trên InfoShot++.",
+    title: "Search InfoShot++ using PE Core embeddings.",
   },
   {
     id: "qwen3_vl",
     label: "Qwen3-VL Embedding",
-    title: "Tìm bằng Qwen3-VL Embedding 8B trên InfoShot++.",
+    title: "Search InfoShot++ using Qwen3-VL Embedding 8B.",
   },
 ];
 
@@ -40,7 +40,7 @@ export function ImageModelSelector({ retrievalDatabase, value, onChange, tara }:
     <fieldset
       className="image-model-selector"
       data-testid="image-model-selector"
-      title="PE/Qwen tìm keyframe; TARA tìm clip 8/24/72 giây. Các ranking được fuse bằng RRF."
+      title="PE/Qwen retrieve keyframes; TARA retrieves 8/24/72-second clips. Rankings are fused using RRF."
     >
       <legend>Visual models</legend>
       {OPTIONS.map((option) => {
@@ -50,7 +50,7 @@ export function ImageModelSelector({ retrievalDatabase, value, onChange, tara }:
           <label
             className="check-toggle"
             key={option.id}
-            title={soleSelection ? "Phải giữ ít nhất một image embedding để search." : option.title}
+            title={soleSelection ? "Select at least one image embedding model to search." : option.title}
           >
             <input
               type="checkbox"
@@ -72,8 +72,8 @@ export function ImageModelSelector({ retrievalDatabase, value, onChange, tara }:
         <label
           className="check-toggle tara-model-option"
           title={tara.available
-            ? "TARA tìm theo chuyển động và diễn biến trong clip 8/24/72 giây; kết quả được fuse ở mức video."
-            : "TARA cần text encoder Colab và collection Milvus sẵn sàng."}
+            ? "TARA searches motion and events in 8/24/72-second clips; results are fused at video level."
+            : "TARA requires an available Colab text encoder and Milvus collection."}
         >
           <input
             type="checkbox"

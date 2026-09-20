@@ -364,7 +364,7 @@ describe("reordering answers", () => {
     expect(rpcCalls).toHaveLength(0);
     // …and no undo step either: Ctrl+Z must not be spent on a drag that
     // dropped the row back where it started.
-    expect(result.current.undoLabel).toBe("thêm 3 dòng");
+    expect(result.current.undoLabel).toBe("add 3 rows");
   });
 
   it("undoes a move by writing the ranking back, not by patching rows", async () => {
@@ -492,7 +492,7 @@ describe("undo", () => {
     const fresh = { ...baseRow, id: "33333333-3333-4333-8333-333333333333", frames: [77] };
 
     await act(async () => {
-      result.current.transaction("sinh lại", () => {
+      result.current.transaction("regenerate", () => {
         result.current.deleteRows([baseRow.id, second.id]);
         result.current.addRows([fresh]);
       });
@@ -503,7 +503,7 @@ describe("undo", () => {
     await act(async () => {
       label = result.current.undo();
     });
-    expect(label).toBe("sinh lại");
+    expect(label).toBe("regenerate");
     expect(result.current.rows.map((row) => row.id).sort()).toEqual(
       [baseRow.id, second.id].sort(),
     );
@@ -556,7 +556,7 @@ describe("undo", () => {
   });
 
   it("forgets the steps of a question that was cleared", async () => {
-    // "xoá hết" deletes BY QUESTION on the server, so this client cannot know
+    // "clear all" deletes BY QUESTION on the server, so this client cannot know
     // every row that went. A later Ctrl+Z must not resurrect the subset it did
     // know about, into a question the operator just emptied.
     const { result } = renderHook(() => useSharedSubmission("session-1"));

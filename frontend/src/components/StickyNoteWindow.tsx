@@ -357,12 +357,12 @@ export function StickyNoteWindow(props: Props) {
           <span className="sticky-note-pin" aria-hidden="true">◆</span>
           <div className="sticky-note-title">
             <b>Sticky note</b>
-            <span className="mono">{question?.id ?? "chưa chọn câu hỏi"}</span>
+            <span className="mono">{question?.id ?? "no question selected"}</span>
           </div>
           <span className="sticky-note-count">
-            {pending.length > 0 && `${pending.length} nháp`}
+            {pending.length > 0 && `${pending.length} drafts`}
             {pending.length > 0 && queuedCount > 0 && " · "}
-            {queuedCount > 0 && `${queuedCount} đang đồng bộ`}
+            {queuedCount > 0 && `${queuedCount} syncing`}
             {pending.length === 0 && queuedCount === 0 && `${candidates.length} candidate`}
           </span>
           <div className="spacer" />
@@ -371,13 +371,13 @@ export function StickyNoteWindow(props: Props) {
             data-testid="sticky-push"
             disabled={!question || !pending.length || validationErrors.length > 0 || overCapacity}
             onClick={props.onPush}
-            title="Chỉ chuyển các candidate chưa từng push"
+            title="Push only candidates that have not been pushed before"
           >
             ⇥ Push {pending.length || "all"}
           </button>
           <button
             className="sticky-note-close"
-            aria-label="Đóng sticky note"
+            aria-label="Close sticky note"
             data-testid="sticky-close"
             onClick={() => props.onWindow({ open: false })}
           >
@@ -387,23 +387,23 @@ export function StickyNoteWindow(props: Props) {
 
         <div className="sticky-note-body">
           {!question ? (
-            <div className="sticky-note-empty">Chọn một câu hỏi cho tab Search để tạo candidate.</div>
+            <div className="sticky-note-empty">Assign a question to the Search tab to create candidates.</div>
           ) : candidates.length === 0 ? (
             <div className="sticky-note-empty">
-              Chưa có candidate. Dùng nút <b>+ Sticky</b> ở Detail hoặc Paused frame.
+              No candidates yet. Use <b>+ Sticky</b> in Detail or Paused frame.
             </div>
           ) : (
             <>
               {validationErrors.length > 0 && (
                 <div className="sticky-note-warning" data-testid="sticky-invalid">
                   ⚠ {validationErrors[0].message}
-                  {validationErrors.length > 1 ? ` · +${validationErrors.length - 1} lỗi` : ""}
+                  {validationErrors.length > 1 ? ` · +${validationErrors.length - 1} errors` : ""}
                 </div>
               )}
               {overCapacity && (
                 <div className="sticky-note-warning" data-testid="sticky-capacity">
-                  ⚠ Submission chỉ còn {Math.max(0, MAX_ROWS_PER_QUESTION - props.submissionCount)} chỗ,
-                  nhưng note có {pending.length} candidate chưa push.
+                  ⚠ Submission has only {Math.max(0, MAX_ROWS_PER_QUESTION - props.submissionCount)} slots left,
+                  but this note has {pending.length} unpushed candidates.
                 </div>
               )}
               {previewOpen && selectedCandidate && (
@@ -480,9 +480,9 @@ export function StickyNoteWindow(props: Props) {
                             <span
                               className={`row-grip${candidate.pushState !== "draft" ? " disabled" : ""}`}
                               role="button"
-                              aria-label={`Kéo candidate ${index + 1}`}
+                              aria-label={`Drag candidate ${index + 1}`}
                               data-testid={`sticky-grip-${index}`}
-                              title={candidate.pushState !== "draft" ? "Đã chuyển sang Submission — thứ hạng sửa ở đó" : "Kéo để đổi thứ tự"}
+                              title={candidate.pushState !== "draft" ? "Already pushed to Submission — change its rank there" : "Drag to reorder"}
                               onMouseDown={() => candidate.pushState === "draft" && setGripped(candidate.id)}
                               onMouseUp={() => setGripped(null)}
                             >
@@ -492,7 +492,7 @@ export function StickyNoteWindow(props: Props) {
                             {candidate.pushState === "synced" && (
                               <span
                                 className="sticky-pushed-mark"
-                                title="Supabase đã nhận; sửa nội dung sẽ đưa candidate vào lượt push kế tiếp"
+                                title="Received by Supabase; editing adds this candidate to the next push"
                               >
                                 ✓
                               </span>
@@ -500,7 +500,7 @@ export function StickyNoteWindow(props: Props) {
                             {candidate.pushState === "queued" && (
                               <span
                                 className="sticky-queued-mark"
-                                title="Đang chờ Supabase xác nhận; hệ thống sẽ tự thử lại"
+                                title="Waiting for Supabase confirmation; retries are automatic"
                               >
                                 ◌
                               </span>
@@ -554,7 +554,7 @@ export function StickyNoteWindow(props: Props) {
                               <button
                                 className="btn sm ghost sticky-restore-trake"
                                 data-testid={`sticky-restore-trake-${index}`}
-                                title="Nạp chuỗi này về TRAKE events"
+                                title="Load this sequence into TRAKE events"
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   props.onRestoreTrake(commitDraft(candidate));
@@ -565,7 +565,7 @@ export function StickyNoteWindow(props: Props) {
                             )}
                             <button
                               className="cell-delete"
-                              aria-label={`Xoá candidate ${index + 1}`}
+                              aria-label={`Delete candidate ${index + 1}`}
                               data-testid={`sticky-delete-${index}`}
                               onClick={(event) => {
                                 event.stopPropagation();
@@ -586,9 +586,9 @@ export function StickyNoteWindow(props: Props) {
         </div>
 
         <footer className="sticky-note-foot">
-          <span>↑↓ chọn · Alt+↑↓ reorder · P ảnh · V video · Delete xoá</span>
+          <span>↑↓ select · Alt+↑↓ reorder · P image · V video · Delete remove</span>
           {candidates.length > 0 && (
-            <button className="btn sm ghost" onClick={props.onClear}>xoá note</button>
+            <button className="btn sm ghost" onClick={props.onClear}>clear note</button>
           )}
         </footer>
         <div

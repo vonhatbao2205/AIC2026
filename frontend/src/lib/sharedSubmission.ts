@@ -173,7 +173,7 @@ export function sortRows(rows: SubmissionRow[]): SubmissionRow[] {
  *  `err instanceof Error ? err.message : String(err)` renders the useless
  *  "[object Object]". */
 export function describeSupabaseError(error: unknown): string {
-  if (!error) return "Lỗi không xác định";
+  if (!error) return "Unknown error";
   if (typeof error === "string") return error;
   if (error instanceof Error) return error.message;
   const detail = error as { message?: string; details?: string; hint?: string; code?: string };
@@ -197,8 +197,8 @@ export function isMissingTableError(error: unknown): boolean {
 }
 
 export const MISSING_TABLE_HINT =
-  "Chưa có bảng `public.submissions`. Mở Supabase → SQL Editor và chạy " +
-  "supabase/migrations/001_shared_submission.sql, rồi tải lại trang.";
+  "The `public.submissions` table is missing. Open Supabase → SQL Editor and run " +
+  "supabase/migrations/001_shared_submission.sql, then reload the page.";
 
 /** The project has not run migration 004, so `reorder_submissions` is missing.
  *

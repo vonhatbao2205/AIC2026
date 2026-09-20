@@ -48,6 +48,27 @@ CATEGORY_LABELS: dict[str, str] = {
     **{cat: f"Thời sự 60 giây — {'HTV7' if cat in _HTV7_BATCHES else 'HTV9'}" for cat in K_CATEGORIES},
 }
 
+CATEGORY_LABELS_EN: dict[str, str] = {
+    "L21": "60-second news — HTV9",
+    "L22": "60-second news — HTV7",
+    "L23": "Cycling — HTV Sports",
+    "L24": "Lion dance — HTV Sports",
+    "L25": "National high school exam revision — Thanh Nien",
+    "L26": "Cooking — HTV Online",
+    "L27": "Exploring Vietnamese culture — HTV Online",
+    "L28": "Mekong River basin — HTV Online",
+    "L29": "Mekong River basin (alternate program) — HTV Online",
+    "L30": "Spreading positive energy — Tuoi Tre TV",
+    **{cat: f"60-second news — {'HTV7' if cat in _HTV7_BATCHES else 'HTV9'}" for cat in K_CATEGORIES},
+}
+TOPIC_LABELS_EN = {
+    "cooking": "Cooking", "cycling": "Cycling", "lion_dance": "Lion and dragon dance",
+    "exam": "National high school exam revision", "culture": "Exploring Vietnamese culture",
+    "mekong": "Mekong River basin / delta", "positive_energy": "Spreading positive energy",
+    "news": "60-second news",
+}
+GROUP_LABELS_EN = {"L": "L21–L30 · themed programs (InfoShot++)", "K": "K01–K20 · 60-second news (BTC)"}
+
 #: Categories each retrieval profile can return. InfoShot++ has no K-side data,
 #: so offering K01-K20 there would be a filter that always returns nothing.
 PROFILE_CATEGORIES: dict[str, tuple[str, ...]] = {
@@ -208,6 +229,20 @@ class ResolvedScope:
     def active(self) -> bool:
         return bool(self.categories)
 
+    @property
+    def reason_en(self) -> str:
+        if self.mode == "manual":
+            return (f"Manual: {len(self.categories)} folders ({', '.join(self.categories)})."
+                    if self.active else "No folder restriction; searching the entire profile.")
+        if self.mode == "auto":
+            if not self.matches:
+                return "No topic detected; searching the entire profile."
+            if not self.active:
+                return "Topic matching did not narrow the scope; searching the entire profile."
+            labels = ", ".join(TOPIC_LABELS_EN.get(m.topic_id, m.topic_id) for m in self.matches)
+            return f"Topic heuristic: {labels} (news folders and L30 remain in scope because they cover all topics)."
+        return "Search all folders."
+
     def to_dict(self) -> dict:
         return {
             "mode": self.mode,
@@ -215,10 +250,12 @@ class ResolvedScope:
             "strict_categories": list(self.strict_categories),
             "active": self.active,
             "reason_vi": self.reason_vi,
+            "reason_en": self.reason_en,
             "matched_topics": [
                 {
                     "topic_id": match.topic_id,
                     "label_vi": match.label_vi,
+                    "label_en": TOPIC_LABELS_EN.get(match.topic_id, match.topic_id),
                     "keywords": list(match.keywords),
                     "categories": list(match.categories),
                 }
@@ -400,12 +437,14 @@ def catalogue(retrieval_database: str) -> dict:
             {
                 "category": cat,
                 "label_vi": CATEGORY_LABELS.get(cat, cat),
+                "label_en": CATEGORY_LABELS_EN.get(cat, cat),
                 "open_subject": cat in OPEN_SUBJECT_CATEGORIES,
             }
             for cat in universe
         ],
         "groups": [
-            {"id": gid, "label_vi": label, "categories": [c for c in cats if c in universe]}
+            {"id": gid, "label_vi": label, "label_en": GROUP_LABELS_EN.get(gid, gid),
+             "categories": [c for c in cats if c in universe]}
             for gid, label, cats in CATEGORY_GROUPS
             if any(c in universe for c in cats)
         ],
@@ -413,6 +452,7 @@ def catalogue(retrieval_database: str) -> dict:
             {
                 "topic_id": topic.id,
                 "label_vi": topic.label_vi,
+                "label_en": TOPIC_LABELS_EN.get(topic.id, topic.id),
                 "categories": [c for c in topic.categories if c in universe],
             }
             for topic in TOPICS

@@ -34,8 +34,8 @@ export function PausedFramePanel(props: Props) {
 
       {!frame ? (
         <div className="paused-frame-empty">
-          Mở video bằng <span className="kbd">V</span>, rồi pause tại frame cần
-          nộp. Tính năng này dùng cho T-KIS, QA, V-KIS và TRAKE.
+          Open the video with <span className="kbd">V</span>, then pause at the frame to
+          submit. Available for T-KIS, QA, V-KIS and TRAKE.
         </div>
       ) : (
         <div

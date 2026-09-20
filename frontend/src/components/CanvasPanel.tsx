@@ -215,7 +215,7 @@ export function CanvasPanel({ onSearch, loading, generatedQueries, objectSearchA
             className="canvas-collapse"
             onClick={() => setCollapsed((value) => !value)}
             data-testid="canvas-collapse"
-            title={collapsed ? "Mở bảng vẽ" : "Thu gọn bảng vẽ"}
+            title={collapsed ? "Open drawing panel" : "Collapse drawing panel"}
           >
             {collapsed ? "▸" : "▾"}
           </button>{" "}
@@ -229,9 +229,9 @@ export function CanvasPanel({ onSearch, loading, generatedQueries, objectSearchA
                 className={tool === value ? "active" : ""}
                 onClick={() => setTool(value)}
                 title={
-                  value === "select" ? "Chọn / kéo / resize object"
-                    : value === "brush" ? "Vẽ tự do (bầu trời, cánh đồng, mặt nước…)"
-                    : "Xoá nét vẽ"
+                  value === "select" ? "Select / drag / resize an object"
+                    : value === "brush" ? "Freehand drawing (sky, fields, water…)"
+                    : "Erase strokes"
                 }
                 data-testid={`canvas-tool-${value}`}
               >
@@ -247,8 +247,8 @@ export function CanvasPanel({ onSearch, loading, generatedQueries, objectSearchA
                 onClick={() => setMode(value)}
                 title={
                   value === "rough"
-                    ? "Ưu tiên nhãn + vị trí tương đối (vẽ theo trí nhớ)"
-                    : "Tăng trọng số IoU/kích thước/màu (nhìn được clip)"
+                    ? "Prioritize labels and relative position (drawing from memory)"
+                    : "Increase IoU, size and color weights (when the clip is visible)"
                 }
                 data-testid={`canvas-mode-${value}`}
               >
@@ -261,7 +261,7 @@ export function CanvasPanel({ onSearch, loading, generatedQueries, objectSearchA
 
       {objectSearchAvailable === false && (
         <div className="canvas-warn">
-          ⚠ Object index chưa sẵn sàng — chỉ còn PE text/ảnh vẽ, không có khớp bố cục.
+          ⚠ Object index unavailable — only PE text/drawing search is available; layout matching is disabled.
         </div>
       )}
 
@@ -270,7 +270,7 @@ export function CanvasPanel({ onSearch, loading, generatedQueries, objectSearchA
           <div className="canvas-toolrow">
             <input
               className="input sm"
-              placeholder="Lọc object… (person, xe máy, fire…)"
+              placeholder="Filter objects… (person, motorcycle, fire…)"
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
               data-testid="canvas-filter"
@@ -283,10 +283,10 @@ export function CanvasPanel({ onSearch, loading, generatedQueries, objectSearchA
                   draggable
                   onDragStart={(event) => event.dataTransfer.setData("text/plain", item.label)}
                   onClick={() => addObject(item.label)}
-                  title={item.label_vi ? `${item.label} · ${item.label_vi}` : item.label}
+                  title={item.label}
                   data-testid={`canvas-add-${item.label}`}
                 >
-                  {item.label_vi ?? item.label}
+                  {item.label}
                 </button>
               ))}
             </div>
@@ -314,7 +314,7 @@ export function CanvasPanel({ onSearch, loading, generatedQueries, objectSearchA
             />
             {objects.length === 0 && strokes.length === 0 && (
               <div className="canvas-empty">
-                Kéo/bấm object ở trên để đặt vào khung · chọn ✎ để vẽ tay bầu trời, cánh đồng…
+                Drag or click an object above to place it · select ✎ to draw sky, fields and more
               </div>
             )}
           </div>
@@ -322,10 +322,10 @@ export function CanvasPanel({ onSearch, loading, generatedQueries, objectSearchA
           {tool !== "select" && (
             <div className="canvas-editor" data-testid="canvas-brush-editor">
               <div className="row between">
-                <strong>{tool === "brush" ? "Cọ vẽ" : "Tẩy"}</strong>
+                <strong>{tool === "brush" ? "Brush" : "Eraser"}</strong>
                 <div className="row" style={{ gap: 6 }}>
                   <label className="canvas-required">
-                    nét
+                    stroke
                     <input
                       type="range"
                       min={10}
@@ -341,7 +341,7 @@ export function CanvasPanel({ onSearch, loading, generatedQueries, objectSearchA
                     disabled={strokes.length === 0}
                     data-testid="canvas-undo-stroke"
                   >
-                    Hoàn tác nét
+                    Undo stroke
                   </button>
                 </div>
               </div>
@@ -376,7 +376,7 @@ export function CanvasPanel({ onSearch, loading, generatedQueries, objectSearchA
                       }
                       data-testid="canvas-required"
                     />
-                    bắt buộc
+                    required
                   </label>
                   <button
                     className="btn sm"
@@ -386,7 +386,7 @@ export function CanvasPanel({ onSearch, loading, generatedQueries, objectSearchA
                     }}
                     data-testid="canvas-delete"
                   >
-                    Xoá
+                    Delete
                   </button>
                 </div>
               </div>
@@ -395,7 +395,7 @@ export function CanvasPanel({ onSearch, loading, generatedQueries, objectSearchA
                   <button
                     className={`swatch none${selected.color === null ? " on" : ""}`}
                     onClick={() => updateObject(selected.id, (object) => ({ ...object, color: null }))}
-                    title="không chỉ định màu"
+                    title="no color specified"
                   >
                     ∅
                   </button>
@@ -411,14 +411,14 @@ export function CanvasPanel({ onSearch, loading, generatedQueries, objectSearchA
                   ))}
                 </div>
               ) : (
-                <div className="hint">OD không trích màu cho class này — màu sẽ bị bỏ qua.</div>
+                <div className="hint">Object detection does not extract color for this class; color will be ignored.</div>
               )}
             </div>
           )}
 
           <input
             className="input sm"
-            placeholder="Hành động (tuỳ chọn): người đàn ông bước qua xe…"
+            placeholder="Action (optional): a man walks past a car…"
             value={actionText}
             onChange={(event) => setActionText(event.target.value)}
             data-testid="canvas-action"
@@ -434,7 +434,7 @@ export function CanvasPanel({ onSearch, loading, generatedQueries, objectSearchA
             disabled={loading || !canSearch}
             data-testid="canvas-search"
           >
-            {loading ? "Đang tìm…" : "Search canvas"}
+            {loading ? "Searching…" : "Search canvas"}
           </button>
           <button
             className="btn sm"
@@ -446,10 +446,10 @@ export function CanvasPanel({ onSearch, loading, generatedQueries, objectSearchA
             disabled={objects.length === 0 && strokes.length === 0}
             data-testid="canvas-clear"
           >
-            Xoá hết
+            Clear all
           </button>
         </div>
-        <label className="canvas-required" title="Encode ảnh vẽ bằng PE image và fuse thêm (weight thấp)">
+        <label className="canvas-required" title="Encode the drawing with PE image and include it in fusion with a low weight">
           <input
             type="checkbox"
             checked={useRaster}
@@ -462,7 +462,7 @@ export function CanvasPanel({ onSearch, loading, generatedQueries, objectSearchA
 
       {generatedQueries.length > 0 && (
         <div className="canvas-queries" data-testid="canvas-queries">
-          <div className="k">PE text sinh từ canvas</div>
+          <div className="k">PE text generated from canvas</div>
           {generatedQueries.map((query) => (
             <div key={query} className="canvas-query">{query}</div>
           ))}

@@ -26,6 +26,10 @@ def test_catalogue_labels_every_folder_with_its_programme():
     assert "Đua xe đạp" in labels["L23"]
     assert "HTV7" in labels["K01"] and "HTV9" in labels["K02"]
     assert {group["id"] for group in body["groups"]} == {"L", "K"}
+    english = {item["category"]: item["label_en"] for item in body["categories"]}
+    assert english["L26"] == "Cooking — HTV Online"
+    assert set(english) == set(labels)
+    assert all(group["label_en"] for group in body["groups"])
 
 
 def test_catalogue_hides_topics_with_no_folder_in_this_profile():
@@ -56,6 +60,9 @@ def test_programme_words_route_to_their_folder(query, topic_id, folder):
     assert topic_id in {match.topic_id for match in resolved.matches}
     assert folder in resolved.categories
     assert folder in resolved.strict_categories
+    display = resolved.to_dict()
+    assert display["reason_en"]
+    assert all(match["label_en"] for match in display["matched_topics"])
 
 
 def test_a_topic_cue_never_excludes_the_open_subject_folders():

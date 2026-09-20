@@ -53,7 +53,7 @@ export function Timeline({ data, playhead, selectedPts, eventMarkers = [], qaHot
           className="tl-area tl-seekable"
           data-testid="timeline-seek"
           onClick={seekFromClick}
-          title="Bấm để nhảy tới vị trí đó"
+          title="Click to seek to this position"
         >
           <div className="tl-track" />
           {selectedPts != null && (

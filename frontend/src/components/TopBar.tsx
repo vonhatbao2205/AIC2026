@@ -33,11 +33,11 @@ export function TopBar({ queryType, onQueryType, elapsed, penalties, latency, he
         onChange={(event) => onRetrievalDatabase(event.target.value as RetrievalDatabase)}
         title={
           retrievalDatabase === "btc"
-            ? "BTC: đầy đủ mọi kênh"
-            : "InfoShot++: chọn PE Core, Qwen3-VL Embedding hoặc fuse cả hai bằng RRF; V-KIS canvas chưa có"
+            ? "BTC: all channels"
+            : "InfoShot++: choose PE Core, Qwen3-VL Embedding or fuse both with RRF; V-KIS canvas is unavailable"
         }
       >
-        <option value="btc">BTC · đầy đủ</option>
+        <option value="btc">BTC · all channels</option>
         <option value="infoshotpp">InfoShot++ · PE / Qwen3-VL</option>
       </select>
       <div className="seg" role="tablist" aria-label="Query type">
@@ -94,7 +94,7 @@ export function TopBar({ queryType, onQueryType, elapsed, penalties, latency, he
         className="icon-btn"
         onClick={onShowSettings}
         aria-label="Configuration"
-        title="Cấu hình — import .env"
+        title="Settings — import .env"
         data-testid="settings-btn"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -29,7 +29,7 @@ export function FramePreview(props: Props) {
     api
       .keyframe(keyframeId, retrievalDatabase)
       .then((info) => !cancelled && setUrl(info.keyframe_url))
-      .catch(() => !cancelled && setError("Không resolve được ảnh keyframe."));
+      .catch(() => !cancelled && setError("Could not resolve keyframe image."));
     return () => {
       cancelled = true;
     };
@@ -43,8 +43,8 @@ export function FramePreview(props: Props) {
           {keyframeId ? ` · ${keyframeId}` : ""}
         </span>
         <div className="spacer" />
-        <button className="btn sm ghost" onClick={props.onOpenVideo}>V · mở video</button>
-        <button className="btn sm ghost" onClick={props.onClose}>P · đóng</button>
+        <button className="btn sm ghost" onClick={props.onOpenVideo}>V · open video</button>
+        <button className="btn sm ghost" onClick={props.onClose}>P · close</button>
       </div>
       {keyframeId ? (
         error ? (
@@ -52,12 +52,12 @@ export function FramePreview(props: Props) {
         ) : url ? (
           <img className="preview-img" src={url} alt={keyframeId} />
         ) : (
-          <div className="empty">Đang tải ảnh…</div>
+          <div className="empty">Loading image…</div>
         )
       ) : (
         <div className="empty" data-testid="preview-raw">
-          RAW VIDEO FRAME — frame {props.frameIdx} không phải keyframe đã trích, nên không có
-          ảnh tĩnh. Bấm <b>V</b> để mở video đúng tại frame này.
+          RAW VIDEO FRAME — frame {props.frameIdx} is not an extracted keyframe, so no still image is
+          available. Press <b>V</b> to open the video at this exact frame.
         </div>
       )}
     </div>

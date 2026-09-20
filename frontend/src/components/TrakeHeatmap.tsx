@@ -81,7 +81,7 @@ export function TrakeHeatmap(props: Props) {
               style={{ height: trackHeight }}
             >
               {event.peaks.length === 0 && (
-                <span className="trake-heat-empty">không có ứng viên</span>
+                <span className="trake-heat-empty">no candidates</span>
               )}
               {/* Ticks first, behind the frames: this is the exact timeline. */}
               {placed.map((item) => (
@@ -101,8 +101,8 @@ export function TrakeHeatmap(props: Props) {
                     type="button"
                     className={`trake-heat-peak ${isChosen ? "picked" : ""} ${peak.via_fill ? "fill" : ""}`}
                     data-testid="trake-heat-peak"
-                    aria-label={`E${event.event_index} tại ${formatTime(peak.pts_time)}`}
-                    title={`E${event.event_index} · ${formatTime(peak.pts_time)} · ${Math.round(peak.strength * 100)}%${peak.via_fill ? " · in-video fill" : ""}${isChosen ? " · đang dùng cho chuỗi" : ""}\nBấm để chọn · kéo vào ô event để dùng · v để mở video`}
+                    aria-label={`E${event.event_index} at ${formatTime(peak.pts_time)}`}
+                    title={`E${event.event_index} · ${formatTime(peak.pts_time)} · ${Math.round(peak.strength * 100)}%${peak.via_fill ? " · in-video fill" : ""}${isChosen ? " · selected for sequence" : ""}\nClick to select · drag to an event slot to use · V to open video`}
                     style={{
                       left: item.x,
                       top: item.lane * HEAT_LANE_H + HEAT_TRACK_PAD / 2,

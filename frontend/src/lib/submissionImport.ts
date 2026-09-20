@@ -88,12 +88,12 @@ export function parseAnswerCsv(
 
   lines.forEach((line, index) => {
     if (!line.trim()) return; // a trailing newline is not a row
-    const where = `${questionId} dòng ${index + 1}`;
+    const where = `${questionId} row ${index + 1}`;
     const cells = parseCsvLine(line);
     const [videoCell, ...rest] = cells;
     const videoId = (videoCell ?? "").trim();
     if (!videoId) {
-      problems.push(`${where}: thiếu tên video`);
+      problems.push(`${where}: missing video name`);
       return;
     }
     // In Q&A the last cell is the answer, whatever it looks like; everything
@@ -103,13 +103,13 @@ export function parseAnswerCsv(
     for (const cell of rest) {
       const frame = frameOf(cell);
       if (frame === null) {
-        problems.push(`${where}: "${cell.trim()}" không phải frame hợp lệ`);
+        problems.push(`${where}: "${cell.trim()}" is not a valid frame`);
         return;
       }
       frames.push(frame);
     }
     if (!frames.length) {
-      problems.push(`${where}: không có frame nào`);
+      problems.push(`${where}: no frames`);
       return;
     }
     rows.push({
@@ -127,7 +127,7 @@ export function parseAnswerCsv(
 
   if (rows.length > MAX_ROWS_PER_QUESTION) {
     problems.push(
-      `${questionId}: ${rows.length} dòng > ${MAX_ROWS_PER_QUESTION}, chỉ lấy ${MAX_ROWS_PER_QUESTION} dòng đầu`,
+      `${questionId}: ${rows.length} rows exceed ${MAX_ROWS_PER_QUESTION}; only the first ${MAX_ROWS_PER_QUESTION} rows will be imported`,
     );
     rows.length = MAX_ROWS_PER_QUESTION;
   }
@@ -166,8 +166,8 @@ export function parseSubmissionPack(
     const kind = kindOf(questionId, byId);
     if (!kind) {
       problems.push(
-        `${entry.name}: không biết đây là câu KIS/QA hay TRAKE (không có trong gói câu hỏi, ` +
-          "tên file cũng không kết thúc bằng -kis/-qa/-trake)",
+        `${entry.name}: cannot determine KIS/QA/TRAKE type (not in the question pack, ` +
+          "and the filename does not end with -kis/-qa/-trake)",
       );
       continue;
     }
@@ -182,8 +182,8 @@ export function parseSubmissionPack(
     const looksLikeQuestionPack = entries.some((entry) => /\.txt$/i.test(entry.name));
     throw new ZipError(
       looksLikeQuestionPack
-        ? "File này là gói CÂU HỎI (.txt), không phải gói đáp án. Dùng nút “⭳ Import câu hỏi”."
-        : "Không tìm thấy file .csv nào trong zip — gói đáp án phải có submission/<tên câu>.csv",
+        ? "This is a QUESTION pack (.txt), not an answer pack. Use “⭳ Import questions”."
+        : "No .csv files found in the ZIP; an answer pack must contain submission/<question-name>.csv",
     );
   }
 

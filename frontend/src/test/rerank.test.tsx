@@ -221,7 +221,7 @@ describe("rerank tick box", () => {
     await search(user, "đầu bếp đang nấu ăn");
 
     const report = await screen.findByTestId("rerank-report");
-    expect(report.textContent).toContain("giữ nguyên thứ tự truy hồi");
+    expect(report.textContent).toContain("preserve retrieval order");
     expect(report.textContent).toContain("timeout");
     expect(report.className).toContain("warn");
     // The results themselves are still on screen — a failed refinement must not

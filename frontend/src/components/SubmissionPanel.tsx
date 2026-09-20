@@ -197,16 +197,16 @@ function AutoGenPanel(props: {
   return (
     <div className="pack-preview" data-testid="autogen-panel">
       <div>
-        <b>✨ Tự sinh đáp án</b> — mỗi câu được truy xuất lại rồi xếp thành danh sách đáp án
-        có thứ tự (thuật toán phân bổ ngân sách theo mốc R@1/5/20/50/100).
+        <b>✨ Generate answers</b> — each question is searched again to produce a ranked answer list
+        (using a budget allocation at R@1/5/20/50/100).
       </div>
       <div className="hint-text" style={{ margin: 0 }}>
-        Đáp án bạn tự chấm <b>không bị đụng tới</b> và luôn đứng trước; máy chỉ điền phần còn
-        thiếu cho đủ số dòng. Bấm lại chỉ thay các dòng do máy sinh lần trước.
+        Your manual answers are <b>preserved</b> and stay first; generated answers fill the remaining
+        rows up to the limit. Running again replaces only previously generated rows.
       </div>
       <div className="row" style={{ gap: 12, flexWrap: "wrap", alignItems: "center" }}>
         <label className="row" style={{ gap: 6, alignItems: "center" }}>
-          <span className="dres-dim">tổng số dòng / câu</span>
+          <span className="dres-dim">total rows / question</span>
           <input
             className="cell-input mono"
             style={{ width: 64 }}
@@ -229,18 +229,18 @@ function AutoGenPanel(props: {
             data-testid="autogen-only-empty"
             onChange={(event) => props.onOnlyEmpty(event.target.checked)}
           />
-          <span className="dres-dim">chỉ câu máy chưa sinh ({notGeneratedYet})</span>
+          <span className="dres-dim">only questions without generated answers ({notGeneratedYet})</span>
         </label>
         <span className="dres-dim">
-          sẽ chạy {targets} câu
-          {kept > 0 ? ` · giữ nguyên ${kept} dòng bạn đã chấm` : ""}
-          {regenerated > 0 ? ` · sinh lại ${regenerated} câu` : ""}
+          will process {targets} questions
+          {kept > 0 ? ` · keep ${kept} manual rows` : ""}
+          {regenerated > 0 ? ` · regenerate ${regenerated} questions` : ""}
         </span>
       </div>
       {regenerated > 0 && (
         <div className="hint-text" data-testid="autogen-regenerate-note">
-          ↻ {regenerated} câu đã có dòng máy sinh — các dòng đó sẽ được thay bằng danh sách mới.
-          Dòng bạn tự chấm vẫn giữ nguyên.
+          ↻ {regenerated} questions already have generated rows; those rows will be replaced.
+          Manual rows are preserved.
         </div>
       )}
       <div className="row" style={{ gap: 8, marginTop: 6 }}>
@@ -252,15 +252,15 @@ function AutoGenPanel(props: {
             autoGen.onStart({ limit: props.limit, onlyEmpty: props.onlyEmpty, questionIds: [] })
           }
         >
-          {autoGen.running ? "Đang chạy…" : `⚙ Sinh đáp án cho ${targets} câu`}
+          {autoGen.running ? "Running…" : `⚙ Generate answers for ${targets} questions`}
         </button>
         {autoGen.running ? (
           <button className="btn ghost" data-testid="autogen-cancel" onClick={autoGen.onCancel}>
-            Dừng
+            Stop
           </button>
         ) : (
           <button className="btn ghost" onClick={props.onClose}>
-            Đóng
+            Close
           </button>
         )}
       </div>
@@ -268,9 +268,9 @@ function AutoGenPanel(props: {
         <div className="hint-text" data-testid="autogen-progress" style={{ marginTop: 6 }}>
           {autoGen.progress
             ? `[${autoGen.progress.index + 1}/${autoGen.progress.total}] ${autoGen.progress.questionId} — ${
-                autoGen.progress.status === "running" ? "đang truy xuất…" : autoGen.progress.status
+                autoGen.progress.status === "running" ? "retrieving…" : autoGen.progress.status
               }`
-            : `xong ${done} câu`}
+            : `completed ${done} questions`}
           {failed.length > 0 && (
             <ul className="submission-problems">
               {failed.slice(0, 8).map((entry) => (
@@ -312,8 +312,8 @@ function AnswerImportPreview(props: {
   return (
     <div className="pack-preview" data-testid="answer-import-preview">
       <div>
-        <b>⭳ Import đáp án</b> — {props.parsed.files.length} câu ·{" "}
-        {props.parsed.totalRows} dòng trong file
+        <b>⭳ Import answers</b> — {props.parsed.files.length} questions ·{" "}
+        {props.parsed.totalRows} rows in file
       </div>
       <div className="row" style={{ gap: 14, flexWrap: "wrap", alignItems: "center" }}>
         <label className="row" style={{ gap: 6, alignItems: "center" }}>
@@ -323,7 +323,7 @@ function AnswerImportPreview(props: {
             data-testid="answer-import-mode-fill"
             onChange={() => setMode("fill")}
           />
-          <span className="dres-dim">chỉ điền câu đang trống</span>
+          <span className="dres-dim">fill unanswered questions only</span>
         </label>
         <label className="row" style={{ gap: 6, alignItems: "center" }}>
           <input
@@ -332,25 +332,25 @@ function AnswerImportPreview(props: {
             data-testid="answer-import-mode-replace"
             onChange={() => setMode("replace")}
           />
-          <span className="dres-dim">thay thế đáp án của các câu có trong file</span>
+          <span className="dres-dim">replace answers for questions included in the file</span>
         </label>
       </div>
       <div className="hint-text" style={{ margin: 0 }} data-testid="answer-import-plan">
-        Sẽ ghi {incoming} dòng vào {plan.write.length} câu
-        {plan.skipped.length > 0 ? ` · bỏ qua ${plan.skipped.length} câu` : ""}
-        {plan.replacedRows > 0 ? ` · XOÁ ${plan.replacedRows} dòng đang có` : ""}
+        Will save {incoming} rows to {plan.write.length} questions
+        {plan.skipped.length > 0 ? ` · skip ${plan.skipped.length} questions` : ""}
+        {plan.replacedRows > 0 ? ` · DELETE ${plan.replacedRows} existing rows` : ""}
       </div>
       {plan.replacedRows > 0 && (
         <div className="dup-warn" data-testid="answer-import-replace-warning">
-          ⚠ {plan.replacedRows} dòng đáp án hiện tại sẽ bị xoá và thay bằng nội dung trong file.
+          ⚠ {plan.replacedRows} existing answer rows will be deleted and replaced with file contents.
         </div>
       )}
       {props.parsed.orphanIds.length > 0 && (
         <div className="dup-warn" data-testid="answer-import-orphans">
-          ⚠ {props.parsed.orphanIds.length} câu trong file không có trong gói câu hỏi đang mở
+          ⚠ {props.parsed.orphanIds.length} questions in the file are not in the current question pack
           ({props.parsed.orphanIds.slice(0, 4).join(", ")}
-          {props.parsed.orphanIds.length > 4 ? "…" : ""}) — nạp vào vẫn được nhưng sẽ KHÔNG
-          được export. Có thể bạn đang mở nhầm gói câu hỏi.
+          {props.parsed.orphanIds.length > 4 ? "…" : ""}) — they can be imported but will NOT
+          be exported. Check that the correct question pack is open.
         </div>
       )}
       {problems.length > 0 && (
@@ -358,7 +358,7 @@ function AnswerImportPreview(props: {
           {problems.slice(0, 10).map((problem, index) => (
             <li key={index} className="error">⛔ {problem}</li>
           ))}
-          {problems.length > 10 && <li>… và {problems.length - 10} dòng lỗi nữa</li>}
+          {problems.length > 10 && <li>… and {problems.length - 10} more invalid rows</li>}
         </ul>
       )}
       <div className="row" style={{ gap: 8, marginTop: 6 }}>
@@ -368,10 +368,10 @@ function AnswerImportPreview(props: {
           disabled={plan.write.length === 0}
           onClick={() => props.onApply(mode)}
         >
-          ⇩ Nạp {incoming} dòng
+          ⇩ Import {incoming} rows
         </button>
         <button className="btn ghost" data-testid="answer-import-cancel" onClick={props.onCancel}>
-          Huỷ
+          Cancel
         </button>
       </div>
     </div>
@@ -418,12 +418,12 @@ function QaAnswerFill(props: {
 
   return (
     <div className="qa-answer-fill" data-testid="qa-answer-fill">
-      <span className="dres-dim">answer cho cả câu</span>
+      <span className="dres-dim">answer for the entire question</span>
       <input
         className="cell-input"
         value={text}
         maxLength={MAX_ANSWER_LENGTH * 2}
-        placeholder="ví dụ: 5 · màu xanh · Giang Ly"
+        placeholder="e.g. 5 · blue · Giang Ly"
         data-testid="qa-answer-input"
         onChange={(event) => setText(event.target.value)}
         onKeyDown={(event) => {
@@ -438,18 +438,18 @@ function QaAnswerFill(props: {
         disabled={!text.trim() || tooLong || rows.length === 0}
         onClick={apply}
         data-testid="qa-answer-apply"
-        title="Ghi đáp án này vào tất cả các dòng của câu"
+        title="Apply this answer to every row for this question"
       >
-        Điền vào {rows.length} dòng
+        Apply to {rows.length} rows
       </button>
       {tooLong && (
         <span className="dres-warn" data-testid="qa-answer-too-long">
-          ⛔ {text.trim().length}/{MAX_ANSWER_LENGTH} ký tự
+          ⛔ {text.trim().length}/{MAX_ANSWER_LENGTH} characters
         </span>
       )}
       {!tooLong && missing > 0 && (
         <span className="dres-warn" data-testid="qa-answer-missing">
-          ⚠ {missing}/{rows.length} dòng chưa có answer — sẽ bị chặn khi export
+          ⚠ {missing}/{rows.length} rows have no answer; export will be blocked
         </span>
       )}
     </div>
@@ -604,7 +604,7 @@ export function SubmissionPanel(props: Props) {
       // Past the fold the row would land out of sight, and the button would read
       // as a no-op on a question showing only its first ten answers.
       if (to >= COLLAPSED_ROWS) setExpanded((current) => new Set(current).add(questionId));
-      props.onReorderRows(plan, `${questionId}: hạng ${from + 1} → ${to + 1}`);
+      props.onReorderRows(plan, `${questionId}: rank ${from + 1} → ${to + 1}`);
       // Follow the row, so ↑/↓ and Alt+↑/↓ keep acting on what was just moved.
       setSelected({ rowId, slot: 0 });
     },
@@ -752,14 +752,14 @@ export function SubmissionPanel(props: Props) {
 
   const syncLabel =
     !sync.shared
-      ? "● local (chưa cấu hình Supabase)"
+      ? "● local (Supabase not configured)"
       : sync.pending > 0
-        ? `● ${sync.pending} chờ đồng bộ`
+        ? `● ${sync.pending} pending sync`
         : sync.status === "live"
           ? "● Live"
           : sync.status === "error"
-            ? "● mất kết nối"
-            : "● đang kết nối…";
+            ? "● disconnected"
+            : "● connecting…";
 
   return (
     <div className="submission-view" data-testid="submission-panel">
@@ -770,8 +770,8 @@ export function SubmissionPanel(props: Props) {
         <div>
           <h2 style={{ margin: 0, fontSize: 15 }}>Submission</h2>
           <div className="hint-text" style={{ margin: 0 }}>
-            {totalRows} dòng · {answered.length}/{questions.length} câu đã có đáp án · export ra{" "}
-            <code>submission/&lt;tên câu hỏi&gt;.csv</code>
+            {totalRows} rows · {answered.length}/{questions.length} questions answered · export to{" "}
+            <code>submission/&lt;question-name&gt;.csv</code>
           </div>
         </div>
         {props.pack.sessionName && (
@@ -782,7 +782,7 @@ export function SubmissionPanel(props: Props) {
         <span
           className={`sync-pill ${sync.shared ? sync.status : "offline"}${sync.pending ? " pending" : ""}`}
           data-testid="sync-status"
-          title={sync.shared ? `room ${sync.room} · ${sync.user}` : "Đặt VITE_SUPABASE_URL để bật sync"}
+          title={sync.shared ? `room ${sync.room} · ${sync.user}` : "Set VITE_SUPABASE_URL to enable sync"}
         >
           {syncLabel}
         </span>
@@ -805,9 +805,9 @@ export function SubmissionPanel(props: Props) {
           disabled={questions.length === 0}
           data-testid="autogen-toggle"
           aria-expanded={genOpen}
-          title="Sinh sẵn danh sách đáp án có thứ tự cho từng câu hỏi"
+          title="Generate a ranked answer list for each question"
         >
-          {autoGen.running ? "Đang sinh đáp án…" : "✨ Tự sinh đáp án"}
+          {autoGen.running ? "Generating answers…" : "✨ Generate answers"}
         </button>
         <button
           className="btn sm ghost"
@@ -816,20 +816,20 @@ export function SubmissionPanel(props: Props) {
           data-testid="submission-undo"
           title={
             props.undoLabel
-              ? `Hoàn tác: ${props.undoLabel} (Ctrl+Z) — cả đội sẽ thấy thay đổi này`
-              : "Không có thao tác nào để hoàn tác"
+              ? `Undo: ${props.undoLabel} (Ctrl+Z) — visible to the entire team`
+              : "Nothing to undo"
           }
         >
-          ↩ Hoàn tác
+          ↩ Undo
         </button>
         <button
           className="btn sm ghost"
           onClick={props.onSearchAll}
           disabled={questions.length === 0 || props.searchingAll}
           data-testid="submission-search-all"
-          title={`Mở ${questions.length} tab và search tất cả — thay toàn bộ tab đang mở`}
+          title={`Open ${questions.length} tabs and search all questions — replaces all open tabs`}
         >
-          {props.searchingAll ? "Đang search…" : `⚡ Search tất cả (${questions.length})`}
+          {props.searchingAll ? "Searching…" : `⚡ Search all (${questions.length})`}
         </button>
         <button
           className="btn sm"
@@ -837,7 +837,7 @@ export function SubmissionPanel(props: Props) {
           disabled={props.importing}
           data-testid="submission-import"
         >
-          {props.importing ? "Đang import…" : "⭳ Import câu hỏi"}
+          {props.importing ? "Importing…" : "⭳ Import questions"}
         </button>
         <input
           ref={answerFileRef}
@@ -856,9 +856,9 @@ export function SubmissionPanel(props: Props) {
           onClick={() => answerFileRef.current?.click()}
           disabled={props.answerImport.importing}
           data-testid="answer-import"
-          title="Nạp lại submission.zip đã export trước đó"
+          title="Import a previously exported submission.zip"
         >
-          {props.answerImport.importing ? "Đang đọc…" : "⭳ Import đáp án"}
+          {props.answerImport.importing ? "Reading…" : "⭳ Import answers"}
         </button>
         <button
           className="btn primary"
@@ -867,8 +867,8 @@ export function SubmissionPanel(props: Props) {
           data-testid="export-submission"
           title={
             audit.errors.length
-              ? `${audit.errors.length} lỗi định dạng phải sửa trước khi export`
-              : "Tạo submission.zip"
+              ? `${audit.errors.length} formatting errors must be fixed before export`
+              : "Create submission.zip"
           }
         >
           ⭱ Export submission.zip
@@ -876,26 +876,26 @@ export function SubmissionPanel(props: Props) {
       </div>
 
       <div className="hint-text" style={{ marginTop: 0 }}>
-        ↑↓ chọn dòng · ←→ chọn sự kiện (TRAKE) · kéo <b>⠿</b> hoặc <b>Alt+↑↓</b> đổi thứ hạng ·{" "}
-        <b>P</b> xem ảnh keyframe · <b>V</b> mở video để
-        đổi frame · <b>Delete</b> xoá dòng · <b>Ctrl+Z</b> hoàn tác · <b>Ctrl+E</b> export
+        ↑↓ select row · ←→ select event (TRAKE) · drag <b>⠿</b> or <b>Alt+↑↓</b> to reorder ·{" "}
+        <b>P</b> preview keyframe · <b>V</b> open video to
+        change frame · <b>Delete</b> delete row · <b>Ctrl+Z</b> undo · <b>Ctrl+E</b> export
       </div>
       {unsent.length > 0 && (
         <div className="submission-unsent" data-testid="unsent-banner">
           <span>
-            ✎ {unsent.length} dòng đã gõ nhưng <b>chưa đồng bộ</b> — export bây giờ sẽ lấy giá trị
-            cũ.
+            ✎ {unsent.length} edited rows are <b>not synced</b>; exporting now uses their previously
+            saved values.
           </span>
           <div className="spacer" />
           <button className="btn sm" onClick={commitAll} data-testid="commit-all">
-            ✓ Đồng bộ {unsent.length} dòng
+            ✓ Sync {unsent.length} rows
           </button>
         </div>
       )}
 
       {undone && (
         <div className="hint-text" data-testid="undo-toast" style={{ marginTop: 0 }}>
-          ↩ đã hoàn tác: {undone}
+          ↩ undone: {undone}
         </div>
       )}
 
@@ -931,20 +931,20 @@ export function SubmissionPanel(props: Props) {
         return (
           <div className="pack-preview" data-testid="pack-preview">
             <div>
-              <b>{summary.total} câu hỏi</b> · KIS {summary.byKind.kis} · QA {summary.byKind.qa} ·
+              <b>{summary.total} questions</b> · KIS {summary.byKind.kis} · QA {summary.byKind.qa} ·
               TRAKE {summary.byKind.trake}
             </div>
             <div className="hint-text" style={{ margin: 0 }}>
               {props.pack.shared
-                ? "Publish sẽ thay gói câu hỏi của cả team và mở lại tab theo gói mới."
-                : "Chưa cấu hình Supabase — gói này sẽ chỉ áp dụng trên máy bạn."}
+                ? "Publishing replaces the team question pack and reopens tabs for the new pack."
+                : "Supabase is not configured; this pack will only apply on your device."}
             </div>
             <div className="row" style={{ gap: 8, marginTop: 6 }}>
               <button className="btn primary" data-testid="pack-publish" onClick={props.onApplyPack}>
-                ⇪ Publish cho cả team
+                ⇪ Publish to team
               </button>
               <button className="btn ghost" data-testid="pack-cancel" onClick={props.onCancelPack}>
-                Huỷ
+                Cancel
               </button>
             </div>
           </div>
@@ -953,41 +953,41 @@ export function SubmissionPanel(props: Props) {
 
       {props.pack.origin === "cache" && (
         <div className="dup-warn" data-testid="pack-cached">
-          ⚠ Đang dùng gói câu hỏi từ cache — chưa xác nhận được với server. Nếu người khác vừa
-          publish gói mới thì máy này có thể đang hiểu `question_id` khác cả team.
+          ⚠ Using a cached question pack that has not been confirmed by the server. If someone has
+          published a new pack, question IDs on this device may differ from the team's.
         </div>
       )}
       {props.pack.origin === "local" && props.pack.shared && (
         <div className="dup-warn" data-testid="pack-local-only">
-          ⚠ Gói câu hỏi này chỉ nằm trên máy bạn (chưa publish) — đáp án vẫn ghi chung với team.
+          ⚠ This question pack is local and unpublished; answers are still shared with the team.
         </div>
       )}
       {audit.errors.length > 0 && (
         <div className="dup-warn" data-testid="export-blocked">
-          ⛔ {audit.errors.length} lỗi định dạng — export bị chặn. Nộp sai định dạng vẫn tính là
-          một lần nộp (mỗi gói chỉ có 3 lần), nên phải sửa hết trước khi tạo file:
+          ⛔ {audit.errors.length} formatting errors; export is blocked. An invalid submission still counts as
+          an attempt (three per pack), so fix all errors before exporting:
           <ul className="submission-problems">
             {audit.errors.slice(0, 12).map((problem, index) => (
               <li key={`${problem.questionId}-${index}`}>
                 <b>{problem.questionId}</b> {problem.message}
               </li>
             ))}
-            {audit.errors.length > 12 && <li>… và {audit.errors.length - 12} lỗi nữa</li>}
+            {audit.errors.length > 12 && <li>… and {audit.errors.length - 12} more errors</li>}
           </ul>
         </div>
       )}
       {audit.unanswered.length > 0 && (
         <div className="hint-text" data-testid="unanswered-note">
-          {audit.unanswered.length}/{questions.length} câu chưa có đáp án — vẫn được export dưới
-          dạng file CSV rỗng theo đúng cấu trúc BTC yêu cầu.
+          {audit.unanswered.length}/{questions.length} unanswered questions will still be exported as
+          empty CSV files in the required competition format.
         </div>
       )}
       {props.pack.error && <div className="dup-warn">⚠ Pack: {props.pack.error}</div>}
       {sync.error && <div className="dup-warn" data-testid="sync-error">⚠ Sync: {sync.error}</div>}
       {sync.conflicts.map((rowId) => (
         <div className="dup-warn" key={rowId} data-testid="sync-conflict">
-          ⚠ Dòng này vừa được người khác sửa nên thay đổi của bạn chưa được ghi. Bảng đang hiển thị
-          bản mới nhất từ server.{" "}
+          ⚠ Someone else edited this row, so your changes were not saved. The table shows
+          the latest server version.{" "}
           <button className="btn sm ghost" onClick={() => sync.onDismissConflict(rowId)}>OK</button>
         </div>
       ))}
@@ -995,7 +995,7 @@ export function SubmissionPanel(props: Props) {
       {props.exportError && <div className="dup-warn">⚠ {props.exportError}</div>}
       {orphans.length > 0 && (
         <div className="dup-warn" data-testid="submission-orphans">
-          ⚠ {orphans.length} dòng thuộc câu hỏi không còn trong gói đã import — chúng sẽ KHÔNG được export.
+          ⚠ {orphans.length} rows belong to questions outside the imported pack and will NOT be exported.
         </div>
       )}
 
@@ -1026,7 +1026,7 @@ export function SubmissionPanel(props: Props) {
 
       {questions.length === 0 && (
         <div className="empty">
-          Chưa import gói câu hỏi nào — bấm “⭳ Import câu hỏi” ở trên để nạp file .zip.
+          No question pack imported. Click “⭳ Import questions” above to load a .zip file.
         </div>
       )}
 
@@ -1047,7 +1047,7 @@ export function SubmissionPanel(props: Props) {
               <button
                 className="btn sm ghost"
                 onClick={() => props.onJumpToQuestion(question.id)}
-                title="Mở tab đang trả lời câu này"
+                title="Open the tab assigned to this question"
               >
                 {question.id}
               </button>
@@ -1056,21 +1056,21 @@ export function SubmissionPanel(props: Props) {
               </span>
               {question.eventCount && <span className="dres-dim">{question.eventCount} events</span>}
               <span className="dres-dim">
-                {questionRows.length}/{MAX_ROWS_PER_QUESTION} dòng
+                {questionRows.length}/{MAX_ROWS_PER_QUESTION} rows
               </span>
               {qaAnswerMissingEverywhere(questionRows, question) && (
                 <span className="dres-warn" data-testid={`qa-needs-answer-${question.id}`}>
-                  ⚠ chưa có answer
+                  ⚠ missing answer
                 </span>
               )}
               {problems.some((problem) => problem.severity === "error") && (
                 <span className="dres-warn" data-testid={`errors-${question.id}`}>
-                  ⛔ {problems.filter((problem) => problem.severity === "error").length} lỗi
+                  ⛔ {problems.filter((problem) => problem.severity === "error").length} errors
                 </span>
               )}
               {problems.some((problem) => problem.severity === "warning") && (
                 <span className="dres-dim" data-testid={`problems-${question.id}`}>
-                  {problems.filter((problem) => problem.severity === "warning").length} cảnh báo
+                  {problems.filter((problem) => problem.severity === "warning").length} warnings
                 </span>
               )}
               <div className="spacer" />
@@ -1080,10 +1080,10 @@ export function SubmissionPanel(props: Props) {
                 onClick={() =>
                   autoGen.onStart({ limit: genLimit, onlyEmpty: false, questionIds: [question.id] })
                 }
-                title="Xoá đáp án hiện có của câu này rồi sinh lại"
+                title="Delete existing answers for this question and regenerate"
                 data-testid={`autogen-one-${question.id}`}
               >
-                ✨ sinh lại
+                ✨ regenerate
               </button>
               <button
                 className="btn sm ghost"
@@ -1094,10 +1094,10 @@ export function SubmissionPanel(props: Props) {
                   props.onAddRow(question.id);
                 }}
               >
-                + dòng
+                + row
               </button>
               <button className="btn sm ghost" onClick={() => props.onClearQuestion(question.id)}>
-                xoá hết
+                clear all
               </button>
             </div>
 
@@ -1111,7 +1111,7 @@ export function SubmissionPanel(props: Props) {
             <table className="submission-table">
               <thead>
                 <tr>
-                  <th style={{ width: 44 }} title="Thứ hạng — kéo ⠿ hoặc Alt+↑/↓ để đổi">#</th>
+                  <th style={{ width: 44 }} title="Rank — drag ⠿ or use Alt+↑/↓ to reorder">#</th>
                   <th style={{ width: 70 }}>ai</th>
                   <th style={{ width: 120 }}>video</th>
                   <th>{question.kind === "trake" ? `frames (${question.eventCount ?? "N"})` : "frame_idx"}</th>
@@ -1188,8 +1188,8 @@ export function SubmissionPanel(props: Props) {
                           className="row-grip"
                           role="button"
                           tabIndex={-1}
-                          title="Kéo để đổi thứ hạng · Alt+↑/↓"
-                          aria-label={`Kéo dòng ${index + 1} để đổi thứ hạng`}
+                          title="Drag to reorder · Alt+↑/↓"
+                          aria-label={`Drag row ${index + 1} to reorder`}
                           data-testid={`grip-${question.id}-${index}`}
                           // Pointer down arms the row. Releasing disarms it —
                           // here, or through the window listener when the button
@@ -1225,7 +1225,7 @@ export function SubmissionPanel(props: Props) {
                       </td>
                       <td className="mono dim keyframe-cell">
                         {(row.keyframeIds?.[activeSlot] ?? null) ?? (
-                          <span title="frame lấy trực tiếp từ video, không phải keyframe đã trích">raw</span>
+                          <span title="Frame selected directly from the video, not an extracted keyframe">raw</span>
                         )}
                       </td>
                       {question.kind === "qa" && (
@@ -1236,7 +1236,7 @@ export function SubmissionPanel(props: Props) {
                             maxLength={MAX_ANSWER_LENGTH * 2}
                             onChange={(event) => editDraft(row.id, { answer: event.target.value })}
                             onKeyDown={(event) => onCellKey(event, row)}
-                            placeholder="đáp án (≤100 ký tự)"
+                            placeholder="answer (≤100 characters)"
                           />
                         </td>
                       )}
@@ -1248,8 +1248,8 @@ export function SubmissionPanel(props: Props) {
                               event.stopPropagation();
                               commitDraft(row);
                             }}
-                            title="Đồng bộ dòng này cho cả đội (Enter). Esc để huỷ."
-                            aria-label={`Đồng bộ dòng ${index + 1}`}
+                            title="Sync this row with the team (Enter). Press Esc to cancel."
+                            aria-label={`Sync row ${index + 1}`}
                             data-testid={`commit-${question.id}-${index}`}
                           >
                             ✓
@@ -1261,7 +1261,7 @@ export function SubmissionPanel(props: Props) {
                             event.stopPropagation();
                             props.onDeleteRow(row.id);
                           }}
-                          aria-label={`Xoá dòng ${index + 1}`}
+                          aria-label={`Delete row ${index + 1}`}
                           data-testid={`delete-${question.id}-${index}`}
                         >
                           ×
@@ -1286,8 +1286,8 @@ export function SubmissionPanel(props: Props) {
                 data-testid={`expand-${question.id}`}
               >
                 {isExpanded
-                  ? `▴ thu gọn còn ${COLLAPSED_ROWS} dòng`
-                  : `▾ hiện tất cả ${questionRows.length} dòng — đang ẩn ${hiddenCount}`}
+                  ? `▴ collapse to ${COLLAPSED_ROWS} rows`
+                  : `▾ show all ${questionRows.length} rows — ${hiddenCount} hidden`}
               </button>
             )}
 
@@ -1309,7 +1309,7 @@ export function SubmissionPanel(props: Props) {
       {empty.length > 0 && (
         <div className="submission-block">
           <div className="submission-block-head">
-            <span className="dres-dim">Chưa có đáp án ({empty.length})</span>
+            <span className="dres-dim">Unanswered ({empty.length})</span>
           </div>
           <div className="submission-empty-list">
             {empty.map((question) => (
@@ -1327,7 +1327,7 @@ export function SubmissionPanel(props: Props) {
                   onClick={() =>
                     autoGen.onStart({ limit: genLimit, onlyEmpty: true, questionIds: [question.id] })
                   }
-                  title="Tự sinh đáp án cho riêng câu này"
+                  title="Generate answers for this question only"
                 >
                   ✨
                 </button>

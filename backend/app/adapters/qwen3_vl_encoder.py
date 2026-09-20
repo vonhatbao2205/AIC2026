@@ -96,7 +96,7 @@ class Qwen3VlEncoderClient:
             return [_pseudo_vector(text, QWEN3_VL_DIM) for text in texts]
         if not self.s.has_qwen3_vl_encoder:
             raise Qwen3VlEncoderUnavailable(
-                "Qwen3-VL encoder chưa cấu hình. Chạy notebook Colab encoder và đặt "
+                "Qwen3-VL encoder is not configured. Start the Colab encoder notebook and set "
                 "QWEN3_VL_ENCODER_URL/QWEN3_VL_ENCODER_TOKEN."
             )
 
@@ -112,17 +112,17 @@ class Qwen3VlEncoderClient:
             payload = response.json()
         except httpx.TimeoutException as exc:
             raise Qwen3VlEncoderUnavailable(
-                f"Qwen3-VL encoder không phản hồi sau {timeout:.0f}s"
+                f"Qwen3-VL encoder did not respond after {timeout:.0f}s"
             ) from exc
         except httpx.HTTPStatusError as exc:
             detail = exc.response.text.strip()[:200]
             raise Qwen3VlEncoderUnavailable(
-                f"Qwen3-VL encoder trả HTTP {exc.response.status_code}"
+                f"Qwen3-VL encoder returned HTTP {exc.response.status_code}"
                 + (f": {detail}" if detail else "")
             ) from exc
         except Exception as exc:  # noqa: BLE001 - normalize transport/JSON errors
             detail = str(exc).strip() or type(exc).__name__
-            raise Qwen3VlEncoderUnavailable(f"không gọi được Qwen3-VL encoder: {detail}") from exc
+            raise Qwen3VlEncoderUnavailable(f"could not reach Qwen3-VL encoder: {detail}") from exc
 
         vectors = payload.get("vectors") if isinstance(payload, dict) else None
         if not isinstance(vectors, list) or len(vectors) != len(texts):

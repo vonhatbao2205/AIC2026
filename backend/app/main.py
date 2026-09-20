@@ -463,8 +463,8 @@ async def search_canvas(req: CanvasSearchRequest):
         raise HTTPException(
             status_code=400,
             detail=(
-                "InfoShot++ đã có PE image + OCR/speech/audio (index v2), nhưng V-KIS "
-                "canvas vẫn khoá: chưa có object detection cho keyframe InfoShot++."
+                "InfoShot++ supports PE image + OCR/speech/audio (index v2), but V-KIS "
+                "canvas is unavailable because InfoShot++ keyframes have no object detection."
             ),
         )
     return await canvas_service.search(req.model_dump())

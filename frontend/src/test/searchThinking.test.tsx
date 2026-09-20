@@ -16,7 +16,7 @@ describe("SearchThinking", () => {
   it("starts with a quiet two-line search status", () => {
     render(<SearchThinking />);
 
-    expect(screen.getByRole("status", { name: "Đang tìm kiếm" })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Searching" })).toBeInTheDocument();
     const logo = screen.getByTestId("search-thinking-logo").querySelector("img");
     expect(logo).toBeInTheDocument();
     expect(logo?.getAttribute("src")).toContain("chatgpt-seeklogo.png");

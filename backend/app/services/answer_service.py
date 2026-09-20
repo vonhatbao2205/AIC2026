@@ -90,13 +90,13 @@ class AnswerService:
             dropped = len(sequences) - len(usable)
             if dropped:
                 warnings.append(
-                    f"Bỏ {dropped}/{len(sequences)} chuỗi chưa đủ {event_count} sự kiện — "
-                    "một dòng TRAKE phải có đúng số frame theo đề bài, thiếu là hỏng cả file nộp."
+                    f"Dropped {dropped}/{len(sequences)} sequences with fewer than {event_count} events; "
+                    "each TRAKE row must have the required frame count; missing frames invalidate the submission file."
                 )
             if not usable:
                 warnings.append(
-                    f"Không có chuỗi nào đủ {event_count} sự kiện, nên chưa sinh được đáp án "
-                    "cho câu này. Thử tăng độ sâu truy xuất, nới scope, hoặc chấm frame thủ công."
+                    f"No sequence contains all {event_count} events, so no answers were generated "
+                    "for this question. Increase retrieval depth, broaden scope or select frames manually."
                 )
         else:
             if not groups:
@@ -129,8 +129,8 @@ class AnswerService:
 
         if len(answers) < limit:
             warnings.append(
-                f"Chỉ sinh được {len(answers)}/{limit} đáp án — kho ứng viên quá mỏng "
-                "(thử tăng độ sâu truy xuất hoặc nới scope)."
+                f"Generated only {len(answers)}/{limit} answers; insufficient candidates "
+                "(try increasing retrieval depth or broadening scope)."
             )
         latency["answer_gen_ms"] = round((time.perf_counter() - t0) * 1000, 1)
         return {

@@ -69,8 +69,8 @@ class PeEncoderClient:
         )
         if resp.status_code == 404:
             raise PeImageEncoderMissing(
-                "PE server chưa có /encode-image — chạy lại cell FastAPI trong "
-                "model-setup-backend.ipynb rồi cập nhật PE_ENCODER_URL."
+                "PE server has no /encode-image endpoint; rerun the FastAPI cell in "
+                "model-setup-backend.ipynb and update PE_ENCODER_URL."
             )
         resp.raise_for_status()
         return resp.json()["vectors"]

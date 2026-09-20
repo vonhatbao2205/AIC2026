@@ -94,7 +94,7 @@ export function TrakeVideoResults(props: Props) {
               </span>
               {video.min_quality < 0.35 && video.confident_coverage > 0 && (
                 <span className="badge warn" title={`Weakest event in the chain is only ${Math.round(video.min_quality * 100)}% as strong as that event's best hit anywhere`}>
-                  ⚠ yếu {Math.round(video.min_quality * 100)}%
+                  ⚠ weak {Math.round(video.min_quality * 100)}%
                 </span>
               )}
               {video.min_event_gap != null && video.min_event_gap < 1 && (
@@ -103,16 +103,16 @@ export function TrakeVideoResults(props: Props) {
                   data-testid="trake-compressed-warning"
                   title="Two events land within a second of each other — often one moment matched twice rather than two events"
                 >
-                  ⚠ {video.min_event_gap.toFixed(1)}s giữa 2 event
+                  ⚠ {video.min_event_gap.toFixed(1)}s between events
                 </span>
               )}
               {outOfOrder.length > 0 && (
                 <span
                   className="badge bad"
                   data-testid="trake-order-warning"
-                  title="TRAKE bắt buộc các event tăng dần theo thời gian; dòng nộp sai thứ tự sẽ bị loại"
+                  title="TRAKE events must be in chronological order; out-of-order submissions are rejected"
                 >
-                  ⚠ sai thứ tự: E{outOfOrder.join(", E")}
+                  ⚠ out of order: E{outOfOrder.join(", E")}
                 </span>
               )}
               {/* No prioritise/deprioritise here on purpose: `/api/search/trake`
@@ -223,7 +223,7 @@ function EventCard(props: {
           props.onPick(shown);
         }
       }}
-      title="Bấm để tua tới · kéo một frame từ bản đồ nhiệt vào đây để thay frame của chuỗi"
+      title="Click to seek · drag a heatmap frame here to replace this sequence frame"
     >
       <span className="trake-event-head">
         <span className="event-dot" style={{ background: color }} /> E{event.event_index}
@@ -232,7 +232,7 @@ function EventCard(props: {
           <button
             className="trake-event-undo"
             data-testid={`trake-event-undo-${event.event_index}`}
-            title="Trả về frame do chuỗi tự chọn"
+            title="Restore the automatically selected sequence frame"
             onClick={(e) => { e.stopPropagation(); props.onClearOverride(); }}
           >↺</button>
         )}
@@ -243,15 +243,15 @@ function EventCard(props: {
           <span className="trake-event-meta mono">
             {formatTime(shown.pts_time)} · {Math.round(shown.strength * 100)}%
           </span>
-          {props.overridden && <span className="trake-event-manual">đã chọn tay</span>}
+          {props.overridden && <span className="trake-event-manual">manually selected</span>}
           {loose && (
             <span className="trake-event-warn" title="No orderable position for this event — the strongest candidate is shown so you can judge the video anyway">
-              ⚠ ngoài chuỗi
+              ⚠ outside sequence
             </span>
           )}
         </>
       ) : (
-        <span className="trake-event-empty">kéo một frame vào đây</span>
+        <span className="trake-event-empty">drag a frame here</span>
       )}
     </div>
   );

@@ -41,11 +41,11 @@ export function QuestionBar(props: Props) {
         data-testid="question-select"
         value={selectedId ?? ""}
         onChange={(event) => props.onSelect(event.target.value || null)}
-        title="Câu hỏi tab này đang trả lời — chọn để nạp đề vào ô query"
+        title="Question assigned to this tab — select one to load its text into the query"
         disabled={questions.length === 0}
       >
         <option value="">
-          {questions.length ? "— chưa gán câu hỏi —" : "chưa import gói câu hỏi"}
+          {questions.length ? "— no question assigned —" : "no question pack imported"}
         </option>
         {questions.map((question) => (
           <option key={question.id} value={question.id}>
@@ -61,13 +61,13 @@ export function QuestionBar(props: Props) {
             {selected.text.slice(0, 90)}
             {selected.text.length > 90 ? "…" : ""}
           </span>
-          <span className="dres-dim">{rowCount} đáp án</span>
+          <span className="dres-dim">{rowCount} answers</span>
         </>
       ) : (
         <span className="dres-warn" data-testid="question-none">
           {questions.length
-            ? "tab này chưa gán câu hỏi — submit sẽ không biết ghi vào file nào"
-            : "import file zip câu hỏi để bắt đầu"}
+            ? "Assign a question to this tab before saving a submission"
+            : "Import a question ZIP to get started"}
         </span>
       )}
 
@@ -79,7 +79,7 @@ export function QuestionBar(props: Props) {
         onClick={props.onOpenSticky}
         data-testid="sticky-toggle"
         aria-pressed={props.stickyOpen}
-        title="Mở/đóng sticky note (`) — draft chỉ lưu trên máy này"
+        title="Toggle sticky note (`) — drafts are stored on this device only"
       >
         ◆ Sticky{props.stickyCount ? ` (${props.stickyCount})` : ""} <span className="kbd">`</span>
       </button>
@@ -93,11 +93,11 @@ export function QuestionBar(props: Props) {
         data-testid="search-all"
         title={
           questions.length
-            ? `Mở ${questions.length} tab và search tất cả — thay toàn bộ tab đang mở`
-            : "Chưa có gói câu hỏi"
+            ? `Open ${questions.length} tabs and search all questions — replaces all open tabs`
+            : "No question pack"
         }
       >
-        {props.searchingAll ? "Đang search…" : `⚡ Search tất cả (${questions.length})`}
+        {props.searchingAll ? "Searching…" : `⚡ Search all (${questions.length})`}
       </button>
       <input
         ref={fileRef}
@@ -117,9 +117,9 @@ export function QuestionBar(props: Props) {
         onClick={() => fileRef.current?.click()}
         disabled={props.importing}
         data-testid="import-questions"
-        title="Import file .zip chứa các file .txt câu hỏi"
+        title="Import a .zip file containing .txt questions"
       >
-        {props.importing ? "Đang import…" : "⭳ Import câu hỏi"}
+        {props.importing ? "Importing…" : "⭳ Import questions"}
       </button>
     </div>
   );

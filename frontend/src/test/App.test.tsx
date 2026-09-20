@@ -471,9 +471,9 @@ function formatError(body: any): string | null {
     ? (body.query_type === "QA" ? "temporal_text" : "temporal")
     : body.answer_mode;
   if (mode === "text" || mode === "temporal_text") {
-    if (!(p.answer ?? "").trim()) return "Task QA cần `text` (đáp án) — ô answer đang trống.";
+    if (!(p.answer ?? "").trim()) return "QA tasks require `text` (answer); the answer field is empty.";
   }
-  if (mode !== "text" && !p.video_id) return "Thiếu `mediaItemName` (video_id) cho task KIS/QA/TRAKE.";
+  if (mode !== "text" && !p.video_id) return "Missing `mediaItemName` (video_id) for KIS/QA/TRAKE tasks.";
   return null;
 }
 
@@ -838,7 +838,7 @@ describe("AIC26 retrieval console (full)", () => {
     await user.click(screen.getByTestId("open-submit"));
     await waitFor(() => expect(screen.getByTestId("submit-guard")).toBeInTheDocument());
     expect(screen.getByTestId("dup-warn")).toHaveTextContent("K01_V001,0");
-    expect(screen.getByTestId("confirm-submit")).toHaveTextContent(/dù trùng/i);
+    expect(screen.getByTestId("confirm-submit")).toHaveTextContent(/despite duplicate/i);
   });
 
   it("retrieves 100 keyframes by default and sends the slider value on the next search", async () => {
@@ -1278,7 +1278,7 @@ describe("AIC26 retrieval console (full)", () => {
     expect(within(cards[0]).getByTestId("trake-event-2")).toBeInTheDocument();
     expect(within(cards[0]).getAllByTestId("trake-heat-peak")).toHaveLength(3);
     // An event the chain could not place still shows its best candidate, badged.
-    expect(within(cards[1]).getByTestId("trake-event-2")).toHaveTextContent("ngoài chuỗi");
+    expect(within(cards[1]).getByTestId("trake-event-2")).toHaveTextContent("outside sequence");
   });
 
   it("TRAKE: clicking an event arms its slot without pulling the video down", async () => {
@@ -1451,7 +1451,7 @@ describe("AIC26 retrieval console (full)", () => {
     fireEvent.drop(e1Card, { dataTransfer: dt });
 
     expect(within(cards[0]).getByTestId("trake-event-1")).toHaveTextContent("02:00");
-    expect(within(cards[0]).getByTestId("trake-event-1")).toHaveTextContent("đã chọn tay");
+    expect(within(cards[0]).getByTestId("trake-event-1")).toHaveTextContent("manually selected");
 
     // The backend result is never mutated, so the DP's answer is always recoverable.
     await user.click(within(cards[0]).getByTestId("trake-event-undo-1"));
@@ -1487,7 +1487,7 @@ describe("AIC26 retrieval console (full)", () => {
 
     // Every TRAKE event has to come from the one video being submitted.
     expect(within(cards[0]).getByTestId("trake-event-1")).toHaveTextContent("08:50");
-    expect(within(cards[0]).getByTestId("trake-event-1")).not.toHaveTextContent("đã chọn tay");
+    expect(within(cards[0]).getByTestId("trake-event-1")).not.toHaveTextContent("manually selected");
   });
 
   it("TRAKE: quick submit sends the operator's frame, not the one it replaced", async () => {
@@ -1549,7 +1549,7 @@ describe("AIC26 retrieval console (full)", () => {
     fireEvent.drop(screen.getByTestId("trake-slot-1"), { dataTransfer: dt2 });
 
     expect(screen.getByTestId("trake-slot-1")).toHaveTextContent("empty");
-    expect(await screen.findByText(/Chuỗi đang dùng K19_V028/)).toBeInTheDocument();
+    expect(await screen.findByText(/Sequence uses K19_V028/)).toBeInTheDocument();
   });
 
   it("TRAKE: the guard blocks a chain that is not chronological", async () => {
@@ -1782,7 +1782,7 @@ describe("query pack + submission table", () => {
     expect(screen.queryByTestId("sticky-note")).not.toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "`", code: "Backquote" });
-    expect(await screen.findByTestId("sticky-note")).toHaveTextContent("chưa chọn câu hỏi");
+    expect(await screen.findByTestId("sticky-note")).toHaveTextContent("no question selected");
 
     fireEvent.keyDown(window, { key: "`", code: "Backquote" });
     await waitFor(() => expect(screen.queryByTestId("sticky-note")).not.toBeInTheDocument());
@@ -1796,7 +1796,7 @@ describe("query pack + submission table", () => {
 
     await user.click(screen.getByTestId("sticky-add-result"));
     expect(screen.queryByTestId("sticky-note")).not.toBeInTheDocument();
-    expect(await screen.findByText("Đã ghim candidate vào query-p1-1-kis.")).toBeInTheDocument();
+    expect(await screen.findByText("Pinned candidate to query-p1-1-kis.")).toBeInTheDocument();
     fireEvent.keyDown(window, { key: "`", code: "Backquote" });
     const note = await screen.findByTestId("sticky-note");
     expect(within(note).getAllByTestId(/^sticky-row-\d+$/)).toHaveLength(1);
@@ -1868,7 +1868,7 @@ describe("query pack + submission table", () => {
     await waitFor(() => expect(within(restoredRaw).getByRole("img")).toBeInTheDocument());
     expect(within(restoredRaw).getByText("raw exact")).toHaveAttribute(
       "title",
-      "Ảnh được trích lại từ video tại đúng thời điểm raw frame",
+      "Image extracted from the video at the exact raw-frame timestamp",
     );
     expect(within(restoredRaw).getByRole("img")).toHaveAttribute(
       "src",
@@ -2056,7 +2056,7 @@ describe("query pack + submission table", () => {
     // band schedule continues after it instead of restarting at rank 1.
     const request = answerGenRequests.find((r) => r.query === PACK[0].text);
     expect(request.taken).toEqual([{ video_id: "L26_V001", frames: [6400] }]);
-    expect(request.limit).toBe(2); // 3 tổng − 1 dòng đã có
+    expect(request.limit).toBe(2); // 3 tổng − 1 rows đã có
   });
 
   it("replaces only its own rows when run a second time", async () => {
@@ -2100,7 +2100,7 @@ describe("query pack + submission table", () => {
 
     await user.click(screen.getByTestId("autogen-toggle"));
     const panel = screen.getByTestId("autogen-panel");
-    expect(panel).toHaveTextContent("giữ nguyên 1 dòng bạn đã chấm");
+    expect(panel).toHaveTextContent("keep 1 manual rows");
     // Nothing generated yet, so there is nothing to replace.
     expect(screen.queryByTestId("autogen-regenerate-note")).not.toBeInTheDocument();
 
@@ -2112,9 +2112,9 @@ describe("query pack + submission table", () => {
     // says the hand-picked row is not part of what gets replaced.
     await user.click(screen.getByTestId("autogen-only-empty"));
     await waitFor(() =>
-      expect(screen.getByTestId("autogen-regenerate-note")).toHaveTextContent("3 câu"),
+      expect(screen.getByTestId("autogen-regenerate-note")).toHaveTextContent("3 questions"),
     );
-    expect(screen.getByTestId("autogen-regenerate-note")).toHaveTextContent("giữ nguyên");
+    expect(screen.getByTestId("autogen-regenerate-note")).toHaveTextContent("preserved");
   });
 
   it("regenerates one question without touching the rest", async () => {
@@ -2154,8 +2154,8 @@ describe("query pack + submission table", () => {
     // Generated frames carry no answer: the generator ranks where to look, the
     // text is a human judgement. One question-level error, not one per row.
     expect(within(block).getByTestId("qa-needs-answer-query-p1-2-qa")).toBeInTheDocument();
-    expect(screen.getByTestId("export-blocked")).toHaveTextContent("chưa có answer");
-    expect(screen.getByTestId("export-blocked")).toHaveTextContent("cả 3 dòng sẽ bị chặn");
+    expect(screen.getByTestId("export-blocked")).toHaveTextContent("missing answer");
+    expect(screen.getByTestId("export-blocked")).toHaveTextContent("all 3 rows will be blocked");
 
     await user.type(within(block).getByTestId("qa-answer-input"), "năm người");
     await user.click(within(block).getByTestId("qa-answer-apply"));
@@ -2194,8 +2194,8 @@ describe("query pack + submission table", () => {
 
     // Nothing is written until the operator has seen the plan.
     const preview = await screen.findByTestId("answer-import-preview");
-    expect(preview).toHaveTextContent("2 câu");
-    expect(screen.getByTestId("answer-import-plan")).toHaveTextContent("Sẽ ghi 2 dòng");
+    expect(preview).toHaveTextContent("2 questions");
+    expect(screen.getByTestId("answer-import-plan")).toHaveTextContent("Will save 2 rows");
     expect(screen.queryByTestId("row-query-p1-1-kis-0")).not.toBeInTheDocument();
 
     await user.click(screen.getByTestId("answer-import-apply"));
@@ -2225,13 +2225,13 @@ describe("query pack + submission table", () => {
     await screen.findByTestId("answer-import-preview");
 
     // Default mode leaves an answered question alone, so there is nothing to write.
-    expect(screen.getByTestId("answer-import-plan")).toHaveTextContent("Sẽ ghi 0 dòng");
+    expect(screen.getByTestId("answer-import-plan")).toHaveTextContent("Will save 0 rows");
     expect(screen.getByTestId("answer-import-apply")).toBeDisabled();
     expect(screen.queryByTestId("answer-import-replace-warning")).not.toBeInTheDocument();
 
     // Choosing to replace states the cost first, in rows.
     await user.click(screen.getByTestId("answer-import-mode-replace"));
-    expect(screen.getByTestId("answer-import-replace-warning")).toHaveTextContent("1 dòng");
+    expect(screen.getByTestId("answer-import-replace-warning")).toHaveTextContent("1 existing answer rows");
     await user.click(screen.getByTestId("answer-import-apply"));
     await waitFor(() =>
       expect(screen.getByTestId("csv-query-p1-1-kis")).toHaveTextContent("L26_V056,6400"),
@@ -2244,7 +2244,7 @@ describe("query pack + submission table", () => {
     fireEvent.click(screen.getByTestId("open-submission"));
     const zip = new File([buildZipBytes(PACK) as BlobPart], "pack.zip", { type: "application/zip" });
     fireEvent.change(screen.getByTestId("answer-import-input"), { target: { files: [zip] } });
-    expect(await screen.findByTestId("answer-import-error")).toHaveTextContent("gói CÂU HỎI");
+    expect(await screen.findByTestId("answer-import-error")).toHaveTextContent("QUESTION pack");
   });
 
   it("exports generated answers in the rank the generator chose", async () => {
@@ -2290,7 +2290,7 @@ describe("query pack + submission table", () => {
     await waitFor(() => expect(rows()).toHaveLength(10));
 
     const toggle = screen.getByTestId("expand-query-p1-1-kis");
-    expect(toggle).toHaveTextContent("hiện tất cả 12 dòng");
+    expect(toggle).toHaveTextContent("show all 12 rows");
     await user.click(toggle);
     expect(rows()).toHaveLength(12);
 
@@ -2321,7 +2321,7 @@ describe("query pack + submission table", () => {
     await waitFor(() =>
       expect(screen.queryByTestId("submission-query-p1-1-kis")).not.toBeInTheDocument(),
     );
-    expect(screen.getByTestId("undo-toast")).toHaveTextContent("sinh lại");
+    expect(screen.getByTestId("undo-toast")).toHaveTextContent("regenerate");
     // Nothing left to undo, so the button goes back to being unavailable.
     expect(screen.getByTestId("submission-undo")).toBeDisabled();
   });
@@ -2394,7 +2394,7 @@ describe("query pack + submission table", () => {
     // Still local: the shared table has neither value.
     const csv = () => screen.getByTestId("csv-query-p1-1-kis").textContent ?? "";
     expect(csv()).not.toContain("L30_V046");
-    expect(screen.getByTestId("unsent-banner")).toHaveTextContent("1 dòng");
+    expect(screen.getByTestId("unsent-banner")).toHaveTextContent("1 rows");
 
     // One confirm carries the whole row — video id and frames together, rather
     // than racing each other into the table as separate writes.
@@ -2429,13 +2429,13 @@ describe("query pack + submission table", () => {
     // The "+" shortcut only exists while a question is unanswered; a second row
     // comes from the block's own button.
     const block = await screen.findByTestId("submission-query-p1-1-kis");
-    await user.click(within(block).getByText("+ dòng"));
+    await user.click(within(block).getByText("+ row"));
 
     const first = await screen.findByTestId("row-query-p1-1-kis-0");
     const second = await screen.findByTestId("row-query-p1-1-kis-1");
     await user.type(within(first).getAllByRole("textbox")[0], "L30_V046");
     await user.type(within(second).getAllByRole("textbox")[0], "L21_V003");
-    expect(screen.getByTestId("unsent-banner")).toHaveTextContent("2 dòng");
+    expect(screen.getByTestId("unsent-banner")).toHaveTextContent("2 rows");
 
     await user.click(screen.getByTestId("commit-all"));
     const csv = screen.getByTestId("csv-query-p1-1-kis").textContent ?? "";
@@ -2451,7 +2451,7 @@ describe("query pack + submission table", () => {
     await user.click(screen.getByTestId("open-submission"));
     await user.click(screen.getByText("query-p1-1-kis +"));
     const block = await screen.findByTestId("submission-query-p1-1-kis");
-    await user.click(within(block).getByText("+ dòng"));
+    await user.click(within(block).getByText("+ row"));
 
     const first = await screen.findByTestId("row-query-p1-1-kis-0");
     const second = await screen.findByTestId("row-query-p1-1-kis-1");
@@ -2482,7 +2482,7 @@ describe("query pack + submission table", () => {
     await user.click(screen.getByTestId("open-submission"));
     await user.click(screen.getByText("query-p1-1-kis +"));
     const block = await screen.findByTestId("submission-query-p1-1-kis");
-    await user.click(within(block).getByText("+ dòng"));
+    await user.click(within(block).getByText("+ row"));
 
     const first = await screen.findByTestId("row-query-p1-1-kis-0");
     const second = await screen.findByTestId("row-query-p1-1-kis-1");
@@ -2508,11 +2508,11 @@ describe("query pack + submission table", () => {
     expect(csv).toContain("L21_V005,2315");
     expect(csv).toContain("L30_V046,6644");
     // And it says why nothing came back, rather than looking like a dud press.
-    expect(screen.getByTestId("undo-toast")).toHaveTextContent("không đổi gì");
+    expect(screen.getByTestId("undo-toast")).toHaveTextContent("made no changes");
   });
 
   it("can get back to the search UI and import from the submission view", async () => {
-    // The bar holding "Import câu hỏi" lives inside the console, which the
+    // The bar holding "Import questions" lives inside the console, which the
     // submission view does not render — so that view needs its own way out and
     // its own import button, or it is a dead end on first launch.
     const user = userEvent.setup();
@@ -2555,7 +2555,7 @@ describe("query pack + submission table", () => {
 
     expect(document.querySelector(".tab-rail-inner")).toBeInTheDocument();
     const trakeTab = screen.getByTestId("rail-tab-2");
-    expect(trakeTab).toHaveAccessibleName("Tab 3 · TRAKE · câu 3");
+    expect(trakeTab).toHaveAccessibleName("Tab 3 · TRAKE · question 3");
     expect(within(trakeTab).getByText("TR")).toHaveAttribute("aria-hidden", "true");
 
     // Collapsed or not, clicking still switches tabs.
@@ -2763,7 +2763,7 @@ describe("query pack + submission table", () => {
     expect(within(preview).getByTestId("pack-publish")).toBeEnabled();
     expect(within(preview).getByTestId("pack-cancel")).toBeInTheDocument();
     expect(screen.queryByTestId("pack-local")).not.toBeInTheDocument();
-    expect(preview).toHaveTextContent("3 câu hỏi");
+    expect(preview).toHaveTextContent("3 questions");
 
     // Cancelling leaves the previous pack (here: none) untouched.
     fireEvent.click(within(preview).getByTestId("pack-cancel"));
@@ -2807,7 +2807,7 @@ describe("query pack + submission table", () => {
 
     await user.click(screen.getByTestId("open-submit"));
     await waitFor(() => expect(screen.getByTestId("submit-guard")).toBeInTheDocument());
-    expect(screen.getByTestId("guard-format-error")).toHaveTextContent(/chưa gán câu hỏi/i);
+    expect(screen.getByTestId("guard-format-error")).toHaveTextContent(/no question assigned/i);
     expect(screen.getByTestId("confirm-submit")).toBeDisabled();
   });
 
@@ -2866,7 +2866,7 @@ describe("query pack + submission table", () => {
     await user.type(frameCell, "1200, 900{Enter}");
 
     expect(screen.getByTestId("errors-query-p1-3-trake")).toBeInTheDocument();
-    expect(screen.getByTestId("submission-query-p1-3-trake")).toHaveTextContent(/tăng dần/);
+    expect(screen.getByTestId("submission-query-p1-3-trake")).toHaveTextContent(/increasing chronological order/);
     expect(screen.getByTestId("export-submission")).toBeDisabled();
   });
 

@@ -13,7 +13,7 @@ function Expandable({ text }: { text: string }) {
       <span className={open || !long ? "" : "clamp-3"}>{text}</span>
       {long && (
         <button className="linklike" onClick={() => setOpen((o) => !o)}>
-          {open ? "thu gọn" : "xem thêm"}
+          {open ? "collapse" : "show more"}
         </button>
       )}
     </span>

@@ -103,20 +103,20 @@ export function SubmitGuard(props: Props) {
         <div className="modal-body">
           {duplicateId && (
             <div className="dup-warn" data-testid="dup-warn">
-              ⚠ Trùng: {duplicateId} đã được nộp cho{" "}
-              {props.dresEnabled ? `task ${taskLabel || "này"}` : props.questionId ?? "câu hỏi này"}.
+              ⚠ Duplicate: {duplicateId} was already submitted for{" "}
+              {props.dresEnabled ? `task ${taskLabel || "current"}` : props.questionId ?? "this question"}.
             </div>
           )}
           {mixedVideos && (
             <div className="dup-warn" data-testid="guard-mixed-videos">
-              ⛔ Các event đang thuộc {slotVideos.size} video khác nhau ({[...slotVideos].join(", ")}).
-              Một dòng TRAKE chỉ được lấy frame từ MỘT video.
+              ⛔ Events belong to {slotVideos.size} different videos ({[...slotVideos].join(", ")}).
+              A TRAKE row must contain frames from ONE video.
             </div>
           )}
           {outOfOrder && (
             <div className="dup-warn" data-testid="guard-order-violation">
-              ⛔ Sai thứ tự ở E{orderViolations.join(", E")} — event phải tăng dần theo thời gian, dòng sai
-              thứ tự sẽ bị parser loại và chặn cả bài nộp.
+              ⛔ Out of order at E{orderViolations.join(", E")} — events must be chronological. Invalid
+              ordering causes the parser to reject the row and block the submission.
             </div>
           )}
           {props.dresEnabled && previewError && (
@@ -133,13 +133,13 @@ export function SubmitGuard(props: Props) {
           {!props.dresEnabled && (
             <div className="guard-dres" data-testid="guard-submission-target">
               <div className="row">
-                <span className="k" style={{ width: 74, color: "var(--fg-faint)" }}>ghi vào</span>
+                <span className="k" style={{ width: 74, color: "var(--fg-faint)" }}>save to</span>
                 <span className="v mono" data-testid="guard-question">
-                  {props.questionId ? `${props.questionId}.csv` : "— chưa gán câu hỏi cho tab này —"}
+                  {props.questionId ? `${props.questionId}.csv` : "— no question assigned to this tab —"}
                 </span>
               </div>
               <div className="row">
-                <span className="k" style={{ width: 74, color: "var(--fg-faint)" }}>dòng CSV</span>
+                <span className="k" style={{ width: 74, color: "var(--fg-faint)" }}>CSV row</span>
                 <span className="v mono" data-testid="guard-csv-line" style={{ color: "var(--accent)" }}>
                   {props.csvLine ?? "—"}
                 </span>
@@ -167,7 +167,7 @@ export function SubmitGuard(props: Props) {
                 data-testid="guard-task-name"
                 value={props.taskNameOverride}
                 onChange={(e) => props.setTaskNameOverride(e.target.value)}
-                placeholder={preview?.task_name ?? "auto (task đang mở)"}
+                placeholder={preview?.task_name ?? "auto (current task)"}
                 style={{ maxWidth: 220 }}
               />
               {preview?.task_name && !props.taskNameOverride && (
@@ -249,7 +249,7 @@ export function SubmitGuard(props: Props) {
                   data-testid="guard-frame-idx"
                   style={{ color: frameIdx == null ? "var(--bad)" : "var(--accent)", fontWeight: 700 }}
                 >
-                  {frameIdx ?? "không xác định"}
+                  {frameIdx ?? "unknown"}
                 </span>
                 <span className="k">time</span>
                 <span className="v">
@@ -265,7 +265,7 @@ export function SubmitGuard(props: Props) {
                 </span>
               </div>
               {missingFrameIdx && (
-                <div className="dup-warn">⚠ Không trích được frame_idx (thiếu pts_time/fps) — không thể nộp frame này.</div>
+                <div className="dup-warn">⚠ Could not determine frame_idx (missing pts_time/fps); this frame cannot be submitted.</div>
               )}
               {queryType === "QA" && (
                 <div style={{ margin: "8px 0" }}>
@@ -293,7 +293,7 @@ export function SubmitGuard(props: Props) {
           {props.dresEnabled && (
           <div className="guard-payload">
             <div className="k" style={{ color: "var(--fg-faint)", marginBottom: 4 }}>
-              DRES payload {previewLoading && <span className="dres-dim">· đang dựng…</span>}
+              DRES payload {previewLoading && <span className="dres-dim">· building…</span>}
             </div>
             {answers.length > 0 && (
               <div className="mono" style={{ fontSize: 11, marginBottom: 4 }} data-testid="guard-answer-summary">
@@ -329,7 +329,7 @@ export function SubmitGuard(props: Props) {
             disabled={blocked || submitting}
             onClick={props.onConfirm}
           >
-            {duplicateId ? "Ghi thêm dù trùng" : props.dresEnabled ? "Confirm submit" : "Ghi vào submission"}
+            {duplicateId ? "Add despite duplicate" : props.dresEnabled ? "Confirm submit" : "Save to submission"}
           </button>
         </div>
       </div>

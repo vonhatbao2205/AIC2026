@@ -25,8 +25,8 @@ describe("PHM session ownership", () => {
       onSelectVideo={vi.fn()} onSelectFrame={vi.fn()} onInspectEvidence={inspect} onToggleExpand={vi.fn()}
       onFeedback={vi.fn()} onVideoFeedback={vi.fn()} relevanceOrdered={new Set()} onSortByTime={vi.fn()}
       onResetOrder={vi.fn()} loading={false} />);
-    expect(screen.getByText(/chỉ hỗ trợ định vị; không cộng điểm xếp hạng/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /rescue · có evidence không tính điểm/ }));
+    expect(screen.getByText(/localization only; no ranking contribution/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /rescue · includes evidence excluded from ranking/ }));
     expect(inspect).toHaveBeenCalledWith(0, 0);
   });
 
@@ -48,8 +48,8 @@ describe("PHM session ownership", () => {
       .mockResolvedValueOnce({ ...snapshot("one", 2), groups: [group("B", [fb]), group("A", [f2, f1])] });
     render(<App />);
     fireEvent.click(screen.getByRole("checkbox", { name: "Progressive Hint Memory" }));
-    fireEvent.change(screen.getByLabelText("Hint mới"), { target: { value: "first hint" } });
-    fireEvent.click(screen.getByRole("button", { name: /Áp dụng/ }));
+    fireEvent.change(screen.getByLabelText("New hint"), { target: { value: "first hint" } });
+    fireEvent.click(screen.getByRole("button", { name: /Apply/ }));
     await waitFor(() => expect(screen.getAllByTestId("frame-thumb")).toHaveLength(3));
     fireEvent.click(screen.getAllByTestId("frame-thumb")[1]);
     expect(screen.getByTestId("submit-id")).toHaveTextContent("A/2");
@@ -57,10 +57,10 @@ describe("PHM session ownership", () => {
     fireEvent.click(screen.getByTestId("rail-add"));
     expect(api.closeProgressive).not.toHaveBeenCalled();
     fireEvent.click(screen.getByTestId("rail-tab-0"));
-    expect(screen.getByLabelText("Nội dung hint 1")).toHaveValue("first hint");
-    fireEvent.change(screen.getByLabelText("Hint mới"), { target: { value: "second hint" } });
-    fireEvent.click(screen.getByRole("button", { name: /Áp dụng/ }));
-    await waitFor(() => expect(screen.getByText(/lượt 2 · revision 2/)).toBeInTheDocument());
+    expect(screen.getByLabelText("Hint text 1")).toHaveValue("first hint");
+    fireEvent.change(screen.getByLabelText("New hint"), { target: { value: "second hint" } });
+    fireEvent.click(screen.getByRole("button", { name: /Apply/ }));
+    await waitFor(() => expect(screen.getByText(/turn 2 · revision 2/)).toBeInTheDocument());
     expect(screen.getByTestId("submit-id")).toHaveTextContent("A/2");
     expect(screen.getAllByTestId("video-group")[1]).toHaveClass("selected");
     expect(screen.getAllByTestId("frame-thumb")[1]).toHaveClass("selected");
@@ -72,16 +72,16 @@ describe("PHM session ownership", () => {
     const update = vi.spyOn(api, "updateProgressive").mockImplementation(async (_, body) => snapshot("one", body.expected_revision + 1));
     const accept = vi.fn();
     render(<ProgressivePanel config={config} initialText="red car" onSnapshot={accept} onBusy={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: /Áp dụng/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Apply/ }));
     await waitFor(() => expect(accept).toHaveBeenCalledTimes(1));
     const id = update.mock.calls[0][1].hints[0].hint_id;
-    fireEvent.change(screen.getByLabelText("Nội dung hint 1"), { target: { value: "blue car" } });
-    fireEvent.click(screen.getByRole("button", { name: /Áp dụng/ }));
+    fireEvent.change(screen.getByLabelText("Hint text 1"), { target: { value: "blue car" } });
+    fireEvent.click(screen.getByRole("button", { name: /Apply/ }));
     await waitFor(() => expect(accept).toHaveBeenCalledTimes(2));
     expect(update.mock.calls[1][1].hints[0]).toMatchObject({ hint_id: id, raw_text: "blue car" });
     expect(update.mock.calls[1][1].expected_revision).toBe(1);
     fireEvent.click(screen.getByRole("checkbox"));
-    fireEvent.click(screen.getByRole("button", { name: /Áp dụng/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Apply/ }));
     await waitFor(() => expect(accept).toHaveBeenCalledTimes(3));
     expect(update.mock.calls[2][1].hints[0].enabled).toBe(false);
   });
@@ -92,7 +92,7 @@ describe("PHM session ownership", () => {
     const update = vi.spyOn(api, "updateProgressive").mockRejectedValueOnce(new TypeError("network"))
       .mockResolvedValueOnce(snapshot("one", 1));
     render(<ProgressivePanel config={config} initialText="red car" onSnapshot={() => {}} onBusy={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: /Áp dụng/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Apply/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Retry request" }));
     await waitFor(() => expect(update).toHaveBeenCalledTimes(2));
     expect(update.mock.calls[0][1]).toEqual(update.mock.calls[1][1]);
@@ -106,12 +106,12 @@ describe("PHM session ownership", () => {
     const update = vi.spyOn(api, "updateProgressive").mockReturnValueOnce(old).mockResolvedValueOnce(snapshot("new", 1));
     const accept = vi.fn();
     const view = render(<ProgressivePanel key="old" config={config} initialText="old hint" onSnapshot={accept} onBusy={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: /Áp dụng/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Apply/ }));
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
     view.rerender(<ProgressivePanel key="new" config={config} initialText="new hint" onSnapshot={accept} onBusy={() => {}} />);
     expect(close).toHaveBeenCalledWith("old");
     expect(update.mock.calls[0][2]?.aborted).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: /Áp dụng/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Apply/ }));
     await waitFor(() => expect(accept).toHaveBeenCalledTimes(1));
     await act(async () => resolveOld(snapshot("old", 1)));
     expect(accept).toHaveBeenCalledTimes(1);

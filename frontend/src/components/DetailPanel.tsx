@@ -86,15 +86,15 @@ function CanvasMatchSummary({ frame }: { frame: FrameResult }) {
       {layout.matches.map((match) => (
         <div key={match.object_id} className="e-text">
           {match.object_id} · {match.label}
-          {match.dominant_color ? ` (${match.dominant_color}${match.color_ok === false ? " ≠ vẽ" : ""})` : ""}
+          {match.dominant_color ? ` (${match.dominant_color}${match.color_ok === false ? " ≠ drawing" : ""})` : ""}
           {match.position ? ` @${match.position}` : ""} · conf {match.conf.toFixed(2)}
         </div>
       ))}
       {layout.missing.length > 0 && (
-        <div className="e-time">Không tìm thấy: {layout.missing.join(", ")}</div>
+        <div className="e-time">Not found: {layout.missing.join(", ")}</div>
       )}
       {layout.excluded_hits.length > 0 && (
-        <div className="e-time">Có object bị loại trừ: {layout.excluded_hits.join(", ")}</div>
+        <div className="e-time">Excluded objects detected: {layout.excluded_hits.join(", ")}</div>
       )}
     </div>
   );

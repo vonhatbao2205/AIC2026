@@ -169,7 +169,7 @@ describe("frame order inside a video group", () => {
     await user.click(screen.getByTestId("reset-frames-order"));
 
     expect(stripOrder()).toEqual(BY_RELEVANCE);
-    expect(screen.getByTestId("order-tag")).toHaveTextContent("theo độ liên quan");
+    expect(screen.getByTestId("order-tag")).toHaveTextContent("by relevance");
   });
 
   it("goes back to chronological from the ranking", async () => {

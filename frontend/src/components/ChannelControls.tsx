@@ -12,9 +12,9 @@ interface Props {
  *  reads `channels.image_pe.enabled` for the Qwen channel too. Say so on hover,
  *  because switching it off during a Qwen search silently kills every keyframe. */
 function toggleHint(channel: Channel, disabled: boolean): string | undefined {
-  if (disabled) return "Chưa có object detection cho InfoShot++";
+  if (disabled) return "Object detection is not available for InfoShot++";
   if (channel === "image_pe") {
-    return "Công tắc tổng của kênh hình — tắt là tắt CẢ PE Core lẫn Qwen3-VL. Chọn index nào chạy ở ô Image embedding.";
+    return "Master visual-channel switch — disabling it turns off both PE Core and Qwen3-VL. Choose indices under Image embedding.";
   }
   return undefined;
 }
@@ -61,7 +61,7 @@ export function ChannelControls({ parsed, overrides, onToggle, retrievalDatabase
       })}
       <div className="hint-text">
         {retrievalDatabase === "infoshotpp"
-          ? "VISUAL là công tắc tổng của kênh keyframe (tắt là mất cả PE Core lẫn Qwen3-VL); chọn PE/Qwen/TARA ở ô Visual models. InfoShot++ còn có similar-image và OCR/speech/audio trên index v2. OCR chưa có L26; V-KIS canvas vẫn khoá (chưa có object detection)."
+          ? "VISUAL controls keyframe retrieval for both PE Core and Qwen3-VL. Choose PE/Qwen/TARA under Visual models. InfoShot++ also supports similar-image search and OCR/speech/audio on index v2. OCR excludes L26; V-KIS canvas is unavailable without object detection."
           : "Confidence/stoplist demotion (speech low/intro, audio stoplist & generic captions) is applied automatically by the backend."}
       </div>
     </div>

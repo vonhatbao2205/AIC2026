@@ -41,7 +41,7 @@ GROUPS: tuple[ConfigGroup, ...] = (
     ),
     ConfigGroup(
         "Milvus / Zilliz",
-        "Hai database độc lập; InfoShot++ giữ PE và Qwen trong hai collection riêng.",
+        "Two independent databases; InfoShot++ stores PE and Qwen in separate collections.",
         (
             ConfigKey("MILVUS_ENDPOINT_1", "BTC cluster endpoint", required=True),
             ConfigKey("MILVUS_TOKEN_1", "BTC token", secret=True, required=True),
@@ -76,8 +76,8 @@ GROUPS: tuple[ConfigGroup, ...] = (
             ConfigKey("MEDIA_BASE_URL", "Cloudflare R2 base (BTC keyframes, default video origin)", required=True),
             ConfigKey("KEYFRAME_MEDIA_BASE_URL_2", "Cloudflare R2 base for InfoShot++ keyframes"),
             ConfigKey("KEYFRAME_MEDIA_FALLBACK_BASE_URL_2", "Hugging Face fallback for InfoShot++ keyframes"),
-            ConfigKey("VIDEO_MEDIA_BASE_URL_1", "Video origin cho BTC (trống = MEDIA_BASE_URL)"),
-            ConfigKey("VIDEO_MEDIA_BASE_URL_2", "Video origin cho InfoShot++ (HF bucket)"),
+            ConfigKey("VIDEO_MEDIA_BASE_URL_1", "BTC video origin (blank = MEDIA_BASE_URL)"),
+            ConfigKey("VIDEO_MEDIA_BASE_URL_2", "InfoShot++ video origin (HF bucket)"),
         ),
     ),
     ConfigGroup(
@@ -145,7 +145,7 @@ GROUPS: tuple[ConfigGroup, ...] = (
             ConfigKey("IDX_OCR_2", "InfoShot++ OCR index (v2)"),
             ConfigKey("IDX_SPEECH_2", "InfoShot++ speech index (v2)"),
             ConfigKey("IDX_AUDIO_2", "InfoShot++ audio index (v2)"),
-            ConfigKey("OCR_MISSING_CATEGORIES_2", "Category chưa có OCR cho InfoShot++ (vd L26)"),
+            ConfigKey("OCR_MISSING_CATEGORIES_2", "InfoShot++ categories without OCR (e.g. L26)"),
             ConfigKey("IDX_OBJECTS", "Object detection index"),
             ConfigKey("MILVUS_IMAGE_COLLECTION_1", "BTC image vector collection"),
             ConfigKey("MILVUS_IMAGE_COLLECTION_2", "InfoShot++ image vector collection"),

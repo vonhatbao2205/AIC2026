@@ -1,5 +1,5 @@
 /**
- * The "Dịch VI→EN" tick box.
+ * The "Translate VI→EN" tick box.
  *
  * Translation is on by default and must stay that way: PE-Core is an
  * English-centric encoder, so a Vietnamese query it never sees translated comes

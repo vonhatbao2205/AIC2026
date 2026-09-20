@@ -187,7 +187,7 @@ export async function generateAll(
           ? `${error.status}: ${error.message}`
           : error instanceof Error
             ? error.message
-            : "lỗi không rõ";
+            : "unknown error";
       outcomes.push({ questionId: question.id, rows: [], warnings: [], error: message });
       onProgress({ questionId: question.id, index, total, status: "failed", error: message });
     }

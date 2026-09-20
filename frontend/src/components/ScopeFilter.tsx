@@ -18,11 +18,11 @@ interface Props {
 const MODES: { id: ScopeMode; label: string; title: string }[] = [
   {
     id: "auto",
-    label: "Tự động",
-    title: "Heuristic chủ đề đọc query và tự chọn thư mục (không nhận ra chủ đề nào thì tìm toàn bộ)",
+    label: "Auto",
+    title: "Automatically select folders by query topic; search all folders when no topic is detected",
   },
-  { id: "all", label: "Tất cả", title: "Tìm toàn bộ thư mục của profile" },
-  { id: "manual", label: "Tùy chọn", title: "Chỉ tìm trong các thư mục bạn tick" },
+  { id: "all", label: "All", title: "Search all folders in this profile" },
+  { id: "manual", label: "Custom", title: "Search only the selected folders" },
 ];
 
 /** Folder filter: a button that drops down the checkbox list of dataset folders.
@@ -75,14 +75,14 @@ export function ScopeFilter(props: Props) {
         data-testid="scope-toggle"
         aria-expanded={open}
         aria-haspopup="true"
-        title="Phạm vi tìm kiếm: chọn thư mục dữ liệu được phép trả kết quả"
+        title="Search scope: select which dataset folders can return results"
       >
         📂 {label} <span aria-hidden>▾</span>
       </button>
 
       {open && (
-        <div className="scope-menu" data-testid="scope-menu" role="dialog" aria-label="Phạm vi tìm kiếm">
-          <div className="seg sm scope-modes" role="tablist" aria-label="Chế độ phạm vi">
+        <div className="scope-menu" data-testid="scope-menu" role="dialog" aria-label="Search scope">
+          <div className="seg sm scope-modes" role="tablist" aria-label="Scope mode">
             {MODES.map((item) => (
               <button
                 key={item.id}
@@ -100,16 +100,16 @@ export function ScopeFilter(props: Props) {
 
           {applied && mode === "auto" && (
             <div className="scope-reason" data-testid="scope-reason">
-              {applied.reason_vi}
+              {applied.reason_en ?? (applied.active ? "Search restricted to the selected folders." : "Searching all folders.")}
               {applied.strict_categories.length > 0
                 && applied.strict_categories.length < applied.categories.length && (
                 <button
                   className="btn sm ghost"
                   data-testid="scope-strict"
-                  title="Bỏ luôn các thư mục thời sự / L30 và chỉ tìm đúng chương trình của chủ đề"
+                  title="Exclude news folders and L30; search only the topic-specific program"
                   onClick={() => pick(applied.strict_categories)}
                 >
-                  Chỉ {applied.strict_categories.join(", ")}
+                  Only {applied.strict_categories.join(", ")}
                 </button>
               )}
             </div>
@@ -117,7 +117,7 @@ export function ScopeFilter(props: Props) {
 
           {mode === "manual" && selected.length === 0 && (
             <div className="scope-reason" data-testid="scope-empty">
-              Chưa tick thư mục nào — lọc rỗng không loại được gì, nên vẫn tìm toàn bộ.
+              No folders selected. An empty filter searches all folders.
             </div>
           )}
 
@@ -125,10 +125,10 @@ export function ScopeFilter(props: Props) {
 
           <div className="scope-actions">
             <button className="btn sm ghost" data-testid="scope-select-all" onClick={() => pick(all)}>
-              Chọn tất cả
+              Select all
             </button>
             <button className="btn sm ghost" data-testid="scope-clear" onClick={() => pick([])}>
-              Bỏ chọn
+              Deselect
             </button>
           </div>
 
@@ -151,12 +151,12 @@ export function ScopeFilter(props: Props) {
                         )
                       }
                     />
-                    <span className="scope-code">{group.label_vi}</span>
+                    <span className="scope-code">{group.label_en ?? group.id}</span>
                   </label>
                   {groupCats.map((cat) => {
                     const item = categories.find((entry) => entry.category === cat);
                     return (
-                      <label key={cat} className="scope-row" title={item?.label_vi}>
+                      <label key={cat} className="scope-row" title={item?.label_en ?? cat}>
                         <input
                           type="checkbox"
                           checked={effectiveSet.has(cat)}
@@ -164,18 +164,18 @@ export function ScopeFilter(props: Props) {
                           onChange={() => pick(toggleCategory(effective, cat, catalogue))}
                         />
                         <span className="scope-code">{cat}</span>
-                        <span className="scope-label">{item?.label_vi ?? ""}</span>
+                        <span className="scope-label">{item?.label_en ?? cat}</span>
                       </label>
                     );
                   })}
                 </div>
               );
             })}
-            {!catalogue && !error && <div className="scope-reason">Đang tải danh sách thư mục…</div>}
+            {!catalogue && !error && <div className="scope-reason">Loading folders…</div>}
           </div>
 
           <div className="hint-text">
-            Phạm vi áp dụng cho lần <b>Search</b> tiếp theo, không đổi kết quả đang hiển thị.
+            Scope applies to the next <b>Search</b>; the displayed results stay the same.
           </div>
         </div>
       )}

@@ -23,6 +23,7 @@ export interface SearchScope {
 export interface ScopeTopicMatch {
   topic_id: string;
   label_vi: string;
+  label_en?: string;
   keywords: string[];
   categories: string[];
 }
@@ -35,12 +36,14 @@ export interface ResolvedScope {
   strict_categories: string[];
   active: boolean;
   reason_vi: string;
+  reason_en?: string;
   matched_topics: ScopeTopicMatch[];
 }
 
 export interface ScopeCategory {
   category: string;
   label_vi: string;
+  label_en?: string;
   /** True for programmes with no fixed subject (news bulletins, L30 shorts). */
   open_subject: boolean;
 }
@@ -48,8 +51,8 @@ export interface ScopeCategory {
 export interface ScopeCatalogue {
   retrieval_database: RetrievalDatabase;
   categories: ScopeCategory[];
-  groups: { id: string; label_vi: string; categories: string[] }[];
-  topics: { topic_id: string; label_vi: string; categories: string[] }[];
+  groups: { id: string; label_vi: string; label_en?: string; categories: string[] }[];
+  topics: { topic_id: string; label_vi: string; label_en?: string; categories: string[] }[];
 }
 
 export interface Evidence {

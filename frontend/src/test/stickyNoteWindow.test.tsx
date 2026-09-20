@@ -125,7 +125,7 @@ describe("StickyNoteWindow", () => {
       keyframeIds: [null],
       ptsTimes: [null],
     }));
-    fireEvent.click(within(row).getByRole("button", { name: "Xoá candidate 2" }));
+    fireEvent.click(within(row).getByRole("button", { name: "Delete candidate 2" }));
     expect(onRemove).toHaveBeenCalledWith("candidate-2");
   });
 
@@ -173,8 +173,8 @@ describe("StickyNoteWindow", () => {
     };
     renderNote({ candidates: [queued, synced] });
 
-    expect(screen.getByTitle("Đang chờ Supabase xác nhận; hệ thống sẽ tự thử lại")).toHaveTextContent("◌");
-    expect(screen.getByTitle("Supabase đã nhận; sửa nội dung sẽ đưa candidate vào lượt push kế tiếp")).toHaveTextContent("✓");
+    expect(screen.getByTitle("Waiting for Supabase confirmation; retries are automatic")).toHaveTextContent("◌");
+    expect(screen.getByTitle("Received by Supabase; editing adds this candidate to the next push")).toHaveTextContent("✓");
     expect(screen.getByTestId("sticky-push")).toBeDisabled();
   });
 

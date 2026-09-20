@@ -47,13 +47,13 @@ def _translation_warning(image_models: Sequence[str]) -> str | None:
     if "pe" not in image_models:
         return None
     tail = (
-        " Nhánh Qwen3-VL không bị ảnh hưởng (đa ngữ)."
+        " Qwen3-VL is unaffected (multilingual)."
         if "qwen3_vl" in image_models
         else ""
     )
     return (
-        "Không dịch được query sang tiếng Anh — PE Core cần tiếng Anh nên kết quả "
-        "PE có thể kém. Bật LLM hoặc kiểm tra mạng." + tail
+        "Could not translate the query to English. PE Core requires English, so its results "
+        "may be poor. Enable the LLM or check the network connection." + tail
     )
 
 
@@ -811,13 +811,13 @@ class SearchService:
         ]
         if disabled:
             warnings.append(
-                f"{self.s.retrieval_database} chưa có dữ liệu cho kênh: " + ", ".join(disabled)
+                f"{self.s.retrieval_database} has no data for channels: " + ", ".join(disabled)
             )
         if self.s.ocr_missing_categories and "ocr" in tasks:
             warnings.append(
                 "OCR "
                 + self.s.retrieval_database
-                + " chưa index category: "
+                + " has no index for categories: "
                 + ", ".join(self.s.ocr_missing_categories)
             )
         for name, task in tasks.items():
@@ -877,7 +877,7 @@ class SearchService:
             latency["reranker"] = rerank_info
             if not rerank_info.get("ok"):
                 warnings.append(
-                    "Reranker không dùng được, giữ nguyên thứ tự truy hồi: "
+                    "Reranker unavailable; preserving retrieval order: "
                     + str(rerank_info.get("error") or "unknown")
                 )
         if warnings:

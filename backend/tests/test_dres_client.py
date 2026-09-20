@@ -260,7 +260,7 @@ async def test_qa_task_warns_when_the_answer_is_sent_as_a_media_segment(tmp_path
     )
 
     assert prepared["answer_mode_mismatch"] is True
-    assert any("SẼ BỊ BỎ" in w for w in prepared["warnings"])
+    assert any("WILL BE OMITTED" in w for w in prepared["warnings"])
     assert prepared["task_type"] == "Question Answering"
 
 
@@ -275,7 +275,7 @@ async def test_kis_task_warns_when_the_answer_is_sent_as_text(tmp_path):
     )
 
     assert prepared["answer_mode_mismatch"] is True
-    assert any("chấm sai" in w for w in prepared["warnings"])
+    assert any("evaluate it incorrectly" in w for w in prepared["warnings"])
 
 
 @pytest.mark.asyncio
@@ -373,7 +373,7 @@ async def test_task_hint_drops_oversized_media_with_a_warning(tmp_path):
 
     assert hint["text"] == "Đề bài"
     assert [e["content_type"] for e in hint["elements"]] == ["TEXT"]
-    assert any("quá lớn" in w for w in hint["warnings"])
+    assert any("too large" in w for w in hint["warnings"])
 
 
 @pytest.mark.asyncio
@@ -422,7 +422,7 @@ async def test_task_hint_says_so_when_dres_withholds_it(tmp_path):
     hint = await service.task_hint("T-KIS")
 
     assert hint["text"] == ""
-    assert any("chưa cho xem" in w for w in hint["warnings"])
+    assert any("has not released" in w for w in hint["warnings"])
 
 
 @pytest.mark.asyncio

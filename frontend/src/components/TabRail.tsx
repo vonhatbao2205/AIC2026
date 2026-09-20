@@ -64,21 +64,21 @@ export function TabRail(props: Props) {
               aria-selected={active === tab.id}
               // Collapsed, the only visible text is an aria-hidden two-letter
               // code, so the name has to be stated rather than read off the DOM.
-              aria-label={`Tab ${index + 1} · ${tab.queryType}${question ? ` · câu ${question.order}` : ""}`}
+              aria-label={`Tab ${index + 1} · ${tab.queryType}${question ? ` · question ${question.order}` : ""}`}
               data-testid={`rail-tab-${index}`}
-              title={question ? `${question.id}\n${question.text.slice(0, 160)}` : "Chưa gán câu hỏi"}
+              title={question ? `${question.id}\n${question.text.slice(0, 160)}` : "No question assigned"}
             >
               <span className="rail-tab-code" aria-hidden="true">{TYPE_CODE[tab.queryType]}</span>
               <span className="rail-tab-type">{tab.queryType}</span>
               <span className="rail-tab-sub">
                 {question ? `#${question.order}` : `tab ${index + 1}`}
-                {busyTabs.has(tab.id) && <span className="rail-spin" aria-label="đang tìm" />}
+                {busyTabs.has(tab.id) && <span className="rail-spin" aria-label="searching" />}
               </span>
               {rows > 0 && <span className="rail-tab-rows">{rows}</span>}
               {tabs.length > 1 && (
                 <button
                   className="rail-tab-close"
-                  aria-label={`Đóng tab ${index + 1}`}
+                  aria-label={`Close tab ${index + 1}`}
                   data-testid={`rail-close-${index}`}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -91,7 +91,7 @@ export function TabRail(props: Props) {
             </div>
           );
         })}
-        <button className="rail-add" onClick={props.onAdd} data-testid="rail-add" title="Thêm tab tìm kiếm">
+        <button className="rail-add" onClick={props.onAdd} data-testid="rail-add" title="Add search tab">
           +
         </button>
       </div>
@@ -101,13 +101,13 @@ export function TabRail(props: Props) {
         onClick={() => props.onSelect(SUBMISSION_VIEW)}
         role="tab"
         aria-selected={active === SUBMISSION_VIEW}
-        aria-label={`Submission · ${props.submissionTotal} dòng`}
+        aria-label={`Submission · ${props.submissionTotal} rows`}
         data-testid="rail-tab-submission"
-        title="Bảng đáp án sẽ export ra submission.zip"
+        title="Export the answer table as submission.zip"
       >
         <span className="rail-tab-code" aria-hidden="true">CSV</span>
         <span className="rail-tab-type">Submission</span>
-        <span className="rail-tab-sub">{props.submissionTotal} dòng</span>
+        <span className="rail-tab-sub">{props.submissionTotal} rows</span>
       </div>
       </div>
     </div>

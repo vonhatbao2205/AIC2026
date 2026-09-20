@@ -118,14 +118,14 @@ describe("configuration", () => {
 
     const file = new File(["ELASTIC_API_KEY=k\nMILVUS_TOKEN=t\n"], ".env", { type: "text/plain" });
     fireEvent.change(screen.getByTestId("settings-file-input"), { target: { files: [file] } });
-    await screen.findByText(/sẵn sàng import/);
+    await screen.findByText(/ready to import/);
 
     fireEvent.click(screen.getByTestId("settings-import"));
 
     const result = await screen.findByTestId("settings-result");
-    expect(result).toHaveTextContent("Đã áp dụng 2 biến");
+    expect(result).toHaveTextContent("Applied 2 variables");
     // A half-filled template must not silently wipe a working secret.
-    expect(result).toHaveTextContent("Bỏ qua 1 dòng trống");
+    expect(result).toHaveTextContent("Skipped 1 blank values");
     expect(imports).toEqual([{ replace: "false", body: "ELASTIC_API_KEY=k\nMILVUS_TOKEN=t\n" }]);
     // The setup warning clears because the backend now reports it configured.
     await waitFor(() => expect(screen.queryByTestId("settings-needs-setup")).toBeNull());
@@ -136,7 +136,7 @@ describe("configuration", () => {
     await screen.findByTestId("settings-modal");
     const user = userEvent.setup();
 
-    await user.click(screen.getByLabelText(/Thay thế toàn bộ cấu hình/));
+    await user.click(screen.getByLabelText(/Replace entire configuration/));
     const file = new File(["ELASTIC_API_KEY=k\n"], ".env", { type: "text/plain" });
     fireEvent.change(screen.getByTestId("settings-file-input"), { target: { files: [file] } });
     fireEvent.click(screen.getByTestId("settings-import"));

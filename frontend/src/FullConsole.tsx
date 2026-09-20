@@ -278,12 +278,12 @@ export default function FullConsole({
     let cancelled = false;
     const expected = question?.eventCount ?? candidate.frames.length;
     if (queryType !== "TRAKE" || question?.kind !== "trake") {
-      setToast({ msg: "Chỉ có thể nạp candidate vào một tab TRAKE.", kind: "bad" });
+      setToast({ msg: "Candidates can only be loaded into a TRAKE tab.", kind: "bad" });
       onStickyTrakeRestoreDone(id);
       return;
     }
     if (candidate.frames.length !== expected || candidate.frames.some((frame) => !Number.isFinite(frame))) {
-      setToast({ msg: `Candidate cần đúng ${expected} frame TRAKE.`, kind: "bad" });
+      setToast({ msg: `Candidate requires exactly ${expected} TRAKE frames.`, kind: "bad" });
       onStickyTrakeRestoreDone(id);
       return;
     }
@@ -292,7 +292,7 @@ export default function FullConsole({
     );
     const orderValues = candidate.frames.map((frame, index) => knownTimes[index] ?? frame / 25);
     if (validateIncreasingOrder(orderValues).length) {
-      setToast({ msg: "Không thể nạp: thứ tự TRAKE trong Sticky không tăng dần.", kind: "bad" });
+      setToast({ msg: "Cannot load: the Sticky TRAKE sequence is not in chronological order.", kind: "bad" });
       onStickyTrakeRestoreDone(id);
       return;
     }
@@ -308,7 +308,7 @@ export default function FullConsole({
     setTrakeSlots(baseSlots);
     setActiveSlot(0);
     setPausedFrame(null);
-    setToast({ msg: `Đang nạp ${baseSlots.length} ảnh TRAKE từ Sticky…`, kind: "ok" });
+    setToast({ msg: `Loading ${baseSlots.length} TRAKE images from Sticky…`, kind: "ok" });
 
     void (async () => {
       let failed = 0;
@@ -365,8 +365,8 @@ export default function FullConsole({
       });
       setToast({
         msg: failed
-          ? `Đã nạp TRAKE; ${failed} ảnh preview không tải được.`
-          : `Đã nạp ${hydrated.length} TRAKE event cùng ảnh chính xác.`,
+          ? `TRAKE loaded; ${failed} preview images could not be loaded.`
+          : `Loaded ${hydrated.length} TRAKE events with exact frame images.`,
         kind: failed ? "bad" : "ok",
       });
       onStickyTrakeRestoreDone(id);
@@ -621,11 +621,11 @@ export default function FullConsole({
       setDuplicateId(null);
       refreshHistory();
       setToast({
-        msg: r.deleted ? `Đã xoá ${r.deleted} mục (backup ${r.backup})` : "Không có mục nào để xoá",
+        msg: r.deleted ? `Deleted ${r.deleted} entries (backup ${r.backup})` : "No entries to delete",
         kind: "ok",
       });
     } catch {
-      setToast({ msg: "Xoá history thất bại", kind: "bad" });
+      setToast({ msg: "Could not delete history", kind: "bad" });
     }
   }, [refreshHistory]);
 
@@ -706,7 +706,7 @@ export default function FullConsole({
         setTaskHintError(null);
       } catch (e) {
         setTaskHint(null);
-        setTaskHintError(e instanceof ApiError ? String(e.detail ?? e.message) : "Không lấy được đề bài");
+        setTaskHintError(e instanceof ApiError ? String(e.detail ?? e.message) : "Could not retrieve the task description");
       } finally {
         setTaskHintLoading(false);
       }
@@ -839,7 +839,7 @@ export default function FullConsole({
         });
       },
       () => {
-        if (!cancelled) setScopeError("Không tải được danh sách thư mục — tạm thời tìm toàn bộ.");
+        if (!cancelled) setScopeError("Could not load folders; searching the entire dataset for now.");
       },
     );
     return () => {
@@ -1050,7 +1050,7 @@ export default function FullConsole({
       setSelectedVideo(0);
       setSelectedFrame(0);
       if (res.warnings?.length) setToast({ msg: res.warnings.join(" · "), kind: "bad" });
-      else if (!res.groups.length) setToast({ msg: "Không có frame nào khớp bố cục này", kind: "bad" });
+      else if (!res.groups.length) setToast({ msg: "No frames match this layout", kind: "bad" });
     } catch (e) {
       if (owner !== searchOwner.current) return;
       const msg = e instanceof ApiError
@@ -1258,7 +1258,7 @@ export default function FullConsole({
       const held = trakeSlots.find((slot): slot is TrakeSlot => slot !== null);
       if (held && held.video_id !== pausedFrame.video_id) {
         setToast({
-          msg: `Chuỗi đang dùng ${held.video_id}. Xoá các ô trước khi lấy frame từ ${pausedFrame.video_id}.`,
+          msg: `Sequence uses ${held.video_id}. Clear the slots before selecting frames from ${pausedFrame.video_id}.`,
           kind: "bad",
         });
         return;
@@ -1401,7 +1401,7 @@ export default function FullConsole({
       const held = trakeSlots.find((slot): slot is TrakeSlot => slot !== null);
       if (held && held.video_id !== videoId) {
         setToast({
-          msg: `Chuỗi đang dùng ${held.video_id}. Xoá các ô trước khi lấy frame từ ${videoId}.`,
+          msg: `Sequence uses ${held.video_id}. Clear the slots before selecting frames from ${videoId}.`,
           kind: "bad",
         });
         return;
@@ -1555,11 +1555,11 @@ export default function FullConsole({
     : null;
   const guardCsvError = (() => {
     if (DRES_ENABLED) return null;
-    if (!question) return "Tab này chưa gán câu hỏi — chọn câu hỏi ở thanh QUERY PACK trước khi nộp.";
-    if (!guardDraft) return "Chưa xác định được video/frame_idx để ghi.";
-    if (question.kind === "qa" && !answer.trim()) return "Câu Q&A cần có answer.";
+    if (!question) return "No question assigned to this tab. Select a question in QUERY PACK before submitting.";
+    if (!guardDraft) return "Could not determine video/frame_idx to save.";
+    if (question.kind === "qa" && !answer.trim()) return "Q&A questions require an answer.";
     if (question.kind === "trake" && question.eventCount && guardDraft.frames.length !== question.eventCount) {
-      return `Câu TRAKE này cần đúng ${question.eventCount} frame (đang có ${guardDraft.frames.length}).`;
+      return `This TRAKE question requires exactly ${question.eventCount} frames (found ${guardDraft.frames.length}).`;
     }
     return null;
   })();
@@ -1626,27 +1626,27 @@ export default function FullConsole({
   /** Add the current result/sequence/raw pause to the per-machine scratchpad. */
   function addToSticky(target: GuardTarget = "result") {
     if (!question) {
-      setToast({ msg: "Chọn câu hỏi cho tab này trước khi ghim candidate.", kind: "bad" });
+      setToast({ msg: "Assign a question to this tab before pinning a candidate.", kind: "bad" });
       return;
     }
     const draft = buildDraft(target);
     if (!draft) {
-      setToast({ msg: "Chưa xác định được video/frame để ghim.", kind: "bad" });
+      setToast({ msg: "Could not determine video/frame to pin.", kind: "bad" });
       return;
     }
     if (question.kind === "trake" && question.eventCount && draft.frames.length !== question.eventCount) {
       setToast({
-        msg: `Câu TRAKE cần đủ ${question.eventCount} frame trước khi ghim.`,
+        msg: `TRAKE requires all ${question.eventCount} frames before pinning.`,
         kind: "bad",
       });
       return;
     }
     const result = onAddStickyRow(draft);
     if (result === "full") {
-      setToast({ msg: `Sticky note đã đủ ${MAX_ROWS_PER_QUESTION} candidate.`, kind: "bad" });
+      setToast({ msg: `Sticky note already contains ${MAX_ROWS_PER_QUESTION} candidates.`, kind: "bad" });
       return;
     }
-    setToast({ msg: `Đã ghim candidate vào ${question.id}.`, kind: "ok" });
+    setToast({ msg: `Pinned candidate to ${question.id}.`, kind: "ok" });
   }
 
   /** The request behind both the guard's preview and the actual submit.
@@ -1700,7 +1700,7 @@ export default function FullConsole({
     const body = buildSubmitBody();
     if (!body) {
       setSubmitPreview(null);
-      setPreviewError("Chưa chọn được frame để nộp.");
+      setPreviewError("No frame selected for submission.");
       return;
     }
     let cancelled = false;
@@ -1718,7 +1718,7 @@ export default function FullConsole({
           if (cancelled) return;
           setSubmitPreview(null);
           const detail = e instanceof ApiError ? (e.detail as { message?: string } | null) : null;
-          setPreviewError(detail?.message ?? "Không dựng được payload DRES.");
+          setPreviewError(detail?.message ?? "Could not build the DRES payload.");
         })
         .finally(() => !cancelled && setPreviewLoading(false));
     }, 150); // debounce: the answer / pad inputs change on every keystroke
@@ -1731,18 +1731,18 @@ export default function FullConsole({
     if (!DRES_ENABLED) {
       const draft = buildDraft(guardTarget);
       if (!draft || guardCsvError) {
-        setToast({ msg: guardCsvError ?? "Chưa dựng được dòng submission.", kind: "bad" });
+        setToast({ msg: guardCsvError ?? "Could not build the submission row.", kind: "bad" });
         return;
       }
       onSubmitRow(draft);
-      setToast({ msg: `Đã ghi vào ${draft.questionId}.csv`, kind: "ok" });
+      setToast({ msg: `Saved to ${draft.questionId}.csv`, kind: "ok" });
       setGuardOpen(false);
       setDuplicateId(null);
       return;
     }
     const body = buildSubmitBody();
     if (!body) {
-      setToast({ msg: "Không xác định được frame_idx cho frame này — không thể nộp.", kind: "bad" });
+      setToast({ msg: "Could not determine frame_idx; this frame cannot be submitted.", kind: "bad" });
       return;
     }
     setSubmitting(true);
@@ -1751,7 +1751,7 @@ export default function FullConsole({
       const verdict = entry.verdict ?? null;
       setToast({
         msg: entry.status === "dres_error"
-          ? `DRES lỗi: ${entry.dres?.error ?? "?"}`
+          ? `DRES error: ${entry.dres?.error ?? "?"}`
           : verdict
           ? `DRES: ${verdict}`
           : entry.status === "dres_ok"
@@ -1770,8 +1770,8 @@ export default function FullConsole({
         setToast({ msg: "Blocked: duplicate submit", kind: "bad" });
       } else if (e instanceof ApiError && e.status === 400) {
         const detail = e.detail as { message?: string } | null;
-        setPreviewError(detail?.message ?? "Payload không hợp lệ.");
-        setToast({ msg: detail?.message ?? "Payload không hợp lệ", kind: "bad" });
+        setPreviewError(detail?.message ?? "Invalid payload.");
+        setToast({ msg: detail?.message ?? "Invalid payload", kind: "bad" });
       } else {
         setToast({ msg: "Submit failed", kind: "bad" });
       }
@@ -1976,7 +1976,7 @@ export default function FullConsole({
               onFallback={() => {
                 if (videoOriginDown) return;
                 setVideoOriginDown(true);
-                setToast({ msg: "Video origin chính không phản hồi — đã chuyển sang nguồn dự phòng.", kind: "bad" });
+                setToast({ msg: "Primary video source unavailable; switched to the fallback source.", kind: "bad" });
               }}
               startTime={
                 clipSeek?.videoId === selectedGroup.video_id
@@ -2113,8 +2113,8 @@ export default function FullConsole({
           </label>}
           {progressiveActive ? <>
             <ImageModelSelector retrievalDatabase={retrievalDatabase} value={imageModels} onChange={setImageModels} />
-            <label className="phm-toggle"><input type="checkbox" checked={translate} onChange={e => setTranslate(e.target.checked)} />Dịch VI → EN</label>
-            <label className="phm-toggle"><input type="checkbox" checked={progressiveHybrid} onChange={e => setProgressiveHybrid(e.target.checked)} />Thêm OCR / speech / audio</label>
+            <label className="phm-toggle"><input type="checkbox" checked={translate} onChange={e => setTranslate(e.target.checked)} />Translate VI → EN</label>
+            <label className="phm-toggle"><input type="checkbox" checked={progressiveHybrid} onChange={e => setProgressiveHybrid(e.target.checked)} />Include OCR / speech / audio</label>
             <ProgressivePanel key={progressiveKey}
               config={{ retrieval_database: retrievalDatabase, task_id: question?.id ?? "manual", image_models: imageModelsForSearch(retrievalDatabase, imageModels), scope: { mode: "all", categories: [] }, translate, hybrid: progressiveHybrid, top_k: 200 }}
               initialText={query} onSnapshot={acceptProgressive} onBusy={setLoading} />
@@ -2187,16 +2187,16 @@ export default function FullConsole({
           )}
           {queryType === "V-KIS" && retrievalDatabase === "infoshotpp" && (
             <div className="warn-banner">
-              InfoShot++ đã có PE Core / Qwen3-VL image, OCR, speech và audio (index v2). Riêng V-KIS canvas
-              còn khoá: chưa có object detection cho keyframe InfoShot++.
+              InfoShot++ supports PE Core / Qwen3-VL image, OCR, speech and audio (index v2). V-KIS canvas
+              is unavailable because InfoShot++ keyframes have no object detection.
             </div>
           )}
           <div className="results-toolbar">
             <span className="results-count">
               {trakeVideoView ? (
                 <>
-                  {trakeVideos.length} video{trakeVideos.length === 1 ? "" : "s"} · xếp theo TRAKE
-                  video score (coverage trước, rồi chất lượng chuỗi)
+                  {trakeVideos.length} video{trakeVideos.length === 1 ? "" : "s"} · ranked by TRAKE
+                  video score (coverage first, then sequence quality)
                 </>
               ) : (
                 <>

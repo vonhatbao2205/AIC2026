@@ -199,7 +199,7 @@ async def test_simple_search_survives_one_dead_model(settings, monkeypatch):
     svc = SearchService(infoshotpp(settings))
 
     async def dead(texts):
-        raise Qwen3VlEncoderUnavailable("Qwen3-VL encoder không phản hồi sau 120s")
+        raise Qwen3VlEncoderUnavailable("Qwen3-VL encoder did not respond after 120s")
 
     monkeypatch.setattr(svc.qwen3_vl, "encode_text", dead)
     body = await svc.simple_image_search("a street", top_k=5, image_models=["pe", "qwen3_vl"])
@@ -385,12 +385,12 @@ async def test_failed_translation_only_warns_about_the_model_that_needs_english(
         top_k=5,
         image_models=models,
     )
-    notices = [w for w in body.get("warnings", []) if "d\u1ecbch" in w]
+    notices = [w for w in body.get("warnings", []) if "translate" in w]
 
     assert bool(notices) is expect_warning
     if expect_warning:
         assert "PE Core" in notices[0]
-        assert ("Qwen3-VL kh\u00f4ng b\u1ecb \u1ea3nh h\u01b0\u1edfng" in notices[0]) is (
+        assert ("Qwen3-VL is unaffected" in notices[0]) is (
             "qwen3_vl" in models
         )
 

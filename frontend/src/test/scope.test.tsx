@@ -18,16 +18,17 @@ function catalogueFor(database: string): ScopeCatalogue {
     retrieval_database: database as ScopeCatalogue["retrieval_database"],
     categories: cats.map((category) => ({
       category,
+      label_en: category === "L26" ? "Cooking — HTV Online" : `Program ${category}`,
       label_vi: category === "L26" ? "Nấu ăn — HTV Online" : `Chương trình ${category}`,
       open_subject: category.startsWith("K") || ["L21", "L22", "L30"].includes(category),
     })),
     groups: [
-      { id: "L", label_vi: "L21–L30 · chuyên đề (InfoShot++)", categories: cats.filter((c) => c[0] === "L") },
+      { id: "L", label_en: "L21–L30 · themed programs (InfoShot++)", label_vi: "L21–L30 · chuyên đề (InfoShot++)", categories: cats.filter((c) => c[0] === "L") },
       ...(database === "infoshotpp"
         ? []
-        : [{ id: "K", label_vi: "K01–K20 · Thời sự 60 giây (BTC)", categories: K }]),
+        : [{ id: "K", label_en: "K01–K20 · 60-second news (BTC)", label_vi: "K01–K20 · Thời sự 60 giây (BTC)", categories: K }]),
     ],
-    topics: [{ topic_id: "cooking", label_vi: "Nấu ăn", categories: ["L26"] }],
+    topics: [{ topic_id: "cooking", label_vi: "Nấu ăn", label_en: "Cooking", categories: ["L26"] }],
   };
 }
 
@@ -38,9 +39,10 @@ const AUTO_SCOPE = {
   categories: ["L21", "L22", "L26", "L30", ...K],
   strict_categories: ["L26"],
   active: true,
+  reason_en: "Topic heuristic: Cooking (news folders and L30 remain in scope).",
   reason_vi: "Heuristic chủ đề: Nấu ăn (giữ lại thư mục thời sự + L30).",
   matched_topics: [
-    { topic_id: "cooking", label_vi: "Nấu ăn", keywords: ["nấu ăn"], categories: ["L26"] },
+    { topic_id: "cooking", label_vi: "Nấu ăn", label_en: "Cooking", keywords: ["nấu ăn"], categories: ["L26"] },
   ],
 };
 
@@ -109,7 +111,7 @@ function mockFetch() {
                 categories: body.scope.categories,
                 strict_categories: body.scope.categories,
                 active: body.scope.categories.length > 0,
-                reason_vi: "Thủ công",
+                reason_vi: "Thủ công", reason_en: "Manual",
                 matched_topics: [],
               }
             : { mode: "all", categories: [], strict_categories: [], active: false, reason_vi: "", matched_topics: [] },
@@ -166,7 +168,7 @@ describe("search scope filter", () => {
     const menu = screen.getByTestId("scope-menu");
     expect(within(menu).getByTestId("scope-cat-L26")).toBeInTheDocument();
     expect(within(menu).getByTestId("scope-cat-K20")).toBeInTheDocument();
-    expect(within(menu).getByTitle("Nấu ăn — HTV Online")).toBeInTheDocument();
+    expect(within(menu).getByTitle("Cooking — HTV Online")).toBeInTheDocument();
   });
 
   it("ticking folders switches to manual and searches only those", async () => {
@@ -205,9 +207,9 @@ describe("search scope filter", () => {
 
     // The button names the topic, so the operator can see the scope narrowed
     // without opening the menu.
-    expect(screen.getByTestId("scope-toggle")).toHaveTextContent("Nấu ăn");
+    expect(screen.getByTestId("scope-toggle")).toHaveTextContent("Cooking");
     await user.click(screen.getByTestId("scope-toggle"));
-    expect(screen.getByTestId("scope-reason")).toHaveTextContent("Heuristic chủ đề: Nấu ăn");
+    expect(screen.getByTestId("scope-reason")).toHaveTextContent("Topic heuristic: Cooking");
   });
 
   it("offers the strict topic folders as one click", async () => {
@@ -275,12 +277,12 @@ describe("scope helpers", () => {
   });
 
   it("labels the button by what will actually be searched", () => {
-    expect(scopeButtonLabel("all", [], catalogue, null)).toBe("Tất cả (30)");
+    expect(scopeButtonLabel("all", [], catalogue, null)).toBe("All (30)");
     expect(scopeButtonLabel("manual", ["L26", "L23"], catalogue, null)).toBe("L26, L23");
-    expect(scopeButtonLabel("manual", L, catalogue, null)).toBe("10 thư mục");
+    expect(scopeButtonLabel("manual", L, catalogue, null)).toBe("10 folders");
     // A full manual selection is the same as no filter, and says so.
-    expect(scopeButtonLabel("manual", [...L, ...K], catalogue, null)).toBe("Tất cả (30)");
-    expect(scopeButtonLabel("auto", [], catalogue, null)).toBe("Tự động");
-    expect(scopeButtonLabel("auto", [], catalogue, AUTO_SCOPE)).toBe("Tự động · Nấu ăn");
+    expect(scopeButtonLabel("manual", [...L, ...K], catalogue, null)).toBe("All (30)");
+    expect(scopeButtonLabel("auto", [], catalogue, null)).toBe("Auto");
+    expect(scopeButtonLabel("auto", [], catalogue, AUTO_SCOPE)).toBe("Auto · Cooking");
   });
 });
