@@ -99,6 +99,9 @@ class SearchService:
         queries: Sequence[str],
         k: int,
         categories: tuple[str, ...] = (),
+        *,
+        video_id: str | None = None,
+        vector_cache: dict | None = None,
     ) -> list[dict[str, Any]]:
         """One embedding space -> one ranked list of at most `k` rows.
 
@@ -109,12 +112,29 @@ class SearchService:
         not be — PE's 1280-d cosine and Qwen's 4096-d cosine have different
         distributions, which is what rank fusion exists for.
         """
+        from ..retrieval_work import count
         encoder = self.pe if model == "pe" else self.qwen3_vl
         searcher = (
             self.milvus.search_image if model == "pe" else self.milvus.search_qwen_image
         )
-        vectors = await encoder.encode_text(list(queries))
-        search = functools.partial(searcher, top_k=k, categories=categories)
+        if vector_cache is not None:
+            if not self.s.mock_mode and (self.milvus.mock or encoder.mock):
+                raise ServiceUnavailable(f"{model} is not configured for live progressive retrieval")
+            missing = list(dict.fromkeys(q for q in queries if (model, q) not in vector_cache))
+            if missing:
+                count("query_vectors", len(missing))
+                encoded = await encoder.encode_text(missing)
+                if len(encoded) != len(missing):
+                    raise ServiceUnavailable(f"{model} returned an incomplete vector batch")
+                for q, vector in zip(missing, encoded):
+                    vector_cache[(model, q)] = vector
+            vectors = [vector_cache[(model, q)] for q in queries]
+        else:
+            count("query_vectors", len(queries))
+            vectors = await encoder.encode_text(list(queries))
+        count("index_calls", len(vectors))
+        search = functools.partial(searcher, top_k=k, categories=categories,
+                                   **({"video_id": video_id} if video_id is not None else {}))
         if self.milvus.mock:
             raws = [search(vector) for vector in vectors]
         else:
@@ -209,6 +229,7 @@ class SearchService:
         rerank_info: dict[str, Any] | None = None,
         rrf_k: int = DEFAULT_RRF_K,
         report: dict[str, Any] | None = None,
+        vector_cache: dict | None = None,
     ) -> tuple[dict[Channel, list[ChannelHit]], dict[str, float], list[str]]:
         """The whole visual stage: retrieve -> union -> rerank -> ONE ranking.
 
@@ -253,7 +274,8 @@ class SearchService:
 
         async def run(model: str) -> tuple[str, list[dict[str, Any]], float]:
             started = time.perf_counter()
-            rows = await self._search_visual_model(model, queries, depth, categories)
+            extra = {"vector_cache": vector_cache} if vector_cache is not None else {}
+            rows = await self._search_visual_model(model, queries, depth, categories, **extra)
             return model, rows, (time.perf_counter() - started) * 1000
 
         outcomes = await asyncio.gather(
@@ -558,6 +580,8 @@ class SearchService:
     async def _run_ocr(
         self, cfg: dict[str, Any], top_k: int, categories: tuple[str, ...] = ()
     ) -> tuple[list[ChannelHit], float]:
+        from ..retrieval_work import count
+        count("index_calls")
         t0 = time.perf_counter()
         tf = cfg.get("time_filters") or {}
         raw = await self.elastic.search_ocr(
@@ -592,6 +616,8 @@ class SearchService:
     async def _run_speech(
         self, cfg: dict[str, Any], top_k: int, categories: tuple[str, ...] = ()
     ) -> tuple[list[ChannelHit], float]:
+        from ..retrieval_work import count
+        count("index_calls")
         t0 = time.perf_counter()
         raw = await self.elastic.search_speech(
             cfg.get("queries_vi") or [],
@@ -627,6 +653,7 @@ class SearchService:
         """Audio channel = Elastic tags/caption (BM25 + demotions) FUSED with GLAP
         audio-vector search (semantic sound match). The two ranked lists are merged
         by rank (RRF) so their different score scales don't compete."""
+        from ..retrieval_work import count
         t0 = time.perf_counter()
         queries = cfg.get("queries_en") or []
         labels = cfg.get("sound_labels_en") or []
@@ -636,13 +663,17 @@ class SearchService:
         glap_raw: list[dict[str, Any]] = []
         if self.glap is not None and not self.glap.mock and (queries or labels):
             try:
+                count("query_vectors", len(queries or labels))
                 vectors = await self.glap.encode_text(queries or labels)
                 vec = vectors[0]
+                count("index_calls")
                 glap_raw = await asyncio.to_thread(
                     self.milvus.search_audio, vec, top_k=top_k, categories=categories
                 )
             except Exception:  # noqa: BLE001 - GLAP optional; fall back to Elastic only
+                count("glap_failures")
                 glap_raw = []
+        count("index_calls")
         raw = await elastic_task
 
         # Rank-RRF merge over submit_keyframe_id (k small so both lists matter).
@@ -696,6 +727,8 @@ class SearchService:
         categories: tuple[str, ...] = (),
         rerank: bool = False,
         image_models: tuple[str, ...] = ("pe",),
+        trace: Any = None,
+        vector_cache: dict | None = None,
     ) -> tuple[list[VideoGroup], dict[str, Any]]:
         """`categories` is the resolved search scope: the dataset folders this
         search may return frames from. It is pushed into every channel's own
@@ -738,6 +771,7 @@ class SearchService:
                     rerank_info=rerank_info,
                     rrf_k=rrf_k,
                     report=visual_info,
+                    **({"vector_cache": vector_cache} if vector_cache is not None else {}),
                 )
             )
         tara_cfg = channels_cfg.get("tara") or {}
@@ -769,6 +803,7 @@ class SearchService:
         tara_videos: list[dict[str, Any]] = []
         weights: dict[str, float] = {}
         warnings: list[str] = []
+        channel_status: dict[str, str] = {}
         if parsed.get("translation_failed") and self.s.has_tara_search and tara_cfg.get("enabled", True):
             warnings.append("TARA skipped: English translation failed")
         disabled = [
@@ -821,11 +856,17 @@ class SearchService:
                     channel_hits[channel] = _apply_filters(hits, filters, categories)
                     latency["channels"][channel] = round(visual_ms[channel], 1)
                     weights[channel] = visual_weight
+                    model = next((m for m in visual_models if VISUAL_CHANNEL[m] == channel), None)
+                    channel_status[channel] = "ok" if (
+                        model in visual_info.get("models", {}) or channel == "image_visual"
+                    ) else "unavailable"
                 continue
             try:
                 hits, ms = await task
+                channel_status[name] = "ok"
             except Exception as exc:  # noqa: BLE001 - one dead channel must not kill the search
                 hits, ms = [], 0.0
+                channel_status[name] = "unavailable"
                 warnings.append(f"{name} channel unavailable: {exc}")
             channel_hits[name] = _apply_filters(hits, filters, categories)
             latency["channels"][name] = round(ms, 1)
@@ -863,6 +904,20 @@ class SearchService:
                 negative_frames=set(feedback.get("negative_frames") or []),
             )
         latency["fusion_ms"] = round((time.perf_counter() - t_fuse) * 1000, 1)
+        if trace is not None:
+            import copy
+            trace.channel_hits = copy.deepcopy(channel_hits)
+            trace.channel_status = channel_status
+            trace.weights = dict(weights)
+            trace.categories = categories
+            trace.rrf_k = rrf_k
+            trace.latency = copy.deepcopy(latency)
+            trace.queries = {
+                name: list((channels_cfg.get("image_pe" if name in {"image_pe", "image_qwen", "image_visual"} else name) or {}).get("queries_en") or
+                           (channels_cfg.get(name) or {}).get("queries_vi") or [])
+                for name in channel_hits
+            }
+            trace.query_config = copy.deepcopy(channels_cfg)
         return groups, latency
 
     async def _enrich_pts(self, frames: list[FusedFrame]) -> None:

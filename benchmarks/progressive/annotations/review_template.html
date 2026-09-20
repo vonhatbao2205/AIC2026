@@ -1,0 +1,29 @@
+<!doctype html><html lang="vi"><meta charset="utf-8"><title>PHM · Duyệt L21–L30</title>
+<style>body{font:16px system-ui;max-width:1100px;margin:24px auto;background:#111827;color:#eee;padding:0 20px}video{width:100%;max-height:55vh;background:black}textarea{width:98%;min-height:65px}button,select,input{padding:9px;margin:5px}pre{white-space:pre-wrap;color:#bcd}label{display:block;margin:10px 0}small{color:#bcd}</style>
+<h1>PHM · Duyệt L21–L30</h1><p>Đã nạp GT chuẩn hóa được chủ dữ liệu chấp nhận cho benchmark và ba hint hiện hành. Các chỉnh sửa trong trang này chỉ là bản nháp mới; không tự thay thế bản đã duyệt trong ground_truth.jsonl. Xem chuyển động, âm thanh liên quan và hai biên khi rà soát thêm.</p>
+<select id="queue"></select><button id="prev">← Trước</button><button id="next">Tiếp →</button><h2 id="title"></h2><p id="query"></p><pre id="seed"></pre>
+<select id="media"></select><video id="player" controls preload="metadata"></video>
+<div><button id="back">−1 giây</button><button id="forward">+1 giây</button><input id="seek" type="number" min="0" step="0.1" placeholder="Thời điểm (giây)"><button id="go">Đến</button><span id="clock"></span></div>
+<p id="evidence"></p><small>Thời gian đề xuất dùng ms tương đối đầu video. Các cảnh bối cảnh có thể khác shot với đáp án; xem sheet Targets trong Excel.</small>
+<div><input id="start" type="number" placeholder="start_ms"><button id="markStart">Lấy start hiện tại</button><input id="end" type="number" placeholder="end_ms"><button id="markEnd">Lấy end hiện tại</button><button id="add">Thêm khoảng</button></div><pre id="intervals"></pre><button id="remove">Xóa khoảng cuối</button>
+<label>Hint 1 · bối cảnh<textarea id="h1"></textarea></label><label>Hint 2 · hành động/bố cục<textarea id="h2"></textarea></label><label>Hint 3 · chi tiết phân biệt<textarea id="h3"></textarea></label>
+<label>Quan sát, lời nói, kiểm tra biên và điều chưa chắc<textarea id="notes"></textarea></label><button id="save">Lưu nháp trong trình duyệt</button><button id="export">Tải nháp JSON để cùng duyệt</button><p id="status"></p>
+<script>
+const records=__RECORDS__;
+const $=id=>document.getElementById(id);let index=0, intervals=[];
+const storageKey='phm-L21-L30-draft-v2';let drafts={};try{drafts=JSON.parse(localStorage.getItem(storageKey)||'{}')}catch(e){}
+records.forEach((r,i)=>{let o=new Option(`${i+1}/${records.length} · ${r.video_ids.join(', ')} · ${r.query_id}`,i);$('queue').add(o)});
+function snapshot(){let r=records[index],hs=[1,2,3].map(i=>$('h'+i).value.trim());return {query_id:r.query_id,intervals:structuredClone(intervals),hints:hs,cumulative:hs.map((_,i)=>hs.slice(0,i+1).join(' ')),notes:$('notes').value,annotation_status:'needs_review',review_status:'pending',updated_at:new Date().toISOString()}}
+function save(){drafts[records[index].query_id]=snapshot();try{localStorage.setItem(storageKey,JSON.stringify(drafts));$('status').textContent='Đã lưu nháp trong trình duyệt; chưa ghi vào ground_truth.jsonl.'}catch(e){$('status').textContent='Không lưu được trình duyệt. Hãy tải JSON.'}}
+function renderIntervals(){$('intervals').textContent=JSON.stringify(intervals,null,2)}
+function load(){let r=records[index],d=drafts[r.query_id];$('queue').value=index;$('title').textContent=r.video_ids.join(', ')+' · '+r.query_id;$('query').textContent=r.original_query;$('seed').textContent='GT nguồn (chưa xác minh đơn vị): '+JSON.stringify(r.seeds);$('media').replaceChildren();r.video_ids.forEach((v,i)=>$('media').add(new Option(v,i)));$('player').src=r.media_urls[0];intervals=structuredClone(d?.intervals||r.candidate_intervals||[]);[1,2,3].forEach(i=>$('h'+i).value=(d?d.hints:r.hints)[i-1]);$('notes').value=d?.notes||r.annotation_notes||'';$('evidence').replaceChildren();(r.evidence_links||[]).forEach(e=>{let a=document.createElement('a');a.href=e.path;a.textContent='Ảnh '+e.label;a.target='_blank';a.style.cssText='color:#93c5fd;margin-right:12px';$('evidence').append(a)});$('player').onloadedmetadata=()=>{if(intervals.length)$('player').currentTime=Math.max(0,intervals[0].start_ms/1000-2)};$('start').value='';$('end').value='';$('status').textContent='';renderIntervals()}
+function move(i){save();index=Math.max(0,Math.min(records.length-1,i));load()}
+$('queue').onchange=()=>move(Number($('queue').value));$('prev').onclick=()=>move(index-1);$('next').onclick=()=>move(index+1);$('media').onchange=()=>{$('player').src=records[index].media_urls[Number($('media').value)]};
+$('player').ontimeupdate=()=>{$('clock').textContent=Math.round($('player').currentTime*1000)+' ms'};
+$('back').onclick=()=>{$('player').currentTime=Math.max(0,$('player').currentTime-1)};$('forward').onclick=()=>{$('player').currentTime+=1};$('go').onclick=()=>{$('player').currentTime=Number($('seek').value)};
+$('markStart').onclick=()=>{$('start').value=Math.round($('player').currentTime*1000)};$('markEnd').onclick=()=>{$('end').value=Math.round($('player').currentTime*1000)};
+$('add').onclick=()=>{let a=Number($('start').value),b=Number($('end').value),duration=$('player').duration*1000;if(!$('start').value||!$('end').value||!Number.isFinite(duration)||a<0||a>=b||b>duration){$('status').textContent='Cần 0 ≤ start < end ≤ duration.';return}intervals.push({video_id:records[index].video_ids[Number($('media').value)],start_ms:a,end_ms:b,duration_ms:Math.round(duration),boundary_uncertainty_ms:null});renderIntervals();save()};
+$('remove').onclick=()=>{intervals.pop();renderIntervals();save()};$('save').onclick=save;
+$('export').onclick=()=>{save();let payload={schema:'phm_browser_draft_v1',status:'requires_evidence_and_review',source_queue:records,annotations:Object.values(drafts)};let url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));let a=document.createElement('a');a.href=url;a.download='phm_L21_L30_annotation_drafts.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+load();
+</script></html>

@@ -17,6 +17,9 @@ import type {
   ImageEmbeddingModel,
   KeyframeInfo,
   ParsedQuery,
+  ProgressiveConfig,
+  ProgressiveHint,
+  ProgressiveSnapshot,
   QaAnalysisResponse,
   QaAnalyzeCandidate,
   QueryTypeHint,
@@ -99,6 +102,14 @@ export interface SubmitBody {
 }
 
 export const api = {
+  createProgressive: (config: ProgressiveConfig, signal?: AbortSignal) =>
+    request<ProgressiveSnapshot>("/api/progressive/sessions", { method: "POST", body: JSON.stringify(config), signal }),
+  getProgressive: (id: string, signal?: AbortSignal) =>
+    request<ProgressiveSnapshot>(`/api/progressive/sessions/${id}`, { signal }),
+  updateProgressive: (id: string, body: { expected_revision: number; client_request_id: string; hints: ProgressiveHint[] }, signal?: AbortSignal) =>
+    request<ProgressiveSnapshot>(`/api/progressive/sessions/${id}/hints`, { method: "PUT", body: JSON.stringify(body), signal }),
+  closeProgressive: (id: string) =>
+    request<{ closed: boolean }>(`/api/progressive/sessions/${id}`, { method: "DELETE" }),
   health: (database: RetrievalDatabase = "btc") =>
     request<HealthResponse>(`/api/health?retrieval_database=${database}`),
 

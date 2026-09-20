@@ -24,6 +24,7 @@ HF_BUCKET/HF_TOKEN.txt
 *_endpoint.txt
 *secret*.txt
 *credentials*.json
+/VBS_Account.txt
 
 # ---- Python -----------------------------------------------------------------
 __pycache__/
@@ -67,6 +68,13 @@ VideoRetrieval/tara_embeddings/
 *.faiss
 # Bulk index/staging records and transcripts
 *.jsonl
+# Reviewed annotation source records belong in Git; retrieval dumps do not.
+!/benchmarks/progressive/annotations/ground_truth.jsonl
+!/benchmarks/progressive/annotations/source_inventory.jsonl
+!/benchmarks/progressive/annotations/source_frames.jsonl
+!/benchmarks/progressive/annotations/annotation_decisions.jsonl
+# Local video/frame evidence is retained separately with a SHA-256 manifest.
+/benchmarks/progressive/annotations/evidence/
 elastic_staging/
 elastic_staging_v2/
 speech_out/
@@ -92,6 +100,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+.~*.xlsx
 
 # ---- Packaged app (docker compose) ------------------------------------------
 # The imported .env and the submit history of a local container run.
@@ -101,6 +110,13 @@ Thumbs.db
 /dist-app/
 /dist-app.zip
 /dist-app.tar.gz
+
+# ---- Paper working files ----------------------------------------------------
+# Keep the canonical Paper sources already tracked at Paper/, but ignore local
+# source archives and the generated/expanded technical-report workspace.
+/Paper/*.zip
+/Paper/technical-report/
+/baocaokythuat.md
 
 # ---- Packaged bundles ------------------------------------------------------
 # docker/build-bundle.sh embeds the team's real .env inside the zip, so the

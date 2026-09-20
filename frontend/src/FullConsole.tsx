@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, type ManualOverrides, type SubmitBody } from "./api/client";
 import type {
   AnswerMode,
@@ -13,6 +13,7 @@ import type {
   ImageEmbeddingModel,
   LatencyBreakdown,
   ParsedQuery,
+  ProgressiveSnapshot,
   QaAnalysisResponse,
   QueryType,
   ResolvedScope,
@@ -35,6 +36,7 @@ import { FeedbackBar } from "./components/FeedbackBar";
 import { HistorySidebar } from "./components/HistorySidebar";
 import { ImageModelSelector } from "./components/ImageModelSelector";
 import { NeighborStrip } from "./components/NeighborStrip";
+import { ProgressivePanel } from "./components/ProgressivePanel";
 import { QueryPanel } from "./components/QueryPanel";
 import { QueryUnderstanding } from "./components/QueryUnderstanding";
 import { QaAssistPanel } from "./components/QaAssistPanel";
@@ -171,6 +173,10 @@ export default function FullConsole({
   // kept under a distinct name and re-exported for every other reader.
   const [queryState, setQuery] = useState("");
   const query = queryState;
+  const [progressive, setProgressive] = useState(false);
+  const [progressiveHybrid, setProgressiveHybrid] = useState(false);
+  const progressiveActive = progressive && queryType === "T-KIS";
+  const searchOwner = useRef(0);
   const [hints, setHints] = useState<string[]>([]);
   const [parsed, setParsed] = useState<ParsedQuery | null>(null);
   const [overrides, setOverrides] = useState<ManualOverrides>(EMPTY_OVERRIDES);
@@ -445,7 +451,7 @@ export default function FullConsole({
       !chronological
         ? groups
         : groups.map((group) =>
-            byRelevance.has(group.video_id)
+            (group.progressive || byRelevance.has(group.video_id))
               ? group
               : { ...group, frames: sortFramesByTime(group.frames) },
           ),
@@ -804,8 +810,9 @@ export default function FullConsole({
     let cancelled = false;
     setTimeline(null); // show loading state for the new video
     api.timeline(activeVideoId, retrievalDatabase).then((tl) => {
+      if (cancelled) return;
       timelineCache.current.set(activeVideoId, tl);
-      if (!cancelled) setTimeline(tl);
+      setTimeline(tl);
     }).catch(() => {});
     return () => {
       cancelled = true;
@@ -840,12 +847,43 @@ export default function FullConsole({
     };
   }, [retrievalDatabase]);
 
+  // Task/config changes own a new session and invalidate every older search.
+  const progressiveKey = JSON.stringify([question?.id, queryType, retrievalDatabase, imageModels, translate, progressiveHybrid, configVersion, progressiveActive]);
+  useLayoutEffect(() => {
+    searchOwner.current++;
+    setLoading(false);
+    if (progressiveActive) {
+      setGroups([]); setParsed(null); setLatency(null);
+      setSelectedVideo(0); setSelectedFrame(0); setClipSeek(null);
+      setGuardOpen(false); setPausedFrame(null);
+    }
+  }, [progressiveKey]);
+
+  const acceptProgressive = (res: ProgressiveSnapshot) => {
+    const videoId = selectedGroup?.video_id;
+    const frameId = selectedFrameObj?.submit_keyframe_id;
+    const vi = res.groups.findIndex(g => g.video_id === videoId);
+    const fi = vi >= 0 ? res.groups[vi].frames.findIndex(f => f.submit_keyframe_id === frameId) : -1;
+    setGroups(res.groups);
+    if (res.query) setQuery(res.query);
+    setHints([]);
+    setParsed(res.parsed ?? null);
+    setLatency(null);
+    setAppliedScope(res.scope ?? null);
+    setSelectedVideo(vi >= 0 ? vi : 0);
+    setSelectedFrame(fi >= 0 ? fi : 0);
+    setClipSeek(null); setPausedFrame(null); setGuardOpen(false);
+    setByRelevance(new Set(res.groups.map(g => g.video_id)));
+  };
+
   // ---- search ----
   const runSearch = useCallback(async (overrideQuery?: string) => {
+    if (progressiveActive) return; // PHM uses its explicit ledger Apply action.
     // The override exists for the import-driven run, which fires in the same tick
     // as the setQuery that fills the box and would otherwise read the old value.
     const query = typeof overrideQuery === "string" ? overrideQuery : queryState;
     if (!query.trim() && hints.length === 0) return;
+    const owner = ++searchOwner.current;
     setLoading(true);
     setAppliedTopK(topK);
     // A new result set is a new ranking; carrying the old per-video sort into it
@@ -864,6 +902,7 @@ export default function FullConsole({
     try {
       if (queryType === "TRAKE") {
         const res = await api.searchTrake({ retrieval_database: retrievalDatabase, image_models: imageModelsForSearch(retrievalDatabase, imageModels), query, scope: scopeRequest(scopeMode, scopeSelection), previous_hints: hints, manual_overrides: overrides, use_llm: useLLM, expand, translate, top_k: Math.max(topK, TRAKE_MIN_TOP_K) });
+        if (owner !== searchOwner.current) return;
         setParsed(res.parsed);
         setAppliedScope(res.scope ?? null);
         const grp: VideoGroup[] = res.sequences.map((s) => ({
@@ -921,6 +960,7 @@ export default function FullConsole({
           // would be silently trimmed back to roughly the old frame count.
           max_videos: Math.min(500, Math.max(50, Math.ceil(topK / 2))),
         });
+        if (owner !== searchOwner.current) return;
         setParsed(res.parsed);
         setGroups(res.groups);
         setLatency(res.latency_ms);
@@ -932,15 +972,16 @@ export default function FullConsole({
       setSelectedVideo(0);
       setSelectedFrame(0);
     } catch (e) {
+      if (owner !== searchOwner.current) return;
       const msg = e instanceof ApiError
         ? (typeof e.detail === "string" ? e.detail : `Search failed (${e.status})`)
         : "Search failed — check backend / /api/health";
       setToast({ msg, kind: "bad" });
     } finally {
-      setLoading(false);
+      if (owner === searchOwner.current) setLoading(false);
     }
     // `topK` is read here, not watched: nothing re-runs a search when it moves.
-  }, [queryState, hints, overrides, queryType, feedback, useLLM, expand, translate, rerank, imageModels, retrievalDatabase, topK, scopeMode, scopeSelection]);
+  }, [queryState, hints, overrides, queryType, feedback, useLLM, expand, translate, rerank, imageModels, retrievalDatabase, topK, scopeMode, scopeSelection, progressiveActive]);
 
   // The tab rail shows a spinner per tab, so the parent has to know which tabs
   // are still running after an import kicked all of them off at once.
@@ -986,6 +1027,7 @@ export default function FullConsole({
   // versa). Results land in the same `groups` state, so timeline, detail panel
   // and submit guard behave exactly as they do for any other search.
   const runCanvasSearch = useCallback(async (canvas: CanvasSpec) => {
+    const owner = ++searchOwner.current;
     setLoading(true);
     setByRelevance(new Set());
     setDuplicateId(null);
@@ -996,6 +1038,7 @@ export default function FullConsole({
         canvas,
         scope: scopeRequest(scopeMode, scopeSelection),
       });
+      if (owner !== searchOwner.current) return;
       setParsed(null);
       setGroups(res.groups);
       setTrakeVideos([]);
@@ -1009,12 +1052,13 @@ export default function FullConsole({
       if (res.warnings?.length) setToast({ msg: res.warnings.join(" · "), kind: "bad" });
       else if (!res.groups.length) setToast({ msg: "Không có frame nào khớp bố cục này", kind: "bad" });
     } catch (e) {
+      if (owner !== searchOwner.current) return;
       const msg = e instanceof ApiError
         ? (typeof e.detail === "string" ? e.detail : `Canvas search failed (${e.status})`)
         : "Canvas search failed — check backend / /api/health";
       setToast({ msg, kind: "bad" });
     } finally {
-      setLoading(false);
+      if (owner === searchOwner.current) setLoading(false);
     }
   }, [retrievalDatabase, scopeMode, scopeSelection]);
 
@@ -1979,7 +2023,9 @@ export default function FullConsole({
   // Hooks above have all run, so its state and in-flight requests are intact;
   // only the DOM is skipped, which keeps 24 open tabs from meaning 24 live
   // consoles (and keeps `getByTestId` addressing exactly one console).
-  if (!active) return null;
+  // PHM owns its session in the panel: park that subtree instead of unmounting
+  // it when another workspace tab is selected. Closing the tab still cleans up.
+  if (!active && !progressiveActive) return null;
 
   const taraAvailable = Boolean(health?.capabilities.tara_clip_search);
   const taraEnabled = taraAvailable
@@ -1988,7 +2034,7 @@ export default function FullConsole({
       || (parsed?.channels?.tara?.enabled ?? true));
 
   return (
-    <div className="app">
+    <div className="app" style={active ? undefined : { display: "none" }}>
       <TopBar
         queryType={queryType}
         onQueryType={(t) => {
@@ -2061,7 +2107,18 @@ export default function FullConsole({
             onUseAsQuery={useHintAsQuery}
             onRefresh={() => fetchTaskHint(true)}
           />
-          <QueryPanel
+          {queryType === "T-KIS" && <label className="phm-toggle">
+            <input type="checkbox" checked={progressive} onChange={e => { setProgressive(e.target.checked); setGroups([]); }} />
+            Progressive Hint Memory
+          </label>}
+          {progressiveActive ? <>
+            <ImageModelSelector retrievalDatabase={retrievalDatabase} value={imageModels} onChange={setImageModels} />
+            <label className="phm-toggle"><input type="checkbox" checked={translate} onChange={e => setTranslate(e.target.checked)} />Dịch VI → EN</label>
+            <label className="phm-toggle"><input type="checkbox" checked={progressiveHybrid} onChange={e => setProgressiveHybrid(e.target.checked)} />Thêm OCR / speech / audio</label>
+            <ProgressivePanel key={progressiveKey}
+              config={{ retrieval_database: retrievalDatabase, task_id: question?.id ?? "manual", image_models: imageModelsForSearch(retrievalDatabase, imageModels), scope: { mode: "all", categories: [] }, translate, hybrid: progressiveHybrid, top_k: 200 }}
+              initialText={query} onSnapshot={acceptProgressive} onBusy={setLoading} />
+          </> : <QueryPanel
             query={query}
             setQuery={editQuery}
             hints={hints}
@@ -2111,7 +2168,8 @@ export default function FullConsole({
               />
             }
           />
-          <ChannelControls retrievalDatabase={retrievalDatabase} parsed={parsed} overrides={overrides} onToggle={toggleChannel} />
+          }
+          {!progressiveActive && <ChannelControls retrievalDatabase={retrievalDatabase} parsed={parsed} overrides={overrides} onToggle={toggleChannel} />}
           <QueryUnderstanding parsed={parsed} />
         </div>
 
@@ -2149,7 +2207,7 @@ export default function FullConsole({
             </span>
             {/* A TRAKE answer is a whole video, so there is no flat keyframe
                 ranking to switch to — every frame on screen IS event i. */}
-            {!trakeVideoView && (
+            {!trakeVideoView && !progressiveActive && (
               <div className="seg sm">
                 <button
                   className={viewMode === "grouped" ? "active" : ""}
@@ -2170,7 +2228,7 @@ export default function FullConsole({
           </div>
           {/* Feedback is a `/api/search` concept; the TRAKE endpoint takes none,
               so showing the bar there would promise a re-ranking that cannot happen. */}
-          {!trakeVideoView && (
+          {!trakeVideoView && !progressiveActive && (
             <FeedbackBar feedback={feedback} onRemove={removeFeedback} onClear={clearFeedback} />
           )}
           {trakeVideoView ? (
@@ -2192,7 +2250,7 @@ export default function FullConsole({
           ) : (
           <Results
             groups={displayGroups}
-            viewMode={viewMode}
+            viewMode={progressiveActive ? "grouped" : viewMode}
             trakeEventCount={queryType === "TRAKE" ? trakeEventCount : undefined}
             onTrakeQuickSubmit={queryType === "TRAKE" ? trakeQuickSubmit : undefined}
             qaHotspotScores={queryType === "QA" ? qaHotspotScores : undefined}
@@ -2202,6 +2260,14 @@ export default function FullConsole({
             loading={loading}
             onSelectVideo={(i) => { setSelectedVideo(i); setSelectedFrame(0); setTrakePeak(null); }}
             onSelectFrame={(vi, fi) => { setSelectedVideo(vi); setSelectedFrame(fi); setTrakePeak(null); setClipSeek(null); }}
+            onInspectEvidence={(vi, fi) => {
+              const frame = displayGroups[vi]?.frames[fi];
+              if (!frame) return;
+              setSelectedVideo(vi); setSelectedFrame(fi); setTrakePeak(null);
+              setClipSeek(null); setPausedFrame(null); setGuardOpen(false);
+              setActiveVideoId(frame.video_id); setVideoVisible(true); setShowTimeline(true);
+              if (activeVideoId === frame.video_id && frame.pts_time != null) viewerRef.current?.seek(frame.pts_time);
+            }}
             onSelectClip={(vi, time) => {
               const videoId = displayGroups[vi]?.video_id;
               if (!videoId) return;

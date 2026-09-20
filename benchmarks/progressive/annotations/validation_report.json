@@ -1,0 +1,28 @@
+{
+  "status": "passed",
+  "mode": "full_local_artifacts",
+  "annotation_records": 81,
+  "owner_approved": 77,
+  "eligible_tkis_queries": 75,
+  "accepted_target_intervals": 90,
+  "source_query_rows_in_inventory": 159,
+  "source_workbook_sha256": {
+    "TKIS_queries.xlsx": "f6d0143cb62fb6aa792a46cc4b2435293a5bd1378626850b54f3d3c4b76d8611",
+    "TKIS_72_queries_PHM_3_hints.xlsx": "ada04140caec8fec1b1cdcebb38787e03e6d25e14404f0aaefa8bd0af8c3fb85"
+  },
+  "local_artifacts_hash_checked": 2749,
+  "checks": [
+    "Unique annotation and source-row IDs",
+    "Content-bound owner approval",
+    "Exact duplicate representative and TKIS-only eligibility",
+    "Interval bounds and ms units",
+    "Evidence references and manifest hashes",
+    "Exact cumulative hint concatenation",
+    "No video IDs or timestamps leaked in hints",
+    "Workbook/JSONL state agreement",
+    "Owner approval does not claim independent continuous-video verification"
+  ],
+  "not_checked": [
+    "Continuous playback and semantic correctness"
+  ]
+}

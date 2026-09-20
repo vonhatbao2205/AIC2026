@@ -1,0 +1,11 @@
+.phm-panel { margin: 0 8px 12px; padding: 12px; border: 1px solid var(--line-2); border-top: 3px solid var(--accent); border-radius: 8px; display: grid; gap: 10px; background: var(--bg-1); }
+.phm-panel p { margin: 4px 0; font-size: 12px; line-height: 1.5; }
+.phm-panel label, .phm-hint { display: grid; gap: 5px; }
+.phm-hint > label { display: flex; align-items: center; color: var(--fg-dim); font-size: 12px; }
+.phm-panel textarea, .phm-panel select { width: 100%; box-sizing: border-box; border: 1px solid var(--line-2); border-radius: 6px; padding: 8px; background: var(--bg-3); color: var(--fg); font: inherit; }
+.phm-panel textarea { min-height: 70px; resize: vertical; font-size: 13px; line-height: 1.5; }
+.phm-panel input[type=checkbox], .phm-toggle input { width: auto; accent-color: var(--accent); }
+.phm-panel [role=alert] { color: #e58181; }
+.phm-evidence { padding: 8px 12px; display: grid; gap: 6px; font-size: 12px; }
+.phm-evidence button { margin-left: 6px; }
+.phm-toggle { padding: 8px 12px; display: flex; gap: 8px; align-items: center; font-size: 13px; }

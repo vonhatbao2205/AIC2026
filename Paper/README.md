@@ -1,5 +1,11 @@
 # AIC26 Retrieval Paper
 
+The current six-page English technical report is in **[technical-report/](technical-report/README.md)**:
+[PDF](technical-report/main.pdf) · [LaTeX](technical-report/main.tex).
+It focuses on video grouping, TRAKE, and the current interactive workspace.
+
+The files directly in this directory are the earlier paper, retained as a reference.
+
 This directory contains an IEEE-style LaTeX paper describing the AIC26 multi-modal retrieval system.
 
 ## Files

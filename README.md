@@ -262,6 +262,8 @@ cd frontend && npm run test                       # vitest component tests
 | [HUONG_DAN_SU_DUNG_DRES.md](HUONG_DAN_SU_DUNG_DRES.md) | DRES usage (Vietnamese) |
 | [aic26_query_factory_qwen3vl8b_t4x2.ipynb](aic26_query_factory_qwen3vl8b_t4x2.ipynb) | Source-first benchmark factory: Qwen3-VL generator/critic, PE-G14/Milvus + TF-IDF hard negatives, human review, private ground truth and evaluator |
 | [NVILA_QA_INTEGRATION.md](NVILA_QA_INTEGRATION.md) | UIT/VBS method adaptation, Colab A100 worker, backend contract, UI workflow and operations |
+| [Progressive Hint Memory](docs/PROGRESSIVE_HINT_MEMORY.md) | PHM session API, rescue/backfill, console workflow, event replay and implementation status |
+| [PHM ground-truth guide](benchmarks/PHM_GROUND_TRUTH_GUIDE.md) | Instructions for an AI to verify start/end from video and derive three hints from `TKIS_queries.xlsx`; benchmark deferred |
 
 ---
 

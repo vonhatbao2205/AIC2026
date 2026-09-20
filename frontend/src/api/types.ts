@@ -78,6 +78,14 @@ export interface FrameResult {
 }
 
 export interface VideoGroup {
+  progressive?: {
+    memory_score: number;
+    cumulative_rank: number | null;
+    trajectory: (number | null)[];
+    dispersed: boolean;
+    moment_source: "cumulative" | "historical_evidence";
+    hint_evidence: { hint_id: string; status: string; channels: Record<string, string>; frames: FrameResult[] }[];
+  };
   video_id: string;
   video_score: number;
   max_score: number;
@@ -102,6 +110,49 @@ export interface VideoGroup {
   trake_confident?: number;
   trake_filled?: number;
   trake_mean?: number;
+}
+
+export interface ProgressiveHint {
+  hint_id: string;
+  raw_text: string;
+  input_mode: "delta" | "cumulative";
+  enabled: boolean;
+  source?: string;
+  revealed_at?: number | null;
+  delta_text?: string;
+  cumulative_text?: string;
+}
+
+export interface ProgressiveConfig {
+  retrieval_database: RetrievalDatabase;
+  task_id: string;
+  image_models: ImageEmbeddingModel[];
+  scope: SearchScope;
+  translate: boolean;
+  hybrid: boolean;
+  top_k: number;
+}
+
+export interface ProgressiveSnapshot {
+  query?: string;
+  session_id: string;
+  revision: number;
+  committed_revision: number;
+  pending_revision: number | null;
+  turn: number;
+  groups: VideoGroup[];
+  hint_ledger?: ProgressiveHint[];
+  parsed?: ParsedQuery;
+  scope?: ResolvedScope;
+  budget?: Record<string, number>;
+  revision_budget?: Record<string, number>;
+  revision_latency_ms?: number;
+  no_op?: boolean;
+  warnings?: string[];
+  degraded?: boolean;
+  mode?: "mock" | "live";
+  stability?: { top1_changed: boolean; top1_streak: number; top10_jaccard: number | null };
+  latency_ms?: { total_ms: number };
 }
 
 export interface ChannelConfig {

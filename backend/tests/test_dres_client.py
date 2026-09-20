@@ -336,12 +336,12 @@ async def test_task_hint_returns_the_statement_text(tmp_path):
 
     hint = await service.task_hint("T-KIS")
 
-    # Ordered by offset, so a progressive hint reads in the order teams see it.
-    assert hint["text"] == "Câu một\n\nCâu hai"
+    # At elapsed=5s the 30s hint must not leave the backend.
+    assert hint["text"] == "Câu một"
     assert hint["task_name"] == "tkis-00"
     assert hint["task_status"] == "RUNNING"
     assert hint["task_template_id"] == "tpl-1"
-    assert [e["content_type"] for e in hint["elements"]] == ["TEXT", "TEXT"]
+    assert [e["content_type"] for e in hint["elements"]] == ["TEXT"]
 
 
 @pytest.mark.asyncio
@@ -393,6 +393,26 @@ async def test_task_hint_is_cached_per_task_template(tmp_path):
 
     await service.task_hint("T-KIS", force=True)
     assert len([c for c in calls if c.endswith("/hint")]) == 2
+
+
+@pytest.mark.asyncio
+async def test_cached_sequence_is_filtered_again_as_hints_reveal(tmp_path, monkeypatch):
+    service = hint_service(tmp_path, httpx.Response(200, json={
+        "sequence": [{"contentType": "TEXT", "content": "H1", "offset": 0},
+                     {"contentType": "TEXT", "content": "H2", "offset": 30}],
+    }))
+    assert (await service.task_hint())["text"] == "H1"
+    state = {"taskStatus": "RUNNING", "taskTemplateId": "tpl-1", "timeElapsed": 30}
+    async def clock(_):
+        return state
+    monkeypatch.setattr(service.dres, "evaluation_state", clock)
+    assert (await service.task_hint())["text"] == "H1\n\nH2"
+    state["timeElapsed"] = 0
+    assert (await service.task_hint())["text"] == "H1"
+    state["timeElapsed"] = None
+    assert (await service.task_hint())["elements"] == []
+    state.update(timeElapsed=100, taskStatus="PREPARING")
+    assert (await service.task_hint())["elements"] == []
 
 
 @pytest.mark.asyncio

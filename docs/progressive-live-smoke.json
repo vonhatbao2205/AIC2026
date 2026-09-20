@@ -1,0 +1,105 @@
+{
+  "kind": "integration_smoke_not_benchmark",
+  "date": "2026-09-20",
+  "session_id": "80a056a3e8814aa1852ce1feff474566",
+  "journal_path": "backend/data/progressive/80a056a3e8814aa1852ce1feff474566.jsonl",
+  "config": {
+    "retrieval_database": "infoshotpp",
+    "image_models": [
+      "pe"
+    ],
+    "task_id": "manual",
+    "dataset_revision": null,
+    "model_revisions": {},
+    "scope": {
+      "mode": "all",
+      "categories": []
+    },
+    "top_k": 200,
+    "max_videos": 50,
+    "translate": false,
+    "hybrid": false,
+    "method": "phm",
+    "epsilon": 0.1,
+    "memory_weight": 0.7,
+    "memory_limit": 250,
+    "survivor_limit": 8,
+    "newcomer_limit": 4,
+    "pair_budget": 16,
+    "local_k": 3
+  },
+  "code": {
+    "git_commit": "24a326024511a20d2f4d151913782acd96569c6b",
+    "backend_source_sha256": "52484322656479f1570a1425803d1eaeb342fc62d54d11e6b5c20212ba2909e6"
+  },
+  "index_registry": {
+    "milvus_image_collection": "aic26_image_peg14_infoshotpp_v1",
+    "milvus_qwen3_vl_image_collection": "aic26_image_qwen3vl8b_infoshotpp_v3",
+    "milvus_audio_collection": "aic26_audio_glap_v1",
+    "idx_keyframe_map": "aic26_keyframe_map_infoshotpp_v1",
+    "idx_ocr": "aic26_ocr_keyframes_v2",
+    "idx_speech": "aic26_speech_segments_v2",
+    "idx_audio": "aic26_audio_windows_v2"
+  },
+  "hints": [
+    "A person is preparing food in a kitchen.",
+    "The person is cutting vegetables on a chopping board."
+  ],
+  "turns": [
+    {
+      "turn": 1,
+      "revision": 1,
+      "mode": "live",
+      "displayed_videos": 50,
+      "revision_latency_ms": 646.48,
+      "budget": {
+        "index_calls": 1,
+        "global_index_calls": 1,
+        "local_index_calls": 0,
+        "frames_returned": 200,
+        "global_cache_hits": 1,
+        "local_cache_hits": 0,
+        "admitted_pairs": 0,
+        "query_vectors": 1
+      },
+      "rescue_pairs": 0,
+      "backfill_pairs": 0,
+      "all_local_calls_ok": true,
+      "degraded": false
+    },
+    {
+      "turn": 2,
+      "revision": 2,
+      "mode": "live",
+      "displayed_videos": 50,
+      "revision_latency_ms": 3996.15,
+      "budget": {
+        "index_calls": 14,
+        "global_index_calls": 2,
+        "local_index_calls": 12,
+        "frames_returned": 436,
+        "global_cache_hits": 0,
+        "local_cache_hits": 0,
+        "admitted_pairs": 12,
+        "query_vectors": 2
+      },
+      "rescue_pairs": 8,
+      "backfill_pairs": 4,
+      "all_local_calls_ok": true,
+      "degraded": false
+    }
+  ],
+  "browser": {
+    "page_errors": [],
+    "selected_frame": "L22/L22_V011/1863",
+    "video_ready_state": 4,
+    "video_current_time_seconds": 547.8,
+    "video_error": null
+  },
+  "event_replay_matches_api": true,
+  "limitations": [
+    "No ground-truth evaluation",
+    "No Qwen live test; encoder unreachable",
+    "No GPU-cost or statistical latency estimate"
+  ]
+}

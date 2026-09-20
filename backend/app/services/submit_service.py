@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import re
 import threading
 import time
@@ -421,8 +422,9 @@ class SubmitService:
     ) -> dict[str, Any]:
         """The statement of the open task: text for T-KIS/QA, media for V-KIS.
 
-        Cached per task template — a hint never changes while a task is open, and
-        a V-KIS image/video hint is far too big to re-fetch on every UI poll.
+        Cache the original sequence, but filter by the current reveal clock on
+        EVERY poll. ApiContentElement.offset and state.timeElapsed are seconds
+        in upstream DRES; PHM's separate ledger API uses milliseconds.
         """
         resolved = await self.resolve_evaluation(query_type, evaluation_id)
         state = await self.dres.evaluation_state(resolved) or {}
@@ -441,20 +443,32 @@ class SubmitService:
         if not template_id:
             base["warnings"].append("Chưa có task nào được mở.")
             return base
+        if state.get("taskStatus") != "RUNNING":
+            base["warnings"].append("Task chưa chạy; nhập thủ công hint đã được công bố nếu cần.")
+            return base
 
         key = (resolved, template_id)
-        if not force and key in self._hint_cache:
-            return {**base, **self._hint_cache[key]}
-
-        raw = await self.dres.task_hint(resolved, template_id)
+        raw = self._hint_cache.get(key) if not force else None
+        if raw is None:
+            raw = await self.dres.task_hint(resolved, template_id)
         if raw is None:
             base["warnings"].append("DRES chưa cho xem đề bài của task này.")
             return base
+        self._hint_cache[key] = raw
 
         elements: list[dict[str, Any]] = []
         texts: list[str] = []
         warnings: list[str] = []
-        for element in sorted(raw.get("sequence") or [], key=lambda e: e.get("offset") or 0):
+        elapsed = state.get("timeElapsed")
+        if not isinstance(elapsed, (int, float)) or isinstance(elapsed, bool) or not math.isfinite(elapsed) or elapsed < 0:
+            base["warnings"].append("Không xác minh được thời gian reveal; nhập thủ công hint đã công bố.")
+            return base
+        visible = []
+        for element in raw.get("sequence") or []:
+            offset = element.get("offset")
+            if isinstance(offset, (int, float)) and not isinstance(offset, bool) and math.isfinite(offset) and 0 <= offset <= elapsed:
+                visible.append(element)
+        for element in sorted(visible, key=lambda e: e["offset"]):
             content_type = (element.get("contentType") or "EMPTY").upper()
             content = element.get("content") or ""
             if content_type == "EMPTY" or not content:
@@ -474,7 +488,6 @@ class SubmitService:
             "loop": bool(raw.get("loop")),
             "warnings": warnings,
         }
-        self._hint_cache[key] = hint
         return {**base, **hint}
 
     async def resolve_task_name(self, evaluation_id: str, task_name: str | None = None) -> str:

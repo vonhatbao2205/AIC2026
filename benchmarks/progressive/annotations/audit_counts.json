@@ -1,0 +1,27 @@
+{
+  "source_query_rows": 87,
+  "source_frame_rows": 293,
+  "phm_query_rows": 72,
+  "inventory_source_query_records": 159,
+  "annotation_records": 81,
+  "sampled_queries": 77,
+  "tkis_sampled_queries": 76,
+  "trake_sampled_queries": 1,
+  "unique_sampled_videos": 70,
+  "needs_review": 0,
+  "unverified": 4,
+  "video_verified": 0,
+  "approved": 77,
+  "eligible_for_benchmark": 75,
+  "three_hint_drafts": 77,
+  "exact_duplicate_groups": 1,
+  "exact_duplicate_rows": 2,
+  "candidate_answer_intervals": 90,
+  "accepted_target_intervals": 90,
+  "inspected_contact_sheets": 122,
+  "inventory_dispositions": {
+    "owner_approved_source_normalized": 98,
+    "outside_L21_L30_scope": 57,
+    "unresolved_video_unknown_scope": 4
+  }
+}

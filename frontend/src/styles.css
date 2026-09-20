@@ -900,7 +900,7 @@ button { font-family: inherit; }
 .badge.similar { background: color-mix(in srgb, var(--e3) 18%, transparent); color: var(--e3); }
 
 /* ---- Neighbour keyframe browser (K) ------------------------------------- */
-.neighbor-strip { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+.neighbor-strip { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 8px; background: var(--bg-1); }
 .neighbor-head {
   display: flex; align-items: center; justify-content: space-between;
   font-size: 11px; color: var(--fg-dim); margin-bottom: 6px;

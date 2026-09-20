@@ -65,6 +65,8 @@ from .services import config_service
 from .services.answer_service import AnswerService
 from .services.canvas_service import CanvasService
 from .services.search_service import SearchService, ServiceUnavailable
+from .services.progressive_service import ProgressiveService, ProgressiveError
+from .progressive.models import ProgressiveConfig, HintUpdate
 from .services.submit_service import DuplicateSubmitError, SubmitFormatError, SubmitService
 from .services.timeline_service import TimelineService
 from .services.trake_service import TrakeService
@@ -91,6 +93,7 @@ def build_runtime() -> Settings:
     global settings, search_service, trake_service, canvas_service, timeline_service
     global search_services, trake_services, timeline_services, media_builders, profile_settings
     global answer_services
+    global progressive_service
     global dres_client, submit_service, media, nvila_qa, web_grounding_client
 
     get_settings.cache_clear()
@@ -99,6 +102,7 @@ def build_runtime() -> Settings:
         name: settings.for_retrieval_database(name) for name in ("btc", "infoshotpp")
     }
     search_services = {name: SearchService(cfg) for name, cfg in profile_settings.items()}
+    progressive_service = ProgressiveService(search_services, paths.data_dir() / "progressive")
     trake_services = {
         name: TrakeService(profile_settings[name], search_services[name]) for name in profile_settings
     }
@@ -126,6 +130,38 @@ def build_runtime() -> Settings:
 
 
 build_runtime()
+
+
+@app.post("/api/progressive/sessions")
+async def progressive_create(req: ProgressiveConfig):
+    try:
+        return progressive_service.create(req)
+    except ProgressiveError as exc:
+        raise HTTPException(exc.status, exc.message) from exc
+
+
+@app.get("/api/progressive/sessions/{session_id}")
+async def progressive_get(session_id: str):
+    try:
+        return progressive_service.snapshot(session_id)
+    except ProgressiveError as exc:
+        raise HTTPException(exc.status, exc.message) from exc
+
+
+@app.put("/api/progressive/sessions/{session_id}/hints")
+async def progressive_update(session_id: str, req: HintUpdate):
+    try:
+        return await progressive_service.update(session_id, req)
+    except ProgressiveError as exc:
+        raise HTTPException(exc.status, exc.message) from exc
+
+
+@app.delete("/api/progressive/sessions/{session_id}")
+async def progressive_close(session_id: str):
+    try:
+        return progressive_service.close(session_id)
+    except ProgressiveError as exc:
+        raise HTTPException(exc.status, exc.message) from exc
 
 
 #: Services whose absence actually degrades retrieval. Everything else is an

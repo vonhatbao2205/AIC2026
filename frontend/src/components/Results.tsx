@@ -15,6 +15,7 @@ interface Props {
   onSelectVideo: (i: number) => void;
   onSelectFrame: (videoIdx: number, frameIdx: number) => void;
   onSelectClip?: (videoIdx: number, startTime: number) => void;
+  onInspectEvidence?: (videoIdx: number, frameIdx: number) => void;
   onToggleExpand: (videoId: string) => void;
   onFeedback: (frame: FrameResult, kind: "more" | "exclude") => void;
   onVideoFeedback: (videoId: string, kind: "prioritize" | "deprioritize") => void;
@@ -104,12 +105,12 @@ export function Results(props: Props) {
         const filled = g.trake_filled ?? 0;
         const fullCover = n != null && g.frame_count >= n;
         const confident = fullCover && filled === 0; // every event from real retrieval
-        const byTime = !props.relevanceOrdered.has(g.video_id);
+        const byTime = !g.progressive && !props.relevanceOrdered.has(g.video_id);
         // The reason this video is on screen is its top frames, and chronological
         // order scatters them through the strip. Mark them so the reading order
         // does not cost the ranking. Meaningless for TRAKE, where each frame is
         // event i rather than a ranked hit.
-        const topRanks = props.trakeEventCount ? null : topRelevanceRanks(g.frames);
+        const topRanks = props.trakeEventCount || g.progressive ? null : topRelevanceRanks(g.frames);
         return (
           <div key={g.video_id} className={`vgroup ${isSel ? "selected" : ""}`} data-testid="video-group">
             <div className="vgroup-head" onClick={() => { props.onSelectVideo(gi); props.onToggleExpand(g.video_id); }}>
@@ -156,7 +157,7 @@ export function Results(props: Props) {
                 </button>
               )}
               {/* Video-level feedback belongs on the video, not on a keyframe. */}
-              <span className="fb video-fb">
+              {!g.progressive && <span className="fb video-fb">
                 <button
                   title="Prioritize this video — soft boost of its aggregate score"
                   data-testid="prioritize-video"
@@ -167,12 +168,12 @@ export function Results(props: Props) {
                   data-testid="deprioritize-video"
                   onClick={(e) => { e.stopPropagation(); props.onVideoFeedback(g.video_id, "deprioritize"); }}
                 >⬇</button>
-              </span>
+              </span>}
               {/* Chronological order is for reading a scene, not for ranking, so
                   it lives per video and never touches the other groups. TRAKE is
                   excluded on purpose: there each frame IS event i, so reordering
                   the strip would silently remap the sequence. */}
-              {!props.trakeEventCount && (
+              {!props.trakeEventCount && !g.progressive && (
                 <span className="fb video-fb order-fb">
                   <button
                     className={byTime ? "on" : ""}
@@ -192,7 +193,7 @@ export function Results(props: Props) {
               )}
               {/* Only the exception is announced: chronological is the default,
                   and a tag on every group is noise the operator stops reading. */}
-              {!props.trakeEventCount && !byTime && (
+              {!props.trakeEventCount && !g.progressive && !byTime && (
                 <span className="order-tag" data-testid="order-tag" title="Frame đang xếp theo thứ hạng độ liên quan">
                   theo độ liên quan
                 </span>
@@ -210,6 +211,18 @@ export function Results(props: Props) {
                 </button>
               )}
             </div>
+            {g.progressive && <div className="phm-evidence">
+              <strong>#{gi + 1} · {g.progressive.trajectory.map(r => r ?? "—").join(" → ")}</strong>
+              {g.progressive.dispersed && <span>Bằng chứng nằm ở các đoạn cách xa nhau; kiểm tra đúng moment.</span>}
+              {g.progressive.moment_source === "historical_evidence" && <span>Chưa có moment từ cumulative hiện tại; đang hiển thị bằng chứng cũ.</span>}
+              {g.progressive.hint_evidence.map((h, hi) => <div key={h.hint_id}>
+                H{hi + 1}: {h.status === "observed" ? "có bằng chứng" : h.status === "unobserved" ? "chưa quan sát trong top-K" : "channel không khả dụng"}
+                {h.frames.map(f => <button className="btn sm" key={f.submit_keyframe_id} title={`Mở timeline tại ${f.submit_keyframe_id}`} onClick={() => {
+                  const fi = g.frames.findIndex(x => x.submit_keyframe_id === f.submit_keyframe_id);
+                  if (fi >= 0) (props.onInspectEvidence ?? props.onSelectFrame)(gi, fi);
+                }}>{formatTime(f.pts_time)} · {Array.from(new Set(f.evidence.map(e => String(e.origin ?? "global")))).join("/")}</button>)}
+              </div>)}
+            </div>}
             {isOpen && (
               <div className="frames-strip">
                 {g.frames.map((f, fi) => {
@@ -240,7 +253,7 @@ export function Results(props: Props) {
                           </span>
                         )}
                       </div>
-                      <div className="fb">
+                      {!g.progressive && <div className="fb">
                         <button
                           title="More like this frame — image-to-image search seeded by it"
                           onClick={(e) => { e.stopPropagation(); props.onFeedback(f, "more"); }}
@@ -249,7 +262,7 @@ export function Results(props: Props) {
                           title="Exclude this frame"
                           onClick={(e) => { e.stopPropagation(); props.onFeedback(f, "exclude"); }}
                         >✕</button>
-                      </div>
+                      </div>}
                       <img src={f.keyframe_url} alt={f.submit_keyframe_id} loading="lazy" />
                       <div className="meta">
                         <div className="kf">#{f.keyframe_n} · {formatTime(f.pts_time)}</div>
