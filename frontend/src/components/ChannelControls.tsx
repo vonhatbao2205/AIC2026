@@ -32,7 +32,7 @@ export function ChannelControls({ parsed, overrides, onToggle, retrievalDatabase
   return (
     <div className="panel">
       <h3>Retrieval channels</h3>
-      {CHANNELS.map((c) => {
+      {CHANNELS.filter((channel) => channel !== "tara").map((c) => {
         const disabled = retrievalDatabase === "infoshotpp" && unsupported.has(c);
         const on = disabled ? false : isEnabled(c);
         const cfg = parsed?.channels?.[c];
@@ -61,7 +61,7 @@ export function ChannelControls({ parsed, overrides, onToggle, retrievalDatabase
       })}
       <div className="hint-text">
         {retrievalDatabase === "infoshotpp"
-          ? "VISUAL là công tắc tổng của kênh hình (tắt là mất cả PE Core lẫn Qwen3-VL); chọn index ở ô Image embedding, tick cả hai để fuse bằng RRF. InfoShot++ còn có similar-image và OCR/speech/audio trên index v2. OCR chưa có L26; V-KIS canvas vẫn khoá (chưa có object detection)."
+          ? "VISUAL là công tắc tổng của kênh keyframe (tắt là mất cả PE Core lẫn Qwen3-VL); chọn PE/Qwen/TARA ở ô Visual models. InfoShot++ còn có similar-image và OCR/speech/audio trên index v2. OCR chưa có L26; V-KIS canvas vẫn khoá (chưa có object detection)."
           : "Confidence/stoplist demotion (speech low/intro, audio stoplist & generic captions) is applied automatically by the backend."}
       </div>
     </div>

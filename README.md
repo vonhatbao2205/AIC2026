@@ -218,7 +218,9 @@ Key variables (full list in [backend/.env.example](backend/.env.example)):
 | `MILVUS_ENDPOINT_2`, `MILVUS_TOKEN_2` | InfoShot++ Milvus/Zilliz (separate PE/Qwen collections) |
 | `PE_ENCODER_URL` / `GLAP_ENCODER_URL` | text/audio encoder endpoints |
 | `QWEN3_VL_ENCODER_URL`, `QWEN3_VL_ENCODER_TOKEN` | optional InfoShot++ Qwen3-VL text encoder tunnel/auth |
+| `TARA_ENABLED`, `TARA_ENCODER_URL`, `TARA_ENCODER_TOKEN` | optional InfoShot++ TARA text encoder and clip retrieval |
 | `MILVUS_QWEN3_VL_IMAGE_COLLECTION_2` | InfoShot++ native 4096-d Qwen image collection |
+| `MILVUS_TARA_COLLECTION_2` | InfoShot++ TARA 3584-d clip collection |
 | `MEDIA_BASE_URL` | Cloudflare R2: BTC keyframes và video của cả hai profile |
 | `KEYFRAME_MEDIA_BASE_URL_2` | Cloudflare R2 public base cho keyframe InfoShot++ |
 | `KEYFRAME_MEDIA_FALLBACK_BASE_URL_2` | Hugging Face fallback khi keyframe InfoShot++ trên R2 tải lỗi |
@@ -229,6 +231,9 @@ Key variables (full list in [backend/.env.example](backend/.env.example)):
 | `NVILA_BASE_URL`, `NVILA_TOKEN` | optional NVILA-8B QA worker chạy từ Colab notebook |
 | `DEEPSEEK_API_KEY` | optional DeepSeek built-in `web_search` grounding for QA; backend only |
 | `AIC26_MOCK_MODE` | `true` ⇒ run with fixtures, no live services |
+
+TARA artifact verification, Milvus upload, Colab worker setup, and fusion details
+are documented in [VideoRetrieval/TARA_INTEGRATION.md](VideoRetrieval/TARA_INTEGRATION.md).
 
 > ⚠️ **Secrets are never committed and never reach the frontend.** The browser
 > talks only to the backend. Do not paste real keys into tracked files.

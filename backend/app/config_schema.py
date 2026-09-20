@@ -51,7 +51,7 @@ GROUPS: tuple[ConfigGroup, ...] = (
     ),
     ConfigGroup(
         "Encoders",
-        "PE-Core-G14, Qwen3-VL-Embedding-8B, and GLAP audio↔text.",
+        "PE-Core-G14, Qwen3-VL-Embedding-8B, TARA clip retrieval, and GLAP audio↔text.",
         (
             ConfigKey("PE_ENCODER_URL", "PE encoder base URL", required=True),
             ConfigKey("PE_ENCODER_TOKEN", "PE encoder bearer token", secret=True),
@@ -62,6 +62,10 @@ GROUPS: tuple[ConfigGroup, ...] = (
                 secret=True,
             ),
             ConfigKey("QWEN3_VL_ENCODER_TIMEOUT_SECONDS", "Qwen text encode timeout"),
+            ConfigKey("TARA_ENABLED", "Enable TARA clip retrieval (true/false)"),
+            ConfigKey("TARA_ENCODER_URL", "TARA text encoder base URL"),
+            ConfigKey("TARA_ENCODER_TOKEN", "TARA encoder bearer token", secret=True),
+            ConfigKey("TARA_ENCODER_TIMEOUT_SECONDS", "TARA text encode timeout"),
             ConfigKey("GLAP_ENCODER_URL", "GLAP base URL (blank = reuse PE)"),
         ),
     ),
@@ -149,6 +153,7 @@ GROUPS: tuple[ConfigGroup, ...] = (
                 "MILVUS_QWEN3_VL_IMAGE_COLLECTION_2",
                 "InfoShot++ Qwen3-VL image vector collection",
             ),
+            ConfigKey("MILVUS_TARA_COLLECTION_2", "InfoShot++ TARA clip vector collection"),
             ConfigKey("MILVUS_AUDIO_COLLECTION", "Audio vector collection"),
         ),
     ),

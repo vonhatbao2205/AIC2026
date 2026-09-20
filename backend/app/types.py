@@ -22,11 +22,11 @@ from typing import Any, Literal
 # Without a reranker there is nothing to merge the two spaces with, so they stay
 # two channels and meet in the global RRF (see `SearchService._run_visual`).
 Channel = Literal[
-    "image_pe", "image_qwen", "image_visual", "ocr", "speech", "audio", "similar",
+    "image_pe", "image_qwen", "image_visual", "tara", "ocr", "speech", "audio", "similar",
     "object_layout", "canvas_image",
 ]
 ALL_CHANNELS: tuple[Channel, ...] = (
-    "image_pe", "image_qwen", "image_visual", "ocr", "speech", "audio", "similar",
+    "image_pe", "image_qwen", "image_visual", "tara", "ocr", "speech", "audio", "similar",
     "object_layout", "canvas_image",
 )
 
@@ -109,3 +109,4 @@ class VideoGroup:
     ambiguous: bool
     channels: list[Channel]
     frames: list[FusedFrame]
+    best_clip: dict[str, Any] | None = None

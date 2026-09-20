@@ -6,6 +6,7 @@ image hits keyed off the query string.
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from ..config import Settings
@@ -78,6 +79,82 @@ class MilvusClient:
             return {"ok": bool(has), "collection": collection}
         except Exception as exc:  # noqa: BLE001
             return {"ok": False, "error": failure_reason(exc)}
+
+    async def health_tara(self) -> dict[str, Any]:
+        if not self.s.is_infoshotpp or not self.s.tara_enabled:
+            return {"ok": False, "mode": "disabled"}
+        if self.s.mock_mode:
+            return {"ok": True, "mode": "mock"}
+        if not self.s.has_milvus:
+            return {"ok": False, "mode": "disabled", "reason": "InfoShot++ Milvus missing"}
+        try:
+            name = self.s.milvus_tara_collection
+            client = self._connect()
+            if not client.has_collection(name):
+                return {"ok": False, "collection": name, "reason": "collection missing"}
+            stats = client.get_collection_stats(collection_name=name)
+            rows = int(stats.get("row_count", stats.get("num_entities", -1)))
+            return {
+                "ok": rows == 168_536,
+                "collection": name,
+                "rows": rows,
+                **({"reason": "expected 168536 rows"} if rows != 168_536 else {}),
+            }
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "error": failure_reason(exc)}
+
+    def search_tara_clips(
+        self,
+        vector: list[float],
+        *,
+        scale: str,
+        top_k: int = 300,
+        categories: tuple[str, ...] = (),
+        video_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Search one TARA temporal scale, with filters pushed into Milvus."""
+        if scale not in {"event", "sequence", "scene"}:
+            raise ValueError(f"Invalid TARA scale: {scale}")
+        if not self.s.is_infoshotpp:
+            raise RuntimeError("TARA clips are indexed only for InfoShot++")
+        if self.mock:
+            return []
+        if not self.s.has_milvus:
+            raise RuntimeError("InfoShot++ Milvus endpoint/token missing")
+        if video_id is not None and not re.fullmatch(r"L(?:2[1-9]|30)_V\d{3}", video_id):
+            raise ValueError("Invalid video_id in TARA filter")
+        clauses = [f'scale == "{scale}"']
+        if video_id:
+            clauses.append(f'video_id == "{video_id}"')
+        scope = milvus_filter_expr(categories)
+        if scope:
+            clauses.append(scope)
+        result = self._connect().search(
+            collection_name=self.s.milvus_tara_collection,
+            data=[vector],
+            limit=top_k,
+            filter=" and ".join(clauses),
+            search_params={"metric_type": "COSINE"},
+            output_fields=[
+                "clip_id", "video_id", "category", "scale", "start_time",
+                "end_time", "fps", "center_frame_idx",
+            ],
+        )
+        rows = []
+        for hit in result[0]:
+            entity = hit.get("entity", {})
+            rows.append({
+                "clip_id": entity.get("clip_id") or hit.get("id"),
+                "video_id": entity["video_id"],
+                "category": entity["category"],
+                "scale": entity["scale"],
+                "start_time": float(entity["start_time"]),
+                "end_time": float(entity["end_time"]),
+                "fps": float(entity["fps"]),
+                "center_frame_idx": int(entity["center_frame_idx"]),
+                "score": float(hit["distance"]),
+            })
+        return rows
 
     def search_image(
         self,

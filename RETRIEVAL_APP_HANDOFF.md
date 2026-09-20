@@ -44,6 +44,8 @@ files already in the repo root). See `backend/.env.example`.
 | `PE_ENCODER_TOKEN` | optional | sent as `Authorization: Bearer` if set |
 | `QWEN3_VL_ENCODER_URL`, `QWEN3_VL_ENCODER_TOKEN` | optional, InfoShot++ only | Colab A100 Qwen3-VL-Embedding-8B `/encode-text` worker; both are required to enable it |
 | `QWEN3_VL_ENCODER_TIMEOUT_SECONDS` | optional | text-encode timeout, default 120s (covers the worker's cold first inference) |
+| `TARA_ENABLED`, `TARA_ENCODER_URL`, `TARA_ENCODER_TOKEN` | optional, InfoShot++ only | TARA text worker; all three enable clip retrieval |
+| `TARA_ENCODER_TIMEOUT_SECONDS` | optional | TARA text-encode timeout, default 120s |
 | `MEDIA_BASE_URL` | yes | Cloudflare R2 public base (keyframes/videos) |
 | `NVIDIA_API_KEY` | optional | enables Nemotron query parser (else heuristics) |
 | `NVIDIA_BASE_URL`, `NVIDIA_MODEL` | optional | default NIM endpoint + `nvidia/nemotron-3-ultra-550b-a55b` |
@@ -59,10 +61,14 @@ files already in the repo root). See `backend/.env.example`.
 | `VIDEO_MEDIA_FALLBACK_BASE_URL_{1,2}` | optional | origin the console retries a failed video under; empty disables the retry |
 | `IDX_*`, `MILVUS_IMAGE_COLLECTION` | optional | override index/collection names |
 | `MILVUS_QWEN3_VL_IMAGE_COLLECTION_2` | optional | native 4096-d Qwen image collection (default `aic26_image_qwen3vl8b_infoshotpp_v3`); never point it at a PE collection |
+| `MILVUS_TARA_COLLECTION_2` | optional | TARA 3584-d clip collection (default `aic26_tara_clips_infoshotpp_v1`) |
 | `AIC26_MOCK_MODE` | optional | `true` ⇒ deterministic fixtures (no live services) |
 | `CORS_ORIGINS` | optional | comma-separated; default `*` |
 
 **Secrets never reach the frontend.** The browser talks only to the backend.
+
+See [`VideoRetrieval/TARA_INTEGRATION.md`](VideoRetrieval/TARA_INTEGRATION.md)
+for the verified artifact, Milvus uploader, Colab text worker, and fusion flow.
 
 ---
 

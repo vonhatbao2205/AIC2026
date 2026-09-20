@@ -25,6 +25,7 @@
   --bad: #ef6f63;
   --ch-vector: #6aa0ff;
   --ch-qwen: #f47bc2;
+  --ch-tara: #e3b14a;
   --ch-ocr: #c79bff;
   --ch-speech: #4fd0b0;
   --ch-audio: #f0945a;
@@ -60,6 +61,7 @@
   --bad: #d8483b;
   --ch-vector: #2f6fed;
   --ch-qwen: #c43d91;
+  --ch-tara: #9a6810;
   --ch-ocr: #7c4ddc;
   --ch-speech: #0d9488;
   --ch-audio: #c9690c;
@@ -384,10 +386,24 @@ button { font-family: inherit; }
 }
 .image-model-selector .check-toggle { padding: 3px 6px; border-color: transparent; }
 .image-model-selector .check-toggle:has(input:disabled) { cursor: default; }
+.image-model-selector .tara-model-option {
+  border-left: 1px solid var(--line); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--ch-tara);
+}
+.image-model-selector .tara-model-option:has(input:checked) {
+  color: var(--ch-tara);
+  border-color: color-mix(in srgb, var(--ch-tara) 45%, transparent);
+  background: color-mix(in srgb, var(--ch-tara) 14%, transparent);
+}
+.image-model-selector .tara-model-option input { accent-color: var(--ch-tara); }
+.image-model-selector .tara-model-option:has(input:disabled) { opacity: .55; }
 .image-model-fusion {
   padding: 2px 5px; border-radius: 10px; color: var(--accent);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   font: 700 9px/1.2 var(--mono); letter-spacing: .3px;
+}
+.image-model-fusion.tara-fusion {
+  color: var(--ch-tara); background: color-mix(in srgb, var(--ch-tara) 12%, transparent);
 }
 .hint-text.warn { color: var(--warn); }
 .latency-mini.warn { color: var(--warn); }
@@ -420,6 +436,7 @@ button { font-family: inherit; }
 }
 .badge.image_pe { color: var(--ch-vector); background: color-mix(in srgb, var(--ch-vector) 16%, transparent); }
 .badge.image_qwen { color: var(--ch-qwen); background: color-mix(in srgb, var(--ch-qwen) 16%, transparent); }
+.badge.tara { color: var(--ch-tara); background: color-mix(in srgb, var(--ch-tara) 16%, transparent); border: 0; cursor: pointer; }
 /* The merged, reranked visual ranking. Deliberately not PE's or Qwen's colour:
    it is neither index speaking, it is the reranker's verdict over both. */
 .badge.image_visual { color: var(--ch-vector); background: color-mix(in srgb, var(--ch-vector) 16%, transparent); border: 1px solid color-mix(in srgb, var(--ch-qwen) 45%, transparent); }

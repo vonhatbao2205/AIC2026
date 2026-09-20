@@ -5,6 +5,14 @@ interface Props {
   retrievalDatabase: RetrievalDatabase;
   value: ImageEmbeddingModel[];
   onChange: (models: ImageEmbeddingModel[]) => void;
+  /** TARA is a temporal clip model, so it is controlled through the channel
+   * override payload rather than `image_models`. Keeping it in this visual
+   * model picker makes that implementation detail invisible to the operator. */
+  tara?: {
+    available: boolean;
+    enabled: boolean;
+    onChange: (enabled: boolean) => void;
+  };
 }
 
 const OPTIONS: { id: ImageEmbeddingModel; label: string; title: string }[] = [
@@ -20,20 +28,21 @@ const OPTIONS: { id: ImageEmbeddingModel; label: string; title: string }[] = [
   },
 ];
 
-/** InfoShot++ image-index picker. Selecting both asks the backend to RRF-fuse them. */
-export function ImageModelSelector({ retrievalDatabase, value, onChange }: Props) {
+/** InfoShot++ visual-model picker. PE/Qwen rank keyframes; TARA ranks clips. */
+export function ImageModelSelector({ retrievalDatabase, value, onChange, tara }: Props) {
   if (retrievalDatabase !== "infoshotpp") return null;
 
   const selected = imageModelsForSearch(retrievalDatabase, value);
-  const usingRrf = selected.length === OPTIONS.length;
+  const usingImageRrf = selected.length === OPTIONS.length;
+  const usingTara = Boolean(tara?.available && tara.enabled);
 
   return (
     <fieldset
       className="image-model-selector"
       data-testid="image-model-selector"
-      title={usingRrf ? "Hai model được tìm song song và fuse bằng RRF." : "Chọn image embedding cho lần search tiếp theo."}
+      title="PE/Qwen tìm keyframe; TARA tìm clip 8/24/72 giây. Các ranking được fuse bằng RRF."
     >
-      <legend>Image embedding</legend>
+      <legend>Visual models</legend>
       {OPTIONS.map((option) => {
         const checked = selected.includes(option.id);
         const soleSelection = checked && selected.length === 1;
@@ -54,9 +63,31 @@ export function ImageModelSelector({ retrievalDatabase, value, onChange }: Props
           </label>
         );
       })}
-      {usingRrf && (
+      {usingImageRrf && (
         <span className="image-model-fusion" data-testid="image-model-fusion">
-          RRF
+          keyframe RRF
+        </span>
+      )}
+      {tara && (
+        <label
+          className="check-toggle tara-model-option"
+          title={tara.available
+            ? "TARA tìm theo chuyển động và diễn biến trong clip 8/24/72 giây; kết quả được fuse ở mức video."
+            : "TARA cần text encoder Colab và collection Milvus sẵn sàng."}
+        >
+          <input
+            type="checkbox"
+            checked={usingTara}
+            disabled={!tara.available}
+            data-testid="model-tara"
+            onChange={(event) => tara.onChange(event.target.checked)}
+          />
+          <span>TARA clips{tara.available ? "" : " · offline"}</span>
+        </label>
+      )}
+      {usingTara && (
+        <span className="image-model-fusion tara-fusion" data-testid="tara-video-fusion">
+          video RRF
         </span>
       )}
     </fieldset>

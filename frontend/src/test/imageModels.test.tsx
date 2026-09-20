@@ -13,6 +13,7 @@ type RecordedRequest = { path: string; body: Record<string, unknown> };
 let requests: RecordedRequest[] = [];
 /** Lets one test stage a degraded simple search (a dead encoder) without a second harness. */
 let simpleSearchExtras: Record<string, unknown> = {};
+let healthCapabilities: Record<string, boolean> = {};
 
 function parsed(queryType: QueryType) {
   return {
@@ -59,7 +60,7 @@ function mockFetch() {
         ok: true,
         mode: "mock",
         services: {},
-        capabilities: {},
+        capabilities: healthCapabilities,
         warnings: [],
       });
     }
@@ -157,6 +158,7 @@ beforeEach(() => {
   globalThis.localStorage?.clear?.();
   requests = [];
   simpleSearchExtras = {};
+  healthCapabilities = {};
   vi.stubGlobal("fetch", mockFetch());
 });
 
@@ -164,6 +166,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   requests = [];
   simpleSearchExtras = {};
+  healthCapabilities = {};
 });
 
 async function openSimpleSearchOnInfoshotpp(user: ReturnType<typeof userEvent.setup>) {
@@ -208,6 +211,26 @@ describe("InfoShot++ image model selector", () => {
   it("renders the backend's Qwen evidence channel distinctly", () => {
     render(<ChannelBadge channel="image_qwen" />);
     expect(screen.getByText("Qwen3-VL")).toHaveClass("image_qwen");
+  });
+
+  it("shows TARA beside the keyframe models and writes its channel override", async () => {
+    const user = userEvent.setup();
+    healthCapabilities = { tara_clip_search: true };
+    render(<App />);
+    await user.selectOptions(screen.getByTestId("retrieval-database"), "infoshotpp");
+
+    const tara = await screen.findByTestId("model-tara") as HTMLInputElement;
+    expect(tara).toBeChecked();
+    expect(tara).not.toBeDisabled();
+    expect(screen.getByTestId("tara-video-fusion")).toHaveTextContent("video RRF");
+
+    await user.click(tara);
+    expect(tara).not.toBeChecked();
+    await user.type(screen.getByTestId("query-input"), "street scene");
+    await submitSearch(user);
+    expect(requestBodies("/api/search").at(-1)?.manual_overrides).toMatchObject({
+      disable_channels: ["tara"],
+    });
   });
 
   it("names the visual switch for what it gates, not for one of the two indices", async () => {

@@ -8,6 +8,7 @@ In mock mode, returns deterministic matches from `app.mock_data`.
 """
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
 
@@ -598,6 +599,57 @@ class ElasticClient:
             if doc.get("found"):
                 out2[doc["_id"]] = doc.get("_source", {})
         return out2
+
+    async def nearest_keyframes_by_time(
+        self, positions: list[tuple[str, float]]
+    ) -> list[dict[str, Any] | None]:
+        """Resolve TARA clip midpoints to actual submit keyframes in one msearch.
+
+        Both adjacent keyframes are searched, then the closer one is chosen. The
+        TARA frame index is not a keyframe ordinal in the InfoShot++ map.
+        """
+        if not positions:
+            return []
+        if self.mock:
+            result = []
+            for video_id, moment in positions:
+                frames = mock_data.MOCK_KEYFRAMES.get(video_id, [])
+                result.append(min(frames, key=lambda row: abs(float(row["pts_time"]) - moment)) if frames else None)
+            return result
+        out: list[dict[str, Any] | None] = []
+        for offset in range(0, len(positions), 60):
+            batch = positions[offset:offset + 60]
+            lines: list[str] = []
+            for video_id, moment in batch:
+                for op, order in (("lte", "desc"), ("gte", "asc")):
+                    lines.append("{}")
+                    lines.append(json.dumps({
+                        "size": 1,
+                        "_source": ["submit_keyframe_id", "video_id", "keyframe_n", "frame_idx", "pts_time", "fps"],
+                        "query": {"bool": {"filter": [
+                            {"term": {"video_id": video_id}},
+                            {"range": {"pts_time": {op: moment}}},
+                        ]}},
+                        "sort": [{"pts_time": order}],
+                    }))
+            response = await self._http.get().post(
+                f"{self._base}/{self.s.idx_keyframe_map}/_msearch",
+                content=("\n".join(lines) + "\n").encode(),
+                headers={**self._headers(), "Content-Type": "application/x-ndjson"},
+                timeout=45.0,
+            )
+            response.raise_for_status()
+            results = response.json().get("responses", [])
+            if len(results) != len(batch) * 2:
+                raise RuntimeError("Elastic nearest-keyframe msearch returned wrong response count")
+            for i, (_, moment) in enumerate(batch):
+                options = [
+                    hit["_source"]
+                    for item in results[2 * i:2 * i + 2]
+                    for hit in item.get("hits", {}).get("hits", [])
+                ]
+                out.append(min(options, key=lambda row: abs(float(row["pts_time"]) - moment)) if options else None)
+        return out
 
     async def video_durations(self, video_ids: list[str]) -> dict[str, float]:
         """Approximate length of each video, as the last keyframe's `pts_time`.

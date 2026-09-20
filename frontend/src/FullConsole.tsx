@@ -229,6 +229,7 @@ export default function FullConsole({
   // video, hidden automatically when the selection moves to a different video.
   const [videoVisible, setVideoVisible] = useState(false);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+  const [clipSeek, setClipSeek] = useState<{ videoId: string; time: number } | null>(null);
   // Neighbour browser: the selected result keyframe is the anchor and the offset
   // is how far the operator has paged from it. Storing an offset (not an index)
   // keeps the state valid while the timeline is still loading.
@@ -1933,7 +1934,11 @@ export default function FullConsole({
                 setVideoOriginDown(true);
                 setToast({ msg: "Video origin chính không phản hồi — đã chuyển sang nguồn dự phòng.", kind: "bad" });
               }}
-              startTime={selectedFrameObj?.pts_time ?? 0}
+              startTime={
+                clipSeek?.videoId === selectedGroup.video_id
+                  ? clipSeek.time
+                  : selectedFrameObj?.pts_time ?? selectedGroup.best_clip?.start_time ?? 0
+              }
               onPaused={onVideoPaused}
               onTime={setPlayhead}
             />
@@ -1941,7 +1946,7 @@ export default function FullConsole({
               <Timeline
                 data={timeline}
                 playhead={playhead}
-                selectedPts={selectedFrameObj?.pts_time ?? null}
+                selectedPts={selectedFrameObj?.pts_time ?? selectedGroup.best_clip?.start_time ?? null}
                 eventMarkers={eventMarkers}
                 qaHotspots={(qaAnalysis?.hotspots ?? [])
                   .filter((hotspot) => hotspot.video_id === activeVideoId && hotspot.pts_time != null)
@@ -1975,6 +1980,12 @@ export default function FullConsole({
   // only the DOM is skipped, which keeps 24 open tabs from meaning 24 live
   // consoles (and keeps `getByTestId` addressing exactly one console).
   if (!active) return null;
+
+  const taraAvailable = Boolean(health?.capabilities.tara_clip_search);
+  const taraEnabled = taraAvailable
+    && !overrides.disable_channels.includes("tara")
+    && (overrides.force_channels.includes("tara")
+      || (parsed?.channels?.tara?.enabled ?? true));
 
   return (
     <div className="app">
@@ -2076,6 +2087,11 @@ export default function FullConsole({
                 retrievalDatabase={retrievalDatabase}
                 value={imageModels}
                 onChange={setImageModels}
+                tara={{
+                  available: taraAvailable,
+                  enabled: taraEnabled,
+                  onChange: (enabled) => toggleChannel("tara", enabled),
+                }}
               />
             }
             topK={topK}
@@ -2185,7 +2201,18 @@ export default function FullConsole({
             expanded={expanded}
             loading={loading}
             onSelectVideo={(i) => { setSelectedVideo(i); setSelectedFrame(0); setTrakePeak(null); }}
-            onSelectFrame={(vi, fi) => { setSelectedVideo(vi); setSelectedFrame(fi); setTrakePeak(null); }}
+            onSelectFrame={(vi, fi) => { setSelectedVideo(vi); setSelectedFrame(fi); setTrakePeak(null); setClipSeek(null); }}
+            onSelectClip={(vi, time) => {
+              const videoId = displayGroups[vi]?.video_id;
+              if (!videoId) return;
+              setSelectedVideo(vi);
+              setSelectedFrame(0);
+              setActiveVideoId(videoId);
+              setVideoVisible(true);
+              setShowTimeline(true);
+              setClipSeek({ videoId, time });
+              if (activeVideoId === videoId) viewerRef.current?.seek(time);
+            }}
             onToggleExpand={(vid) =>
               setExpanded((prev) => {
                 const n = new Set(prev);

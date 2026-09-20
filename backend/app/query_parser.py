@@ -516,6 +516,19 @@ class QueryParser:
 
         # Work on a copy so cached base stays clean across override variations.
         result = copy.deepcopy(base)
+        if self.s.has_tara_search:
+            img = (result.get("channels") or {}).get("image_pe") or {}
+            query_en = (
+                result.get("translated_en_visual")
+                or (img.get("queries_en") or [""])[0]
+                or result.get("original_query")
+                or ""
+            )
+            result.setdefault("channels", {})["tara"] = {
+                "enabled": True, "weight": 1.0,
+                "reason": "TARA temporal video clips",
+                "queries_en": [query_en] if query_en else [],
+            }
         result = apply_manual_overrides(result, manual_overrides or {})
         result = ensure_image_pe(result)
         return result

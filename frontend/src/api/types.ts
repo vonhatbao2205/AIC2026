@@ -1,7 +1,7 @@
 // Types mirroring the backend API contract (see backend/README and main.py).
 
 export type Channel =
-  | "image_pe" | "image_qwen" | "image_visual" | "ocr" | "speech" | "audio" | "similar"
+  | "image_pe" | "image_qwen" | "image_visual" | "tara" | "ocr" | "speech" | "audio" | "similar"
   | "object_layout" | "canvas_image";
 export type QueryType = "T-KIS" | "QA" | "V-KIS" | "TRAKE";
 export type QueryTypeHint = "auto" | QueryType;
@@ -88,6 +88,15 @@ export interface VideoGroup {
   channels: Channel[];
   video_url: string;
   frames: FrameResult[];
+  best_clip?: {
+    clip_id: string;
+    scale: "event" | "sequence" | "scene";
+    start_time: number;
+    end_time: number;
+    center_frame_idx: number;
+    fps: number;
+    score: number;
+  } | null;
   // TRAKE-only (set when a sequence is mapped into a group): events backed by real
   // retrieval vs filled by pass-2 in-video search, and mean relevance of real frames.
   trake_confident?: number;

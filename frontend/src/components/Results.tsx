@@ -14,6 +14,7 @@ interface Props {
   expanded: Set<string>;
   onSelectVideo: (i: number) => void;
   onSelectFrame: (videoIdx: number, frameIdx: number) => void;
+  onSelectClip?: (videoIdx: number, startTime: number) => void;
   onToggleExpand: (videoId: string) => void;
   onFeedback: (frame: FrameResult, kind: "more" | "exclude") => void;
   onVideoFeedback: (videoId: string, kind: "prioritize" | "deprioritize") => void;
@@ -52,6 +53,15 @@ export function Results(props: Props) {
     return (
       <div data-testid="results-flat">
         {props.videoSlot && <div className="inline-video-panel">{props.videoSlot}</div>}
+        {groups.map((g, gi) => g.frames.length === 0 && g.best_clip ? (
+          <button
+            key={g.video_id}
+            className="vgroup-head"
+            onClick={() => props.onSelectClip?.(gi, g.best_clip!.start_time)}
+          >
+            {g.video_id} · TARA {g.best_clip.scale} {formatTime(g.best_clip.start_time)}–{formatTime(g.best_clip.end_time)}
+          </button>
+        ) : null)}
         <div className="flat-grid">
         {flat.map(({ f, gi, fi }, rank) => {
           const sel = gi === selectedVideo && fi === selectedFrame;
@@ -133,6 +143,18 @@ export function Results(props: Props) {
                 <span className="score">×{g.frame_count}</span>
               )}
               <ChannelBadges channels={g.channels} />
+              {g.best_clip && (
+                <button
+                  className="badge tara"
+                  title={`TARA ${g.best_clip.scale}: click to play the matched clip`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    props.onSelectClip?.(gi, g.best_clip!.start_time);
+                  }}
+                >
+                  {g.best_clip.scale} {formatTime(g.best_clip.start_time)}–{formatTime(g.best_clip.end_time)}
+                </button>
+              )}
               {/* Video-level feedback belongs on the video, not on a keyframe. */}
               <span className="fb video-fb">
                 <button

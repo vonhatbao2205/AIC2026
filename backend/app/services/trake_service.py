@@ -25,7 +25,7 @@ from typing import Any
 from ..config import Settings
 from ..media import MediaUrlBuilder
 from ..trake import TrakeVideoResult, build_trake_videos, select_pass2_gaps
-from ..types import FusedFrame
+from ..types import Evidence, FusedFrame
 from .search_service import SearchService
 
 
@@ -77,6 +77,12 @@ class TrakeService:
             )
         )
         event_frames = [[f for g in groups for f in g.frames] for groups, _ in results]
+        tara_warning = None
+        if self.s.has_tara_search and (parsed.get("channels") or {}).get("tara", {}).get("enabled", True):
+            try:
+                await self._add_tara_event_candidates(events, event_frames, scope.categories, parsed)
+            except Exception as exc:  # noqa: BLE001 - preserve the frame retrieval path
+                tara_warning = f"TARA TRAKE candidates unavailable: {exc}"
         per_event_meta = [
             {
                 "event_index": ev.get("event_index"),
@@ -126,7 +132,96 @@ class TrakeService:
                 "candidates": len(preliminary),
             },
             "mode": "mock" if self.s.mock_mode else "live",
+            "warnings": [tara_warning] if tara_warning else [],
         }
+
+    async def _add_tara_event_candidates(
+        self,
+        events: list[dict[str, Any]],
+        event_frames: list[list[FusedFrame]],
+        categories: tuple[str, ...],
+        parsed: dict[str, Any],
+    ) -> None:
+        """Add real keyframe-backed TARA event clips to the existing temporal DP."""
+        if parsed.get("translation_failed"):
+            return
+        queries = [
+            (ev.get("description_en_visual") or (ev.get("image_pe_queries_en") or [""])[0]).strip()
+            for ev in events
+        ]
+        active = [(i, query) for i, query in enumerate(queries) if query]
+        if not active:
+            return
+        vectors = await self.search.tara.encode_text([query for _, query in active])
+        raw = await asyncio.gather(*(
+            asyncio.to_thread(
+                self.search.milvus.search_tara_clips, vector,
+                scale="event", top_k=600, categories=categories,
+            )
+            for vector in vectors
+        ))
+        video_filter = set((parsed.get("filters") or {}).get("video_ids") or [])
+        category_filter = set((parsed.get("filters") or {}).get("categories") or [])
+        selected_by_event: list[tuple[int, list[dict[str, Any]]]] = []
+        positions: list[tuple[str, float]] = []
+        for (event_index, _), clips in zip(active, raw):
+            selected: list[dict[str, Any]] = []
+            times_by_video: dict[str, list[float]] = {}
+            for clip in clips:
+                video_id = clip["video_id"]
+                if video_filter and video_id not in video_filter:
+                    continue
+                if category_filter and clip["category"] not in category_filter:
+                    continue
+                middle = clip["center_frame_idx"] / clip["fps"]
+                kept = times_by_video.setdefault(video_id, [])
+                if len(kept) >= 4 or any(abs(middle - earlier) < 3.0 for earlier in kept):
+                    continue
+                kept.append(middle)
+                selected.append(clip)
+                positions.append((video_id, middle))
+                if len(selected) >= 160:
+                    break
+            selected_by_event.append((event_index, selected))
+        keyframes = await self.search.elastic.nearest_keyframes_by_time(positions)
+        cursor = 0
+        for event_index, clips in selected_by_event:
+            existing = {frame.submit_keyframe_id: frame for frame in event_frames[event_index]}
+            for rank, clip in enumerate(clips, 1):
+                keyframe = keyframes[cursor]
+                cursor += 1
+                if not keyframe or keyframe.get("video_id") != clip["video_id"]:
+                    continue
+                key = keyframe.get("submit_keyframe_id")
+                if not key:
+                    continue
+                contribution = 1.0 / (60 + rank)
+                evidence = Evidence(
+                    type="tara", score=float(clip["score"]),
+                    start=float(clip["start_time"]), end=float(clip["end_time"]),
+                    extra={"clip_id": clip["clip_id"], "scale": "event"},
+                )
+                if key in existing:
+                    frame = existing[key]
+                    if "tara" not in frame.channels:
+                        frame.channels.append("tara")
+                        frame.score += contribution
+                    frame.per_channel_score["tara"] = max(
+                        frame.per_channel_score.get("tara", 0.0), float(clip["score"])
+                    )
+                    frame.evidence.append(evidence)
+                    continue
+                frame = FusedFrame(
+                    submit_keyframe_id=key, video_id=clip["video_id"],
+                    keyframe_n=int(keyframe["keyframe_n"]),
+                    pts_time=float(keyframe["pts_time"]),
+                    frame_idx=int(keyframe["frame_idx"]),
+                    fps=float(keyframe["fps"]), score=contribution,
+                    channels=["tara"], evidence=[evidence],
+                    per_channel_score={"tara": float(clip["score"])},
+                )
+                event_frames[event_index].append(frame)
+                existing[key] = frame
 
     async def _fill_missing_events(
         self,

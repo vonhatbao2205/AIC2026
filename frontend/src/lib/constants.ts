@@ -3,7 +3,7 @@ import type { Channel } from "../api/types";
 // `image_qwen` is controlled by ImageModelSelector. `similar` is driven by
 // operator feedback and `object_layout` by the V-KIS canvas, so none of those
 // belongs to the general channel override switches.
-export const CHANNELS: Channel[] = ["image_pe", "ocr", "speech", "audio"];
+export const CHANNELS: Channel[] = ["image_pe", "tara", "ocr", "speech", "audio"];
 
 /** Evidence badges on a result frame: these name the index that FOUND it, so
  *  `image_pe` and `image_qwen` must stay distinguishable here.
@@ -16,6 +16,7 @@ export const CHANNEL_LABEL: Record<Channel, string> = {
   image_pe: "PE Core",
   image_qwen: "Qwen3-VL",
   image_visual: "visual ⚖",
+  tara: "TARA",
   ocr: "OCR",
   speech: "speech",
   audio: "audio",

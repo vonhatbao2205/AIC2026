@@ -16,11 +16,13 @@ from ..adapters.milvus_client import MilvusClient
 from ..adapters.pe_encoder import GlapEncoderClient, PeEncoderClient
 from ..adapters.qwen3_vl_encoder import Qwen3VlEncoderClient
 from ..adapters.qwen_reranker import QwenRerankerClient
+from ..adapters.tara_encoder import TaraEncoderClient
 from ..config import Settings
 from ..fusion import DEFAULT_RRF_K, group_by_video, reciprocal_rank_fusion
 from ..media import MediaUrlBuilder
 from ..query_parser import QueryParser
 from ..scope import ResolvedScope, resolve_scope
+from ..tara_fusion import SCALES, fuse_tara_scales, fuse_video_rankings
 from ..types import Channel, ChannelHit, Evidence, FusedFrame, VideoGroup
 
 
@@ -66,6 +68,7 @@ class SearchService:
         self.milvus = MilvusClient(settings)
         self.pe = PeEncoderClient(settings)
         self.qwen3_vl = Qwen3VlEncoderClient(settings)
+        self.tara = TaraEncoderClient(settings)
         self.glap = GlapEncoderClient(settings)
         self.reranker = QwenRerankerClient(settings)
         self.parser = QueryParser(settings)
@@ -177,6 +180,23 @@ class SearchService:
     ) -> tuple[list[ChannelHit], float]:
         """Qwen3-VL text->image retrieval in its independent 4096-d space."""
         return await self._run_image_model("qwen3_vl", cfg, top_k, categories)
+
+    async def _run_tara(
+        self, query: str, top_k: int, categories: tuple[str, ...]
+    ) -> tuple[list[dict[str, Any]], float]:
+        """Search each temporal scale separately, then collapse clips per video."""
+        started = time.perf_counter()
+        vector = (await self.tara.encode_text([query]))[0]
+        depth = min(1000, max(300, top_k * 3))
+        rows = await asyncio.gather(*(
+            asyncio.to_thread(
+                self.milvus.search_tara_clips, vector,
+                scale=scale, top_k=depth, categories=categories,
+            )
+            for scale in SCALES
+        ))
+        fused = fuse_tara_scales(dict(zip(SCALES, rows)))
+        return fused, (time.perf_counter() - started) * 1000
 
     async def _run_visual(
         self,
@@ -720,6 +740,16 @@ class SearchService:
                     report=visual_info,
                 )
             )
+        tara_cfg = channels_cfg.get("tara") or {}
+        tara_query = (tara_cfg.get("queries_en") or [
+            parsed.get("translated_en_visual") or parsed.get("original_query") or ""
+        ])[0]
+        if (self.s.has_tara_search and tara_cfg.get("enabled", True)
+                and parsed.get("query_type") in {"T-KIS", "QA"}
+                and not parsed.get("translation_failed") and tara_query.strip()):
+            tasks["tara"] = asyncio.create_task(
+                self._run_tara(tara_query, top_k, categories)
+            )
         for name, runner in runners.items():
             cfg = channels_cfg.get(name, {})
             if cfg.get("enabled"):
@@ -736,8 +766,11 @@ class SearchService:
 
         latency: dict[str, Any] = {"channels": {}}
         channel_hits: dict[Channel, list[ChannelHit]] = {}
+        tara_videos: list[dict[str, Any]] = []
         weights: dict[str, float] = {}
         warnings: list[str] = []
+        if parsed.get("translation_failed") and self.s.has_tara_search and tara_cfg.get("enabled", True):
+            warnings.append("TARA skipped: English translation failed")
         disabled = [
             name for name in sorted(unsupported) if channels_cfg.get(name, {}).get("enabled")
         ]
@@ -753,6 +786,22 @@ class SearchService:
                 + ", ".join(self.s.ocr_missing_categories)
             )
         for name, task in tasks.items():
+            if name == "tara":
+                try:
+                    tara_videos, tara_ms = await task
+                except Exception as exc:  # noqa: BLE001 - preserve existing search
+                    tara_videos, tara_ms = [], 0.0
+                    warnings.append(f"tara channel unavailable: {exc}")
+                video_ids = set(filters.get("video_ids") or [])
+                parser_categories = set(filters.get("categories") or [])
+                tara_videos = [
+                    item for item in tara_videos
+                    if (not video_ids or item["video_id"] in video_ids)
+                    and (not parser_categories or item["video_id"].split("_")[0] in parser_categories)
+                ]
+                latency["channels"]["tara"] = round(tara_ms, 1)
+                weights["tara"] = float(tara_cfg.get("weight") or 1.0)
+                continue
             if name == "visual":
                 try:
                     visual_hits, visual_ms, visual_warnings = await task
@@ -806,6 +855,13 @@ class SearchService:
             prioritized_videos=set(feedback.get("positive_videos") or []),
             deprioritized_videos=set(feedback.get("negative_videos") or []),
         )
+        if tara_videos:
+            groups = fuse_video_rankings(
+                groups, channel_hits, tara_videos, weights=weights, k=rrf_k,
+                positive_videos=set(feedback.get("positive_videos") or []),
+                negative_videos=set(feedback.get("negative_videos") or []),
+                negative_frames=set(feedback.get("negative_frames") or []),
+            )
         latency["fusion_ms"] = round((time.perf_counter() - t_fuse) * 1000, 1)
         return groups, latency
 
@@ -1140,6 +1196,7 @@ class SearchService:
             "channels": list(g.channels),
             "video_url": self.media.video_url(g.video_id),
             "frames": [self._serialize_frame(f) for f in g.frames],
+            "best_clip": g.best_clip,
         }
 
 

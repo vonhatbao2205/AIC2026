@@ -149,6 +149,8 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
         pe,
         qwen3_vl_encoder,
         qwen3_vl_milvus,
+        tara_encoder,
+        tara_milvus,
         nvila,
         reranker,
         grounding,
@@ -159,6 +161,8 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
         selected.pe.health(),
         selected.qwen3_vl.health(),
         selected.milvus.health_qwen_image(),
+        selected.tara.health(),
+        selected.milvus.health_tara(),
         nvila_qa.health(),
         selected.reranker.health(),
         web_grounding_client.health(),
@@ -175,6 +179,8 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
         "pe_encoder": pe,
         "qwen3_vl_encoder": qwen3_vl_encoder,
         "qwen3_vl_milvus": qwen3_vl_milvus,
+        "tara_encoder": tara_encoder,
+        "tara_milvus": tara_milvus,
         "nvila_qa": nvila,
         "qwen_reranker": reranker,
         "web_grounding": grounding,
@@ -219,6 +225,7 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
             "audio_vector_search": selected_settings.has_glap and not settings.mock_mode,
             "image_pe_search": selected_settings.mock_mode or pe_image_ready,
             "qwen3_vl_embedding_search": qwen3_vl_image_ready,
+            "tara_clip_search": bool(tara_encoder.get("ok") and tara_milvus.get("ok")),
             # Both profiles now have their own OCR/speech/audio indices (BTC: the
             # `*_v1` set, InfoShot++: the `*_v2` set built on the new keyframe map).
             "ocr_search": "ocr" not in selected_settings.unsupported_channels,
@@ -256,6 +263,7 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
                 if selected_settings.is_infoshotpp
                 else None
             ),
+            "tara": selected_settings.milvus_tara_collection if selected_settings.is_infoshotpp else None,
         },
         # Categories the active OCR index does not cover, so a blank OCR result
         # there reads as "not indexed" rather than "no text on screen".

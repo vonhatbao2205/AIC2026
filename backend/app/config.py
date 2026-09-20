@@ -101,6 +101,11 @@ class Settings:
     qwen3_vl_encoder_url: str | None = None
     qwen3_vl_encoder_token: str | None = None
     qwen3_vl_encoder_timeout_seconds: float = 120.0
+    # TARA video-clip text encoder, pinned to the InfoShot++ L21-L30 artifact.
+    tara_encoder_url: str | None = None
+    tara_encoder_token: str | None = None
+    tara_encoder_timeout_seconds: float = 120.0
+    tara_enabled: bool = False
     # GLAP audio↔text encoder (/encode-audio-text). Usually the SAME Kaggle server
     # as PE; if unset, falls back to pe_encoder_url.
     glap_encoder_url: str | None = None
@@ -228,6 +233,7 @@ class Settings:
     milvus_image_collection_2: str = "aic26_image_peg14_infoshotpp_v1"
     milvus_qwen3_vl_image_collection: str = "aic26_image_qwen3vl8b_infoshotpp_v3"
     milvus_qwen3_vl_image_collection_2: str = "aic26_image_qwen3vl8b_infoshotpp_v3"
+    milvus_tara_collection: str = "aic26_tara_clips_infoshotpp_v1"
     milvus_audio_collection: str = "aic26_audio_glap_v1"
 
     # When true, adapters return deterministic fixtures instead of calling services.
@@ -271,6 +277,14 @@ class Settings:
             and self.has_qwen3_vl_encoder
             and self.has_milvus
             and self.milvus_qwen3_vl_image_collection
+        )
+
+    @property
+    def has_tara_search(self) -> bool:
+        return bool(
+            self.is_infoshotpp and self.tara_enabled and self.has_milvus
+            and self.tara_encoder_url and self.tara_encoder_token
+            and self.milvus_tara_collection
         )
 
     @property
@@ -413,6 +427,10 @@ def get_settings() -> Settings:
         )
     except ValueError:
         qwen3_vl_encoder_timeout_seconds = 120.0
+    try:
+        tara_encoder_timeout_seconds = float(_env("TARA_ENCODER_TIMEOUT_SECONDS", "120") or "120")
+    except ValueError:
+        tara_encoder_timeout_seconds = 120.0
     reranker_env = (_env("QWEN_RERANKER_ENABLED", "true") or "true").lower()
     qwen_reranker_enabled = reranker_env in {"1", "true", "yes", "on"}
     try:
@@ -493,6 +511,10 @@ def get_settings() -> Settings:
             _env("QWEN3_VL_ENCODER_TOKEN") or file_default("qwen3_vl_encoder_token.txt")
         ),
         qwen3_vl_encoder_timeout_seconds=max(10.0, qwen3_vl_encoder_timeout_seconds),
+        tara_encoder_url=(_env("TARA_ENCODER_URL") or "").rstrip("/") or None,
+        tara_encoder_token=_env("TARA_ENCODER_TOKEN") or file_default("tara_encoder_token.txt"),
+        tara_encoder_timeout_seconds=max(10.0, tara_encoder_timeout_seconds),
+        tara_enabled=(_env("TARA_ENABLED", "false") or "false").lower() in {"1", "true", "yes", "on"},
         glap_encoder_url=_env("GLAP_ENCODER_URL"),
         media_base_url=media_base_url,
         keyframe_media_base_url=media_base_url,
@@ -571,6 +593,9 @@ def get_settings() -> Settings:
         milvus_qwen3_vl_image_collection_2=(
             _env("MILVUS_QWEN3_VL_IMAGE_COLLECTION_2")
             or "aic26_image_qwen3vl8b_infoshotpp_v3"
+        ),
+        milvus_tara_collection=(
+            _env("MILVUS_TARA_COLLECTION_2") or "aic26_tara_clips_infoshotpp_v1"
         ),
         milvus_audio_collection=_env("MILVUS_AUDIO_COLLECTION") or "aic26_audio_glap_v1",
         mock_mode=mock_mode,
