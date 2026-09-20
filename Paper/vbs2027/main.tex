@@ -106,7 +106,8 @@ S_t(v)=0.70M_t(v)+0.30C_t(v).
 \end{equation}
 These are fixed design presets, not calibrated probabilities or optimized
 parameters. When delta and cumulative views coincide at the first turn, their
-monotonic score transformation preserves the baseline video ordering.
+monotonic score transformation preserves the baseline video ordering:
+$M_1=0.1+0.9C_1$ and $S_1=0.07+0.93C_1$.
 
 \subsection{Bounded In-Video Retrieval}
 After the first turn, up to eight previous candidates missing evidence for the
@@ -115,12 +116,21 @@ receive backfill searches for previous hints. Allocation is capped at 16
 $(\mathrm{video},\mathrm{hint})$ pairs per turn, with up to three frames per
 visual model per pair. Encoded query vectors are reused within a session.
 
-Local rank one is not a corpus-wide rank one. Global and local hits for the
-same model, query and collection are deduplicated by canonical frame identity,
-sorted together by raw similarity, and then assigned candidate-pool ranks for
-fusion. Scores from different embedding models are never added. A weak local
-hit remains below stronger global hits. Rescue can still promote an incorrect
-candidate; its benefit and harm require an ablation.
+Local rank one is not a corpus-wide rank one. We freeze an observed retrieval
+frontier at the lowest finite similarity in each successful original global
+result list. Only local hits at or above the frontier for the same model, query
+and collection enter the ranking pool. They are deduplicated by canonical frame
+identity, sorted by raw similarity and assigned candidate-pool ranks for fusion.
+These ranks are not exact corpus ranks, particularly with approximate nearest
+neighbor retrieval. Scores from different models are never added.
+
+Below-frontier hits, and hits without an observed global frontier, remain
+available for operator localization but contribute no rank evidence. They are
+excluded from both RRF and video grouping, including cluster support. Their raw
+scores, cutoff and exclusion reason are recorded. This avoids granting a
+selectively retrieved weak hit an optimistic rank immediately after global
+top-$K$. Rescue can still promote an incorrect candidate; its benefit and harm
+require an ablation.
 
 The ranked memory contains at most 250 videos. Current and previous top-20
 candidates are protected, and remaining capacity follows session score with a
@@ -129,20 +139,25 @@ representative frames per video. Backfilled evidence records the turn at which
 it was discovered and does not alter earlier committed snapshots.
 
 \section{Evaluation Protocol: Pending Execution}
-\pending{No benchmark is run in the current implementation scope. Complete
-video-verified annotation using \texttt{TKIS\_queries.xlsx} and the repository's
-ground-truth guide before defining an evaluation denominator.}
+\pending{No benchmark is run in the current implementation scope. The current
+manifest has 75 eligible TKIS queries with owner-approved normalized ground
+truth. Lock the split and report its actual denominators before evaluation.}
 
 The intended data consists of synthetic progressive descriptions derived from
-existing AIC queries and checked against source video. Ground truth must separate
+existing AIC queries, prior annotations and sampled visual inspection. The owner
+approved the normalized ground truth; this is not independent verification by
+continuous video playback. Ground truth must separate
 video identity from valid answer moments; absolute frame indices and keyframe
 ordinals must not be confused. Annotation should use verified timestamps and
 allow multiple disjoint answer intervals. Duplicate targets and paraphrases must
 remain in the same development/evaluation group.
 
 The intended comparisons are cumulative query search, latest-hint search,
-Hint-RRF, PHM without rescue/backfill, full PHM, arithmetic memory aggregation,
-and a deeper cumulative retrieval control. PE-only precedes PE+Qwen. The planned
+Hint-RRF, a stateless dual-view baseline, PHM without rescue/backfill, full PHM,
+arithmetic memory aggregation, and a deeper cumulative retrieval control.
+Dual-view averages current delta and cumulative rank evidence without historical
+frames or rescue. Deeper cumulative retrieval is selected on development latency
+from depths 200, 400, 800 and 1000, then frozen. PE-only precedes PE+Qwen. The planned
 primary metric is mean prefix video MRR, averaged per query before aggregation.
 Moment Hit@K is measured on the moments actually displayed, separately from
 video-level metrics. Rescue recovery and harmful rescue are both reported.
@@ -161,7 +176,8 @@ failure preservation, provenance and identity-based UI selection. Such tests
 do not establish effectiveness, usability or competition readiness. A separate
 PE-only InfoShot++ browser smoke test exercised two hints, eight survivor rescue
 and four newcomer backfill requests, and verified video seeking to the selected
-evidence time. This is an integration check, not an evaluated retrieval task.
+evidence time. This smoke test predates the global-frontier scoring revision;
+it checks the interaction path, not the revised scoring or an evaluated task.
 Video-wide
 evidence may be dispersed across unrelated scenes, and rescue may reinforce a
 wrong candidate. The operator must still verify an answer moment.

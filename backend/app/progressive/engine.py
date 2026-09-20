@@ -3,15 +3,16 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import math
 import time
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from ..fusion import group_by_video, reciprocal_rank_fusion
 from ..services.search_service import SearchService, ServiceUnavailable, VISUAL_CHANNEL
-from ..types import Evidence
+from ..types import Evidence, FusedFrame
 from ..retrieval_work import work
-from .core import bounded_candidates, memory_score, merge_local, rank_evidence, representatives, rescue_pairs, stability
+from .core import bounded_candidates, gate_local, memory_score, merge_local, rank_evidence, representatives, rescue_pairs, stability
 from .models import ProgressiveConfig, RetrievalTrace
 
 
@@ -21,8 +22,17 @@ class Observation:
     groups: list[dict]
     parsed: dict
     video_ranks: dict[str, int] = field(default_factory=dict)
+    global_cutoffs: dict[str, float | None] = field(init=False)
+    localization_frames: dict[str, list[dict]] = field(default_factory=dict)
 
     def __post_init__(self):
+        # Freeze before any rescue/backfill. Empty or failed globals have no
+        # observed frontier, even if a later local request succeeds.
+        self.global_cutoffs = {
+            channel: min((h.score for h in hits if math.isfinite(h.score)), default=None)
+            if self.trace.channel_status.get(channel) == "ok" else None
+            for channel, hits in self.trace.channel_hits.items()
+        }
         if not self.video_ranks:
             self.video_ranks = {g["video_id"]: i + 1 for i, g in enumerate(self.groups)}
 
@@ -98,7 +108,8 @@ class ProgressiveEngine:
                 hit.evidence.extra.update(hint_id=hint_id, origin="global", discovered_at_turn=turn,
                                           original_rank=hit.rank + 1)
 
-    async def _regroup(self, observation: Observation, visible_videos: set[str] | None = None):
+    async def _regroup(self, observation: Observation, visible_videos: set[str] | None = None,
+                       localization_videos: set[str] | None = None):
         trace = observation.trace
         frames = reciprocal_rank_fusion(trace.channel_hits, weights=trace.weights, k=trace.rrf_k)
         await self.search._enrich_pts(frames)
@@ -106,13 +117,33 @@ class ProgressiveEngine:
         # Preserve ranks in the full raw candidate pool even when evidence memory
         # is evicted. Removing unrelated videos must not promote rank 200 to 1.
         observation.video_ranks = {g["video_id"]: i + 1 for i, g in enumerate(observation.groups)}
+        # Display-only frames never enter RRF or group_by_video: even a zero
+        # score there could otherwise affect mean/cluster support and ranking.
+        local_frames: dict[str, FusedFrame] = {}
+        for channel, hits in trace.localization_hits.items():
+            for hit in hits:
+                frame = local_frames.setdefault(hit.submit_keyframe_id, FusedFrame(
+                    hit.submit_keyframe_id, hit.video_id, hit.keyframe_n, hit.pts_time, 0.0,
+                ))
+                frame.channels.append(channel)
+                frame.per_channel_score[channel] = hit.score
+                if hit.evidence is not None:
+                    frame.evidence.append(hit.evidence)
+        await self.search._enrich_pts(list(local_frames.values()))
+        observation.localization_frames = {}
+        for frame in local_frames.values():
+            observation.localization_frames.setdefault(frame.video_id, []).append(self.search._serialize_frame(frame))
         if visible_videos is not None:
+            localization = observation.localization_frames
             self._retain(observation, visible_videos)
+            if localization_videos is not None:
+                observation.localization_frames = {v: f for v, f in localization.items() if v in localization_videos}
 
     @staticmethod
     def _retain(observation: Observation, videos: set[str]):
         observation.groups = [g for g in observation.groups if g["video_id"] in videos]
         observation.video_ranks = {v: r for v, r in observation.video_ranks.items() if v in videos}
+        observation.localization_frames = {v: f for v, f in observation.localization_frames.items() if v in videos}
 
     async def _local(self, model: str, video: str, obs: Observation, state: EngineState, counts: dict):
         channel = VISUAL_CHANNEL[model]
@@ -169,23 +200,38 @@ class ProgressiveEngine:
 
         outcomes = await asyncio.gather(*(one(v, i, origin, m) for v, i, origin in pairs for m in self.models))
         changed: dict[int, set[str]] = {}
-        for i, model, hits, _ in outcomes:
+        display: dict[int, set[str]] = {}
+        for i, model, hits, job in outcomes:
             if hits:
                 channel = VISUAL_CHANNEL[model]
                 obs = observations[i]
-                obs.trace.channel_hits[channel] = merge_local(obs.trace.channel_hits.get(channel, []), hits)
+                eligible, localization = gate_local(hits, obs.global_cutoffs.get(channel))
+                job.update(global_cutoff=obs.global_cutoffs.get(channel),
+                           rank_eligible_rows=len(eligible), localization_only_rows=len(localization))
+                if eligible:
+                    obs.trace.channel_hits[channel] = merge_local(obs.trace.channel_hits.get(channel, []), eligible)
+                obs.trace.localization_hits[channel] = merge_local(obs.trace.localization_hits.get(channel, []), localization)
                 visible = changed.setdefault(i, {g["video_id"] for g in obs.groups})
-                visible.update(h.video_id for h in hits)
+                # A weak backfill must not reactivate an evicted video's old
+                # global rank merely because the raw trace still contains it.
+                visible.update(h.video_id for h in eligible)
+                local_visible = display.setdefault(i, set(obs.localization_frames))
+                local_visible.update(h.video_id for h in hits)
         for i in sorted(changed):
-            await self._regroup(observations[i], changed[i])
+            await self._regroup(observations[i], changed[i], display[i])
         return [o[3] for o in outcomes]
 
     def _rank(self, state: EngineState, cumulative: Observation, method: str) -> list[dict]:
         previous = state.rankings[-1] if state.rankings else []
         current = [g["video_id"] for g in cumulative.groups]
         latest = state.observations[-1]
+        stateless = method in {"cumulative", "latest", "dual_view"}
         candidates = set(previous) | set(current) | {g["video_id"] for g in latest.groups}
-        observations = [o for o in state.observations if o.valid]
+        if stateless:
+            candidates = set(current)
+            if method == "dual_view":
+                candidates.update(latest.video_ranks)
+        observations = [o for o in state.observations if o.valid] if not stateless else []
         ranks = [o.video_ranks for o in observations]
         cumulative_ranks = {v: i + 1 for i, v in enumerate(current)}
         scores, memory = {}, {}
@@ -194,20 +240,21 @@ class ProgressiveEngine:
             memory[v] = memory_score(es, self.config.epsilon, method == "phm_arithmetic")
             if method in {"cumulative", "latest"}:
                 scores[v] = rank_evidence(cumulative_ranks.get(v))
+            elif method == "dual_view":
+                scores[v] = .5 * rank_evidence(latest.video_ranks.get(v)) + .5 * rank_evidence(cumulative_ranks.get(v))
             elif method == "hint_rrf":
                 scores[v] = sum(es)
             else:
                 w = self.config.memory_weight
                 scores[v] = w * memory[v] + (1 - w) * rank_evidence(cumulative_ranks.get(v))
-        if method in {"cumulative", "latest"}:
-            candidates = set(current)
-            scores = {v: scores[v] for v in candidates}
         current_order = sorted(scores, key=lambda v: (-scores[v], v))
-        order = bounded_candidates(scores, current_order, previous, self.config.memory_limit)
+        order = bounded_candidates(scores, current_order, previous if not stateless else [], self.config.memory_limit)
         # Candidate moments come from the cumulative view first. Earlier hints
         # remain explicit evidence, not an implicit final-answer selector.
         preferred = {g["video_id"]: g for g in cumulative.groups}
-        by_hint = [{g["video_id"]: g for g in o.groups} for o in state.observations]
+        by_hint = [{g["video_id"]: g for g in o.groups}
+                   if not stateless or i == len(state.observations) - 1 else {}
+                   for i, o in enumerate(state.observations)]
         output = []
         for video in order:
             source = preferred.get(video) or next((x[video] for x in reversed(by_hint) if video in x), None)
@@ -216,11 +263,15 @@ class ProgressiveEngine:
             group = copy.deepcopy(source)
             support, evidence_frames = [], []
             for i, (obs, lookup) in enumerate(zip(state.observations, by_hint)):
-                frames = representatives(lookup.get(video, {}).get("frames", []))
+                unused = stateless and i < len(state.observations) - 1
+                ranked_frames = lookup.get(video, {}).get("frames", [])
+                local_frames = obs.localization_frames.get(video, []) if not unused else []
+                frames = representatives([*ranked_frames, *local_frames])
                 evidence_frames.extend(frames)
                 support.append({"hint_id": state.ledger[i]["hint_id"],
-                    "status": "observed" if frames else "unobserved" if obs.valid else "unavailable",
-                    "reason": None if frames else "outside_retained_memory_or_top_k" if obs.valid else "channel_failure",
+                    "status": "not_used" if unused else "observed" if ranked_frames else "localization_only" if local_frames else "unobserved" if obs.valid else "unavailable",
+                    "reason": "stateless_baseline" if unused else None if frames else "outside_retained_memory_or_top_k" if obs.valid else "channel_failure",
+                    "rank_evidence": rank_evidence(obs.video_ranks.get(video)) if not unused and obs.valid else 0.0,
                     "channels": obs.trace.channel_status, "frames": frames})
             # Preserve the preferred order, append evidence moments for timeline navigation.
             frames = representatives(group["frames"])
@@ -236,7 +287,8 @@ class ProgressiveEngine:
                 "trajectory": [(r.index(video) + 1) if video in r else None for r in state.rankings] + [order.index(video) + 1],
                 "hint_evidence": support,
                 "dispersed": any(b - a > 30 for a, b in zip(times, times[1:])),
-                "moment_source": "cumulative" if video in preferred else "historical_evidence"}
+                "moment_source": ("latest" if method in {"latest", "hint_rrf"} else "cumulative")
+                    if video in preferred else "delta" if method == "dual_view" else "historical_evidence"}
             output.append(group)
         return output
 
@@ -294,7 +346,9 @@ class ProgressiveEngine:
                 ),
                 "latency_ms": {"total_ms": round((time.perf_counter() - started) * 1000, 2)},
                 "effective_config": {**self.config.model_dump(), "parser": "heuristic", "rerank": False,
-                                     "expand": False, "tara": False},
+                                     "expand": False, "tara": False,
+                                     "rescue_scoring": "global_frontier_v1",
+                                     "dual_view_weights": {"delta": .5, "cumulative": .5} if method == "dual_view" else None},
                 "mode": "mock" if self.search.s.mock_mode else "live"}
             for key, value in counts.items():
                 revision_budget[key] = revision_budget.get(key, 0) + value

@@ -83,8 +83,8 @@ export interface VideoGroup {
     cumulative_rank: number | null;
     trajectory: (number | null)[];
     dispersed: boolean;
-    moment_source: "cumulative" | "historical_evidence";
-    hint_evidence: { hint_id: string; status: string; channels: Record<string, string>; frames: FrameResult[] }[];
+    moment_source: "cumulative" | "historical_evidence" | "delta" | "latest";
+    hint_evidence: { hint_id: string; status: string; rank_evidence?: number; channels: Record<string, string>; frames: FrameResult[] }[];
   };
   video_id: string;
   video_score: number;

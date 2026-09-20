@@ -7,7 +7,7 @@ import unicodedata
 from dataclasses import replace
 from typing import Any
 
-from ..types import ChannelHit
+from ..types import ChannelHit, Evidence
 from .models import HintInput
 
 
@@ -64,7 +64,7 @@ def memory_score(values: list[float], epsilon: float = .1, arithmetic: bool = Fa
 
 
 def merge_local(global_hits: list[ChannelHit], local_hits: list[ChannelHit]) -> list[ChannelHit]:
-    """Caller supplies ONE model/query/collection. Local ranks have no authority."""
+    """Pool ONE model/query/collection; caller must gate local ranking evidence first."""
     channels = {h.channel for h in [*global_hits, *local_hits]}
     if len(channels) > 1:
         raise ValueError("Cannot compare raw scores across channels")
@@ -78,6 +78,32 @@ def merge_local(global_hits: list[ChannelHit], local_hits: list[ChannelHit]) -> 
     return [replace(copy.deepcopy(h), rank=i) for i, h in enumerate(sorted(
         best.values(), key=lambda h: (-h.score, h.submit_keyframe_id)
     ))]
+
+
+def gate_local(hits: list[ChannelHit], global_cutoff: float | None) -> tuple[list[ChannelHit], list[ChannelHit]]:
+    """Separate rank-eligible observations from localization-only observations.
+
+    The cutoff must come from the original successful global request, never
+    from a previously merged pool. Crossing it is not an exact corpus rank.
+    """
+    eligible, localization = [], []
+    for original in hits:
+        if not math.isfinite(original.score):
+            continue
+        hit = copy.deepcopy(original)
+        known = global_cutoff is not None and math.isfinite(global_cutoff)
+        allowed = known and hit.score >= global_cutoff
+        hit.evidence = hit.evidence or Evidence(type=hit.channel, score=hit.score)
+        hit.evidence.extra.update(
+            local_score=hit.score, global_cutoff=global_cutoff if known else None,
+            below_global_cutoff=hit.score < global_cutoff if known else None,
+            rank_eligible=allowed,
+            ranking_exclusion=None if allowed else "below_global_cutoff" if known else "unknown_global_cutoff",
+        )
+        if not allowed:
+            hit.evidence.extra["rank_evidence"] = 0.0
+        (eligible if allowed else localization).append(hit)
+    return eligible, localization
 
 
 def representatives(frames: list[dict], limit: int = 3, separation_s: float = 2.0) -> list[dict]:

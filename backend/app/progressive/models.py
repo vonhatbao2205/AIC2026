@@ -14,6 +14,8 @@ class RetrievalTrace:
     """Request-local, untruncated pre-fusion observations. No credentials."""
 
     channel_hits: dict[str, list[ChannelHit]] = field(default_factory=dict)
+    # Kept outside the ranking pool, including RRF and video grouping.
+    localization_hits: dict[str, list[ChannelHit]] = field(default_factory=dict)
     channel_status: dict[str, str] = field(default_factory=dict)
     weights: dict[str, float] = field(default_factory=dict)
     queries: dict[str, list[str]] = field(default_factory=dict)
@@ -45,7 +47,7 @@ class ProgressiveConfig(ImageModelSelection):
     translate: bool = True
     hybrid: bool = False
     method: Literal[
-        "phm", "phm_no_rescue", "phm_arithmetic", "cumulative", "latest", "hint_rrf"
+        "phm", "phm_no_rescue", "phm_arithmetic", "cumulative", "latest", "hint_rrf", "dual_view"
     ] = "phm"
     epsilon: float = Field(default=0.10, gt=0, lt=1)
     memory_weight: float = Field(default=0.70, ge=0, le=1)

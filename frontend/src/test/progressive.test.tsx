@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProgressivePanel } from "../components/ProgressivePanel";
+import { Results } from "../components/Results";
 import App from "../App";
 import { api } from "../api/client";
 import type { FrameResult, VideoGroup, ProgressiveConfig, ProgressiveSnapshot } from "../api/types";
@@ -10,6 +11,25 @@ const snapshot = (id: string, revision = 0): ProgressiveSnapshot => ({ session_i
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("PHM session ownership", () => {
+  it("labels localization-only evidence without a rank vote and opens its exact moment", () => {
+    const frame: FrameResult = { image_id: "00047/2", submit_keyframe_id: "00047/2", video_id: "00047", keyframe_n: 2,
+      frame_idx: 125, fps: 25, pts_time: 5, score: 0, channels: ["image_pe"], per_channel_score: { image_pe: .2 },
+      keyframe_url: "", video_url: "", evidence: [{ type: "image_pe", score: .2, origin: "rescue", rank_eligible: false,
+        below_global_cutoff: true, global_cutoff: .8, rank_evidence: 0 }] };
+    const group: VideoGroup = { video_id: "00047", frames: [frame], video_score: .2, max_score: 0, mean_top_score: 0,
+      frame_count: 1, timestamp_dispersion: 0, ambiguous: false, channels: ["image_pe"], video_url: "",
+      progressive: { trajectory: [1, 2], memory_score: .2, cumulative_rank: null, dispersed: false, moment_source: "historical_evidence",
+        hint_evidence: [{ hint_id: "h1", status: "localization_only", rank_evidence: 0, channels: { image_pe: "ok" }, frames: [frame] }] } };
+    const inspect = vi.fn();
+    render(<Results groups={[group]} viewMode="grouped" selectedVideo={0} selectedFrame={0} expanded={new Set()}
+      onSelectVideo={vi.fn()} onSelectFrame={vi.fn()} onInspectEvidence={inspect} onToggleExpand={vi.fn()}
+      onFeedback={vi.fn()} onVideoFeedback={vi.fn()} relevanceOrdered={new Set()} onSortByTime={vi.fn()}
+      onResetOrder={vi.fn()} loading={false} />);
+    expect(screen.getByText(/chỉ hỗ trợ định vị; không cộng điểm xếp hạng/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /rescue · có evidence không tính điểm/ }));
+    expect(inspect).toHaveBeenCalledWith(0, 0);
+  });
+
   it("keeps the selected frame by ID when both video and frame rankings move", async () => {
     localStorage.clear();
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {

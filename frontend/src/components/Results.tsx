@@ -216,11 +216,11 @@ export function Results(props: Props) {
               {g.progressive.dispersed && <span>Bằng chứng nằm ở các đoạn cách xa nhau; kiểm tra đúng moment.</span>}
               {g.progressive.moment_source === "historical_evidence" && <span>Chưa có moment từ cumulative hiện tại; đang hiển thị bằng chứng cũ.</span>}
               {g.progressive.hint_evidence.map((h, hi) => <div key={h.hint_id}>
-                H{hi + 1}: {h.status === "observed" ? "có bằng chứng" : h.status === "unobserved" ? "chưa quan sát trong top-K" : "channel không khả dụng"}
+                H{hi + 1}: {h.status === "observed" ? "có bằng chứng" : h.status === "localization_only" ? "chỉ hỗ trợ định vị; không cộng điểm xếp hạng" : h.status === "not_used" ? "không dùng trong baseline hiện tại" : h.status === "unobserved" ? "chưa quan sát trong top-K" : "channel không khả dụng"}
                 {h.frames.map(f => <button className="btn sm" key={f.submit_keyframe_id} title={`Mở timeline tại ${f.submit_keyframe_id}`} onClick={() => {
                   const fi = g.frames.findIndex(x => x.submit_keyframe_id === f.submit_keyframe_id);
                   if (fi >= 0) (props.onInspectEvidence ?? props.onSelectFrame)(gi, fi);
-                }}>{formatTime(f.pts_time)} · {Array.from(new Set(f.evidence.map(e => String(e.origin ?? "global")))).join("/")}</button>)}
+                }}>{formatTime(f.pts_time)} · {Array.from(new Set(f.evidence.map(e => String(e.origin ?? "global")))).join("/")}{f.evidence.some(e => e.rank_eligible === false) && " · có evidence không tính điểm"}</button>)}
               </div>)}
             </div>}
             {isOpen && (
