@@ -105,3 +105,9 @@ Rescue recovery counts absent-before / present-after ranking; harmful rescue cou
 - Metadata annotation validation: 81 records, 77 owner-approved, 75 eligible TKIS, 90 accepted intervals.
 
 No final evaluation or effectiveness claim has been made.
+
+## Completed paper benchmark (2026-09-21)
+
+[Audited results and interpretation](results/paper-20260921/REPORT.md) are now available for frozen commit `b012b9b`: four full dev depth pilots, final PE dev/eval, and PE+Qwen dev/eval. All 3,330 prefixes were healthy; each profile used the same 60 held-out queries (55 target-video groups), evaluated once. Depth 400 was selected by the locked latency-only rule, with a material residual latency gap.
+
+Mean prefix MRR (cumulative / PHM): **0.6558 / 0.6459 for PE**, **0.6907 / 0.6903 for PE+Qwen**. Neither PHM–cumulative confidence interval excludes zero. PHM exceeds Hint-RRF on both profiles under unadjusted group bootstrap intervals, while rescue ablation intervals include zero. Do not claim overall superiority to cumulative or equal compute. CSV, LaTeX tables, plots, evaluation records, locks and raw-artifact hashes accompany the report. About 6 GB of raw traces remain local in the ignored `runs/paper-20260921/` directory.

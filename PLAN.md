@@ -673,3 +673,9 @@ Giả định cuối cùng của kế hoạch: index AIC và encoder hiện có 
 Runner đã bổ sung `dual_view` (delta/cumulative 0.5/0.5, không history/rescue) vào bảng chính để tách lợi ích multi-view khỏi memory. Profile `pe` mặc định chạy 6 phương pháp chính; profile `pe-qwen` chạy 4 phương pháp replication; `extended` chạy đủ 8 phương pháp. Lock phiên bản 2 giữ profile, suite và revision riêng từng model. Mỗi lượt có trạng thái từng visual channel; preflight kiểm tra encoder và collection trước benchmark.
 
 Thêm tái sử dụng parser/bản dịch đã khóa (`--reuse-plans`) và chọn độ sâu từ bốn dev run 200/400/800/1000 (`select-depth`), chỉ dựa trên latency. Chưa chạy full dev sweep hay eval trong bước sửa code này. PE+Qwen live smoke ba hint đã healthy ở cả hai kênh. TARA/OCR/ASR/audio không thuộc hai bảng visual này; giữ PHM scoring và TARA disable như cũ. Xem [quy trình cập nhật](benchmarks/progressive/README.md).
+
+### Kết quả full benchmark đã khóa — 2026-09-21
+
+Đã hoàn tất protocol trên commit `b012b9b`: bốn PE dev pilot (depth 200/400/800/1000), chọn depth 400 theo latency, chạy PE dev cuối và eval một lần, rồi PE+Qwen dev/eval một lần. Tổng 3.330 prefix healthy; audit raw snapshot/ledger/config/metric pass. Hai bảng eval dùng cùng 60 query thuộc 55 nhóm target-video.
+
+Mean prefix MRR cumulative/PHM: PE **0,6558/0,6459**, PE+Qwen **0,6907/0,6903**. CI chênh lệch PHM–cumulative chứa 0 ở cả hai profile; không chứng minh ưu thế hay tương đương. PHM hơn Hint-RRF theo CI bootstrap chưa điều chỉnh multiple comparisons; ablation rescue chưa có CI loại trừ 0. Chi phí PHM cao hơn rõ rệt; depth 400 chỉ gần nhất trong sweep, không đạt latency-matched. Paper chuyển sang báo cáo hệ thống với kết quả hỗn hợp, không claim PHM thắng cumulative. Xem [báo cáo đầy đủ](benchmarks/progressive/results/paper-20260921/REPORT.md). Không tune tiếp trên 60 query rồi gọi lại là held-out evaluation.

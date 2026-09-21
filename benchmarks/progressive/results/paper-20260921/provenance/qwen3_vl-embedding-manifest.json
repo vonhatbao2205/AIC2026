@@ -1,0 +1,184 @@
+{
+  "schema_version": 1,
+  "audited_at": "2026-08-27T20:06:02.874403+00:00",
+  "semantic_fingerprint": "8047495b9ffdd325610b7ea8ecefb15389564632a7e2e20c23ae6995e1454ac3",
+  "semantic_config": {
+    "schema_version": 1,
+    "contract": "official_Qwen3VLEmbedder_image_only",
+    "source": {
+      "bucket_id": "Baonenha1/DATA-AIC-Keyframe",
+      "prefix": "infoshootpp-v1",
+      "dataset_manifest_sha256": "9bd0cad11341c0d4954e063f11d5c4d87fd9ab78c88ff28c81a833e846b627b2",
+      "run_manifest_sha256": "11b5a0bfaf805f4a615ed5c77d796b30c2214783ccd4f59b9fa6123366981d9e",
+      "run_summary_sha256": "8ccd83d2113ad6f9d5e4a1b29000ed83ec7476edbdbc0fa327691cbe224d9a93",
+      "expected_total_frames": 1339055,
+      "expected_counts": {
+        "L21": 111031,
+        "L22": 130134,
+        "L23": 40808,
+        "L24": 69826,
+        "L25": 154211,
+        "L26": 559060,
+        "L27": 33201,
+        "L28": 90042,
+        "L29": 83697,
+        "L30": 67045
+      }
+    },
+    "model": {
+      "id": "Qwen/Qwen3-VL-Embedding-8B",
+      "revision": "2c4565515e0f265c6511776e7193b22c0968ddc7",
+      "checkpoint_index_sha256": "f8656aa4a0a666568f6f6befe980a2ba02d9702eb909bd4c211d6f5db1f980ea",
+      "checkpoint_tensor_payload_bytes": 16289587680,
+      "checkpoint_weight_file_bytes": 16289679624,
+      "safetensors_container_overhead_bytes": 91944,
+      "official_implementation_git_sha": "393e2978d27852b0d0230d6994f37f9c15bed73c",
+      "official_implementation_sha256": "0e447b6a80e05527f3fd437ab4f1617a6e7d0df102b8164348bbce787a41b267",
+      "transformers_version": "5.14.1",
+      "qwen_vl_utils_version": "0.0.14",
+      "flash_attn_version": "2.8.3.post1",
+      "pillow_version": "11.3.0",
+      "architecture": "Qwen3VLForEmbedding_full_multimodal_model",
+      "text_layers": 36,
+      "embedding_dim": 4096,
+      "mrl_dimension": null
+    },
+    "preprocess": {
+      "input": "image_only",
+      "system_instruction": "Represent the user's input.",
+      "chat_template": "processor.apply_chat_template(add_generation_prompt=True)",
+      "vision_preprocess": "qwen_vl_utils.process_vision_info",
+      "image_patch_size": 16,
+      "min_pixels": 4096,
+      "max_pixels": 1843200,
+      "preserve_aspect_ratio": true,
+      "smart_resize_factor": 32,
+      "color": "RGB via qwen_vl_utils.to_rgb",
+      "image_mean": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "image_std": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "spatial_merge_size": 2,
+      "temporal_patch_size": 2,
+      "center_crop": false,
+      "max_length": 8192,
+      "truncation": true,
+      "padding": true,
+      "processor_do_resize": false,
+      "precast_pixel_values_bf16": true
+    },
+    "inference": {
+      "compute_precision": "bf16",
+      "model_weight_dtype": "bfloat16",
+      "autocast": false,
+      "attention_implementation": "flash_attention_2",
+      "pooling": "last_attended_token",
+      "eval": true,
+      "inference_mode": true,
+      "quantization": null,
+      "l2_normalize": true,
+      "normalization_dtype": "float32"
+    },
+    "storage": {
+      "format": "parquet_fixed_size_list",
+      "dtype": "float32",
+      "shard_rows": 2048,
+      "compression": null
+    }
+  },
+  "per_category": {
+    "L21": {
+      "expected_rows": 111031,
+      "committed_rows": 111031,
+      "expected_shards": 55,
+      "committed_shards": 55,
+      "complete": true
+    },
+    "L22": {
+      "expected_rows": 130134,
+      "committed_rows": 130134,
+      "expected_shards": 64,
+      "committed_shards": 64,
+      "complete": true
+    },
+    "L23": {
+      "expected_rows": 40808,
+      "committed_rows": 40808,
+      "expected_shards": 20,
+      "committed_shards": 20,
+      "complete": true
+    },
+    "L24": {
+      "expected_rows": 69826,
+      "committed_rows": 69826,
+      "expected_shards": 35,
+      "committed_shards": 35,
+      "complete": true
+    },
+    "L25": {
+      "expected_rows": 154211,
+      "committed_rows": 154211,
+      "expected_shards": 76,
+      "committed_shards": 76,
+      "complete": true
+    },
+    "L26": {
+      "expected_rows": 559060,
+      "committed_rows": 559060,
+      "expected_shards": 273,
+      "committed_shards": 273,
+      "complete": true
+    },
+    "L27": {
+      "expected_rows": 33201,
+      "committed_rows": 33201,
+      "expected_shards": 17,
+      "committed_shards": 17,
+      "complete": true
+    },
+    "L28": {
+      "expected_rows": 90042,
+      "committed_rows": 90042,
+      "expected_shards": 44,
+      "committed_shards": 44,
+      "complete": true
+    },
+    "L29": {
+      "expected_rows": 83697,
+      "committed_rows": 83697,
+      "expected_shards": 41,
+      "committed_shards": 41,
+      "complete": true
+    },
+    "L30": {
+      "expected_rows": 67045,
+      "committed_rows": 67045,
+      "expected_shards": 33,
+      "committed_shards": 33,
+      "complete": true
+    }
+  },
+  "total_committed_rows": 1339055,
+  "expected_total_rows": 1339055,
+  "complete": true,
+  "retrieval_contract": {
+    "model_id": "Qwen/Qwen3-VL-Embedding-8B",
+    "model_revision": "2c4565515e0f265c6511776e7193b22c0968ddc7",
+    "recommended_instruction": "Retrieve images or text relevant to the user's query.",
+    "instruction_language": "English",
+    "note": "Query instruction may be A/B tested without re-encoding image vectors.",
+    "input": "text_only user message with task-specific system instruction",
+    "max_length": 8192,
+    "chat_template": "official Qwen3VLProcessor with add_generation_prompt=True",
+    "pooling": "last_attended_token",
+    "dimension": 4096,
+    "l2_normalize_fp32": true,
+    "metric": "COSINE"
+  }
+}

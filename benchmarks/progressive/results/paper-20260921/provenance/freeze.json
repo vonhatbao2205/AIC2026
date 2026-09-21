@@ -1,0 +1,320 @@
+{
+  "commit": "b012b9bd40a93faaeb51f9252fc7087ca95a04b9",
+  "source_sha256": "77160ad4d78fc23cf6786a8bc9cb0fd9538c9acd82f9c5346696fd4c6944381e",
+  "dataset_revision": "infoshootpp-v1:sha256:9bd0cad11341c0d4954e063f11d5c4d87fd9ab78c88ff28c81a833e846b627b2",
+  "model_revisions": {
+    "pe": "checkpoint-sha256:516a20fb30394cc8080344c32d7e49e0e575cf2c6d141977207bf94b3bec192f",
+    "qwen3_vl": "2c4565515e0f265c6511776e7193b22c0968ddc7"
+  },
+  "encoder_health": {
+    "pe": {
+      "ok": true,
+      "model": "facebook/PE-Core-G14-448",
+      "device": "cuda:0"
+    },
+    "qwen3_vl": {
+      "ok": true,
+      "model": "Qwen/Qwen3-VL-Embedding-8B",
+      "revision": "2c4565515e0f265c6511776e7193b22c0968ddc7",
+      "device": "cuda:0",
+      "dim": 4096
+    }
+  },
+  "collections": {
+    "pe": {
+      "name": "aic26_image_peg14_infoshotpp_v1",
+      "stats": {
+        "row_count": 1339055
+      },
+      "schema": {
+        "collection_name": "aic26_image_peg14_infoshotpp_v1",
+        "auto_id": false,
+        "num_shards": 1,
+        "description": "",
+        "fields": [
+          {
+            "field_id": 100,
+            "name": "id",
+            "description": "",
+            "type": 21,
+            "params": {
+              "max_length": 64
+            },
+            "is_primary": true
+          },
+          {
+            "field_id": 101,
+            "name": "image_id",
+            "description": "",
+            "type": 21,
+            "params": {
+              "max_length": 64
+            }
+          },
+          {
+            "field_id": 102,
+            "name": "keyframe_id",
+            "description": "",
+            "type": 21,
+            "params": {
+              "max_length": 64
+            }
+          },
+          {
+            "field_id": 103,
+            "name": "submit_keyframe_id",
+            "description": "",
+            "type": 21,
+            "params": {
+              "max_length": 64
+            }
+          },
+          {
+            "field_id": 104,
+            "name": "frame_id",
+            "description": "",
+            "type": 21,
+            "params": {
+              "max_length": 64
+            }
+          },
+          {
+            "field_id": 105,
+            "name": "category",
+            "description": "",
+            "type": 21,
+            "params": {
+              "max_length": 16
+            }
+          },
+          {
+            "field_id": 106,
+            "name": "video_id",
+            "description": "",
+            "type": 21,
+            "params": {
+              "max_length": 32
+            }
+          },
+          {
+            "field_id": 107,
+            "name": "keyframe_n",
+            "description": "",
+            "type": 5,
+            "params": {}
+          },
+          {
+            "field_id": 108,
+            "name": "frame_idx",
+            "description": "",
+            "type": 5,
+            "params": {}
+          },
+          {
+            "field_id": 109,
+            "name": "pts_time",
+            "description": "",
+            "type": 11,
+            "params": {}
+          },
+          {
+            "field_id": 110,
+            "name": "fps",
+            "description": "",
+            "type": 10,
+            "params": {}
+          },
+          {
+            "field_id": 111,
+            "name": "image_path",
+            "description": "",
+            "type": 21,
+            "params": {
+              "max_length": 256
+            }
+          },
+          {
+            "field_id": 112,
+            "name": "embedding",
+            "description": "",
+            "type": 101,
+            "params": {
+              "dim": 1280
+            }
+          }
+        ],
+        "functions": [],
+        "aliases": [],
+        "collection_id": 467397399372171821,
+        "consistency_level": 2,
+        "consistency_level_name": "Bounded",
+        "properties": {
+          "timezone": "UTC"
+        },
+        "num_partitions": 1,
+        "enable_dynamic_field": false,
+        "enable_namespace": false,
+        "created_timestamp": 468380074527162376,
+        "update_timestamp": 468380074527162376
+      }
+    },
+    "qwen3_vl": {
+      "name": "aic26_image_qwen3vl8b_infoshotpp_v3",
+      "stats": {
+        "row_count": 1339055
+      },
+      "schema": {
+        "collection_name": "aic26_image_qwen3vl8b_infoshotpp_v3",
+        "auto_id": false,
+        "num_shards": 1,
+        "description": "",
+        "fields": [
+          {
+            "field_id": 100,
+            "name": "id",
+            "description": "",
+            "type": 21,
+            "params": {
+              "max_length": 64
+            },
+            "is_primary": true
+          },
+          {
+            "field_id": 101,
+            "name": "image_id",
+            "description": "",
+            "type": 21,
+            "params": {
+              "max_length": 64
+            }
+          },
+          {
+            "field_id": 102,
+            "name": "keyframe_id",
+            "description": "",
+            "type": 21,
+            "params": {
+              "max_length": 64
+            }
+          },
+          {
+            "field_id": 103,
+            "name": "submit_keyframe_id",
+            "description": "",
+            "type": 21,
+            "params": {
+              "max_length": 64
+            }
+          },
+          {
+            "field_id": 104,
+            "name": "frame_id",
+            "description": "",
+            "type": 21,
+            "params": {
+              "max_length": 64
+            }
+          },
+          {
+            "field_id": 105,
+            "name": "category",
+            "description": "",
+            "type": 21,
+            "params": {
+              "max_length": 16
+            }
+          },
+          {
+            "field_id": 106,
+            "name": "video_id",
+            "description": "",
+            "type": 21,
+            "params": {
+              "max_length": 32
+            }
+          },
+          {
+            "field_id": 107,
+            "name": "keyframe_n",
+            "description": "",
+            "type": 5,
+            "params": {}
+          },
+          {
+            "field_id": 108,
+            "name": "frame_idx",
+            "description": "",
+            "type": 5,
+            "params": {}
+          },
+          {
+            "field_id": 109,
+            "name": "pts_time",
+            "description": "",
+            "type": 11,
+            "params": {}
+          },
+          {
+            "field_id": 110,
+            "name": "fps",
+            "description": "",
+            "type": 10,
+            "params": {}
+          },
+          {
+            "field_id": 111,
+            "name": "image_path",
+            "description": "",
+            "type": 21,
+            "params": {
+              "max_length": 256
+            }
+          },
+          {
+            "field_id": 112,
+            "name": "embedding",
+            "description": "",
+            "type": 101,
+            "params": {
+              "dim": 4096
+            }
+          }
+        ],
+        "functions": [],
+        "aliases": [],
+        "collection_id": 467397501637082488,
+        "consistency_level": 2,
+        "consistency_level_name": "Bounded",
+        "properties": {
+          "timezone": "UTC"
+        },
+        "num_partitions": 1,
+        "enable_dynamic_field": false,
+        "enable_namespace": false,
+        "created_timestamp": 468681210297843720,
+        "update_timestamp": 468681210297843720
+      }
+    }
+  },
+  "preflight": {
+    "pe_encoder": {
+      "ok": true,
+      "mode": "live"
+    },
+    "pe_index": {
+      "ok": true,
+      "mode": "live"
+    },
+    "qwen_encoder": {
+      "ok": true,
+      "mode": "live"
+    },
+    "qwen_index": {
+      "ok": true,
+      "mode": "live"
+    }
+  },
+  "limitation": "PE checkpoint SHA is attested by the embedding export manifest; live PE health reports model identity but does not expose loaded weight hash. Remote index bytes are not fully rehashed.",
+  "test_verification": "488 backend tests passed on frozen commit; full annotation validation passed (2749 local artifacts).",
+  "protocol": "Four complete PE dev depth pilots; latency-only choice; final PE dev then one eval; PE+Qwen dev then one eval. No scoring tuning."
+}

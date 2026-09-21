@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "audited_at": "2026-08-13T20:04:33.419427+00:00",
+  "semantic_fingerprint": "2cce817755d48b2a59c50a2a345d5c5a42f59fc46b4b6bd1ce3668eca1b03141",
+  "semantic_config": {
+    "schema_version": 1,
+    "legacy_reference": {
+      "file": "perceptiong14.ipynb",
+      "cell": "ImageRetrievalSystem / effective batch_size=6",
+      "semantic_contract_matched": true
+    },
+    "source": {
+      "bucket_id": "Baonenha1/DATA-AIC-Keyframe",
+      "prefix": "infoshootpp-v1",
+      "dataset_manifest_sha256": "9bd0cad11341c0d4954e063f11d5c4d87fd9ab78c88ff28c81a833e846b627b2",
+      "run_manifest_sha256": "11b5a0bfaf805f4a615ed5c77d796b30c2214783ccd4f59b9fa6123366981d9e",
+      "run_summary_sha256": "8ccd83d2113ad6f9d5e4a1b29000ed83ec7476edbdbc0fa327691cbe224d9a93",
+      "expected_total_frames": 1339055,
+      "expected_counts": {
+        "L21": 111031,
+        "L22": 130134,
+        "L23": 40808,
+        "L24": 69826,
+        "L25": 154211,
+        "L26": 559060,
+        "L27": 33201,
+        "L28": 90042,
+        "L29": 83697,
+        "L30": 67045
+      }
+    },
+    "model": {
+      "name": "PE-Core-G14-448",
+      "implementation_git_sha": "3e352cca660658d4b5c90f42a7808b11469e4c66",
+      "checkpoint_sha256": "516a20fb30394cc8080344c32d7e49e0e575cf2c6d141977207bf94b3bec192f",
+      "vision_only": true,
+      "image_size": 448,
+      "embedding_dim": 1280
+    },
+    "preprocess": {
+      "resize": "squash_448x448",
+      "interpolation": "torchvision_bilinear_official_pe",
+      "center_crop": false,
+      "color": "RGB",
+      "rgb_conversion_order": "before_official_transform_like_perceptiong14.ipynb",
+      "input_decode": "Pillow",
+      "mean": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "std": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    "inference": {
+      "compute_precision": "fp16",
+      "eval": true,
+      "inference_mode": true,
+      "quantization": null,
+      "l2_normalize": true,
+      "normalization_dtype": "float32"
+    },
+    "storage": {
+      "format": "parquet_fixed_size_list",
+      "dtype": "float32",
+      "shard_rows": 8192,
+      "compression": null
+    }
+  },
+  "per_category": {
+    "L21": {
+      "expected_rows": 111031,
+      "committed_rows": 111031,
+      "expected_shards": 14,
+      "committed_shards": 14,
+      "complete": true
+    },
+    "L22": {
+      "expected_rows": 130134,
+      "committed_rows": 130134,
+      "expected_shards": 16,
+      "committed_shards": 16,
+      "complete": true
+    },
+    "L23": {
+      "expected_rows": 40808,
+      "committed_rows": 40808,
+      "expected_shards": 5,
+      "committed_shards": 5,
+      "complete": true
+    },
+    "L24": {
+      "expected_rows": 69826,
+      "committed_rows": 69826,
+      "expected_shards": 9,
+      "committed_shards": 9,
+      "complete": true
+    },
+    "L25": {
+      "expected_rows": 154211,
+      "committed_rows": 154211,
+      "expected_shards": 19,
+      "committed_shards": 19,
+      "complete": true
+    },
+    "L26": {
+      "expected_rows": 559060,
+      "committed_rows": 559060,
+      "expected_shards": 69,
+      "committed_shards": 69,
+      "complete": true
+    },
+    "L27": {
+      "expected_rows": 33201,
+      "committed_rows": 33201,
+      "expected_shards": 5,
+      "committed_shards": 5,
+      "complete": true
+    },
+    "L28": {
+      "expected_rows": 90042,
+      "committed_rows": 90042,
+      "expected_shards": 11,
+      "committed_shards": 11,
+      "complete": true
+    },
+    "L29": {
+      "expected_rows": 83697,
+      "committed_rows": 83697,
+      "expected_shards": 11,
+      "committed_shards": 11,
+      "complete": true
+    },
+    "L30": {
+      "expected_rows": 67045,
+      "committed_rows": 67045,
+      "expected_shards": 9,
+      "committed_shards": 9,
+      "complete": true
+    }
+  },
+  "total_committed_rows": 1339055,
+  "expected_total_rows": 1339055,
+  "complete": true,
+  "retrieval_contract": {
+    "metric": "COSINE or INNER_PRODUCT on unit vectors",
+    "query_model": "PE-Core-G14-448",
+    "query_preprocess": "official PE text tokenizer, context_length=72",
+    "image_vectors_l2_normalized": true,
+    "dimension": 1280
+  }
+}

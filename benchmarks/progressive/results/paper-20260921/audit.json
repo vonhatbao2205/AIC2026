@@ -1,0 +1,50 @@
+{
+  "dev-200": {
+    "prefixes": 270,
+    "queries": 15,
+    "target_video_groups": 14,
+    "all_checks_passed": true
+  },
+  "dev-400": {
+    "prefixes": 270,
+    "queries": 15,
+    "target_video_groups": 14,
+    "all_checks_passed": true
+  },
+  "dev-800": {
+    "prefixes": 270,
+    "queries": 15,
+    "target_video_groups": 14,
+    "all_checks_passed": true
+  },
+  "dev-1000": {
+    "prefixes": 270,
+    "queries": 15,
+    "target_video_groups": 14,
+    "all_checks_passed": true
+  },
+  "pe-dev-final": {
+    "prefixes": 270,
+    "queries": 15,
+    "target_video_groups": 14,
+    "all_checks_passed": true
+  },
+  "pe-eval-final": {
+    "prefixes": 1080,
+    "queries": 60,
+    "target_video_groups": 55,
+    "all_checks_passed": true
+  },
+  "pe-qwen-dev-final": {
+    "prefixes": 180,
+    "queries": 15,
+    "target_video_groups": 14,
+    "all_checks_passed": true
+  },
+  "pe-qwen-eval-final": {
+    "prefixes": 720,
+    "queries": 60,
+    "target_video_groups": 55,
+    "all_checks_passed": true
+  }
+}

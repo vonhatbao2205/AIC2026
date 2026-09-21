@@ -1,0 +1,26 @@
+{
+  "pe": {
+    "health": {
+      "ok": true,
+      "model": "facebook/PE-Core-G14-448",
+      "device": "cuda:0"
+    },
+    "collection": "aic26_image_peg14_infoshotpp_v1",
+    "stats": {
+      "row_count": 1339055
+    }
+  },
+  "qwen3_vl": {
+    "health": {
+      "ok": true,
+      "model": "Qwen/Qwen3-VL-Embedding-8B",
+      "revision": "2c4565515e0f265c6511776e7193b22c0968ddc7",
+      "device": "cuda:0",
+      "dim": 4096
+    },
+    "collection": "aic26_image_qwen3vl8b_infoshotpp_v3",
+    "stats": {
+      "row_count": 1339055
+    }
+  }
+}

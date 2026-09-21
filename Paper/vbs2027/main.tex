@@ -10,7 +10,7 @@
 \institute{Affiliations pending}
 \maketitle
 \begin{abstract}
-Progressively revealed descriptions require an interactive video search system
+Progressive descriptions require a video search system
 to retain earlier evidence while allowing new candidates to emerge. We describe
 a training-free Progressive Hint Memory (PHM) extension to AIC26. The system
 combines video-level evidence from independent hints with a current cumulative
@@ -18,14 +18,16 @@ query, and performs bounded in-video retrieval for surviving candidates and new
 arrivals. Raw similarities are pooled only within the same model and query before
 rank fusion. The interface exposes hint-level evidence and its temporal location
 for operator verification. The current implementation has been exercised with
-correctness tests and a PE-only live integration smoke test on InfoShot++.
-Effectiveness evaluation and competition deployment verification remain pending;
-this draft makes no claim of retrieval improvement.
+correctness tests and locked PE-only and PE+Qwen experiments on InfoShot++.
+Across 60 held-out synthetic progressive queries, PHM improves mean prefix
+video MRR over independent-hint rank fusion, but does not demonstrate an
+advantage over cumulative retrieval and incurs higher latency.
+Competition deployment verification remains pending.
 \keywords{Interactive video retrieval \and Progressive descriptions \and Evidence memory}
 \end{abstract}
 
 \noindent\textbf{Development draft. Not submission-ready.}
-Results, author information, citations and competition deployment coverage
+Author information, citations, final layout and competition deployment coverage
 must be completed and independently checked before submission.
 
 \section{Problem and Research Question}
@@ -138,36 +140,68 @@ stable identifier tie-break. Each hint retains at most three temporally deduplic
 representative frames per video. Backfilled evidence records the turn at which
 it was discovered and does not alter earlier committed snapshots.
 
-\section{Evaluation Protocol: Pending Execution}
-\pending{No benchmark is run in the current implementation scope. The current
-manifest has 75 eligible TKIS queries with owner-approved normalized ground
-truth. Lock the split and report its actual denominators before evaluation.}
+\section{Locked Evaluation}
+We evaluate 75 owner-approved synthetic progressive queries derived from AIC
+queries, prior annotations and sampled visual inspection. Approval does not
+constitute independent continuous-playback verification. A fixed split by connected components of target videos assigns 15 queries (14 groups) to development and 60 queries
+(55 groups) to evaluation; all three prefixes stay with their query. The corpus
+contains 1,339,055 InfoShot++ frames per selected visual model across L21--L30.
 
-The intended data consists of synthetic progressive descriptions derived from
-existing AIC queries, prior annotations and sampled visual inspection. The owner
-approved the normalized ground truth; this is not independent verification by
-continuous video playback. Ground truth must separate
-video identity from valid answer moments; absolute frame indices and keyframe
-ordinals must not be confused. Annotation should use verified timestamps and
-allow multiple disjoint answer intervals. Duplicate targets and paraphrases must
-remain in the same development/evaluation group.
+Code was frozen at commit \texttt{b012b9b}. Ground truth, translations, heuristic
+parser outputs, split, model/index provenance and algorithm configuration were
+locked before evaluation. Each profile was evaluated once after a complete healthy
+development run. The same split and parser plans were reused for PE+Qwen.
+TARA, OCR, speech, audio, expansion and reranking were excluded.
+Global depth is 200 per model/view. Hint-RRF retains the full observed union
+before output truncation. Dual-view averages current delta and cumulative evidence
+without historical memory or rescue. Development pilots at depths 200, 400, 800
+and 1000 selected cumulative depth 400 by nearest median latency. Its development
+p50 remained 0.89\,s below the PHM reference, so this is not a matched-cost comparison.
+Non-monotonic pilot latencies also expose live service/cache variation.
 
-The intended comparisons are cumulative query search, latest-hint search,
-Hint-RRF, a stateless dual-view baseline, PHM without rescue/backfill, full PHM,
-arithmetic memory aggregation, and a deeper cumulative retrieval control.
-Dual-view averages current delta and cumulative rank evidence without historical
-frames or rescue. Deeper cumulative retrieval is selected on development latency
-from depths 200, 400, 800 and 1000, then frozen. PE-only precedes PE+Qwen. The planned
-primary metric is mean prefix video MRR, averaged per query before aggregation.
-Moment Hit@K is measured on the moments actually displayed, separately from
-video-level metrics. Rescue recovery and harmful rescue are both reported.
-Latency, timeouts, requested query vectors, index calls and returned frames
-accompany quality measurements. Paired uncertainty estimates must respect
-target-video groups; prefixes are not independent tasks.
+The primary metric is video MRR averaged over prefixes within each query and then
+across queries, with a rank cap of 250 and zero credit for missing targets.
+Moment Hit@$K$ evaluates the first preferred frame per displayed video group
+against half-open accepted intervals, without searching historical frames for an
+oracle match. Paired uncertainty uses 10,000 bootstrap resamples of target-video
+groups, with unadjusted intervals. All 3,330 development/evaluation prefixes were
+healthy; the held-out tables contain 1,800 prefixes. An artifact audit recomputed
+metrics from raw snapshots and checked ledger isolation and completeness.
 
-\pending{Lock data, translations, splits and cost control on development data;
-run evaluation once the protocol is fixed. Insert reproducible tables, paired
-intervals and actual denominators. Do not tune the method on evaluation labels.}
+\begin{table}[t]
+\caption{PE controlled evaluation on 60 held-out queries. H@1 is video Hit@1
+at each hint. MRR is the mean prefix metric; latency is median retrieval latency.}
+\centering\small
+\input{../../benchmarks/progressive/results/paper-20260921/pe-table.tex}
+\end{table}
+\begin{table}[t]
+\caption{PE+Qwen replication on the same held-out queries.}
+\centering\small
+\input{../../benchmarks/progressive/results/paper-20260921/pe-qwen-table.tex}
+\end{table}
+
+PHM achieves MRR 0.6459 with PE and 0.6903 with PE+Qwen, compared with cumulative
+retrieval at 0.6558 and 0.6907. Paired differences are $-0.0099$
+(95\% interval $[-0.0576,0.0358]$) and $-0.0004$
+($[-0.0460,0.0431]$), respectively. These results do not establish an advantage
+over cumulative retrieval, nor do they establish equivalence.
+PHM exceeds Hint-RRF by 0.0367 ($[0.0064,0.0704]$) with PE and
+0.0241 ($[0.0029,0.0443]$) with PE+Qwen, under the exploratory unadjusted comparisons.
+
+Rescue increases MRR over PHM without rescue by 0.0229 with PE and 0.0071 with
+PE+Qwen, but both intervals include zero. No target is recovered from outside
+the rank cap; rescue worsens target rank in 20 PE and 10 PE+Qwen prefixes.
+PE+Qwen final-turn Hit@1 is 44/60 for PHM versus 41/60 for cumulative; the
+no-rescue variant also reaches 44/60. This descriptive final-turn difference
+cannot therefore be attributed to rescue. Final-turn Moment Hit@1 is 0.367
+versus 0.400 for PHM/cumulative with PE, and 0.400 for both with PE+Qwen.
+
+The additional retrieval has substantial cost: PHM median latency is 2.13\,s
+versus 0.50\,s for cumulative with PE, and 3.88\,s versus 1.13\,s with PE+Qwen.
+Deeper cumulative retrieval has the highest PE MRR (0.6627).
+Complete prefix metrics, localization, first/stable-correct turn distributions,
+rescue counts, work counters, p95 latency, locks and artifact hashes accompany
+the repository report in \texttt{benchmarks/progressive/results/paper-20260921}.
 
 \section{Limitations and Deployment Status}
 Correctness tests cover hint deduplication and edits, reveal isolation,
@@ -191,7 +225,9 @@ part of PHM v1.
 \section{Conclusion}
 The implemented extension makes per-hint candidate evidence explicit and provides
 bounded in-video retrieval with consistent score pooling and inspectable temporal
-provenance. Its retrieval benefit remains an empirical question. The final paper
-must revise this conclusion and the abstract to match the audited experiments
-and deployment actually completed.
+provenance. Locked experiments show gains over independent-hint rank fusion
+but no demonstrated mean-prefix advantage over cumulative retrieval, at higher
+latency. These mixed findings support the implemented interaction mechanism
+while limiting claims of retrieval superiority. Competition-scale generalization
+and operator usefulness remain future work.
 \end{document}

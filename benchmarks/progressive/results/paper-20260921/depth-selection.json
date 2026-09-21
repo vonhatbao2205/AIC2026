@@ -1,0 +1,19 @@
+{
+  "selected_deep_top_k": 400,
+  "phm_reference_p50_ms": 2500.3743390002455,
+  "cumulative_deep_p50_ms": {
+    "200": 1072.9433630003768,
+    "400": 1608.491127999514,
+    "800": 1424.134640000375,
+    "1000": 1086.8347579998954
+  },
+  "absolute_gap_ms": 891.8832110007315,
+  "rule": "nearest median latency; median of four PHM p50s; shallower depth wins ties",
+  "runs": [
+    "/home/bao/Projects/AIC2026/benchmarks/progressive/runs/paper-20260921/dev-200",
+    "/home/bao/Projects/AIC2026/benchmarks/progressive/runs/paper-20260921/dev-400",
+    "/home/bao/Projects/AIC2026/benchmarks/progressive/runs/paper-20260921/dev-800",
+    "/home/bao/Projects/AIC2026/benchmarks/progressive/runs/paper-20260921/dev-1000"
+  ],
+  "matched_compute_claim": false
+}

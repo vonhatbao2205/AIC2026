@@ -1,0 +1,78 @@
+{
+  "pe": {
+    "phm - cumulative": {
+      "delta_mrr": -0.009906345923502783,
+      "ci95": [
+        -0.057554137946294805,
+        0.03580458892958893
+      ],
+      "bootstrap_samples": 10000,
+      "unit": "target-video connected component"
+    },
+    "phm - hint_rrf": {
+      "delta_mrr": 0.036651596752125815,
+      "ci95": [
+        0.006421769186261941,
+        0.0703863646482861
+      ],
+      "bootstrap_samples": 10000,
+      "unit": "target-video connected component"
+    },
+    "phm - phm_no_rescue": {
+      "delta_mrr": 0.022940171775969628,
+      "ci95": [
+        -0.0026022357248506383,
+        0.05274495474103304
+      ],
+      "bootstrap_samples": 10000,
+      "unit": "target-video connected component"
+    },
+    "phm_no_rescue - dual_view": {
+      "delta_mrr": 0.024960193661700932,
+      "ci95": [
+        -0.015317515175666301,
+        0.06492369702166499
+      ],
+      "bootstrap_samples": 10000,
+      "unit": "target-video connected component"
+    },
+    "phm - cumulative_deep": {
+      "delta_mrr": -0.016833304978729813,
+      "ci95": [
+        -0.06443140392957608,
+        0.02959789452120256
+      ],
+      "bootstrap_samples": 10000,
+      "unit": "target-video connected component"
+    }
+  },
+  "pe-qwen": {
+    "phm - cumulative": {
+      "delta_mrr": -0.0003671882302472907,
+      "ci95": [
+        -0.04599212463619243,
+        0.04309360277424632
+      ],
+      "bootstrap_samples": 10000,
+      "unit": "target-video connected component"
+    },
+    "phm - hint_rrf": {
+      "delta_mrr": 0.024134725521862504,
+      "ci95": [
+        0.002921286921474325,
+        0.044338290193405024
+      ],
+      "bootstrap_samples": 10000,
+      "unit": "target-video connected component"
+    },
+    "phm - phm_no_rescue": {
+      "delta_mrr": 0.007119906618698889,
+      "ci95": [
+        -0.0023244282533900025,
+        0.018992094810693284
+      ],
+      "bootstrap_samples": 10000,
+      "unit": "target-video connected component"
+    }
+  }
+}
