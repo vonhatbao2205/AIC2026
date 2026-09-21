@@ -667,3 +667,9 @@ Giả định cuối cùng của kế hoạch: index AIC và encoder hiện có 
 Đã sửa Hint-RRF thành `full_observed_union_v1`: giữ mọi evidence của các hint đã truy hồi, tính tổng trên toàn union rồi mới cắt ranking hiển thị; không dùng eviction/protection của PHM. PHM giữ nguyên thuật toán.
 
 Đã thêm [runner và hướng dẫn](benchmarks/progressive/README.md) với khóa GT/split/parser/bản dịch/cấu hình/source, 7 baseline/ablation, raw trace từng prefix, metric và paired group bootstrap. Seed 20260921 chia 75 query hợp lệ thành 15 dev / 60 eval, giữ chung nhóm target video. Đã kiểm tra mock end-to-end và live PE smoke ba hint sau `global_frontier_v1`; chưa chạy final evaluation. Cần chọn deeper-cumulative depth trên dev, cung cấp revision thật của index/model và khóa cấu hình cuối trước eval.
+
+### Rà soát cuối trước full benchmark
+
+Runner đã bổ sung `dual_view` (delta/cumulative 0.5/0.5, không history/rescue) vào bảng chính để tách lợi ích multi-view khỏi memory. Profile `pe` mặc định chạy 6 phương pháp chính; profile `pe-qwen` chạy 4 phương pháp replication; `extended` chạy đủ 8 phương pháp. Lock phiên bản 2 giữ profile, suite và revision riêng từng model. Mỗi lượt có trạng thái từng visual channel; preflight kiểm tra encoder và collection trước benchmark.
+
+Thêm tái sử dụng parser/bản dịch đã khóa (`--reuse-plans`) và chọn độ sâu từ bốn dev run 200/400/800/1000 (`select-depth`), chỉ dựa trên latency. Chưa chạy full dev sweep hay eval trong bước sửa code này. PE+Qwen live smoke ba hint đã healthy ở cả hai kênh. TARA/OCR/ASR/audio không thuộc hai bảng visual này; giữ PHM scoring và TARA disable như cũ. Xem [quy trình cập nhật](benchmarks/progressive/README.md).

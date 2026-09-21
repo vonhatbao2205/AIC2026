@@ -23,7 +23,54 @@ from app.progressive.models import HintInput, ProgressiveConfig
 from app.services.search_service import SearchService
 
 GT = Path(__file__).parent / 'annotations/ground_truth.jsonl'
-METHODS = ('cumulative', 'latest', 'hint_rrf', 'phm_no_rescue', 'phm', 'phm_arithmetic', 'cumulative_deep')
+METHODS = ('cumulative', 'latest', 'hint_rrf', 'dual_view', 'phm_no_rescue', 'phm', 'phm_arithmetic', 'cumulative_deep')
+PROFILES = {'pe': ['pe'], 'pe-qwen': ['pe', 'qwen3_vl']}
+SUITES = {
+    'main': ('cumulative', 'hint_rrf', 'dual_view', 'phm_no_rescue', 'phm', 'cumulative_deep'),
+    'replication': ('cumulative', 'hint_rrf', 'phm_no_rescue', 'phm'),
+    'extended': METHODS,
+}
+COLLECTIONS = {'pe': 'milvus_image_collection', 'qwen3_vl': 'milvus_qwen3_vl_image_collection'}
+CHANNELS = {'pe': 'image_pe', 'qwen3_vl': 'image_qwen'}
+
+
+def profile_config(args):
+    profile = args.profile or 'pe'
+    revisions = {}
+    for entry in args.model_revision or []:
+        model, sep, revision = entry.partition('=')
+        if not sep:  # Preserve the original PE-only CLI shorthand.
+            model, revision = 'pe', entry
+        if model not in PROFILES[profile] or not revision.strip() or model in revisions:
+            raise ValueError('Model revisions must be unique MODEL=REV entries for selected models')
+        revisions[model] = revision.strip()
+    return profile, ProgressiveConfig(retrieval_database='infoshotpp', image_models=PROFILES[profile],
+        translate=True, dataset_revision=args.dataset_revision, model_revisions=revisions)
+
+
+async def preflight(service, models, timeout):
+    """Check each selected encoder AND index; never export raw health error/URL data."""
+    checks = {'pe_encoder': service.pe.health, 'pe_index': service.milvus.health}
+    if 'qwen3_vl' in models:
+        checks.update(qwen_encoder=service.qwen3_vl.health, qwen_index=service.milvus.health_qwen_image)
+
+    async def check(name, health):
+        try:
+            result = await asyncio.wait_for(health(), timeout)
+            mode = result.get('mode', 'live')
+            return name, {'ok': bool(result.get('ok')) and (service.s.mock_mode or mode != 'mock'),
+                          'mode': mode}
+        except Exception as exc:
+            return name, {'ok': False, 'error_type': type(exc).__name__}
+
+    return dict(await asyncio.gather(*(check(name, health) for name, health in checks.items())))
+
+
+def channel_health(state, models):
+    observations = [state.observations[-1], state.cumulative]
+    statuses = {view: {CHANNELS[m]: obs.trace.channel_status.get(CHANNELS[m], 'missing') for m in models}
+                for view, obs in zip(('delta', 'cumulative'), observations)}
+    return statuses, all(s == 'ok' for view in statuses.values() for s in view.values())
 
 
 def source_digest():
@@ -172,10 +219,17 @@ class FrozenParser:
 
 async def prepare(args):
     rows = load_gt(args.gt)
-    config = ProgressiveConfig(retrieval_database='infoshotpp', image_models=['pe'], translate=True,
-        dataset_revision=args.dataset_revision, model_revisions={'pe': args.model_revision} if args.model_revision else {})
+    profile, config = profile_config(args)
+    suite = args.suite or ('main' if profile == 'pe' else 'replication')
     service = SearchService(get_settings().for_retrieval_database(config.retrieval_database))
     plans = {}
+    if args.reuse_plans:
+        previous = json.loads(args.reuse_plans.read_text())
+        checksum = previous.pop('sha256')
+        if (digest(previous) != checksum or previous['gt_sha256'] != hashlib.sha256(args.gt.read_bytes()).hexdigest()
+                or previous['source_sha256'] != source_digest() or previous['mock'] != service.s.mock_mode):
+            raise ValueError('Reused parser plans require an intact lock with the same GT, source and mode')
+        plans = copy.deepcopy(previous['plans'])
     for row in rows:
         for hint in ledger_for(row):
             for text in (hint['delta_text'], hint['cumulative_text']):
@@ -184,16 +238,47 @@ async def prepare(args):
                     if parsed.get('translation_failed'):
                         raise ValueError('Translation failed; refusing to lock fallback text')
                     plans[text] = parsed
-    lock = {'version': 1, 'gt_sha256': hashlib.sha256(args.gt.read_bytes()).hexdigest(),
+    lock = {'version': 2, 'profile': profile, 'suite': suite,
+            'gt_sha256': hashlib.sha256(args.gt.read_bytes()).hexdigest(),
             'source_sha256': source_digest(), 'seed': args.seed, 'split': split_groups(rows, args.seed), 'config': config.model_dump(),
-            'plans': plans, 'deep_top_k': args.deep_top_k, 'methods': list(METHODS),
-            'dataset_revision': args.dataset_revision, 'model_revision': args.model_revision,
+            'plans': plans, 'deep_top_k': args.deep_top_k, 'methods': list(SUITES[suite]),
+            'dataset_revision': config.dataset_revision, 'model_revisions': config.model_revisions,
             'mock': service.s.mock_mode,
-            'collections': {k: getattr(service.s, k) for k in ('milvus_image_collection', 'milvus_qwen3_vl_image_collection')}}
+            'collections': {COLLECTIONS[m]: getattr(service.s, COLLECTIONS[m]) for m in config.image_models}}
     lock['sha256'] = digest(lock)
     write_new(args.lock, lock)
     print(json.dumps({'lock': str(args.lock), 'queries': len(rows), 'split': {
         s: sum(v['split'] == s for v in lock['split'].values()) for s in ('dev', 'eval')}}))
+
+
+def select_depth(run_dirs):
+    """Use latency only, from four comparable complete dev runs; never inspect eval quality."""
+    reference = None
+    measurements, phm_latencies = {}, []
+    for directory in run_dirs:
+        report = json.loads((directory / 'summary.json').read_text())
+        manifest = json.loads((directory / 'manifest.json').read_text())
+        lock = copy.deepcopy(manifest['lock'])
+        if (report['split'] != 'dev' or manifest['split'] != 'dev' or not report['complete']
+                or not report['healthy'] or report['mock'] or report['lock_sha256'] != digest(lock)
+                or manifest['lock_sha256'] != report['lock_sha256']):
+            raise ValueError('Depth selection requires complete healthy live dev runs with valid manifests')
+        depth = lock.pop('deep_top_k')
+        if depth not in (200, 400, 800, 1000) or depth in measurements:
+            raise ValueError('Supply one run for each depth: 200, 400, 800, 1000')
+        if reference is not None and lock != reference:
+            raise ValueError('Depth pilots must differ only in deep_top_k; reuse frozen parser plans')
+        reference = lock
+        measurements[depth] = report['metrics']['cumulative_deep']['latency_p50_ms']
+        phm_latencies.append(report['metrics']['phm']['latency_p50_ms'])
+    if set(measurements) != {200, 400, 800, 1000}:
+        raise ValueError('Supply one run for each depth: 200, 400, 800, 1000')
+    target = statistics.median(phm_latencies)
+    selected = min(measurements, key=lambda d: (abs(measurements[d] - target), d))
+    return {'selected_deep_top_k': selected, 'phm_reference_p50_ms': target,
+            'cumulative_deep_p50_ms': measurements, 'absolute_gap_ms': abs(measurements[selected] - target),
+            'rule': 'nearest median latency; median of four PHM p50s; shallower depth wins ties',
+            'runs': [str(p) for p in run_dirs], 'matched_compute_claim': False}
 
 
 async def run(args):
@@ -201,6 +286,10 @@ async def run(args):
     checksum = lock.pop('sha256')
     if digest(lock) != checksum or hashlib.sha256(args.gt.read_bytes()).hexdigest() != lock['gt_sha256']:
         raise ValueError('Lock or ground truth changed')
+    if lock.get('version') != 2:
+        raise ValueError('Prepare a version 2 lock with visual profile and model revisions')
+    if (args.profile and args.profile != lock['profile']) or (args.suite and args.suite != lock['suite']):
+        raise ValueError('Profile/suite must match the lock; prepare a separate lock for replication')
     if lock['source_sha256'] != source_digest():
         raise ValueError('Source changed; create a new lock and repeat development')
     if args.split == 'eval' and (not args.dev_run or args.limit):
@@ -215,8 +304,13 @@ async def run(args):
     for key, value in lock['collections'].items():
         if getattr(settings, key) != value:
             raise ValueError('Collection configuration changed')
-    if args.split == 'eval' and (not lock['dataset_revision'] or not lock['model_revision']):
-        raise ValueError('Evaluation requires attested dataset and model revisions in the lock')
+    models = lock['config']['image_models']
+    if args.split == 'eval' and (not lock['dataset_revision'] or any(
+            not lock['config']['model_revisions'].get(m, '').strip() for m in models)):
+        raise ValueError('Evaluation requires attested dataset and every selected model revision in the lock')
+    health = await preflight(SearchService(settings), models, min(args.timeout, 30))
+    if not all(v['ok'] for v in health.values()):
+        raise ValueError('Retrieval preflight failed: ' + ', '.join(k for k, v in health.items() if not v['ok']))
     rows = [r for r in load_gt(args.gt) if lock['split'][r['query_id']]['split'] == args.split]
     random.Random(lock['seed']).shuffle(rows)
     total = len(rows)
@@ -226,7 +320,7 @@ async def run(args):
     write_new(args.out / 'manifest.json', {'lock_sha256': checksum, 'split': args.split,
         'commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
         'working_tree_diff_sha256': hashlib.sha256(subprocess.check_output(['git', 'diff', 'HEAD'], cwd=ROOT)).hexdigest(),
-        'runner_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'lock': lock})
+        'runner_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'lock': lock, 'preflight': health})
     records = []
     rng = random.Random(lock['seed'])
     for row in rows:
@@ -251,7 +345,8 @@ async def run(args):
                     record['wall_ms'] = (time.perf_counter() - started) * 1000
                     record.update(metrics=score_snapshot(snapshot, row), budget=snapshot['revision_budget'],
                                   top1=state.rankings[-1][0] if state.rankings[-1] else None)
-                    if snapshot['degraded']:
+                    record['channel_status'], channels_ok = channel_health(state, models)
+                    if snapshot['degraded'] or not channels_ok:
                         record['status'] = 'degraded'
                     trace_path = args.out / 'traces' / f'{rows.index(row):03d}-{method}-{turn}.json'
                     write_new(trace_path, engine.trace_export(state))
@@ -266,7 +361,8 @@ async def run(args):
                 with (args.out / 'records.jsonl').open('a') as out:
                     out.write(json.dumps(record, ensure_ascii=False, allow_nan=False) + '\n')
                 print(f"{row['query_id']} {method} H{turn}: {record['status']}", flush=True)
-    report = {'lock_sha256': checksum, 'split': args.split, 'complete': len(rows) == total,
+    report = {'lock_sha256': checksum, 'profile': lock['profile'], 'suite': lock['suite'],
+              'split': args.split, 'complete': len(rows) == total,
               'healthy': all(r['status'] == 'ok' for r in records), 'mock': settings.mock_mode,
               'moment_policy': 'first frame per displayed video; half-open accepted interval',
               'metrics': summarize(records), 'paired_bootstrap': paired_bootstrap(records, lock['seed'])}
@@ -280,8 +376,15 @@ async def smoke(args):
     service = SearchService(get_settings().for_retrieval_database('infoshotpp'))
     if service.s.mock_mode:
         raise ValueError('Live smoke requires mock mode disabled')
+    profile, config = profile_config(args)
     args.out.mkdir(parents=True, exist_ok=False)
-    engine = ProgressiveEngine(service, ProgressiveConfig(retrieval_database='infoshotpp', image_models=['pe']))
+    health = await preflight(service, config.image_models, min(args.timeout, 30))
+    write_new(args.out / 'preflight.json', health)
+    if not all(v['ok'] for v in health.values()):
+        write_new(args.out / 'smoke.json', {'profile': profile, 'healthy': False, 'preflight': health,
+            'results': [], 'benchmark': False, 'source_sha256': source_digest()})
+        raise ValueError('Live smoke preflight failed: ' + ', '.join(k for k, v in health.items() if not v['ok']))
+    engine = ProgressiveEngine(service, config)
     state = None
     ledger = ledger_for(row)
     results = []
@@ -290,25 +393,36 @@ async def smoke(args):
             state = await asyncio.wait_for(engine.run(ledger[:turn], state), args.timeout)
             snap = state.snapshot
             write_new(args.out / f'trace-h{turn}.json', engine.trace_export(state))
-            result = {'turn': turn, 'status': 'degraded' if snap['degraded'] else 'ok',
+            channels, channels_ok = channel_health(state, config.image_models)
+            result = {'turn': turn, 'status': 'degraded' if snap['degraded'] or not channels_ok else 'ok',
+                      'channel_status': channels,
                       'latency_ms': snap['revision_latency_ms'], 'budget': snap['revision_budget']}
         except Exception as exc:
             result = {'turn': turn, 'status': type(exc).__name__}
         results.append(result)
         print(json.dumps(result), flush=True)
     write_new(args.out / 'smoke.json', {'query_id': row['query_id'], 'split': 'dev',
+        'profile': profile, 'config': config.model_dump(), 'preflight': health,
+        'healthy': all(r['status'] == 'ok' for r in results),
         'source_sha256': source_digest(), 'results': results, 'benchmark': False})
+    if any(r['status'] != 'ok' for r in results):
+        raise ValueError('Live smoke failed or degraded; inspect smoke.json before benchmarking')
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('command', choices=['prepare', 'run', 'smoke'])
+    p.add_argument('command', choices=['prepare', 'run', 'smoke', 'select-depth'])
     p.add_argument('--gt', type=Path, default=GT)
     p.add_argument('--lock', type=Path)
     p.add_argument('--seed', type=int, default=20260921)
     p.add_argument('--deep-top-k', type=int, choices=[200, 400, 800, 1000], default=800)
     p.add_argument('--dataset-revision')
-    p.add_argument('--model-revision')
+    p.add_argument('--profile', choices=PROFILES, help='prepare/smoke default: pe; run uses locked profile')
+    p.add_argument('--suite', choices=SUITES, help='prepare default: main for pe, replication for pe-qwen')
+    p.add_argument('--model-revision', action='append', metavar='MODEL=REV',
+                   help='Repeat for pe and qwen3_vl; a bare revision is a PE shorthand')
+    p.add_argument('--reuse-plans', type=Path, help='prepare: reuse frozen translations from an existing lock')
+    p.add_argument('--depth-runs', type=Path, nargs=4, help='select-depth: dev directories for depths 200/400/800/1000')
     p.add_argument('--split', choices=['dev', 'eval'], default='dev')
     p.add_argument('--dev-run', type=Path)
     p.add_argument('--out', type=Path)
@@ -317,6 +431,13 @@ def main():
     args = p.parse_args()
     if args.timeout <= 0 or (args.limit is not None and args.limit <= 0):
         p.error('timeout and limit must be positive')
+    if args.command == 'select-depth':
+        if not args.depth_runs or not args.out:
+            p.error('select-depth requires --depth-runs and --out (JSON file)')
+        selected = select_depth(args.depth_runs)
+        write_new(args.out, selected)
+        print(json.dumps(selected))
+        return
     if args.command != 'smoke' and not args.lock:
         p.error('prepare/run require --lock')
     if args.command in ('run', 'smoke') and not args.out:
