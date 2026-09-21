@@ -377,3 +377,35 @@ async def test_live_visual_failure_keeps_old_memory_and_partial_channel_is_degra
     with pytest.raises(ProgressiveError):
         await service.update(sid, HintUpdate(expected_revision=2, client_request_id="three", hints=hints("a car", "on bridge", "at night")))
     assert service.snapshot(sid)["groups"] == next_result["groups"]
+
+
+@pytest.mark.asyncio
+async def test_hint_rrf_retains_full_union_across_display_eviction(settings, monkeypatch):
+    """A video outside the output cap must keep H1/H2 votes when it returns at H3."""
+    from app.progressive.engine import EngineState
+    engine = ProgressiveEngine(SearchService(settings), ProgressiveConfig(method='hint_rrf', memory_limit=40))
+    pools = [[f'a{i:03}' for i in range(45)] + ['target'],
+             [f'b{i:03}' for i in range(45)] + ['target'], ['target']]
+
+    async def retrieve(text, state, counts):
+        pool = pools[int(text)]
+        return Observation(RetrievalTrace(channel_status={'image_pe': 'ok'}),
+                           [{'video_id': v, 'frames': []} for v in pool], {})
+
+    async def regroup(obs):
+        pass
+
+    monkeypatch.setattr(engine, '_global', retrieve)
+    monkeypatch.setattr(engine, '_regroup', regroup)
+    state = EngineState()
+    ledger = []
+    for i in range(3):
+        ledger.append({'hint_id': str(i), 'delta_text': str(i), 'cumulative_text': str(i)})
+        state = await engine.run(ledger, state)
+        if i == 0:
+            assert 'target' not in state.rankings[-1]
+            assert state.observations[0].video_ranks['target'] == 46
+    target = next(g for g in state.snapshot['groups'] if g['video_id'] == 'target')
+    assert target['video_score'] == pytest.approx(2 * 61 / 106 + 1)
+    assert len(set().union(*(o.video_ranks for o in state.observations))) == 91
+    assert state.snapshot['budget']['local_index_calls'] == 0

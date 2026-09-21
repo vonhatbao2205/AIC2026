@@ -233,6 +233,10 @@ class ProgressiveEngine:
                 candidates.update(latest.video_ranks)
         observations = [o for o in state.observations if o.valid] if not stateless else []
         ranks = [o.video_ranks for o in observations]
+        if method == "hint_rrf":
+            # Independent-hint RRF scores the full observed union, including
+            # videos outside all previous displayed/retained rankings.
+            candidates = {v for ranking in ranks for v in ranking}
         cumulative_ranks = {v: i + 1 for i, v in enumerate(current)}
         scores, memory = {}, {}
         for v in candidates:
@@ -248,7 +252,8 @@ class ProgressiveEngine:
                 w = self.config.memory_weight
                 scores[v] = w * memory[v] + (1 - w) * rank_evidence(cumulative_ranks.get(v))
         current_order = sorted(scores, key=lambda v: (-scores[v], v))
-        order = bounded_candidates(scores, current_order, previous if not stateless else [], self.config.memory_limit)
+        order = (current_order[:self.config.memory_limit] if method == "hint_rrf" else
+                 bounded_candidates(scores, current_order, previous if not stateless else [], self.config.memory_limit))
         # Candidate moments come from the cumulative view first. Earlier hints
         # remain explicit evidence, not an implicit final-answer selector.
         preferred = {g["video_id"]: g for g in cumulative.groups}
@@ -323,8 +328,9 @@ class ProgressiveEngine:
                 jobs = await self._rescue(state, cumulative, counts, turn)
             groups = self._rank(state, cumulative, method)
             ranking = [g["video_id"] for g in groups]
-            for observation in state.observations:
-                self._retain(observation, set(ranking))
+            if method != "hint_rrf":
+                for observation in state.observations:
+                    self._retain(observation, set(ranking))
             previous = state.rankings[-1] if state.rankings else []
             observed_stability = stability(previous, ranking, state.rankings)
             warnings = list(dict.fromkeys(delta.trace.latency.get("warnings", []) + cumulative.trace.latency.get("warnings", [])))
@@ -348,6 +354,7 @@ class ProgressiveEngine:
                 "effective_config": {**self.config.model_dump(), "parser": "heuristic", "rerank": False,
                                      "expand": False, "tara": False,
                                      "rescue_scoring": "global_frontier_v1",
+                                     "hint_rrf_memory": "full_observed_union_v1" if method == "hint_rrf" else None,
                                      "dual_view_weights": {"delta": .5, "cumulative": .5} if method == "dual_view" else None},
                 "mode": "mock" if self.search.s.mock_mode else "live"}
             for key, value in counts.items():

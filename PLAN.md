@@ -661,3 +661,9 @@ RRF, geometric mean, caching, revision IDs và model pretrained được ghi nh�
 - Abstract và conclusion chỉ khẳng định những gì thực nghiệm thực sự hỗ trợ.
 
 Giả định cuối cùng của kế hoạch: index AIC và encoder hiện có có thể được nhóm vận hành để chạy live benchmark; điều này phải được xác nhận trong sáu giờ đầu. **Rủi ro lớn nhất hiện tại là chất lượng nhãn, tính công bằng của đối chứng và thời gian hoàn thiện prototype — vì vậy ba việc đó được ưu tiên trước mở rộng số lượng model.**
+
+## Cập nhật trước benchmark (2026-09-21)
+
+Đã sửa Hint-RRF thành `full_observed_union_v1`: giữ mọi evidence của các hint đã truy hồi, tính tổng trên toàn union rồi mới cắt ranking hiển thị; không dùng eviction/protection của PHM. PHM giữ nguyên thuật toán.
+
+Đã thêm [runner và hướng dẫn](benchmarks/progressive/README.md) với khóa GT/split/parser/bản dịch/cấu hình/source, 7 baseline/ablation, raw trace từng prefix, metric và paired group bootstrap. Seed 20260921 chia 75 query hợp lệ thành 15 dev / 60 eval, giữ chung nhóm target video. Đã kiểm tra mock end-to-end và live PE smoke ba hint sau `global_frontier_v1`; chưa chạy final evaluation. Cần chọn deeper-cumulative depth trên dev, cung cấp revision thật của index/model và khóa cấu hình cuối trước eval.

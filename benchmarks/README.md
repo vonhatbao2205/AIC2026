@@ -170,3 +170,5 @@ liệu trong báo cáo đều đến từ bộ phân tích heuristic.
   `max` trên các phương án.
 - QA: 9/15 query có GT nhưng chưa có chương trình chấm — đáp án phụ thuộc video và
   có alias, nên chưa có số trong báo cáo.
+
+Progressive PHM benchmark: see [progressive/README.md](progressive/README.md) for frozen translations, target-video splits, fair Hint-RRF, dev/evaluation execution and metrics.
