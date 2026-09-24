@@ -1,4 +1,8 @@
-# AIC26 Retrieval Paper
+# ClueScope Video Retrieval Paper
+
+The ClueScope VBS 2027 system paper is in **[vbs2027/](vbs2027/README.md)**:
+[PDF](vbs2027/main.pdf) · [LaTeX](vbs2027/main.tex) · [Editorial notes](vbs2027/EDITORIAL_NOTES_VI.md).
+It presents multimodal retrieval, video exploration, VQA assistance, and progressive hint memory, with a controlled component evaluation.
 
 The current six-page English technical report is in **[technical-report/](technical-report/README.md)**:
 [PDF](technical-report/main.pdf) · [LaTeX](technical-report/main.tex).

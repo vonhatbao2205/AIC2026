@@ -1,233 +1,285 @@
 \documentclass[runningheads]{llncs}
 \usepackage[T1]{fontenc}
-\usepackage{amsmath,graphicx,booktabs}
-\usepackage[hidelinks]{hyperref}
-\newcommand{\pending}[1]{\par\noindent\textbf{Pending:} #1\par}
+\usepackage{amsmath,graphicx,booktabs,microtype}
+\usepackage{tikz}
+\usepackage{fontawesome5}
+\usetikzlibrary{arrows.meta,positioning,calc}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\graphicspath{{figures/}}
+\hypersetup{pdftitle={ClueScope: Evidence-Centric Multimodal Video Retrieval for Interactive Search},
+pdfauthor={Anonymous}}
 \begin{document}
-\title{AIC26 at VBS 2027: Progressive Hint Memory for Interactive Video Search}
-\titlerunning{AIC26: Progressive Hint Memory}
-\author{Author list pending}
-\institute{Affiliations pending}
+\title{ClueScope: Evidence-Centric Multimodal Video Retrieval for Interactive Search}
+\titlerunning{ClueScope: Evidence-Centric Multimodal Video Retrieval}
+\author{Anonymous}
+\authorrunning{Anonymous}
+\institute{}
 \maketitle
+
 \begin{abstract}
-Progressive descriptions require a video search system
-to retain earlier evidence while allowing new candidates to emerge. We describe
-a training-free Progressive Hint Memory (PHM) extension to AIC26. The system
-combines video-level evidence from independent hints with a current cumulative
-query, and performs bounded in-video retrieval for surviving candidates and new
-arrivals. Raw similarities are pooled only within the same model and query before
-rank fusion. The interface exposes hint-level evidence and its temporal location
-for operator verification. The current implementation has been exercised with
-correctness tests and locked PE-only and PE+Qwen experiments on InfoShot++.
-Across 60 held-out synthetic progressive queries, PHM improves mean prefix
-video MRR over independent-hint rank fusion, but does not demonstrate an
-advantage over cumulative retrieval and incurs higher latency.
-Competition deployment verification remains pending.
-\keywords{Interactive video retrieval \and Progressive descriptions \and Evidence memory}
+Interactive video search connects incomplete descriptions and evolving hints
+to verifiable moments. We present ClueScope, a multimodal retrieval system
+for Video Browser Showdown 2027 organized around inspectable evidence.
+Its retrieval pipeline combines complementary visual encoders with scene text,
+speech, and audio cues through rank-based fusion, while an optional multi-scale
+clip branch contributes temporal context at video level. Ranked video groups
+retain supporting frames, timestamps, and channel provenance for verification.
+For descriptions revealed over successive turns, Progressive Hint Memory (PHM)
+maintains an editable hint ledger and persistent video-level evidence.
+Bounded in-video searches revisit surviving candidates and check newly retrieved
+videos against earlier hints; a similarity-frontier rule distinguishes evidence
+eligible for ranking from matches retained only for localization. A unified
+workspace integrates spatial query composition, chronological browsing,
+source-video playback, visual question answering assistance, and ad-hoc result
+collection with operator-reviewed DRES submission. A controlled component study
+uses 60 held-out synthetic progressive queries over 1.34 million keyframes from
+873 collected videos. With two visual encoders, PHM achieves a mean-prefix video
+MRR of 0.6903, compared with 0.6662 for independent-hint rank fusion and 0.6907
+for cumulative retrieval, at a median retrieval latency of 3.88 seconds.
+These results characterize the cost of explicit evidence memory without
+establishing a ranking advantage over cumulative search.
+\keywords{Interactive video retrieval \and Multimodal search \and Progressive hints \and Evidence inspection}
 \end{abstract}
 
-\noindent\textbf{Development draft. Not submission-ready.}
-Author information, citations, final layout and competition deployment coverage
-must be completed and independently checked before submission.
+\section{Introduction}
+Interactive video retrieval connects partial scene descriptions to precise
+moments. Appearance, scene text, speech, sound, and multi-frame events call for
+complementary retrieval channels. Operators must then establish which clues
+support each candidate and where to verify them. With successive hints, useful
+evidence must remain inspectable as the description changes. Incremental
+descriptions occur in textual and conversational VBS tasks~\cite{vbs2025results}.
 
-\section{Problem and Research Question}
-A textual known-item search task may reveal additional details over several
-turns. Replacing the query with each new hint can lose earlier evidence; repeatedly
-searching the cumulative description provides context but does not explicitly
-retain candidate-level observations. Our research question is whether a bounded
-memory of evidence and additional in-video retrieval improve prefix video ranking
-over cumulative search and fusion of independent hints, when retrievers and
-retrieval costs are controlled.
+Video Browser Showdown (VBS) 2027 emphasizes textual and chat-based known-item
+search (KIS-T/KIS-C), visual question answering (VQA), and ad-hoc video search
+(AVS), alongside visual KIS~\cite{vbs2027}. ClueScope
+connects search clues to operator-selected answers through video-grouped
+evidence, temporal context, progressive search, and answer review. Its contributions are threefold:
+\begin{itemize}
+\item \textbf{Multimodal evidence integration.} A retrieval architecture fuses
+visual, OCR, speech, and audio rankings and optionally incorporates multi-scale
+clips at video level, retaining timestamps and channel provenance for inspection.
+\item \textbf{Inspectable progressive search.} PHM links an editable hint ledger
+to persistent candidate evidence, with bounded rescue and backfill searches and
+an explicit rule governing the ranking eligibility of local matches.
+\item \textbf{An integrated verification workflow.} Spatial queries, contextual
+playback, VQA assistance, and an AVS basket connect candidate discovery to
+operator-controlled answer review and DRES submission.
+\end{itemize}
 
-Stateful retrieval, relevance feedback, rank fusion and in-video search have
-precedents. Our proposed contribution is their concrete integration for revealed
-hints with provenance, bounded candidate retention and consistent local/global
-score pooling. Neither reciprocal rank fusion nor geometric averaging is claimed
-as a new primitive. \pending{Complete related work, including conversational
-Exquisitor, its VBS 2026 in-video search, Robust Relevance Feedback (ICMR 2025),
-and query performance prediction. Do not treat their trained feedback gains as
-evidence that PHM will achieve comparable gains.}
+\section{Related Work}
+Fusionista2.0 and U-Cker emphasize query assistance~\cite{fusionista2026,ucker2026}, while VIREO and PraK support
+spatial constraints and contextual browsing~\cite{vireo2026,prak2026}.
+SnapMind exposes editable retrieval plans and source attribution~\cite{snapmind2026};
+NII-UIT couples answer suggestions with in-video evidence discovery~\cite{nii2026}.
+Exquisitor integrates conversational interaction, feedback, and in-video
+search~\cite{exquisitor2026,exquisitor2025interactive}. H-EAGLE organizes representations at multiple
+semantic levels~\cite{heagle2026}, and VERGE provides collection-specific
+modalities~\cite{verge2026}. vitrivr supports emotion retrieval; TapesVRy and MediaMix offer immersive
+exploration~\cite{vitrivr2026,tapesvry2026,mediamix2026}.
+ClueScope emphasizes persistent evidence across released hints, exposing the
+provenance and ranking eligibility of local matches alongside contextual browsing.
 
-\section{System and Interaction}
-AIC26 provides visual retrieval with PE and, for the supported InfoShot++ profile,
-Qwen embeddings; OCR, speech and audio provide optional additional channels.
-PHM reuses the internal retrieval service while preserving per-model raw hits,
-queries and status before fusion and video grouping. The algorithm configuration
-disables query expansion, reranking and TARA. Hybrid channels are an optional
-system configuration, separate from the primary visual-only comparison.
-
-A search session represents one target and contains an editable hint ledger.
-Each retrieval revision owns its result; only the current revision may commit.
-Sessions are isolated between tabs and expire after 60 minutes of inactivity in
-a single backend process. A JSONL journal records configuration, released inputs,
-retrieval traces and committed snapshots. This journal supports read-only event
-replay, without restoring sessions after a process restart.
-
-The operator enters a released hint, inspects rank trajectories, and opens a
-representative frame on the timeline. Evidence is labelled by hint and by global,
-rescue or backfill origin. A video card flags temporally dispersed evidence and
-historical moments without current cumulative support. Selection follows frame
-identity when ranking changes. Stability indicators are observations, not estimates
-of correctness. Submission remains an explicit operator action.
-
-\begin{figure}[t]
+\section{Multimodal Retrieval Architecture}
+\label{sec:architecture}
+\begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{../../docs/progressive-live-smoke.png}
-\caption{PHM in a PE-only live InfoShot++ smoke session with two manually entered
-hints. The screenshot illustrates interaction and evidence provenance; this is
-not a ground-truth evaluation task.}
+\resizebox{\textwidth}{!}{\input{figures/architecture.tex}}
+\caption{ClueScope: offline preparation and interactive retrieval. TARA joins at video
+level; PHM uses pre-TARA evidence. Dashed arrows indicate local searches and refinement.}
+\label{fig:architecture}
 \end{figure}
-\pending{Finalize an architecture figure and choose a readable crop of the
-interaction screenshot after fixing the final paper layout.}
+
+\paragraph{Indexed evidence.}
+The collection contains 873 videos and 1,339,055 keyframes
+(Fig.~\ref{fig:architecture}), sampled using InfoShot-style sampling~\cite{infoshot2026}
+extended for short events and text changes. A registry maps keyframes to source frames and playback times.
+PE-Core-G14-448~\cite{pe2025} provides normalized 1,280-dimensional embeddings;
+Qwen3-VL-Embedding-8B~\cite{qwen2026} supplies a separate 4,096-dimensional space.
+Both are searched in Milvus~\cite{milvus2021}. Elasticsearch holds metadata, OCR, speech, audio, and object annotations.
+FastAPI coordinates retrieval; React/TypeScript provides the console.
+
+\paragraph{Query interpretation and fusion.}
+Operators select models, channels, depth, and index-level scope filters.
+Heuristics or an optional language model extract channel-specific cues, with
+translation and optional expansion for visual descriptions; OCR and speech
+preserve original-language cues. Parallel retrieval combines
+visual search with exact/numeric and fuzzy OCR matching, confidence-aware speech
+ranking, and audio tags, captions, or embeddings.
+
+For frame $f$, weighted reciprocal rank fusion (RRF)~\cite{rrf2009} computes
+\begin{equation}
+ R(f)=\sum_{c:f\in L_c}\frac{w_c}{60+r_c(f)},\qquad r_c(f)\geq1,
+ \label{eq:rrf}
+\end{equation}
+where $L_c$ is a channel ranking. Optional Qwen reranking merges a deduplicated visual pool into one ranking;
+otherwise PE and Qwen contribute separate rankings. Raw scores across embedding
+spaces are not added. Channel attribution, supporting text, timestamps, and availability warnings
+remain visible.
+
+\paragraph{Group-by-video aggregation and clip context.}
+Video groups retain chronological frames and channel provenance. Videos are ranked by their strongest frame (weight 0.75),
+mean top-three score (0.15), and bounded temporal support (0.10). Frame scores
+are normalized by the global maximum; support saturates at four additional
+matches within 30 seconds of the strongest frame. Separated temporal clusters
+are flagged for inspection.
+
+Optional TARA retrieval~\cite{tara2026} indexes 168,536 clips over 8-, 24-, and
+72-second windows from the same videos. Each scale contributes at most one vote per video. RRF combines scale rankings,
+then fuses them with frame-channel video rankings. Clip intervals support
+playback, including for videos absent from frame results.
+
+\section{Interactive Search and Evidence Verification}
+\label{sec:interaction}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=.94\textwidth]{console-en.png}
+\caption{The console: query controls (left), video groups (center), and frame evidence
+(right). Candidates and scores are illustrative; source images are real.}
+\label{fig:console}
+\end{figure}
+
+\paragraph{From a description to a verified moment.}
+Video groups expose chronological frames, strongest matches, and channel
+evidence (Fig.~\ref{fig:console}). Operators reject or prioritize videos, search by
+frame similarity, and inspect playback and registry neighbors beyond retrieved
+hits. Timeline seeking preserves source coordinates; tabs and notes retain hypotheses.
+
+\paragraph{Visual KIS via spatial queries.}
+After observing a KIS-V clip~\cite{vbs2027}, the operator reconstructs objects,
+colors, positions, and actions on a canvas. One-to-one Hungarian assignment~\cite{kuhn1955}
+scores Elasticsearch object detections against query objects. RRF combines
+this ranking with PE searches using generated descriptions and an optional
+low-weight rasterized sketch. The operator verifies matches through playback.
+
+\paragraph{Evidence-supported VQA.}
+NVILA~\cite{nvila2025} suggests answers with supporting frame identifiers.
+Our optional adapter uses DeepSeek-V4.1-Flash~\cite{deepseek2026} for external
+knowledge, subject to provider tool support. ClueScope separately verifies
+source-linked alternatives with NVILA, rejecting visual contradictions;
+web confidence cannot override visual evidence. Operators review suggestions
+and uncalibrated scores. Web grounding remains separate from indexed retrieval.
+
+\paragraph{AVS: collecting relevant moments.}
+An \emph{anchors-only} queue applies two-second temporal non-maximum suppression
+within each video. Successive passes propose one anchor per video in relevance
+order, prioritizing videos with fewer accepted moments. No KIS temporal offsets
+are added. Operators verify playback and accept moments into a task-scoped basket
+that survives query refinement. Exact duplicates are blocked; nearby moments
+require an explicit override. Acceptance is separate from submission and a DRES verdict.
+
+\paragraph{Answer review and DRES submission.}
+A question-specific table supports frame editing, duplicate checks, CSV export,
+and optional operator synchronization. When configured, the DRES~\cite{dres2024} v2 adapter
+supports login, task/hint discovery, millisecond coordinates, preview, and verdict
+history. Operators can enable direct submission and confirm individual answers
+or accepted AVS moments. A changed task or unavailable connection blocks sending.
+Mock-transport tests cover AVS routing, temporal payloads, and duplicate protection;
+live VBS validation remains pending.
 
 \section{Progressive Hint Memory}
-\subsection{Evidence and Scoring}
-Unicode and whitespace normalization precede hint processing. A cumulative
-description that appends to its predecessor yields one delta hint. Exact repeats
-do not add an evidence vote. A cumulative revision that changes previous content
-replaces the active description and invalidates derived memory. Retrieval sees
-only released and enabled input. Cumulative queries from successive turns are
-not counted as independent hints in the memory term.
+\label{sec:phm}
+PHM maintains an editable ledger of released hints (Fig.~\ref{fig:phm}). Exact duplicates add no vote; cumulative appends contribute their new suffix,
+and edits invalidate superseded evidence. Only released, enabled hints participate.
 
-After within-hint fusion and video grouping, the evidence for video $v$ under
-hint $i$ is
+\begin{figure}[!htbp]
+\centering
+\begin{minipage}[t]{0.33\textwidth}\vspace{0pt}
+\includegraphics[width=\linewidth]{progressive-ledger.png}
+\end{minipage}\hspace{.02\textwidth}
+\begin{minipage}[t]{0.52\textwidth}\vspace{0pt}
+\includegraphics[width=\linewidth]{progressive-evidence.png}
+\end{minipage}
+\caption{PHM: released hints (left); candidate history, evidence origins, and frames
+(right). This archived PE-only session predates the benchmark's frontier revision.}
+\label{fig:phm}
+\end{figure}
+
+After per-hint fusion and grouping, video rank $r_i(v)$ gives evidence
+$e_i(v)=61/(60+r_i(v))$. Unobserved videos score zero but retain an explicit
+unobserved label: truncated retrieval does not establish irrelevance.
+For hints $I_t$ with a valid channel observation and current cumulative rank
+evidence $C_t(v)$, we compute
 \begin{equation}
-e_i(v)=\frac{k+1}{k+r_i(v)},\quad k=60,\quad r_i(v)\geq1.
+ M_t(v)=\left[\prod_{i\in I_t}\bigl(0.10+0.90e_i(v)\bigr)\right]^{1/|I_t|},
+ \qquad S_t(v)=0.70M_t(v)+0.30C_t(v).
+ \label{eq:phm}
 \end{equation}
-For an unobserved video, we use $e_i(v)=0$ while retaining an explicit
-\emph{unobserved} label. This is a scoring convention for truncated retrieval,
-not evidence that the video is irrelevant. Let $I_t$ be the independent hints
-with at least one valid channel observation. Memory is
-\begin{equation}
-M_t(v)=\exp\left(\frac{1}{|I_t|}\sum_{i\in I_t}
-\log\left(\epsilon+(1-\epsilon)e_i(v)\right)\right),\quad\epsilon=0.10.
-\end{equation}
-The cumulative branch at turn $t$ produces rank evidence $C_t(v)$, giving
-\begin{equation}
-S_t(v)=0.70M_t(v)+0.30C_t(v).
-\end{equation}
-These are fixed design presets, not calibrated probabilities or optimized
-parameters. When delta and cumulative views coincide at the first turn, their
-monotonic score transformation preserves the baseline video ordering:
-$M_1=0.1+0.9C_1$ and $S_1=0.07+0.93C_1$.
+These presets are not probabilities; historical cumulative queries are not
+independent hints.
 
-\subsection{Bounded In-Video Retrieval}
-After the first turn, up to eight previous candidates missing evidence for the
-new hint receive filtered in-video searches. Up to four strong newcomers may
-receive backfill searches for previous hints. Allocation is capped at 16
-$(\mathrm{video},\mathrm{hint})$ pairs per turn, with up to three frames per
-visual model per pair. Encoded query vectors are reused within a session.
+Subsequent turns search up to eight survivors lacking new-hint evidence and
+backfill older hints for up to four newcomers, capped at 16 video--hint pairs
+and three frames per model/pair. Query vectors are session-cached. Local hits enter
+ranking only if their raw similarity reaches the lowest finite similarity in
+the original global list for the \emph{same model, query, and collection}.
+Eligible hits are deduplicated and re-ranked with that list before fusion.
+These candidate-pool ranks are not exact corpus ranks. Hits below an observed
+frontier, or without one, remain localization-only evidence.
 
-Local rank one is not a corpus-wide rank one. We freeze an observed retrieval
-frontier at the lowest finite similarity in each successful original global
-result list. Only local hits at or above the frontier for the same model, query
-and collection enter the ranking pool. They are deduplicated by canonical frame
-identity, sorted by raw similarity and assigned candidate-pool ranks for fusion.
-These ranks are not exact corpus ranks, particularly with approximate nearest
-neighbor retrieval. Scores from different models are never added.
+Memory retains at most 250 videos, protecting current and previous top-20
+candidates, with three temporal representatives per hint/video. The UI exposes
+hint support, rank history, and global/rescue/backfill origins. Revision checks
+reject stale responses; process-local sessions expire after inactivity and support
+journal replay. PHM disables expansion, reranking, and TARA; optional
+OCR/speech/audio channels are outside the visual-only evaluation.
 
-Below-frontier hits, and hits without an observed global frontier, remain
-available for operator localization but contribute no rank evidence. They are
-excluded from both RRF and video grouping, including cluster support. Their raw
-scores, cutoff and exclusion reason are recorded. This avoids granting a
-selectively retrieved weak hit an optimistic rank immediately after global
-top-$K$. Rescue can still promote an incorrect candidate; its benefit and harm
-require an ablation.
+\section{Controlled Component Evaluation}
+\label{sec:evaluation}
+We derive 75 owner-approved synthetic progressive queries from existing
+descriptions and sampled video inspection. Target-video connected components
+separate 15 development and 60 held-out queries (55 groups), each with three
+prefixes. Approval does not establish independent continuous-playback verification.
+Both PE and PE+Qwen search all 1,339,055 indexed frames at depth 200 per model/view.
+Code (\texttt{b012b9b}), annotations, translations, parser plans, and settings
+were frozen; auxiliary modalities, TARA, expansion, and reranking are disabled.
 
-The ranked memory contains at most 250 videos. Current and previous top-20
-candidates are protected, and remaining capacity follows session score with a
-stable identifier tie-break. Each hint retains at most three temporally deduplicated
-representative frames per video. Backfilled evidence records the turn at which
-it was discovered and does not alter earlier committed snapshots.
+Baselines use the full released description (cumulative), independent hints
+(Hint-RRF), or PHM without local searches. Video MRR, capped at 250 videos, is
+averaged over prefixes then queries. All 1,800 held-out method prefixes passed
+prefix-isolation and metric audits.
 
-\section{Locked Evaluation}
-We evaluate 75 owner-approved synthetic progressive queries derived from AIC
-queries, prior annotations and sampled visual inspection. Approval does not
-constitute independent continuous-playback verification. A fixed split by connected components of target videos assigns 15 queries (14 groups) to development and 60 queries
-(55 groups) to evaluation; all three prefixes stay with their query. The corpus
-contains 1,339,055 InfoShot++ frames per selected visual model across L21--L30.
-
-Code was frozen at commit \texttt{b012b9b}. Ground truth, translations, heuristic
-parser outputs, split, model/index provenance and algorithm configuration were
-locked before evaluation. Each profile was evaluated once after a complete healthy
-development run. The same split and parser plans were reused for PE+Qwen.
-TARA, OCR, speech, audio, expansion and reranking were excluded.
-Global depth is 200 per model/view. Hint-RRF retains the full observed union
-before output truncation. Dual-view averages current delta and cumulative evidence
-without historical memory or rescue. Development pilots at depths 200, 400, 800
-and 1000 selected cumulative depth 400 by nearest median latency. Its development
-p50 remained 0.89\,s below the PHM reference, so this is not a matched-cost comparison.
-Non-monotonic pilot latencies also expose live service/cache variation.
-
-The primary metric is video MRR averaged over prefixes within each query and then
-across queries, with a rank cap of 250 and zero credit for missing targets.
-Moment Hit@$K$ evaluates the first preferred frame per displayed video group
-against half-open accepted intervals, without searching historical frames for an
-oracle match. Paired uncertainty uses 10,000 bootstrap resamples of target-video
-groups, with unadjusted intervals. All 3,330 development/evaluation prefixes were
-healthy; the held-out tables contain 1,800 prefixes. An artifact audit recomputed
-metrics from raw snapshots and checked ledger isolation and completeness.
-
-\begin{table}[t]
-\caption{PE controlled evaluation on 60 held-out queries. H@1 is video Hit@1
-at each hint. MRR is the mean prefix metric; latency is median retrieval latency.}
-\centering\small
-\input{../../benchmarks/progressive/results/paper-20260921/pe-table.tex}
-\end{table}
-\begin{table}[t]
-\caption{PE+Qwen replication on the same held-out queries.}
-\centering\small
-\input{../../benchmarks/progressive/results/paper-20260921/pe-qwen-table.tex}
+\begin{table}[htbp]
+\caption{Held-out progressive retrieval: mean-prefix video MRR and median
+retrieval latency. Both encoder configurations use the same 60 queries.}
+\label{tab:results}
+\centering
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+ & \multicolumn{2}{c}{PE} & \multicolumn{2}{c}{PE+Qwen}\\
+\cmidrule(lr){2-3}\cmidrule(l){4-5}
+Method & MRR & p50 (s) & MRR & p50 (s)\\
+\midrule
+Cumulative & 0.6558 & 0.50 & 0.6907 & 1.13\\
+Hint-RRF & 0.6093 & 0.51 & 0.6662 & 1.11\\
+PHM without rescue & 0.6230 & 0.83 & 0.6832 & 1.52\\
+PHM & 0.6459 & 2.13 & 0.6903 & 3.88\\
+\bottomrule
+\end{tabular}
 \end{table}
 
-PHM achieves MRR 0.6459 with PE and 0.6903 with PE+Qwen, compared with cumulative
-retrieval at 0.6558 and 0.6907. Paired differences are $-0.0099$
-(95\% interval $[-0.0576,0.0358]$) and $-0.0004$
-($[-0.0460,0.0431]$), respectively. These results do not establish an advantage
-over cumulative retrieval, nor do they establish equivalence.
-PHM exceeds Hint-RRF by 0.0367 ($[0.0064,0.0704]$) with PE and
-0.0241 ($[0.0029,0.0443]$) with PE+Qwen, under the exploratory unadjusted comparisons.
+PHM shows no demonstrated MRR advantage over cumulative search
+(Table~\ref{tab:results}): differences are $-0.0099$ for PE (95\% interval
+$[-0.0576,0.0358]$) and $-0.0004$ for PE+Qwen ($[-0.0460,0.0431]$).
+Equivalence is not established. Differences from Hint-RRF are $0.0367$ and
+$0.0241$, with positive unadjusted intervals from 10,000 paired
+video-group bootstrap resamples~\cite{efron1979}; comparisons remain exploratory.
+Rescue can worsen individual prefixes. A depth-400 cumulative control reached
+0.6627 MRR at 0.53\,s median latency on PE; depth was selected using development
+latency, without achieving a compute match to PHM.
+Latency excludes translation preparation and trace serialization and varies
+with service load. Operator effort and AVS effectiveness remain unmeasured.
+PHM provides explicit historical evidence at additional cost.
 
-Rescue increases MRR over PHM without rescue by 0.0229 with PE and 0.0071 with
-PE+Qwen, but both intervals include zero. No target is recovered from outside
-the rank cap; rescue worsens target rank in 20 PE and 10 PE+Qwen prefixes.
-PE+Qwen final-turn Hit@1 is 44/60 for PHM versus 41/60 for cumulative; the
-no-rescue variant also reaches 44/60. This descriptive final-turn difference
-cannot therefore be attributed to rescue. Final-turn Moment Hit@1 is 0.367
-versus 0.400 for PHM/cumulative with PE, and 0.400 for both with PE+Qwen.
+\section{Deployment and Conclusion}
+ClueScope connects multimodal retrieval and progressive evidence to operator
+verification, VQA, AVS collection, and answer submission. VBS deployment requires
+ingestion and identity/time mappings for V3C~\cite{v3c2019}, Marine Video
+Kit~\cite{mvk2023}, and GynSurg~\cite{gynsurg2025},
+live-server validation, and interaction logs. Evaluating operator effort remains
+a next step beyond the controlled retrieval study.
 
-The additional retrieval has substantial cost: PHM median latency is 2.13\,s
-versus 0.50\,s for cumulative with PE, and 3.88\,s versus 1.13\,s with PE+Qwen.
-Deeper cumulative retrieval has the highest PE MRR (0.6627).
-Complete prefix metrics, localization, first/stable-correct turn distributions,
-rescue counts, work counters, p95 latency, locks and artifact hashes accompany
-the repository report in \texttt{benchmarks/progressive/results/paper-20260921}.
-
-\section{Limitations and Deployment Status}
-Correctness tests cover hint deduplication and edits, reveal isolation,
-first-turn ordering, pooling across local/global retrieval, late revisions,
-failure preservation, provenance and identity-based UI selection. Such tests
-do not establish effectiveness, usability or competition readiness. A separate
-PE-only InfoShot++ browser smoke test exercised two hints, eight survivor rescue
-and four newcomer backfill requests, and verified video seeking to the selected
-evidence time. This smoke test predates the global-frontier scoring revision;
-it checks the interaction path, not the revised scoring or an evaluated task.
-Video-wide
-evidence may be dispersed across unrelated scenes, and rescue may reinforce a
-wrong candidate. The operator must still verify an answer moment.
-
-V3C and the other competition collections require separate media registries,
-temporal mappings, index coverage and submission checks. Their full ingestion,
-external evaluation, operator study and budgeted inspection are planned work.
-No calibrated confidence, learned stopping policy or automatic submission is
-part of PHM v1.
-
-\section{Conclusion}
-The implemented extension makes per-hint candidate evidence explicit and provides
-bounded in-video retrieval with consistent score pooling and inspectable temporal
-provenance. Locked experiments show gains over independent-hint rank fusion
-but no demonstrated mean-prefix advantage over cumulative retrieval, at higher
-latency. These mixed findings support the implemented interaction mechanism
-while limiting claims of retrieval superiority. Competition-scale generalization
-and operator usefulness remain future work.
+\clearpage
+\bibliographystyle{splncs04}
+\bibliography{references}
 \end{document}
