@@ -77,6 +77,7 @@ VideoRetrieval/tara_embeddings/
 /benchmarks/progressive/annotations/evidence/
 elastic_staging/
 elastic_staging_v2/
+elastic_staging_batch2/
 speech_out/
 results_audio_event/
 map-keyframes-s1-s2/
@@ -95,6 +96,8 @@ milvus_upload_qwen3_vl_embedding_8b_verification.json
 milvus_upload_pe_core_batch2_verification.json
 .elastic_upload_batch2_keyframe_map_state.json
 elastic_upload_batch2_keyframe_map_verification.json
+.elastic_upload_batch2_ocr_speech_state.json
+elastic_upload_batch2_ocr_speech_verification.json
 r2_publish_n_web_videos_report.json
 r2_reencode_n_damaged_videos_report.json
 
