@@ -190,7 +190,7 @@ def _health(monkeypatch, **down):
         "elastic": service.elastic,
         "milvus": service.milvus,
         "pe_encoder": service.pe,
-        "nvila_qa": main.nvila_qa,
+        "qa_vision": main.qa_vision,
         "qwen_reranker": service.reranker,
         "web_grounding": main.web_grounding_client,
     }
@@ -204,17 +204,17 @@ def test_optional_workers_do_not_raise_the_retrieval_banner(monkeypatch):
     """A stopped Colab session for the QA copilot or the reranker leaves search
     working. Calling that "live retrieval degraded" is a false alarm, and a
     banner that cries wolf is one the operator stops reading."""
-    body = _health(monkeypatch, nvila_qa=True, qwen_reranker=True, web_grounding=True)
+    body = _health(monkeypatch, qa_vision=True, qwen_reranker=True, web_grounding=True)
 
     assert body["warnings"] == []
     # Still visible to anyone who looks at the service list or the capabilities;
     # it is only the alarming banner that stays quiet.
-    assert body["services"]["nvila_qa"]["ok"] is False
+    assert body["services"]["qa_vision"]["ok"] is False
     assert body["services"]["qwen_reranker"]["ok"] is False
 
 
 def test_a_dead_core_channel_still_raises_it(monkeypatch):
-    body = _health(monkeypatch, elastic=True, nvila_qa=True)
+    body = _health(monkeypatch, elastic=True, qa_vision=True)
 
     # `ok` is not asserted: the suite runs in mock mode, where it is always True.
     assert body["warnings"] == ["elastic unreachable: ConnectTimeout"]

@@ -1,5 +1,6 @@
 import type { FrameResult, QaAnalysisResponse } from "../api/types";
 import { formatTime } from "../lib/media";
+import { qaVisionLabel } from "../lib/qa";
 
 interface Props {
   analysis: QaAnalysisResponse | null;
@@ -16,14 +17,19 @@ interface Props {
   onWebGroundingChange: (enabled: boolean) => void;
   onChooseAnswer: (answer: string, evidenceId?: string) => void;
   onOpenFrame: (submitKeyframeId: string) => void;
+  /** Model behind the visual passes, from /api/health (before any analysis). */
+  visionModel?: string | null;
+  /** "deepseek" or "nvila": which backend to point at when it is offline. */
+  visionBackend?: string | null;
 }
 
 export function QaAssistPanel(props: Props) {
+  const vision = qaVisionLabel(props.analysis?.model ?? props.visionModel);
   return (
     <div className="panel qa-assist" data-testid="qa-assist-panel">
       <div className="qa-assist-head">
         <div>
-          <h3>NVILA-8B · QA copilot</h3>
+          <h3>QA copilot · {vision === "DeepSeek" ? "DeepSeek V4.1 Flash" : vision}</h3>
           <div className="qa-method">hotspot prediction → answer options → human verification</div>
         </div>
         {props.analysis && <span className="badge image_pe">{props.analysis.mode}</span>}
@@ -31,7 +37,11 @@ export function QaAssistPanel(props: Props) {
 
       {props.available === false && (
         <div className="qa-service-warn">
-          Worker offline. Start the NVILA Colab worker and configure <span className="mono">NVILA_BASE_URL</span>.
+          {props.visionBackend === "nvila" ? (
+            <>Worker offline. Start the NVILA Colab worker and configure <span className="mono">NVILA_BASE_URL</span>.</>
+          ) : (
+            <>Visual QA unavailable. Set <span className="mono">DEEPSEEK_API_KEY</span> in the backend configuration.</>
+          )}
         </div>
       )}
 
@@ -74,7 +84,7 @@ export function QaAssistPanel(props: Props) {
         disabled={props.loading || props.candidateCount === 0}
         onClick={props.onAnalyze}
       >
-        {props.loading ? "NVILA is inspecting frames…" : `Analyze ${props.candidateCount} visual candidates`}
+        {props.loading ? `${vision} is inspecting frames…` : `Analyze ${props.candidateCount} visual candidates`}
       </button>
 
       {props.error && <div className="dup-warn" data-testid="qa-analysis-error">{props.error}</div>}
@@ -87,7 +97,7 @@ export function QaAssistPanel(props: Props) {
           </div>
 
           {!props.analysis.answerable && (
-            <div className="qa-service-warn">NVILA found insufficient evidence; broaden the query or candidate set.</div>
+            <div className="qa-service-warn">{vision} found insufficient evidence; broaden the query or candidate set.</div>
           )}
 
           <div className="qa-answer-list">
@@ -106,17 +116,23 @@ export function QaAssistPanel(props: Props) {
                     <b>{candidate.answer}</b>
                     <span>{candidate.reason || "The model did not provide a verification reason."}</span>
                     <span className={`qa-answer-source ${candidate.source}`}>
-                      {candidate.source === "web" ? "Web grounded" : candidate.source === "hybrid" ? "NVILA + web" : "NVILA visual"}
+                      {candidate.source === "web"
+                        ? "Web grounded"
+                        : candidate.source === "knowledge"
+                          ? "Model knowledge (no web search)"
+                          : candidate.source === "hybrid"
+                            ? `${vision} + web`
+                            : `${vision} visual`}
                     </span>
                     {candidate.visual_verification && (
                       <span className={`qa-verify-status ${candidate.visual_verification.status}`}>
                         {candidate.visual_verification.status === "supported"
-                          ? `NVILA visually consistent · ${Math.round(candidate.visual_verification.visual_confidence * 100)}%`
+                          ? `${vision} visually consistent · ${Math.round(candidate.visual_verification.visual_confidence * 100)}%`
                           : candidate.visual_verification.status === "contradicted"
-                            ? "NVILA contradicted"
+                            ? `${vision} contradicted`
                             : candidate.visual_verification.status === "insufficient"
-                              ? "NVILA: insufficient visual evidence"
-                              : "NVILA verification unavailable"}
+                              ? `${vision}: insufficient visual evidence`
+                              : `${vision} verification unavailable`}
                       </span>
                     )}
                     <span className="qa-support-ids mono">
@@ -176,7 +192,7 @@ export function QaAssistPanel(props: Props) {
               )}
               {props.analysis.web_grounding.visual_verification?.attempted && (
                 <div className="qa-pass3-summary" data-testid="qa-pass3-verification">
-                  NVILA pass 3 · {props.analysis.web_grounding.visual_verification?.used ? "checked" : "no usable verdict"}
+                  {vision} pass 3 · {props.analysis.web_grounding.visual_verification?.used ? "checked" : "no usable verdict"}
                   {props.analysis.web_grounding.visual_verification?.model
                     ? ` · ${props.analysis.web_grounding.visual_verification.model}` : ""}
                   {(props.analysis.web_grounding.visual_verification?.rejected_answers.length ?? 0) > 0

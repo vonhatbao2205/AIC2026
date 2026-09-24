@@ -7,8 +7,12 @@ and returns answer alternatives with citations; it never selects a DRES frame by
 itself.
 
 Transport note: the built-in `web_search` tool exists only on the **Responses**
-API (`POST /responses`) and only for `deepseek-v4-flash`. `/chat/completions`
-rejects every non-`function` tool type, so this adapter must not be ported to it.
+API (`POST /responses`); `/chat/completions` rejects every non-`function` tool
+type, so this adapter must not be ported to it. Measured 2026-09-25: only
+`deepseek-v4-pro` actually runs the tool. `deepseek-flash` (V4.1 Flash, which the
+old id `deepseek-v4-flash` now resolves to) accepts it but writes fake
+`<tool_call>` text instead of searching; `_parse_response` detects that so a
+search that never happened can never be passed off as "web grounded".
 """
 from __future__ import annotations
 
@@ -34,7 +38,11 @@ def _extract_json_object(text: str) -> dict[str, Any]:
     start, end = raw.find("{"), raw.rfind("}")
     if start < 0 or end <= start:
         raise ValueError("DeepSeek grounded response did not contain a JSON object")
-    data = json.loads(raw[start : end + 1])
+    try:
+        data = json.loads(raw[start : end + 1])
+    except json.JSONDecodeError:
+        # The model hand-writes this object and sometimes leaves a trailing comma.
+        data = json.loads(re.sub(r",\s*([}\]])", r"\1", raw[start : end + 1]))
     if not isinstance(data, dict):
         raise ValueError("DeepSeek grounded JSON must be an object")
     return data
@@ -82,38 +90,33 @@ def _parse_response(data: dict[str, Any]) -> dict[str, Any]:
                 host = re.sub(r"^https?://(www\.)?", "", url).split("/")[0]
                 sources.append({"title": host[:300], "url": url[:2000]})
 
+    searched = any(isinstance(item, dict) and item.get("type") == "web_search_call" for item in data.get("output") or [])
+    text = "\n".join(text_parts).strip()
     return {
-        "text": "\n".join(text_parts).strip(),
+        "text": text,
         "sources": sources[:12],
         "queries": queries[:8],
+        "searched": searched,
+        # A model that cannot run the server-side tool writes one as text.
+        "fake_tool_call": not searched and bool(re.search(r"<tool_call>|<tool_name>|\"name\":\s*\"search\"", text)),
         "search_suggestions_html": "",  # no DeepSeek equivalent of Google's widget
     }
 
 
 # Sent as the Responses API `instructions` field. It carries the standing role and
 # grading contract; the per-request prompt carries the question and candidates.
-_SYSTEM_INSTRUCTIONS = """You are the external-knowledge stage of a Vietnamese broadcast-video retrieval \
-system competing under a timed, exact-string grader.
+_SYSTEM_INSTRUCTIONS = """You are the external-knowledge stage of a Vietnamese video question-answering system in the AIC 2026 final round, graded as an exact string under a clock, where every wrong submission costs points.
+
+The collection: HTV "60 giây" news bulletins (K01-K20, L21-L22, and M01-M10 from 2026, a few narrated in English), road cycling (L23, and S01: the 2026 HTV Television Cup, 12 stages), lion dance (L24), exam revision lectures (L25), cooking (L26), Vietnamese culture and the Mekong delta (L27-L29), user shorts about charity (L30), and fixed traffic cameras at Ho Chi Minh City junctions in June 2026 (N001-N100).
 
 Operating rules:
-- Video evidence (frames, OCR, ASR) is primary and was already collected by a vision model. \
-Your only job is to resolve what is NOT visible: proper names, aliases, brands, organizations, \
-places, people, dates and the relationships between them.
-- Search the web whenever the question hinges on a named real-world entity, or when the supplied \
-clues look partial, misspelled or transliterated. Vietnamese ASR routinely mangles foreign names, \
-so search for the corrected form instead of trusting the transcript spelling.
-- The grader compares your `answer` as an exact string. Apply every formatting constraint stated \
-in the question (uppercase, no spaces, no diacritics, digits only, ...) to the `answer` field \
-itself, never only to the explanation.
-- A real-world entity usually has several legitimate names: a short brand form, a fuller corporate \
-form, and sometimes a local Vietnamese form. Under an exact-string grader these are genuinely \
-different answers. When the question asks for a name, emit each as its own separate alternative \
-(e.g. for the Disney castle logo: "DISNEY", "WALTDISNEY", "THEWALTDISNEYCOMPANY"), ordered by \
-which one a Vietnamese broadcaster most likely means. Never merge them into a single answer and \
-never assume the shortest form is the intended one.
-- Explain the canonical entity in `reason`, but keep `answer` in the exact format the question demands.
-- Never invent a citation: cite only domains you actually opened.
-- Output no chain-of-thought."""
+- The frames were already inspected by a vision model; its findings and the OCR/ASR clues are your starting point. Your job is what the frames cannot show: proper names, aliases, brands, organisations, places, people, dates, event results and the relationships between them.
+- Search whenever the answer hinges on a named real-world entity or a fact outside the frames, and when a clue looks partial, misspelled or transliterated: Vietnamese ASR routinely mangles foreign names, so search the corrected form. Search in Vietnamese for Vietnamese subjects and in English for international ones.
+- Vietnamese provinces and communes were merged in 2025. "tại thời điểm đó" (at that time) asks for the name in force when the video was made, not today's.
+- Apply every format constraint of the question (uppercase, English, no spaces, no diacritics, digits only) inside the `answer` field itself, never only in the explanation.
+- Answer with the name itself, without the generic word the question already supplies ("which virus" -> Marburg, not "Marburg virus"; "which commune" -> Giang Ly, not "Xã Giang Ly").
+- A real-world entity often has several legitimate names (short brand, full corporate name, local Vietnamese name, e.g. "DISNEY", "WALTDISNEY", "THEWALTDISNEYCOMPANY"). Under an exact-string grader these are different answers: return each as its own alternative, ordered by which one a Vietnamese broadcaster most likely means.
+- Explain the canonical entity in `reason`, keep `answer` in the exact demanded format, cite only domains you actually opened, and output no chain-of-thought."""
 
 
 def _candidate_manifest(candidates: list[dict[str, Any]]) -> str:
@@ -143,12 +146,16 @@ def _grounding_prompt(
             "answer": answer.get("answer"),
             "confidence": answer.get("confidence"),
             "supporting_candidate_ids": answer.get("supporting_candidate_ids"),
+            "reason": str(answer.get("reason") or "")[:300],
         }
         for answer in (visual_analysis.get("candidate_answers") or [])[:max_answers]
     ]
-    return f"""You are the web-search grounding stage of a competitive video QA system.
-
-The video system already retrieved frames and extracted noisy clues. Use web search only to resolve missing external knowledge, aliases, canonical names, people, brands, places, organizations, or factual relationships. Video evidence remains primary: do not invent an unrelated answer and do not choose a frame that lacks a relevant clue.
+    # What the vision pass SAW in each frame is the best search seed there is.
+    frame_findings = [
+        {"candidate_id": hotspot.get("candidate_id"), "seen": str(hotspot.get("answer_support") or "")[:300]}
+        for hotspot in (visual_analysis.get("hotspots") or [])[:5]
+    ]
+    return f"""Resolve the external knowledge this question needs. Video evidence remains primary: do not invent an unrelated answer and do not tie an answer to a frame that lacks a relevant clue.
 
 Question:
 {question}
@@ -156,7 +163,10 @@ Question:
 Candidate evidence (IDs are immutable; OCR/ASR may be incomplete or misspelled):
 {_candidate_manifest(candidates)}
 
-NVILA visual answer hypotheses:
+What the vision model saw in the most relevant frames:
+{json.dumps(frame_findings, ensure_ascii=False)}
+
+Vision model answer hypotheses (they may be right, partial or wrongly formatted):
 {json.dumps(visual_options, ensure_ascii=False)}
 
 Requirements for this request:
@@ -248,6 +258,11 @@ class DeepSeekGroundingClient:
             raise WebGroundingUnavailable(f"DeepSeek grounding unreachable: {exc}") from exc
 
         parsed = _parse_response(raw)
+        if parsed["fake_tool_call"]:
+            raise WebGroundingUnavailable(
+                f"{model} did not run a web search (it wrote the tool call as text). DeepSeek's "
+                "built-in web search currently runs only on deepseek-v4-pro; set DEEPSEEK_GROUNDING_MODEL."
+            )
         if raw.get("status") == "incomplete":
             reason = ((raw.get("incomplete_details") or {}).get("reason")) or "unknown"
             if not parsed["text"]:
@@ -264,6 +279,7 @@ class DeepSeekGroundingClient:
             "sources": parsed["sources"],
             "queries": parsed["queries"],
             "search_suggestions_html": parsed["search_suggestions_html"],
+            "searched": parsed["searched"],
             "summary": parsed["text"][:1600],
             "latency_ms": round((time.perf_counter() - started) * 1000, 1),
         })

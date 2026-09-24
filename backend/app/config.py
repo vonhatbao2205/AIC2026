@@ -152,6 +152,18 @@ class Settings:
     nvidia_api_key: str | None = None
     nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
     nvidia_fast_model: str = "qwen/qwen3-next-80b-a3b-instruct"
+    # QA copilot visual passes (pass 1: hotspots + answers; pass 3: web answers
+    # checked against the frames). "deepseek": DeepSeek V4.1 Flash reads the
+    # keyframes itself (image input, thinking on) with DEEPSEEK_API_KEY. "nvila":
+    # the NVILA-8B Colab worker below.
+    qa_vision_backend: str = "deepseek"
+    qa_vision_base_url: str = "https://api.deepseek.com"
+    qa_vision_model: str = "deepseek-flash"
+    qa_vision_reasoning_effort: str = "high"
+    # "high" keeps small on-screen text (plates, prices, poem lines) readable.
+    qa_vision_image_detail: str = "high"
+    qa_vision_timeout_seconds: float = 180.0
+    qa_vision_max_output_tokens: int = 16000
     # NVILA-8B visual QA server (the companion Colab notebook exposes /qa/analyze).
     # The URL is a volatile Cloudflare quick-tunnel URL unless a named tunnel is used.
     nvila_base_url: str | None = None
@@ -179,14 +191,16 @@ class Settings:
     # external facts after NVILA has extracted visual/ASR clues. The tool is only
     # available on the Responses API and only for deepseek-v4-flash.
     deepseek_api_key: str | None = None
-    deepseek_grounding_model: str = "deepseek-v4-flash"
+    # The one model whose server-side web_search actually runs (see the adapter);
+    # at "low" effort it answers in ~5-15 s with a real search.
+    deepseek_grounding_model: str = "deepseek-v4-pro"
     deepseek_grounding_base_url: str = "https://api.deepseek.com"
     deepseek_grounding_enabled: bool = True
     deepseek_grounding_timeout_seconds: float = 90.0
     deepseek_grounding_auto_threshold: float = 0.55
     # Thinking is enabled by default and draws from the same budget as the answer.
     deepseek_grounding_max_output_tokens: int = 8000
-    deepseek_grounding_reasoning_effort: str = "high"
+    deepseek_grounding_reasoning_effort: str = "low"
     # --- DRES (official BTC evaluation server, Client API v2) ---
     # Auth is a session: POST /api/v2/login returns a sessionId that every other
     # call carries as ?session=…. Credentials stay backend-side.
@@ -364,6 +378,13 @@ class Settings:
         return bool(self.query_llm_api_key and self.query_llm_model)
 
     @property
+    def has_qa_vision(self) -> bool:
+        """The selected visual QA backend is configured."""
+        if self.qa_vision_backend == "nvila":
+            return self.has_nvila
+        return bool(self.deepseek_api_key)
+
+    @property
     def has_nvila(self) -> bool:
         # The companion worker always requires Bearer auth. Treat a URL without
         # its matching token as incomplete rather than attempting live calls.
@@ -422,6 +443,14 @@ def get_settings() -> Settings:
     except ValueError:
         query_llm_timeout_seconds = 30.0
     deepseek_api_key = _env("DEEPSEEK_API_KEY") or file_default("deepseek_apikey.txt")
+    try:
+        qa_vision_timeout_seconds = min(600.0, max(20.0, float(_env("QA_VISION_TIMEOUT_SECONDS", "180") or "180")))
+    except ValueError:
+        qa_vision_timeout_seconds = 180.0
+    try:
+        qa_vision_max_output_tokens = min(64000, max(2000, int(_env("QA_VISION_MAX_OUTPUT_TOKENS", "16000") or "16000")))
+    except ValueError:
+        qa_vision_max_output_tokens = 16000
 
     try:
         nvila_timeout_seconds = float(_env("NVILA_TIMEOUT_SECONDS", "240") or "240")
@@ -467,9 +496,9 @@ def get_settings() -> Settings:
         )
     except ValueError:
         deepseek_grounding_max_output_tokens = 8000
-    reasoning_effort = (_env("DEEPSEEK_GROUNDING_REASONING_EFFORT", "high") or "high").lower()
+    reasoning_effort = (_env("DEEPSEEK_GROUNDING_REASONING_EFFORT", "low") or "low").lower()
     if reasoning_effort not in {"low", "high", "max"}:
-        reasoning_effort = "high"
+        reasoning_effort = "low"
 
     try:
         dres_segment_pad_ms = int(_env("DRES_SEGMENT_PAD_MS", "500") or "500")
@@ -562,7 +591,14 @@ def get_settings() -> Settings:
         # The worker itself caps a request at 400 documents.
         qwen_reranker_candidates=min(400, max(10, qwen_reranker_candidates)),
         deepseek_api_key=deepseek_api_key,
-        deepseek_grounding_model=_env("DEEPSEEK_GROUNDING_MODEL") or "deepseek-v4-flash",
+        deepseek_grounding_model=_env("DEEPSEEK_GROUNDING_MODEL") or "deepseek-v4-pro",
+        qa_vision_backend=("nvila" if (_env("QA_VISION_BACKEND") or "").strip().lower() == "nvila" else "deepseek"),
+        qa_vision_base_url=(_env("QA_VISION_BASE_URL") or "https://api.deepseek.com").rstrip("/"),
+        qa_vision_model=_env("QA_VISION_MODEL") or "deepseek-flash",
+        qa_vision_reasoning_effort=(_env("QA_VISION_REASONING_EFFORT") or "high").strip().lower(),
+        qa_vision_image_detail=(_env("QA_VISION_IMAGE_DETAIL") or "high").strip().lower(),
+        qa_vision_timeout_seconds=qa_vision_timeout_seconds,
+        qa_vision_max_output_tokens=qa_vision_max_output_tokens,
         deepseek_grounding_base_url=(_env("DEEPSEEK_GROUNDING_BASE_URL") or "https://api.deepseek.com").rstrip("/"),
         deepseek_grounding_enabled=deepseek_grounding_enabled,
         deepseek_grounding_timeout_seconds=max(10.0, deepseek_grounding_timeout_seconds),

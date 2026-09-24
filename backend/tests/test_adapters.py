@@ -446,11 +446,31 @@ async def test_deepseek_grounding_requests_web_search_and_cites_opened_pages(mon
     # web_search only exists on the Responses API; /chat/completions rejects it.
     assert url.endswith("/responses")
     assert body["tools"] == [{"type": "web_search"}]
-    assert body["model"] == "deepseek-v4-flash"
+    assert body["model"] == "deepseek-v4-pro"
+    assert body["reasoning"] == {"effort": "low"}
     assert headers["Authorization"] == "Bearer test-key"
-    assert result["model"] == "deepseek-v4-flash"
+    assert result["model"] == "deepseek-v4-pro"
+    assert result["searched"] is True
     assert result["queries"] == ["Neuschwanstein Disney logo"]
     assert result["sources"][0]["url"] == "https://en.wikipedia.org/wiki/Neuschwanstein_Castle"
+
+
+@pytest.mark.asyncio
+async def test_deepseek_grounding_rejects_a_search_that_never_ran(monkeypatch):
+    """deepseek-flash accepts the tool but writes the call as text instead of
+    searching; its "grounded" answer must not reach the operator as web-backed."""
+    fake, _ = _fake_responses_client({
+        "status": "completed",
+        "output": [{"type": "message", "content": [{"type": "output_text", "text": (
+            '<tool_call> {"name": "search", "arguments": {"query": "FANA"}} </tool_call>'
+        )}]}],
+    })
+    monkeypatch.setattr(deepseek_grounding_module.httpx, "AsyncClient", fake)
+    settings = deepseek_grounding_module.Settings(deepseek_api_key="k", deepseek_grounding_model="deepseek-flash")
+    with pytest.raises(WebGroundingUnavailable, match="did not run a web search"):
+        await DeepSeekGroundingClient(settings).ground(
+            "q", [{"candidate_id": "C01", "video_id": "L30_V072", "pts_time": 1, "evidence": []}], {"candidate_answers": []},
+        )
 
 
 @pytest.mark.asyncio

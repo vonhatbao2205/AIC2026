@@ -1064,6 +1064,7 @@ export default function FullConsole({
       setLatency(res.latency_ms);
       setAppliedScope(res.scope ?? null);
       setAppliedTraffic(null);
+      setPeReport(null);
       setCanvasQueries(res.canvas.queries_en ?? []);
       setSelectedVideo(0);
       setSelectedFrame(0);
@@ -1223,7 +1224,7 @@ export default function FullConsole({
     } catch (error) {
       const message = error instanceof ApiError && typeof error.detail === "string"
         ? error.detail
-        : "NVILA analysis failed — check the Colab worker and backend configuration.";
+        : "QA analysis failed — check the QA vision backend (DEEPSEEK_API_KEY, or the NVILA worker).";
       setQaAnalysisError(message);
       setToast({ msg: message, kind: "bad" });
     } finally {
@@ -2354,6 +2355,8 @@ export default function FullConsole({
               loading={qaAnalyzing}
               error={qaAnalysisError}
               available={health ? Boolean(health.capabilities.qa_nvila) : null}
+              visionModel={(health?.services?.qa_vision as { model?: string } | undefined)?.model ?? null}
+              visionBackend={(health?.services?.qa_vision as { backend?: string } | undefined)?.backend ?? null}
               candidateCount={qaCandidates.length}
               candidateFrames={qaCandidateFrames}
               selectedAnswer={answer}

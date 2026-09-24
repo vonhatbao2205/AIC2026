@@ -40,7 +40,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .adapters.deepseek_grounding import DeepSeekGroundingClient, WebGroundingUnavailable
 from .adapters.dres_client import DresClient, DresError, DresNotConfigured
-from .adapters.nvila_client import NvilaQaClient, NvilaUnavailable
+from .adapters.qa_vision import QaVisionUnavailable, build_qa_vision_client
 from . import paths
 from .canvas import palette_manifest
 from .config import Settings, get_settings
@@ -96,7 +96,7 @@ def build_runtime() -> Settings:
     global search_services, trake_services, timeline_services, media_builders, profile_settings
     global answer_services
     global progressive_service
-    global dres_client, submit_service, media, nvila_qa, web_grounding_client
+    global dres_client, submit_service, media, qa_vision, web_grounding_client
 
     get_settings.cache_clear()
     settings = get_settings()
@@ -126,7 +126,8 @@ def build_runtime() -> Settings:
     # History is reloaded from disk with the new service; it is not credentials.
     submit_service = SubmitService(settings, dres_client)
     media = media_builders["btc"]
-    nvila_qa = NvilaQaClient(settings)
+    # QA copilot passes 1 and 3: DeepSeek V4.1 Flash by default, NVILA if chosen.
+    qa_vision = build_qa_vision_client(settings)
     web_grounding_client = DeepSeekGroundingClient(settings)
     return settings
 
@@ -168,7 +169,7 @@ async def progressive_close(session_id: str):
 
 #: Services whose absence actually degrades retrieval. Everything else is an
 #: accessory the console already hides when its worker is gone — the Rerank tick
-#: box disappears, the QA panel says NVILA is unavailable — so repeating it in
+#: box disappears, the QA panel says its backend is unavailable — so repeating it in
 #: the health banner only teaches the operator to ignore a banner that is
 #: supposed to mean "your search results are wrong". `ok` has always been
 #: computed from these alone; the banner just did not agree with it.
@@ -189,7 +190,7 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
         qwen3_vl_milvus,
         tara_encoder,
         tara_milvus,
-        nvila,
+        qa_visual,
         reranker,
         grounding,
         dres,
@@ -201,7 +202,7 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
         selected.milvus.health_qwen_image(),
         selected.tara.health(),
         selected.milvus.health_tara(),
-        nvila_qa.health(),
+        qa_vision.health(),
         selected.reranker.health(),
         web_grounding_client.health(),
         dres_client.health(),
@@ -219,14 +220,14 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
         "qwen3_vl_milvus": qwen3_vl_milvus,
         "tara_encoder": tara_encoder,
         "tara_milvus": tara_milvus,
-        "nvila_qa": nvila,
+        "qa_vision": qa_visual,
         "qwen_reranker": reranker,
         "web_grounding": grounding,
         "object_index": objects,
         "dres": dres,
     }
-    # NVILA is an optional QA accelerator: a stopped Colab session must not mark
-    # the core retrieval stack unhealthy.
+    # The QA copilot is optional: a missing key or a stopped NVILA Colab session
+    # must not mark the core retrieval stack unhealthy.
     pe_image_ready = bool(milvus.get("ok") and pe.get("ok"))
     qwen3_vl_image_ready = bool(
         selected_settings.is_infoshotpp
@@ -239,10 +240,10 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
         )
     else:
         ok = selected_settings.mock_mode or bool(elastic.get("ok") and pe_image_ready)
-    has_live_nvila = settings.has_nvila and not settings.mock_mode and bool(nvila.get("ok"))
-    has_qa_nvila = settings.mock_mode or has_live_nvila
+    has_live_qa_vision = settings.has_qa_vision and not settings.mock_mode and bool(qa_visual.get("ok"))
+    has_qa_nvila = settings.mock_mode or has_live_qa_vision
     has_qa_visual_verification = settings.mock_mode or (
-        has_live_nvila and bool(nvila.get("visual_verification_pass"))
+        has_live_qa_vision and bool(qa_visual.get("visual_verification_pass"))
     )
     return {
         "ok": ok,
@@ -269,7 +270,7 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
             "ocr_search": "ocr" not in selected_settings.unsupported_channels,
             "speech_search": "speech" not in selected_settings.unsupported_channels,
             "audio_search": "audio" not in selected_settings.unsupported_channels,
-            # NVILA currently reranks/grounds only the QA candidate pack; it is
+            # The QA vision backend grounds only the QA candidate pack; it is
             # not a general reranker for T-KIS/V-KIS/TRAKE retrieval results.
             "vlm_rerank": False,
             # Qwen3-VL-Reranker over the PE candidate pool. The console only
@@ -279,6 +280,7 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
             # The worker returns short verification reasons, never hidden or
             # free-form chain-of-thought traces.
             "vlm_cot": False,
+            # Name kept for the console: "a visual QA backend answers".
             "qa_nvila": has_qa_nvila,
             "qa_hotspot_prediction": has_qa_nvila,
             "qa_candidate_answers": has_qa_nvila,
@@ -516,14 +518,14 @@ async def analyze_qa(req: QaAnalyzeRequest):
         })
 
     try:
-        result = await nvila_qa.analyze(
+        result = await qa_vision.analyze(
             req.question.strip(),
             candidates,
             max_answers=req.max_answers,
         )
-    except NvilaUnavailable as exc:
+    except QaVisionUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-    visual = _normalize_qa_analysis(req.question.strip(), result, candidates, source="nvila")
+    visual = _normalize_qa_analysis(req.question.strip(), result, candidates, source="visual")
     grounding_meta = {
         "requested": req.web_grounding,
         "available": settings.mock_mode or settings.has_web_grounding,
@@ -551,11 +553,14 @@ async def analyze_qa(req: QaAnalyzeRequest):
             grounded_raw = await web_grounding_client.ground(
                 req.question.strip(), candidates, visual, max_answers=req.max_answers,
             )
+            searched = bool(grounded_raw.get("searched", True))
             grounded = _normalize_qa_analysis(
                 req.question.strip(),
                 grounded_raw,
                 candidates,
-                source="web",
+                # An answer the model gave without running a search is its own
+                # knowledge, not a web-grounded one, and is labelled as such.
+                source="web" if searched else "knowledge",
                 sources=grounded_raw.get("sources") or [],
             )
             grounding_meta.update({
@@ -565,7 +570,12 @@ async def analyze_qa(req: QaAnalyzeRequest):
                 "summary": str(grounded_raw.get("summary") or "")[:1600],
                 "latency_ms": _nonnegative_float(grounded_raw.get("latency_ms")),
                 "search_suggestions_html": str(grounded_raw.get("search_suggestions_html") or "")[:30000],
+                "searched": searched,
             })
+            if not searched:
+                visual["warnings"].append(
+                    f"{grounding_meta['model']} answered without searching the web; its answers are model knowledge."
+                )
             if grounded["candidate_answers"]:
                 grounding_meta["visual_verification"]["attempted"] = True
                 verification_options = [
@@ -579,7 +589,7 @@ async def analyze_qa(req: QaAnalyzeRequest):
                     for option in grounded["candidate_answers"]
                 ]
                 try:
-                    verification_raw = await nvila_qa.verify_grounded(
+                    verification_raw = await qa_vision.verify_grounded(
                         req.question.strip(),
                         candidates,
                         verification_options,
@@ -588,11 +598,11 @@ async def analyze_qa(req: QaAnalyzeRequest):
                     grounded, verification_meta = _apply_visual_verification(
                         grounded, verification_raw, candidates,
                     )
-                except NvilaUnavailable as exc:
+                except QaVisionUnavailable as exc:
                     grounded, verification_meta = _apply_visual_verification(
                         grounded, None, candidates,
                     )
-                    visual["warnings"].append(f"NVILA pass-3 verification failed: {exc}"[:500])
+                    visual["warnings"].append(f"Pass-3 visual verification failed: {exc}"[:500])
                 grounding_meta["visual_verification"].update(verification_meta)
             grounding_meta["used"] = bool(grounded["candidate_answers"])
             visual = _merge_qa_analyses(visual, grounded, req.max_answers)
@@ -908,10 +918,10 @@ def _normalize_qa_analysis(
     result: dict,
     candidates: list[dict],
     *,
-    source: str = "nvila",
+    source: str = "visual",
     sources: list[dict] | None = None,
 ) -> dict:
-    """Keep only grounded IDs and attach canonical frame metadata to NVILA output."""
+    """Keep only grounded IDs and attach canonical frame metadata to the visual pass output."""
     by_id = {candidate["candidate_id"]: candidate for candidate in candidates}
     trusted_sources = _trusted_web_sources(sources)
     hotspots = []
@@ -992,7 +1002,7 @@ def _normalize_qa_analysis(
 
     return {
         "question": question,
-        "model": str(result.get("model") or "NVILA-8B"),
+        "model": str(result.get("model") or settings.qa_vision_model),
         "mode": str(result.get("mode") or ("mock" if settings.mock_mode else "live")),
         "answerable": bool(result.get("answerable", bool(answers))) and bool(answers),
         "best_answer": best_answer,
@@ -1006,6 +1016,10 @@ def _normalize_qa_analysis(
         "cached": bool(result.get("cached", False)),
         "warnings": [str(w)[:300] for w in (result.get("warnings") or [])[:8]],
     }
+
+
+#: Answers found by looking at the frames ("nvila" is the pre-DeepSeek name).
+_VISUAL_SOURCES = frozenset({"visual", "nvila"})
 
 
 def _answer_key(answer: str) -> str:
@@ -1022,7 +1036,7 @@ def _apply_visual_verification(
     verification_raw: dict | None,
     candidates: list[dict],
 ) -> tuple[dict, dict]:
-    """Apply NVILA pass-3 verdicts to web answers.
+    """Apply pass-3 visual verdicts to web answers.
 
     Contradicted answers are removed. Insufficient/unverified answers remain
     available to the operator but cannot outrank strongly supported visual
@@ -1075,8 +1089,8 @@ def _apply_visual_verification(
                 "visual_confidence": 0.0,
                 "supporting_candidate_ids": [],
                 "reason": (
-                    "NVILA did not return a verdict for this option."
-                    if verifier_returned else "NVILA pass-3 verification was unavailable."
+                    "The visual check did not return a verdict for this option."
+                    if verifier_returned else "Pass-3 visual verification was unavailable."
                 ),
             }
             normalized_verdicts.append(verdict)
@@ -1140,8 +1154,8 @@ def _merge_qa_analyses(visual: dict, grounded: dict, max_answers: int) -> dict:
             continue
         contradiction = rejected_verdicts.get(key)
         if contradiction is not None:
-            if option.get("source") != "nvila":
-                # A web claim NVILA contradicted carries no visual grounding of
+            if option.get("source") not in _VISUAL_SOURCES:
+                # A web claim the frames contradicted carries no visual grounding of
                 # its own, so it is dropped outright.
                 continue
             # Pass 1 inspected every candidate; pass 3 only sees the hotspot ∪
@@ -1162,7 +1176,7 @@ def _merge_qa_analyses(visual: dict, grounded: dict, max_answers: int) -> dict:
                 "web_sources": list(option.get("web_sources") or []),
             }
             continue
-        directly_grounded = current.get("source") in {"nvila", "hybrid"}
+        directly_grounded = current.get("source") in {*_VISUAL_SOURCES, "hybrid"}
         current["confidence"] = max(current["confidence"], option["confidence"])
         if current.get("source") != option.get("source"):
             current["source"] = "hybrid"
@@ -1204,7 +1218,7 @@ def _merge_qa_analyses(visual: dict, grounded: dict, max_answers: int) -> dict:
 
 # Word-bounded so short terms cannot fire on unrelated syllables: a plain
 # substring test made "ai" match "hai"/"tai"/"vai" and spend a web search plus
-# an NVILA pass-3 round trip on questions that resolve no named entity at all.
+# a pass-3 visual round trip on questions that resolve no named entity at all.
 _ENTITY_QUESTION_RE = re.compile(
     r"\b(?:ai|tên|người nào|thương hiệu|nhãn hiệu|cửa hàng|công ty|tổ chức"
     r"|địa danh|quốc gia|thành phố|name|who|which brand|which company"
@@ -1221,6 +1235,11 @@ def _should_ground_with_web(mode: str, visual: dict, candidates: list[dict]) -> 
     # Keep the existing deterministic visual fixture stable; explicit `on`
     # exercises the mock web-search branch in dedicated tests.
     if settings.mock_mode:
+        return False
+    if "hotspots" in visual and not visual["hotspots"]:
+        # No frame shows the event: the candidates are wrong, and a web search
+        # (measured up to ~75 s on an obscure subject) cannot put the answer on a
+        # frame. Searching again is the fix; "on" still forces the lookup.
         return False
     answers = visual.get("candidate_answers") or []
     top_confidence = max((answer.get("confidence", 0.0) for answer in answers), default=0.0)

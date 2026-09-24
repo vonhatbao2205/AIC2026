@@ -50,7 +50,9 @@ files already in the repo root). See `backend/.env.example`.
 | `QUERY_LLM_API_KEY` | optional | query LLM for parsing and Expand; defaults to `DEEPSEEK_API_KEY` (else heuristics) |
 | `QUERY_LLM_BASE_URL`, `QUERY_LLM_MODEL` | optional | default `https://api.deepseek.com` + `deepseek-flash` (DeepSeek-V4.1-Flash) |
 | `NVIDIA_API_KEY`, `NVIDIA_BASE_URL`, `NVIDIA_FAST_MODEL` | optional | LLM fallback of VI→EN translation only |
-| `NVILA_BASE_URL`, `NVILA_TOKEN` | optional | Colab A100 NVILA-8B QA worker; both are required to enable it |
+| `QA_VISION_BACKEND`, `QA_VISION_MODEL`, `QA_VISION_REASONING_EFFORT`, `QA_VISION_IMAGE_DETAIL` | optional | QA visual passes: `deepseek` (default; `deepseek-flash` reads the frames, thinking `high`, detail `high`) or `nvila` |
+| `DEEPSEEK_GROUNDING_MODEL`, `DEEPSEEK_GROUNDING_REASONING_EFFORT` | optional | web grounding; default `deepseek-v4-pro` at `low` (flash does not execute web_search) |
+| `NVILA_BASE_URL`, `NVILA_TOKEN` | optional | Colab A100 NVILA-8B QA worker (`QA_VISION_BACKEND=nvila`); both are required to enable it |
 | `NVILA_TIMEOUT_SECONDS`, `NVILA_MAX_CANDIDATES` | optional | visual QA timeout and trusted candidate cap (defaults 240s/12) |
 | `DEEPSEEK_API_KEY` | optional | DeepSeek built-in `web_search` grounding for QA; backend-only secret |
 | `DEEPSEEK_GROUNDING_*` | optional | model/base URL/enable flag/timeout/max output tokens/reasoning effort/auto-confidence threshold |
@@ -441,19 +443,25 @@ assigns it to the active event slot. Slots validate increasing `pts_time`.
 **QA copilot** packs a maximum of 12 canonical keyframes. The operator-inspected
 frame is always C01 and counts toward that video's three-frame quota. From C02,
 the remaining candidates are packed in video-score order: fill the diverse-frame
-quota of the highest-ranked video before moving to the next video. NVILA pass 1
-retains 3–5 answer-bearing hypotheses;
-pass 2 asks for 3–5 alternatives when evidence supports them. Zero-confidence,
+quota of the highest-ranked video before moving to the next video. Pass 1
+(`adapters/deepseek_vision_qa.py`, DeepSeek V4.1 Flash with image input and
+thinking; each image preceded by its C-id label and OCR/ASR cues) returns up to
+5 answer-bearing frames and 1–5 exact-format answers in one call — text as
+printed, bare names, the question's own format rules, names "tại thời điểm đó". Zero-confidence,
 placeholder, and unknown-ID outputs are discarded. For entity/world-knowledge
 questions, the backend can call DeepSeek's built-in web_search tool and merge
 cited alternatives without granting the web stage authority to create frames.
-Those alternatives are sent back to NVILA for pass-3 visual verification:
+Web grounding runs on `deepseek-v4-pro` (the only DeepSeek model whose
+server-side web_search actually executes; a model that fakes the tool call is
+rejected, and an answer given without searching is labelled "knowledge"). Auto
+mode skips it when no frame shows the event. Those alternatives are sent back to
+the visual backend for pass-3 verification:
 `contradicted` is discarded, while `insufficient/unverified` is confidence-capped
 and visibly labelled. The UI displays all input candidates and waits for the
 operator to click an answer before it fills the draft or opens evidence.
 
 **Submit guard** shows thumbnail, ids, timestamp, OCR/ASR/audio snippets (and an
-editable NVILA/manual answer for QA), blocks duplicates, and shows the ordered id list for TRAKE.
+editable copilot/manual answer for QA), blocks duplicates, and shows the ordered id list for TRAKE.
 
 **Mock mode**: if services are unreachable, `/api/health` surfaces a warning
 banner and the UI can be driven entirely from backend fixtures. Live mode never

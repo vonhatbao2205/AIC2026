@@ -71,9 +71,13 @@ The repository contains two parts:
   quality)` into one coverage-dominant number, and each result card shows one
   representative per event over a heat row of every moment that event fires;
   clicking one seeks the player there and arms that event's slot.
-- **NVILA-8B QA copilot** — top-video-first candidate blocks, 3–5 visual
-  hypotheses and answer alternatives, DeepSeek web-search grounding, then a
-  third NVILA visual-consistency pass before explicit human verification.
+- **QA copilot** — top-video-first candidate blocks read by **DeepSeek V4.1 Flash**
+  itself (image input, thinking on): answer-bearing frames and exact-format answer
+  alternatives (as printed, bare names, the question's own format rules), then
+  DeepSeek `deepseek-v4-pro` web search for names and facts the frames cannot show,
+  then a Flash visual-consistency pass before explicit human verification.
+  ~15–20 s for all three passes; the NVILA-8B Colab worker remains selectable
+  (`QA_VISION_BACKEND=nvila`).
 - **100-answer generator** — the preliminary round scores
   `Final = (R@1 + R@5 + R@20 + R@50 + R@100) / 5` over up to 100 answers per query,
   so the answer list is a rank-budget problem, not a top-100 dump. Each position
@@ -107,8 +111,8 @@ OFFLINE INDEXING (scripts + notebooks at repo root)
 ONLINE QUERY              │               │
           ▼               ▼               ▼
   backend/  FastAPI ── parse → retrieve (parallel channels) → RRF fuse
-            → group-by-video / TRAKE DP → NVILA QA → DeepSeek web grounding
-            → NVILA visual verification → human choice → submit guard → DRES
+            → group-by-video / TRAKE DP → DeepSeek visual QA → DeepSeek web grounding
+            → DeepSeek visual verification → human choice → submit guard → DRES
           │
           ▼
   frontend/ Vite + React + TS operator console (keyboard-first, timeline)
@@ -250,7 +254,9 @@ Key variables (full list in [backend/.env.example](backend/.env.example)):
 | `DRES_BASE_URL` | official DRES host (SELab: `http://10.0.1.21:20740`) |
 | `DRES_USERNAME`, `DRES_PASSWORD` | participant account — the backend logs in (Client API v2) and keeps the session |
 | `DRES_EVALUATION_ID`, `DRES_SEGMENT_PAD_MS` | optional: pin one run / ± ms around the picked instant (default 500) |
-| `NVILA_BASE_URL`, `NVILA_TOKEN` | optional NVILA-8B QA worker chạy từ Colab notebook |
+| `QA_VISION_BACKEND` | `deepseek` (default: V4.1 Flash reads the QA frames with `DEEPSEEK_API_KEY`) or `nvila` |
+| `DEEPSEEK_GROUNDING_MODEL` | web grounding model; `deepseek-v4-pro` (the only DeepSeek model whose web search runs) |
+| `NVILA_BASE_URL`, `NVILA_TOKEN` | optional NVILA-8B QA worker chạy từ Colab notebook (`QA_VISION_BACKEND=nvila`) |
 | `DEEPSEEK_API_KEY` | optional DeepSeek built-in `web_search` grounding for QA; backend only |
 | `AIC26_MOCK_MODE` | `true` ⇒ run with fixtures, no live services |
 
@@ -301,7 +307,7 @@ DeepSeek (query LLM, web grounding) · Whisper (voice input).
 ## Status
 
 Implemented: multi-channel retrieval + RRF fusion, group-by-video, TRAKE DP,
-query parser (LLM + heuristic), NVILA-8B assisted QA, the 100-answer generator
+query parser (LLM + heuristic), DeepSeek-assisted QA, the 100-answer generator
 and its bulk button in the Submission tab, submit guard, mock mode,
 audio vector search. Planned (clean seams left in place — see
 RETRIEVAL_APP_HANDOFF.md §8): general-purpose VLM reranking,

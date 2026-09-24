@@ -250,7 +250,7 @@ export function Results(props: Props) {
                         ))}
                         {isGlap(f) && <span className="badge glap" title="Matched by GLAP audio-vector search">G</span>}
                         {props.qaHotspotScores?.has(f.submit_keyframe_id) && (
-                          <span className="badge qa-hit" title="NVILA answer-bearing hotspot">
+                          <span className="badge qa-hit" title="QA copilot answer-bearing hotspot">
                             NV {Math.round((props.qaHotspotScores.get(f.submit_keyframe_id) ?? 0) * 100)}
                           </span>
                         )}

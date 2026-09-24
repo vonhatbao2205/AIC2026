@@ -12,9 +12,10 @@ import httpx
 
 from ..config import Settings
 from .http_pool import failure_reason
+from .qa_vision import QaVisionUnavailable
 
 
-class NvilaUnavailable(RuntimeError):
+class NvilaUnavailable(QaVisionUnavailable):
     pass
 
 

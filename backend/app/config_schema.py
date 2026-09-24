@@ -117,8 +117,13 @@ GROUPS: tuple[ConfigGroup, ...] = (
     ),
     ConfigGroup(
         "QA copilot (optional)",
-        "NVILA-8B visual QA worker and DeepSeek web grounding.",
+        "Visual passes on DeepSeek V4.1 Flash (default) or the NVILA-8B worker; DeepSeek web grounding.",
         (
+            ConfigKey("QA_VISION_BACKEND", "deepseek | nvila"),
+            ConfigKey("QA_VISION_MODEL", "Vision model (deepseek-flash)"),
+            ConfigKey("QA_VISION_REASONING_EFFORT", "low | high | max"),
+            ConfigKey("QA_VISION_IMAGE_DETAIL", "low | high | original | auto"),
+            ConfigKey("QA_VISION_TIMEOUT_SECONDS", "Request timeout"),
             ConfigKey("NVILA_BASE_URL", "Colab worker URL"),
             ConfigKey("NVILA_TOKEN", "Worker bearer token", secret=True),
             ConfigKey("NVILA_TIMEOUT_SECONDS", "Request timeout"),

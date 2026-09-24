@@ -460,7 +460,8 @@ export interface QaCandidateAnswer {
   supporting_candidate_ids: string[];
   supporting_frames: QaSupportingFrame[];
   reason: string;
-  source: "nvila" | "web" | "hybrid" | string;
+  /** "visual": found by looking at the frames ("nvila" from older backends). */
+  source: "visual" | "nvila" | "web" | "knowledge" | "hybrid" | string;
   web_sources: QaWebSource[];
   visual_verification?: QaVisualVerificationVerdict;
 }

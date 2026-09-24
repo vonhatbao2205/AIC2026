@@ -353,6 +353,17 @@ def test_auto_grounding_only_fires_on_real_entity_questions(monkeypatch, questio
     assert main_module._should_ground_with_web("auto", visual, candidates) is expected
 
 
+def test_auto_grounding_skips_when_no_frame_shows_the_event(monkeypatch):
+    from app import main as main_module
+
+    monkeypatch.setattr(main_module.settings, "mock_mode", False)
+    monkeypatch.setattr(main_module.settings, "deepseek_api_key", "test-key")
+    monkeypatch.setattr(main_module.settings, "deepseek_grounding_enabled", True)
+    visual = {"question": "Xã này có tên là gì?", "answerable": False, "candidate_answers": [], "hotspots": []}
+    assert main_module._should_ground_with_web("auto", visual, []) is False
+    assert main_module._should_ground_with_web("on", visual, []) is True
+
+
 def test_pass3_supported_answer_uses_nvila_frame_and_fused_confidence():
     grounded = _normalize_qa_analysis(
         "Tên là gì?",

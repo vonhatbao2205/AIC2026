@@ -53,7 +53,7 @@ def test_qa_nvila_analysis_is_grounded_to_canonical_candidates():
     r = client.post("/api/qa/analyze", json=payload)
     assert r.status_code == 200
     body = r.json()
-    assert body["model"] == "mock-nvila-8b"
+    assert body["model"] == "mock-deepseek-vision"
     assert body["candidate_answers"][0]["answer"] == "Bản tin thời sự"
     assert body["hotspots"][0]["submit_keyframe_id"] == "K01/K01_V001/001"
     assert body["hotspots"][0]["keyframe_url"].endswith("/K01_V001/001.jpg")

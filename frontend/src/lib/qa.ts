@@ -74,3 +74,12 @@ export function findQaFrame(groups: VideoGroup[], submitKeyframeId: string): { v
   }
   return null;
 }
+
+/** Short name of the model behind the QA copilot's visual passes, for labels:
+ *  "DeepSeek" (V4.1 Flash reading the frames) or "NVILA" (the Colab worker). */
+export function qaVisionLabel(model?: string | null): string {
+  const name = (model ?? "").toLowerCase();
+  if (name.includes("nvila")) return "NVILA";
+  if (name.includes("deepseek")) return "DeepSeek";
+  return "Visual";
+}
