@@ -40,6 +40,42 @@ export interface ResolvedScope {
   matched_topics: ScopeTopicMatch[];
 }
 
+// ---- PE-Core text window ------------------------------------------------------
+
+/** One text as PE-Core's tokenizer sees it. PE reads `limit` (70) tokens and
+ *  drops the rest without an error. */
+export interface PeTokenCount {
+  text: string;
+  tokens: number;
+  limit: number;
+  truncated: boolean;
+  kept: string;
+  dropped: string;
+}
+
+/** Exact counts of every query a search sent to the PE text encoder. */
+export interface PeQueryReport {
+  context_length: number;
+  limit: number;
+  queries: PeTokenCount[];
+  truncated: number;
+}
+
+/** The search box's live count: exact when PE will read the text as typed,
+ *  estimated (with a range) when the search translates it first. */
+export interface PeLiveReport {
+  context_length: number;
+  limit: number;
+  exact: boolean;
+  text: string;
+  tokens: number;
+  range: [number, number] | null;
+  kept: string;
+  dropped: string;
+  at_risk: string;
+  status: "empty" | "ok" | "near" | "may_exceed" | "over";
+}
+
 // ---- traffic-camera / race-stage filter --------------------------------------
 
 /** `auto` narrows the traffic cameras (N) and the cycling race (S01) to the
@@ -270,6 +306,8 @@ export interface SearchResponse {
   parsed: ParsedQuery;
   scope?: ResolvedScope;
   traffic?: TrafficFilterInfo;
+  /** Null when PE was not searched. */
+  pe_tokens?: PeQueryReport | null;
   groups: VideoGroup[];
   latency_ms: LatencyBreakdown;
   warnings?: string[];
@@ -578,6 +616,8 @@ export interface TrakeSearchResponse {
   parsed: ParsedQuery;
   scope?: ResolvedScope;
   traffic?: TrafficFilterInfo;
+  /** One entry per event query; null when PE was not searched. */
+  pe_tokens?: PeQueryReport | null;
   events: { event_index: number; description_vi: string; candidate_count: number }[];
   /** The video-centric result the console renders. */
   videos?: TrakeVideoResult[];
@@ -659,6 +699,7 @@ export interface SimpleSearchResponse {
   image_models: ImageEmbeddingModel[];
   translated_query?: string | null;
   scope?: ResolvedScope;
+  pe_tokens?: PeQueryReport | null;
   results: SimpleResult[];
   mode: "mock" | "live";
   latency_ms: number;

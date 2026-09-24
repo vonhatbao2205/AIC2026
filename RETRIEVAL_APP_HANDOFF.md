@@ -112,6 +112,7 @@ All endpoints are under `/api`. Responses are JSON.
 | GET | `/api/health` | service reachability + `mode` (`mock`/`live`) + `capabilities` flags + `warnings[]` |
 | POST | `/api/query/parse` | `{query, query_type_hint, previous_hints[], manual_overrides, translate?}` → routing JSON |
 | POST | `/api/search` | `{query, query_type_hint, previous_hints[], manual_overrides, parsed?, feedback?, image_models?, translate?, scope?, traffic?, top_k, max_videos}` |
+| POST | `/api/pe/tokens` | `{query, previous_hints[], translate}` → how much of the visual query PE-Core reads (70 tokens + start/end = its 72-token context; the rest is cut silently). Exact when PE reads the text as typed; estimated with a range when the search will translate it (it never translates here) |
 | POST | `/api/search/simple` | `{query, top_k, scope?, traffic?, rerank?, image_models?, translate?}` → flat keyframe list, no parser and no group-by-video |
 | POST | `/api/search/trake` | `{query, previous_hints[], manual_overrides, image_models?, translate?, scope?, traffic?}` → `videos[]` (video-centric: per-event heat peaks + representatives + best chain) **and** `sequences[]` (the same assembly as flat chains) |
 | POST | `/api/answers/generate` | `{query, query_type_hint, scope?, traffic?, limit<=100, params?, answer_text?, event_count?, groups?/sequences?}` → the ordered answer list (§10). Pass `groups`/`sequences` to rank a result already on screen instead of searching again; `event_count` is the TRAKE row width taken from the statement |
@@ -174,6 +175,8 @@ Two independent visual indices answer the **InfoShot++** keyframes:
   "traffic": {"mode": "auto", "active": true, "cameras": [{"id","label","banner","videos"}],
               "dates": ["2026-06-15"], "time": {"from": "19:03", "to": "19:07", "text": "19:05"},
               "race_stage": null, "videos": 2, "keyframes": 208, "warnings": [], "reason_en": "..."},
+  // Exact token count of every query sent to PE-Core (null when PE is not searched).
+  "pe_tokens": {"limit": 70, "truncated": 1, "queries": [{"tokens": 80, "truncated": true, "kept": "...", "dropped": "..."}]},
   "groups": [{
     "video_id": "K01_V001",
     "video_score": 1.23, "max_score": 0.9, "mean_top_score": 0.5,
@@ -508,9 +511,10 @@ backend/app/
                        eps ladder -> coverage probes, pi x E x N rank budget
   trake.py             sequence assembly, order validation, keyframe snapping
   canvas.py            V-KIS canvas: palette, zones, PE text, Hungarian matching
-  query_parser.py      Nemotron + heuristic routing, manual overrides
+  query_parser.py      LLM (query_llm.py) + heuristic routing, manual overrides
   scope.py             folder scope + FrameFilter (families of videos narrowed to
                        videos / keyframe_n windows), Milvus/Elastic push-down
+  pe_tokens.py         PE-Core CLIP-BPE token count (dependency-free port, same vocab)
   traffic.py           junction / date / time / race-stage cues -> FrameFilter,
                        from traffic_cameras.json (build_traffic_camera_catalog.py)
   types.py / models.py internal dataclasses / pydantic request models

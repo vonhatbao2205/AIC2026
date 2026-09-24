@@ -17,6 +17,7 @@ import type {
   ImageEmbeddingModel,
   KeyframeInfo,
   ParsedQuery,
+  PeLiveReport,
   ProgressiveConfig,
   ProgressiveHint,
   ProgressiveSnapshot,
@@ -166,6 +167,10 @@ export const api = {
         ...(scope ? { scope } : {}),
       }),
     }),
+
+  /** How much of the visual query PE-Core will read (it keeps 70 tokens). */
+  peTokens: (body: { query: string; previous_hints: string[]; translate: boolean }, signal?: AbortSignal) =>
+    request<PeLiveReport>("/api/pe/tokens", { method: "POST", body: JSON.stringify(body), signal }),
 
   parse: (query: string, hint: QueryTypeHint, previous_hints: string[], overrides: ManualOverrides, use_llm = false, translate = true) =>
     request<ParsedQuery>("/api/query/parse", {

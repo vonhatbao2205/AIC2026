@@ -21,6 +21,7 @@ from ..config import Settings
 from ..fusion import DEFAULT_RRF_K, group_by_video, reciprocal_rank_fusion
 from ..identity import group_from_video_id
 from ..media import MediaUrlBuilder
+from ..pe_tokens import pe_query_report
 from ..query_parser import QueryParser
 from ..scope import FrameFilter, ResolvedScope, resolve_scope
 from ..tara_fusion import SCALES, fuse_tara_scales, fuse_video_rankings
@@ -1011,6 +1012,17 @@ class SearchService:
             if overlay:
                 frame.overlay = overlay
 
+    @staticmethod
+    def pe_tokens(queries: Sequence[str], image_models: Sequence[str]) -> dict[str, Any] | None:
+        """Token report of the text queries PE-Core encodes, when PE is searched at all.
+
+        PE reads 70 tokens and silently drops the rest; Qwen3-VL's window is far
+        larger, so a Qwen-only search has nothing to report.
+        """
+        if "pe" not in image_models:
+            return None
+        return pe_query_report([query for query in queries if query and query.strip()])
+
     def resolve_traffic(
         self, mode: str | None, *, query: str, hints: Sequence[str] | None = None
     ) -> TrafficResolution:
@@ -1220,6 +1232,7 @@ class SearchService:
             "image_models": list(selected),
             "scope": scope.to_dict(),
             "traffic": traffic.to_dict(),
+            "pe_tokens": self.pe_tokens([search_text], selected),
             "translated_query": search_text if search_text != query else None,
             "results": results,
             "mode": "mock" if self.s.mock_mode else "live",
@@ -1301,6 +1314,8 @@ class SearchService:
                 latency.setdefault("warnings", []).append(notice)
         latency["parse_ms"] = round(parse_ms, 1)
         latency["total_ms"] = round((time.perf_counter() - t_total) * 1000, 1)
+        visual = (parsed.get("channels") or {}).get("image_pe") or {}
+        pe_tokens = self.pe_tokens(visual.get("queries_en") or [] if visual.get("enabled") else [], image_models)
 
         return {
             "query": query,
@@ -1309,6 +1324,7 @@ class SearchService:
             "parsed": parsed,
             "scope": scope.to_dict(),
             "traffic": traffic.to_dict(),
+            "pe_tokens": pe_tokens,
             "groups": [self._serialize_group(g) for g in groups[: req.get("max_videos", 50)]],
             "latency_ms": latency,
             "warnings": latency.get("warnings", []),

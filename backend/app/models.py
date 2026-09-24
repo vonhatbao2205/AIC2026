@@ -121,6 +121,18 @@ class TranslateRequest(BaseModel):
     text: str = ""
 
 
+class PeTokenRequest(BaseModel):
+    """What the console is about to search, counted against PE-Core's 70-token window.
+
+    Same inputs the search turns into the PE query on the heuristic path: the
+    accumulated hints and the query, translated unless the operator unticked it.
+    """
+
+    query: str = Field(default="", max_length=20_000)
+    previous_hints: list[str] = Field(default_factory=list, max_length=50)
+    translate: bool = True
+
+
 class TrakeSearchRequest(ImageModelSelection):
     query: str = ""
     scope: SearchScope = Field(default_factory=SearchScope)

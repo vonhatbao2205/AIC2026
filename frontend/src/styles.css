@@ -897,6 +897,12 @@ button { font-family: inherit; }
 .order-fb button:disabled { opacity: .35; cursor: default; }
 .order-fb button:disabled:hover { color: var(--fg-faint); }
 .order-tag { color: var(--accent); font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+/* PE-Core 70-token window: live count under the search box, report after a search. */
+.pe-meter { font-size: 11.5px; margin-top: 4px; color: var(--fg-faint); line-height: 1.45; }
+.pe-meter.near, .pe-meter.may_exceed { color: var(--warn); }
+.pe-meter.over { color: var(--bad); }
+.pe-meter .pe-meter-note { color: var(--fg-faint); }
+.pe-report { margin-top: 6px; }
 /* Traffic-camera / race-stage filter in the query-understanding panel. */
 .traffic-filter { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); font-size: 12px; }
 .traffic-head { display: flex; justify-content: space-between; align-items: center; }

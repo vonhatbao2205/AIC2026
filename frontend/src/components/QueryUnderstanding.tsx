@@ -1,5 +1,6 @@
 import { useState } from "react";
-import type { ParsedQuery, TrafficFilterInfo, TrafficFilterMode } from "../api/types";
+import type { ParsedQuery, PeQueryReport, TrafficFilterInfo, TrafficFilterMode } from "../api/types";
+import { clipText } from "./PeTokenMeter";
 import { CHANNELS } from "../lib/constants";
 import { ChannelBadge } from "./Badges";
 
@@ -83,11 +84,14 @@ export function QueryUnderstanding({
   traffic = null,
   trafficMode = "auto",
   onTrafficMode,
+  peTokens = null,
 }: {
   parsed: ParsedQuery | null;
   traffic?: TrafficFilterInfo | null;
   trafficMode?: TrafficFilterMode;
   onTrafficMode?: (mode: TrafficFilterMode) => void;
+  /** Exact counts of what the last search sent to PE-Core. */
+  peTokens?: PeQueryReport | null;
 }) {
   if (!parsed) return null;
   const showTraffic =
@@ -108,6 +112,20 @@ export function QueryUnderstanding({
         <span style={{ color: "var(--fg-faint)", fontSize: 12 }}>routed:</span>
         {enabled.length ? enabled.map((c) => <ChannelBadge key={c} channel={c} />) : <span style={{ fontSize: 12 }}>none</span>}
       </div>
+      {peTokens && peTokens.truncated > 0 && (
+        <div className="pe-report" data-testid="pe-report">
+          <div className="hint-text warn">
+            ⚠ PE-Core read only the first {peTokens.limit} tokens of {peTokens.truncated}/{peTokens.queries.length} visual
+            {peTokens.queries.length === 1 ? " query" : " queries"}; the rest was not searched. Shorten it, or put the
+            distinctive details first.
+          </div>
+          {peTokens.queries.filter((q) => q.truncated).map((q, i) => (
+            <div key={i} className="hint-text">
+              {q.tokens}/{q.limit} tokens · ignored: “{clipText(q.dropped, 200)}”
+            </div>
+          ))}
+        </div>
+      )}
       {showTraffic && <TrafficFilter traffic={traffic!} mode={trafficMode} onMode={onTrafficMode!} />}
       {parsed.filters?.must_not_include?.length ? (
         <div style={{ fontSize: 12 }}>

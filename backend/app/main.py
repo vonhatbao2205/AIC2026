@@ -56,11 +56,13 @@ from .models import (
     SimpleSearchRequest,
     SnapRequest,
     SubmitRequest,
+    PeTokenRequest,
     TranslateRequest,
     TrakeSearchRequest,
 )
 from .scope import catalogue as scope_catalogue, match_topics
-from .translate import translate_vi_to_en
+from .pe_tokens import live_pe_report
+from .translate import _looks_english, translate_vi_to_en
 from .services import config_service
 from .services.answer_service import AnswerService
 from .services.canvas_service import CanvasService
@@ -800,6 +802,24 @@ async def clear_submit_history(task_id: str | None = None, ids: str | None = Non
     """
     id_list = [i for i in (ids or "").split(",") if i.strip()] if ids is not None else None
     return submit_service.clear_history(task_id, id_list)
+
+
+@app.post("/api/pe/tokens")
+async def pe_tokens_endpoint(req: PeTokenRequest):
+    """How much of the visual query PE-Core will read (70 tokens; the rest is cut).
+
+    Counts what the search would send to the PE text tower: the hints and the
+    query joined, as typed when the search will not translate them (translation
+    off, or already English), otherwise estimated for the English translation.
+    It never translates: the console calls this on every pause in typing, and
+    that would spend the rate-limited translator the search itself needs. The
+    search response carries the exact count of what it sent (`pe_tokens`).
+    """
+    text = " ".join([*req.previous_hints, req.query]).strip()
+    will_translate = bool(
+        req.translate and settings.translate_to_en and not settings.mock_mode and not _looks_english(text)
+    )
+    return live_pe_report(text, translated=will_translate)
 
 
 @app.post("/api/translate")

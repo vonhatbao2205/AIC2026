@@ -127,6 +127,15 @@ class TrakeService:
             "parsed": parsed,
             "scope": scope.to_dict(),
             "traffic": traffic.to_dict(),
+            # Each event is its own PE query, so each is counted on its own.
+            "pe_tokens": self.search.pe_tokens(
+                [
+                    query
+                    for ev in events
+                    for query in self._event_to_parsed(parsed, ev)["channels"]["image_pe"]["queries_en"]
+                ],
+                image_models,
+            ),
             "events": per_event_meta,
             # The video-centric result the console renders. `sequences` is the
             # same assembly seen as flat chains, kept because the answer

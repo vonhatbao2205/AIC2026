@@ -13,6 +13,7 @@ import { ScopeFilter } from "./components/ScopeFilter";
 import { DEFAULT_SCOPE_MODE, orderCategories, scopeRequest } from "./lib/scope";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { ImageModelSelector } from "./components/ImageModelSelector";
+import { PeTokenMeter } from "./components/PeTokenMeter";
 import { DEFAULT_IMAGE_MODELS, imageModelsForSearch } from "./lib/imageModels";
 
 // Minimal vector-only view: one query box + slider + keyframe grid.
@@ -127,7 +128,13 @@ export default function SimpleSearch({
       setTranslated(res.translated_query ?? null);
       setAppliedScope(res.scope ?? null);
       setRerankReport(res.reranker ?? null);
-      setWarnings(res.warnings ?? []);
+      const cut = res.pe_tokens?.queries.find((q) => q.truncated);
+      setWarnings([
+        ...(res.warnings ?? []),
+        ...(cut
+          ? [`PE-Core read only ${cut.limit} of ${cut.tokens} tokens; ignored: “${cut.dropped.slice(0, 160)}”`]
+          : []),
+      ]);
       setAnsweredModels(res.image_models ?? [...DEFAULT_IMAGE_MODELS]);
     } catch (e) {
       let msg = "Search failed — is the backend running? (check http://localhost:8000/api/health)";
@@ -186,6 +193,11 @@ export default function SimpleSearch({
             {loading ? "Searching…" : "Search"}
           </button>
         </div>
+        <PeTokenMeter
+          query={query}
+          translate={translate}
+          active={imageModelsForSearch(retrievalDatabase, imageModels).includes("pe")}
+        />
 
         <div className="simple-controls">
           <label className="slider-label">

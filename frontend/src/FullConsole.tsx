@@ -13,6 +13,7 @@ import type {
   ImageEmbeddingModel,
   LatencyBreakdown,
   ParsedQuery,
+  PeQueryReport,
   ProgressiveSnapshot,
   QaAnalysisResponse,
   QueryType,
@@ -210,6 +211,8 @@ export default function FullConsole({
   // the backend reads the cues, so only it can say. Neither re-runs a search.
   const [trafficMode, setTrafficMode] = useState<TrafficFilterMode>("auto");
   const [appliedTraffic, setAppliedTraffic] = useState<TrafficFilterInfo | null>(null);
+  // What the last search actually sent to PE-Core, counted exactly (70-token window).
+  const [peReport, setPeReport] = useState<PeQueryReport | null>(null);
   const [groups, setGroups] = useState<VideoGroup[]>([]);
   // Videos whose frame strip is shown chronologically instead of by relevance.
   // The retrieval ranking in `groups` is never mutated, so "undo" is just
@@ -915,6 +918,7 @@ export default function FullConsole({
         setParsed(res.parsed);
         setAppliedScope(res.scope ?? null);
         setAppliedTraffic(res.traffic ?? null);
+        setPeReport(res.pe_tokens ?? null);
         const grp: VideoGroup[] = res.sequences.map((s) => ({
           video_id: s.video_id,
           video_score: s.score,
@@ -977,6 +981,7 @@ export default function FullConsole({
         setLatency(res.latency_ms);
         setAppliedScope(res.scope ?? null);
         setAppliedTraffic(res.traffic ?? null);
+        setPeReport(res.pe_tokens ?? null);
         if (res.warnings?.length) {
           setToast({ msg: res.warnings.join(" · "), kind: "bad" });
         }
@@ -2166,6 +2171,7 @@ export default function FullConsole({
             onToggleRerank={setRerank}
             translate={translate}
             onToggleTranslate={setTranslate}
+            peActive={imageModelsForSearch(retrievalDatabase, imageModels).includes("pe")}
             rerankAvailable={Boolean(health?.capabilities.visual_rerank)}
             rerankReport={latency?.reranker ?? null}
             imageModelSelector={
@@ -2204,6 +2210,7 @@ export default function FullConsole({
             traffic={appliedTraffic}
             trafficMode={trafficMode}
             onTrafficMode={setTrafficMode}
+            peTokens={peReport}
           />
         </div>
 

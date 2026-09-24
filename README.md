@@ -45,6 +45,12 @@ The repository contains two parts:
   programme, so a topic heuristic reads the folders off the query the same way
   the parser reads channels ("đầu bếp" → L26), while never excluding the
   programmes that carry every subject (the 60-second bulletins and L30).
+- **PE text-window meter** — PE-Core reads 70 text tokens and silently drops the
+  rest; about a third of the organisers' queries are longer than that even in
+  English. The search box counts the query (plus hints) as the operator types —
+  exactly with the PE tokenizer, or estimated when it will be translated — and
+  says which part PE will ignore; each search reports the exact count of what
+  it sent.
 - **Traffic-camera / race filter** (InfoShot++) — every N camera prints its
   junction, date and clock in a banner that batch-2 OCR reads. Street names in the
   query ("Nguyễn Trãi – Cống Quỳnh", NTMK, CMT8), a date ("15/6") or a time

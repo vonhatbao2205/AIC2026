@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
 import type { ParsedQuery, QueryType, RerankerReport } from "../api/types";
+import { PeTokenMeter } from "./PeTokenMeter";
 
 interface Props {
   query: string;
@@ -44,10 +45,12 @@ interface Props {
   /** Folder-scope picker. Passed in rather than built here so the panel keeps
    *  owning only the query text and the knobs that shape one search. */
   scopeFilter?: React.ReactNode;
+  /** PE-Core is among the image indices searched, so its 70-token window applies. */
+  peActive?: boolean;
 }
 
 export function QueryPanel(props: Props) {
-  const { query, setQuery, hints, onAppendHint, onClearHints, onSearch, loading, parsed, queryType, inputRef, useLLM, onToggleLLM, expand, onToggleExpand, rerank, onToggleRerank, rerankAvailable, rerankReport, translate, onToggleTranslate, imageModelSelector, topK, onTopK, appliedTopK, scopeFilter } = props;
+  const { query, setQuery, hints, onAppendHint, onClearHints, onSearch, loading, parsed, queryType, inputRef, useLLM, onToggleLLM, expand, onToggleExpand, rerank, onToggleRerank, rerankAvailable, rerankReport, translate, onToggleTranslate, imageModelSelector, topK, onTopK, appliedTopK, scopeFilter, peActive = false } = props;
   const [listening, setListening] = useState(false);
   const [voiceMsg, setVoiceMsg] = useState<string | null>(null);
   const [interim, setInterim] = useState("");
@@ -225,6 +228,14 @@ export function QueryPanel(props: Props) {
             onSearch();
           }
         }}
+      />
+      <PeTokenMeter
+        query={query}
+        hints={hints}
+        translate={translate}
+        active={peActive}
+        llm={useLLM}
+        perEvent={queryType === "TRAKE"}
       />
       <div className="row mt">
         <button className="btn primary" data-testid="search-btn" onClick={onSearch} disabled={loading}>
