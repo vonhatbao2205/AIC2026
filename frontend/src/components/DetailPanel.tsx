@@ -1,6 +1,7 @@
 import type { Evidence, FrameResult, QueryType } from "../api/types";
 import { boxStyle, layoutEvidenceOf, outlineFor } from "../lib/canvas";
 import { formatTime } from "../lib/media";
+import { overlayText } from "../lib/overlay";
 import { CHANNEL_LABEL } from "../lib/constants";
 import { ChannelBadge } from "./Badges";
 
@@ -20,6 +21,11 @@ function EvidenceCard({ e }: { e: Evidence }) {
   if (e.confidence_bucket) extra.push(String(e.confidence_bucket));
   if (e.segment_role) extra.push(String(e.segment_role));
   if (e.clock) extra.push(`🕑${e.clock}`);
+  // What batch-2 OCR read outside the scene text: camera banner and race HUD.
+  if (e.banner_camera) extra.push(`🚦${e.banner_camera}`);
+  if (e.banner_date) extra.push(`📅${e.banner_date}`);
+  if (e.race_stage != null) extra.push(`stage ${e.race_stage}`);
+  if (e.race_time) extra.push(`race ${e.race_time}`);
   // A merged visual hit shows one badge, so the retrievers behind it have to be
   // readable somewhere: an operator checking a frame needs to know whether both
   // embedding spaces agreed on it or only one of them found it at all.
@@ -36,6 +42,11 @@ function EvidenceCard({ e }: { e: Evidence }) {
         <span className="e-time">{time} · {e.score.toFixed(3)}</span>
       </div>
       {e.text && <div className="e-text">{e.text}</div>}
+      {typeof e.text_ticker === "string" && e.text_ticker && (
+        <div className="e-time" title="News ticker (often a different story from the picture)">
+          ticker: {e.text_ticker.length > 140 ? `${e.text_ticker.slice(0, 140)}…` : e.text_ticker}
+        </div>
+      )}
       {extra.length > 0 && <div className="e-time">{extra.join(" · ")}</div>}
     </div>
   );
@@ -128,6 +139,12 @@ export function DetailPanel({ frame, queryType, onSubmit, onAddToSticky, onCopyI
         <span className="v">{frame.video_id}</span>
         <span className="k">keyframe</span>
         <span className="v">#{frame.keyframe_n} · {formatTime(frame.pts_time)}</span>
+        {frame.overlay && (
+          <>
+            <span className="k">on screen</span>
+            <span className="v" data-testid="frame-overlay">{overlayText(frame.overlay)}</span>
+          </>
+        )}
         <span className="k">fused score</span>
         <span className="v">{frame.score.toFixed(5)}</span>
         <span className="k">channels</span>

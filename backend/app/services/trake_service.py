@@ -64,6 +64,11 @@ class TrakeService:
         # same video, so letting events resolve their own folders could only ever
         # produce sequences that cannot be assembled.
         scope = self.search.resolve_scope(req.get("scope"), query=query)
+        # One camera / time / stage for the whole sequence too: every event
+        # happens in the one video the statement describes.
+        traffic = self.search.resolve_traffic(
+            req.get("traffic"), query=query, hints=req.get("previous_hints")
+        )
         # Run all events' retrieval concurrently.
         results = await asyncio.gather(
             *(
@@ -72,6 +77,7 @@ class TrakeService:
                     top_k=top_k,
                     categories=scope.categories,
                     image_models=image_models,
+                    **({"frames": traffic.frames} if traffic.frames is not None else {}),
                 )
                 for ev in events
             )
@@ -120,6 +126,7 @@ class TrakeService:
             "query": query,
             "parsed": parsed,
             "scope": scope.to_dict(),
+            "traffic": traffic.to_dict(),
             "events": per_event_meta,
             # The video-centric result the console renders. `sequences` is the
             # same assembly seen as flat chains, kept because the answer

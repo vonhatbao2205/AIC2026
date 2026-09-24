@@ -20,6 +20,7 @@ on all 22; dropping the open-subject rule loses the answer on 6 of them.
 """
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 
@@ -460,16 +461,107 @@ def _safe(category: str) -> bool:
     return bool(_SAFE_CATEGORY.match(category))
 
 
-def milvus_filter_expr(categories: tuple[str, ...]) -> str:
-    """Milvus boolean expression restricting a search to these categories."""
+_SAFE_FAMILY = re.compile(r"^[A-Z][A-Za-z0-9]{0,7}-?$")
+_SAFE_VIDEO_ID = re.compile(r"^[A-Z][A-Za-z0-9]{1,7}[-_]V\d{3}$")
+
+
+@dataclass(frozen=True)
+class FrameFilter:
+    """Which frames of some video families may answer; frames of every other family may.
+
+    A family is a video-id prefix: "N" is every traffic camera (no other folder's
+    ids start with N), "S01-" the cycling race. Inside a constrained family only
+    the listed videos pass, each whole (no intervals) or within its `keyframe_n`
+    intervals. That is what lets a query-derived cue narrow the cameras without
+    ever excluding a news bulletin: "Hai Bà Trưng" names a street camera and a
+    historical figure alike, and only the camera side is filtered.
+
+    `windows` is `((video_id, ((first_n, last_n), ...)), ...)`, sorted, so the
+    filter is hashable and two equal filters build the same query text.
+    """
+
+    families: tuple[str, ...]
+    windows: tuple[tuple[str, tuple[tuple[int, int], ...]], ...]
+
+    def __post_init__(self) -> None:
+        if not self.families or not all(_SAFE_FAMILY.match(family) for family in self.families):
+            raise ValueError(f"Invalid frame-filter families: {self.families!r}")
+        for video_id, intervals in self.windows:
+            if not _SAFE_VIDEO_ID.match(video_id) or not self._family_of(video_id):
+                raise ValueError(f"Frame filter lists {video_id!r} outside {self.families!r}")
+            if any(not (isinstance(lo, int) and isinstance(hi, int) and 1 <= lo <= hi) for lo, hi in intervals):
+                raise ValueError(f"Invalid keyframe interval for {video_id}: {intervals!r}")
+
+    def _family_of(self, video_id: str) -> str | None:
+        return next((family for family in self.families if video_id.startswith(family)), None)
+
+    @property
+    def window_map(self) -> dict[str, tuple[tuple[int, int], ...]]:
+        return dict(self.windows)
+
+    def allows(self, video_id: str, keyframe_n: int) -> bool:
+        if not self._family_of(video_id):
+            return True
+        intervals = self.window_map.get(video_id)
+        if intervals is None:
+            return False
+        return not intervals or any(lo <= keyframe_n <= hi for lo, hi in intervals)
+
+    def milvus_expr(self) -> str:
+        """`(outside every family) or (an allowed video [inside its window])`."""
+        outside = " and ".join(f'not (video_id like "{family}%")' for family in self.families)
+        whole = [video_id for video_id, intervals in self.windows if not intervals]
+        allowed = [f"video_id in [{', '.join(json.dumps(v) for v in whole)}]"] if whole else []
+        for video_id, intervals in self.windows:
+            if intervals:
+                ranges = " or ".join(f"(keyframe_n >= {lo} and keyframe_n <= {hi})" for lo, hi in intervals)
+                allowed.append(f'(video_id == "{video_id}" and ({ranges}))')
+        return f"(({outside}) or {' or '.join(allowed)})" if allowed else f"({outside})"
+
+    def elastic_clause(self) -> dict:
+        allowed: list[dict] = [{"bool": {"must_not": [{"prefix": {"video_id": f}} for f in self.families]}}]
+        whole = [video_id for video_id, intervals in self.windows if not intervals]
+        if whole:
+            allowed.append({"terms": {"video_id": whole}})
+        for video_id, intervals in self.windows:
+            if intervals:
+                allowed.append({
+                    "bool": {
+                        "filter": [
+                            {"term": {"video_id": video_id}},
+                            {
+                                "bool": {
+                                    "should": [{"range": {"keyframe_n": {"gte": lo, "lte": hi}}} for lo, hi in intervals],
+                                    "minimum_should_match": 1,
+                                }
+                            },
+                        ]
+                    }
+                })
+        return {"bool": {"should": allowed, "minimum_should_match": 1}}
+
+
+def milvus_filter_expr(categories: tuple[str, ...], frames: FrameFilter | None = None) -> str:
+    """Milvus boolean expression restricting a search to these categories (and frames)."""
     clauses = " or ".join(f'video_id like "{video_id_prefix(cat)}%"' for cat in categories if _safe(cat))
-    return f"({clauses})" if clauses else ""
+    parts = [f"({clauses})" if clauses else "", frames.milvus_expr() if frames else ""]
+    return " and ".join(part for part in parts if part)
 
 
-def elastic_filter_clause(categories: tuple[str, ...]) -> dict | None:
-    """Elastic bool clause restricting a search to these categories."""
+def elastic_filter_clause(categories: tuple[str, ...], frames: FrameFilter | None = None) -> dict | None:
+    """Elastic bool clause restricting a search to these categories (and frames)."""
     prefixes = [{"prefix": {"video_id": video_id_prefix(cat)}} for cat in categories if _safe(cat)]
-    return {"bool": {"should": prefixes, "minimum_should_match": 1}} if prefixes else None
+    clauses = [
+        clause
+        for clause in (
+            {"bool": {"should": prefixes, "minimum_should_match": 1}} if prefixes else None,
+            frames.elastic_clause() if frames else None,
+        )
+        if clause
+    ]
+    if len(clauses) > 1:
+        return {"bool": {"filter": clauses}}
+    return clauses[0] if clauses else None
 
 
 def catalogue(retrieval_database: str) -> dict:

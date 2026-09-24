@@ -40,6 +40,38 @@ export interface ResolvedScope {
   matched_topics: ScopeTopicMatch[];
 }
 
+// ---- traffic-camera / race-stage filter --------------------------------------
+
+/** `auto` narrows the traffic cameras (N) and the cycling race (S01) to the
+ *  junction, date, time or stage the query names; `off` searches them unfiltered. */
+export type TrafficFilterMode = "auto" | "off";
+
+/** What the query's camera / date / time / stage cues restricted. Only the N
+ *  cameras and the S01 race are ever narrowed; every other folder is untouched. */
+export interface TrafficFilterInfo {
+  mode: TrafficFilterMode;
+  active: boolean;
+  streets: string[];
+  cameras: { id: string; label: string; banner: string; videos: string[] }[];
+  dates: string[];
+  time: { from: string; to: string; text: string } | null;
+  race_stage: number | null;
+  videos: number;
+  keyframes: number;
+  warnings: string[];
+  reason_en: string;
+}
+
+/** What the camera banner or race HUD printed on a traffic-camera / S01 frame. */
+export interface FrameOverlay {
+  camera?: string;
+  banner_camera?: string;
+  banner_date?: string;
+  clock?: string;
+  race_stage?: number;
+  race_time?: string;
+}
+
 export interface ScopeCategory {
   category: string;
   label_vi: string;
@@ -77,6 +109,8 @@ export interface FrameResult {
   channels: Channel[];
   per_channel_score: Record<string, number>;
   keyframe_url: string;
+  /** Traffic-camera junction/date/clock or race stage, when the frame has one. */
+  overlay?: FrameOverlay;
   video_url: string;
   evidence: Evidence[];
 }
@@ -235,6 +269,7 @@ export interface SearchResponse {
   query: string;
   parsed: ParsedQuery;
   scope?: ResolvedScope;
+  traffic?: TrafficFilterInfo;
   groups: VideoGroup[];
   latency_ms: LatencyBreakdown;
   warnings?: string[];
@@ -542,6 +577,7 @@ export interface TrakeSearchResponse {
   query: string;
   parsed: ParsedQuery;
   scope?: ResolvedScope;
+  traffic?: TrafficFilterInfo;
   events: { event_index: number; description_vi: string; candidate_count: number }[];
   /** The video-centric result the console renders. */
   videos?: TrakeVideoResult[];

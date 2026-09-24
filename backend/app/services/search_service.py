@@ -22,14 +22,18 @@ from ..fusion import DEFAULT_RRF_K, group_by_video, reciprocal_rank_fusion
 from ..identity import group_from_video_id
 from ..media import MediaUrlBuilder
 from ..query_parser import QueryParser
-from ..scope import ResolvedScope, resolve_scope
+from ..scope import FrameFilter, ResolvedScope, resolve_scope
 from ..tara_fusion import SCALES, fuse_tara_scales, fuse_video_rankings
+from ..traffic import RACE_FAMILY, TrafficResolution, load_catalog, resolve_traffic
 from ..types import Channel, ChannelHit, Evidence, FusedFrame, VideoGroup
 
 
 #: Upper bound of the console's retrieval-depth slider; every returned frame is
 #: enriched so it can be submitted.
 MAX_ENRICHED_FRAMES = 1000
+#: OCR hit fields shown as evidence: the clock, plus what batch-2 OCR keeps outside
+#: `text_clean` — the camera banner, the race HUD and the news ticker.
+_OCR_EVIDENCE_FIELDS = ("clock", "hour", "banner_camera", "banner_date", "race_stage", "race_time", "text_ticker")
 IMAGE_MODELS = ("pe", "qwen3_vl")
 #: The standalone channel each retriever emits when no reranker merges them.
 VISUAL_CHANNEL: dict[str, Channel] = {"pe": "image_pe", "qwen3_vl": "image_qwen"}
@@ -103,6 +107,7 @@ class SearchService:
         *,
         video_id: str | None = None,
         vector_cache: dict | None = None,
+        frames: FrameFilter | None = None,
     ) -> list[dict[str, Any]]:
         """One embedding space -> one ranked list of at most `k` rows.
 
@@ -135,7 +140,8 @@ class SearchService:
             vectors = await encoder.encode_text(list(queries))
         count("index_calls", len(vectors))
         search = functools.partial(searcher, top_k=k, categories=categories,
-                                   **({"video_id": video_id} if video_id is not None else {}))
+                                   **({"video_id": video_id} if video_id is not None else {}),
+                                   **({"frames": frames} if frames is not None else {}))
         if self.milvus.mock:
             raws = [search(vector) for vector in vectors]
         else:
@@ -231,6 +237,7 @@ class SearchService:
         rrf_k: int = DEFAULT_RRF_K,
         report: dict[str, Any] | None = None,
         vector_cache: dict | None = None,
+        frames: FrameFilter | None = None,
     ) -> tuple[dict[Channel, list[ChannelHit]], dict[str, float], list[str]]:
         """The whole visual stage: retrieve -> union -> rerank -> ONE ranking.
 
@@ -276,6 +283,8 @@ class SearchService:
         async def run(model: str) -> tuple[str, list[dict[str, Any]], float]:
             started = time.perf_counter()
             extra = {"vector_cache": vector_cache} if vector_cache is not None else {}
+            if frames is not None:
+                extra["frames"] = frames
             rows = await self._search_visual_model(model, queries, depth, categories, **extra)
             return model, rows, (time.perf_counter() - started) * 1000
 
@@ -470,6 +479,7 @@ class SearchService:
         top_k: int,
         categories: tuple[str, ...] = (),
         image_models: tuple[str, ...] = ("pe",),
+        frames: FrameFilter | None = None,
     ) -> tuple[list[ChannelHit], float]:
         """Image-to-image kNN seeded by the frames the operator marked.
 
@@ -499,7 +509,8 @@ class SearchService:
             raws = await asyncio.gather(
                 *(
                     asyncio.to_thread(
-                        searcher, vector, top_k=top_k, categories=categories
+                        searcher, vector, top_k=top_k, categories=categories,
+                        **({"frames": frames} if frames is not None else {}),
                     )
                     for vector in vectors.values()
                 )
@@ -579,7 +590,11 @@ class SearchService:
         return hits, (time.perf_counter() - t0) * 1000
 
     async def _run_ocr(
-        self, cfg: dict[str, Any], top_k: int, categories: tuple[str, ...] = ()
+        self,
+        cfg: dict[str, Any],
+        top_k: int,
+        categories: tuple[str, ...] = (),
+        frames: FrameFilter | None = None,
     ) -> tuple[list[ChannelHit], float]:
         from ..retrieval_work import count
         count("index_calls")
@@ -594,6 +609,7 @@ class SearchService:
             clock=tf.get("clock"),
             categories=categories,
             size=top_k,
+            **({"frames": frames} if frames is not None else {}),
         )
         hits = [
             ChannelHit(
@@ -607,7 +623,7 @@ class SearchService:
                     type="ocr",
                     score=float(r["score"]),
                     text=r.get("text_clean"),
-                    extra={k: r.get(k) for k in ("clock", "hour") if r.get(k) is not None},
+                    extra={k: r.get(k) for k in _OCR_EVIDENCE_FIELDS if r.get(k) is not None},
                 ),
             )
             for i, r in enumerate(raw)
@@ -615,7 +631,11 @@ class SearchService:
         return hits, (time.perf_counter() - t0) * 1000
 
     async def _run_speech(
-        self, cfg: dict[str, Any], top_k: int, categories: tuple[str, ...] = ()
+        self,
+        cfg: dict[str, Any],
+        top_k: int,
+        categories: tuple[str, ...] = (),
+        frames: FrameFilter | None = None,
     ) -> tuple[list[ChannelHit], float]:
         from ..retrieval_work import count
         count("index_calls")
@@ -625,6 +645,7 @@ class SearchService:
             exact_phrases=cfg.get("exact_phrases") or [],
             categories=categories,
             size=top_k,
+            **({"frames": frames} if frames is not None else {}),
         )
         hits = [
             ChannelHit(
@@ -649,7 +670,11 @@ class SearchService:
         return hits, (time.perf_counter() - t0) * 1000
 
     async def _run_audio(
-        self, cfg: dict[str, Any], top_k: int, categories: tuple[str, ...] = ()
+        self,
+        cfg: dict[str, Any],
+        top_k: int,
+        categories: tuple[str, ...] = (),
+        frames: FrameFilter | None = None,
     ) -> tuple[list[ChannelHit], float]:
         """Audio channel = Elastic tags/caption (BM25 + demotions) FUSED with GLAP
         audio-vector search (semantic sound match). The two ranked lists are merged
@@ -659,7 +684,10 @@ class SearchService:
         queries = cfg.get("queries_en") or []
         labels = cfg.get("sound_labels_en") or []
 
-        elastic_task = self.elastic.search_audio(queries, labels, categories=categories, size=top_k)
+        elastic_task = self.elastic.search_audio(
+            queries, labels, categories=categories, size=top_k,
+            **({"frames": frames} if frames is not None else {}),
+        )
         glap_evidence: dict[str, Evidence] = {}
         glap_raw: list[dict[str, Any]] = []
         if self.glap is not None and not self.glap.mock and (queries or labels):
@@ -730,11 +758,15 @@ class SearchService:
         image_models: tuple[str, ...] = ("pe",),
         trace: Any = None,
         vector_cache: dict | None = None,
+        frames: FrameFilter | None = None,
     ) -> tuple[list[VideoGroup], dict[str, Any]]:
         """`categories` is the resolved search scope: the dataset folders this
         search may return frames from. It is pushed into every channel's own
         query (so top_k is filled from inside the scope) AND re-applied to the
-        hits, which is what keeps mock mode and any future channel honest."""
+        hits, which is what keeps mock mode and any future channel honest.
+
+        `frames` is the traffic-camera / race-stage filter the query's own cues
+        resolved to (`app.traffic`), pushed down and re-applied the same way."""
         channels_cfg = parsed.get("channels", {})
         filters = parsed.get("filters", {})
         unsupported = self.s.unsupported_channels
@@ -773,6 +805,7 @@ class SearchService:
                     rrf_k=rrf_k,
                     report=visual_info,
                     **({"vector_cache": vector_cache} if vector_cache is not None else {}),
+                    **({"frames": frames} if frames is not None else {}),
                 )
             )
         tara_cfg = channels_cfg.get("tara") or {}
@@ -788,14 +821,17 @@ class SearchService:
         for name, runner in runners.items():
             cfg = channels_cfg.get(name, {})
             if cfg.get("enabled"):
-                tasks[name] = asyncio.create_task(runner(cfg, top_k, categories))
+                tasks[name] = asyncio.create_task(
+                    runner(cfg, top_k, categories, **({"frames": frames} if frames is not None else {}))
+                )
         # Feedback-driven, not parser-driven: it exists only while the operator
         # keeps frames marked.
         positive_frames = [str(kf) for kf in (feedback.get("positive_frames") or []) if kf]
         if positive_frames:
             tasks["similar"] = asyncio.create_task(
                 self._run_similar(
-                    positive_frames, top_k, categories, image_models=image_models
+                    positive_frames, top_k, categories, image_models=image_models,
+                    **({"frames": frames} if frames is not None else {}),
                 )
             )
 
@@ -854,7 +890,7 @@ class SearchService:
                 visual_weight = float(channels_cfg.get("image_pe", {}).get("weight") or 1.0)
                 for channel in visual_ms:
                     hits = visual_hits.get(channel, [])
-                    channel_hits[channel] = _apply_filters(hits, filters, categories)
+                    channel_hits[channel] = _apply_filters(hits, filters, categories, frames)
                     latency["channels"][channel] = round(visual_ms[channel], 1)
                     weights[channel] = visual_weight
                     model = next((m for m in visual_models if VISUAL_CHANNEL[m] == channel), None)
@@ -869,7 +905,7 @@ class SearchService:
                 hits, ms = [], 0.0
                 channel_status[name] = "unavailable"
                 warnings.append(f"{name} channel unavailable: {exc}")
-            channel_hits[name] = _apply_filters(hits, filters, categories)
+            channel_hits[name] = _apply_filters(hits, filters, categories, frames)
             latency["channels"][name] = round(ms, 1)
             weights[name] = float(channels_cfg.get(name, {}).get("weight") or 1.0)
         if visual_info:
@@ -892,6 +928,7 @@ class SearchService:
             negative_frames=set(feedback.get("negative_frames") or []),
         )
         await self._enrich_pts(fused)
+        await self._enrich_overlay(fused)
         groups = group_by_video(
             fused,
             prioritized_videos=set(feedback.get("positive_videos") or []),
@@ -944,6 +981,54 @@ class SearchService:
             if frame.fps is None and rec.get("fps") is not None:
                 frame.fps = rec.get("fps")
 
+    async def _enrich_overlay(self, frames: list[FusedFrame]) -> None:
+        """What the banner or race HUD printed on each traffic-camera / S01 frame.
+
+        An operator checking a camera frame needs its junction and clock before
+        submitting, and a visual hit carries no OCR evidence of its own. One
+        batched `_mget` on the OCR index covers them; the junction name comes from
+        the camera catalogue, which reads cleaner than one frame's OCR of it.
+        Fail-open: an unreachable index leaves the frames as they were.
+        """
+        if not self.s.is_infoshotpp:
+            return
+        need = [
+            f for f in frames[:MAX_ENRICHED_FRAMES]
+            if f.video_id.startswith(("N", RACE_FAMILY)) and not f.overlay
+        ]
+        if not need:
+            return
+        try:
+            overlays = await self.elastic.get_ocr_overlays([f.submit_keyframe_id for f in need])
+            catalog = load_catalog()
+        except Exception:  # noqa: BLE001 - a display aid must not fail the search
+            return
+        for frame in need:
+            overlay = dict(overlays.get(frame.submit_keyframe_id) or {})
+            video = catalog.videos.get(frame.video_id)
+            if video is not None:
+                overlay["camera"] = catalog.cameras[video.camera].label
+            if overlay:
+                frame.overlay = overlay
+
+    def resolve_traffic(
+        self, mode: str | None, *, query: str, hints: Sequence[str] | None = None
+    ) -> TrafficResolution:
+        """The traffic-camera / race-stage cues of this query, for THIS profile.
+
+        Only InfoShot++ holds the N cameras and the S01 race. A missing or broken
+        catalogue degrades to "no filter" with a warning instead of failing the
+        search: the cues narrow a search, they are never what makes it work.
+        """
+        mode = "off" if mode == "off" else "auto"
+        if not self.s.is_infoshotpp:
+            return TrafficResolution(mode=mode)
+        text = " ".join([*(hints or []), query or ""]).strip()
+        try:
+            return resolve_traffic(text, mode=mode)
+        except (OSError, ValueError, KeyError) as exc:
+            return TrafficResolution(mode=mode, warnings=[f"Traffic camera catalogue unavailable: {exc}"])
+
     # ---- simple flat vector search ------------------------------------
     async def simple_image_search(
         self,
@@ -953,6 +1038,7 @@ class SearchService:
         rerank: bool = False,
         image_models: Any = None,
         translate: bool = True,
+        traffic_mode: str | None = "auto",
     ) -> dict[str, Any]:
         """Flat visual search over the selected embedding model(s).
 
@@ -967,6 +1053,7 @@ class SearchService:
         query = (query or "").strip()
         selected = self.resolve_image_models(image_models)
         scope = self.resolve_scope(scope_spec, query=query)
+        traffic = self.resolve_traffic(traffic_mode, query=query)
         if not query:
             return {
                 "query": query,
@@ -974,6 +1061,7 @@ class SearchService:
                 "retrieval_database": self.s.retrieval_database,
                 "image_models": list(selected),
                 "scope": scope.to_dict(),
+                "traffic": traffic.to_dict(),
                 "mode": "mock" if self.s.mock_mode else "live",
                 "latency_ms": 0,
             }
@@ -1003,7 +1091,8 @@ class SearchService:
         async def run_model(model: str) -> tuple[str, list[dict[str, Any]]]:
             started = time.perf_counter()
             rows = await self._search_visual_model(
-                model, [search_text], depth, scope.categories
+                model, [search_text], depth, scope.categories,
+                **({"frames": traffic.frames} if traffic.frames is not None else {}),
             )
             model_latency[model] = round((time.perf_counter() - started) * 1000, 1)
             return model, rows
@@ -1130,6 +1219,7 @@ class SearchService:
             "retrieval_database": self.s.retrieval_database,
             "image_models": list(selected),
             "scope": scope.to_dict(),
+            "traffic": traffic.to_dict(),
             "translated_query": search_text if search_text != query else None,
             "results": results,
             "mode": "mock" if self.s.mock_mode else "live",
@@ -1195,6 +1285,7 @@ class SearchService:
             await self.expand_image_queries(parsed)
 
         scope = self.resolve_scope(req.get("scope"), query=query)
+        traffic = self.resolve_traffic(req.get("traffic"), query=query, hints=req.get("previous_hints"))
         groups, latency = await self.retrieve(
             parsed,
             top_k=req.get("top_k", 100),
@@ -1202,6 +1293,7 @@ class SearchService:
             categories=scope.categories,
             rerank=bool(req.get("rerank")),
             image_models=image_models,
+            **({"frames": traffic.frames} if traffic.frames is not None else {}),
         )
         if parsed.get("translation_failed"):
             notice = _translation_warning(image_models)
@@ -1216,6 +1308,7 @@ class SearchService:
             "image_models": list(image_models),
             "parsed": parsed,
             "scope": scope.to_dict(),
+            "traffic": traffic.to_dict(),
             "groups": [self._serialize_group(g) for g in groups[: req.get("max_videos", 50)]],
             "latency_ms": latency,
             "warnings": latency.get("warnings", []),
@@ -1238,6 +1331,7 @@ class SearchService:
             "keyframe_url": self.media.keyframe_url(f.video_id, f.keyframe_n),
             "video_url": self.media.video_url(f.video_id),
             "evidence": [e.to_dict() for e in f.evidence],
+            **({"overlay": f.overlay} if f.overlay else {}),
         }
 
     def _serialize_group(self, g: VideoGroup) -> dict[str, Any]:
@@ -1344,17 +1438,22 @@ def _union_visual_candidates(
 
 
 def _apply_filters(
-    hits: list[ChannelHit], filters: dict[str, Any], scope_categories: tuple[str, ...] = ()
+    hits: list[ChannelHit],
+    filters: dict[str, Any],
+    scope_categories: tuple[str, ...] = (),
+    frames: FrameFilter | None = None,
 ) -> list[ChannelHit]:
-    """Post-filter by the parser's own filters and by the resolved search scope.
+    """Post-filter by the parser's own filters, the resolved scope and the frame filter.
 
-    Both narrow to categories, and they are intersected rather than merged: the
+    All of them narrow, and they are intersected rather than merged: the
     parser's `filters.categories` is what the query itself asked for, the scope is
-    what the operator (or the topic heuristic) allowed, and a frame has to satisfy
-    both."""
+    what the operator (or the topic heuristic) allowed, the frame filter is what
+    the query's camera / time / stage cues allow, and a frame has to satisfy all."""
     video_ids = set(filters.get("video_ids") or [])
     categories = set(filters.get("categories") or [])
     scope = set(scope_categories)
+    if frames is not None:
+        hits = [h for h in hits if frames.allows(h.video_id, h.keyframe_n)]
     if not video_ids and not categories and not scope:
         return hits
     out = []

@@ -3,6 +3,7 @@ import type { FrameResult, VideoGroup } from "../api/types";
 import { formatTime, topRelevanceRanks } from "../lib/media";
 import { ChannelBadges } from "./Badges";
 import { SearchThinking } from "./SearchThinking";
+import { overlayText } from "../lib/overlay";
 
 type ViewMode = "grouped" | "flat";
 
@@ -233,6 +234,7 @@ export function Results(props: Props) {
                       key={f.submit_keyframe_id}
                       className={`thumb ${fsel ? "selected" : ""} ${rank ? `top-rank rank-${rank}` : ""}`}
                       data-testid="frame-thumb"
+                      title={overlayText(f.overlay) || undefined}
                       onClick={() => props.onSelectFrame(gi, fi)}
                     >
                       {rank && (

@@ -11,7 +11,7 @@ from typing import Any
 
 from ..config import Settings
 from ..identity import group_from_video_id, parse_submit_keyframe_id
-from ..scope import milvus_filter_expr
+from ..scope import FrameFilter, milvus_filter_expr
 from .. import mock_data
 from .http_pool import failure_reason
 
@@ -163,6 +163,7 @@ class MilvusClient:
         top_k: int = 100,
         video_id: str | None = None,
         categories: tuple[str, ...] = (),
+        frames: FrameFilter | None = None,
     ) -> list[dict[str, Any]]:
         """Return image hits: submit_keyframe_id, video_id, keyframe_n, score (0..1).
 
@@ -170,13 +171,15 @@ class MilvusClient:
         video's best frame for a specific event). `categories` restricts it to a set
         of dataset folders — pushed into the Milvus filter so the top_k the operator
         asked for is filled from INSIDE the scope, rather than retrieved globally
-        and then thinned out by a post-filter."""
+        and then thinned out by a post-filter. `frames` narrows the traffic cameras /
+        race stage the same way (`app.traffic`)."""
         return self._search_image_collection(
             self.s.milvus_image_collection,
             vector,
             top_k=top_k,
             video_id=video_id,
             categories=categories,
+            frames=frames,
         )
 
     def search_qwen_image(
@@ -186,6 +189,7 @@ class MilvusClient:
         top_k: int = 100,
         video_id: str | None = None,
         categories: tuple[str, ...] = (),
+        frames: FrameFilter | None = None,
     ) -> list[dict[str, Any]]:
         """Search the 4096-d Qwen3-VL InfoShot++ collection.
 
@@ -203,6 +207,7 @@ class MilvusClient:
             top_k=top_k,
             video_id=video_id,
             categories=categories,
+            frames=frames,
         )
 
     def _search_image_collection(
@@ -213,16 +218,18 @@ class MilvusClient:
         top_k: int,
         video_id: str | None,
         categories: tuple[str, ...],
+        frames: FrameFilter | None = None,
     ) -> list[dict[str, Any]]:
         if self.mock:
-            return self._mock_image(top_k=top_k, video_id=video_id, categories=categories)
+            rows = self._mock_image(top_k=top_k, video_id=video_id, categories=categories)
+            return [row for row in rows if not frames or frames.allows(row["video_id"], row["keyframe_n"])]
 
         client = self._connect()
         clauses = [
             expr
             for expr in (
                 f'video_id == "{video_id}"' if video_id else "",
-                milvus_filter_expr(categories),
+                milvus_filter_expr(categories, frames),
             )
             if expr
         ]

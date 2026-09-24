@@ -164,6 +164,7 @@ class AnswerService:
             "query": req.get("query", ""),
             "query_type_hint": req.get("query_type_hint", "auto"),
             "scope": req.get("scope") or {"mode": "auto", "categories": []},
+            "traffic": req.get("traffic") or "auto",
             "previous_hints": req.get("previous_hints") or [],
             "manual_overrides": req.get("manual_overrides")
             or {"force_channels": [], "disable_channels": []},

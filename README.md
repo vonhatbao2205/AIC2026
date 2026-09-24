@@ -45,6 +45,15 @@ The repository contains two parts:
   programme, so a topic heuristic reads the folders off the query the same way
   the parser reads channels ("đầu bếp" → L26), while never excluding the
   programmes that carry every subject (the 60-second bulletins and L30).
+- **Traffic-camera / race filter** (InfoShot++) — every N camera prints its
+  junction, date and clock in a banner that batch-2 OCR reads. Street names in the
+  query ("Nguyễn Trãi – Cống Quỳnh", NTMK, CMT8), a date ("15/6") or a time
+  ("19:05", "7 giờ tối") narrow the traffic cameras to the matching keyframes, and
+  "chặng 6" narrows S01 to that stage's video. It is pushed into Milvus/Elastic like
+  the scope, never excludes another folder, and drops a cue no recording matches
+  with a warning; the console shows what it applied and can switch it off. Camera
+  frames carry their banner reading, and OCR ranks the news ticker, banner and HUD
+  below scene text.
 - **TRAKE** is ranked by **video**, not by keyframe: after pass 1 the per-event
   results become one `video_id -> per-event candidates` map that drives pass-2
   targeting, the DP, the heatmap and the ranking. A temporal NMS keeps distinct
@@ -115,6 +124,8 @@ The broader design/strategy is in **[AIC26_Pipeline.md](AIC26_Pipeline.md)**.
 | `scripts/package.sh`, `scripts/dist/` | Builds the downloadable bundle and the files shipped inside it. |
 | `keyframe_mapping.py` | Build the keyframe → (video, pts_time) map. |
 | `elastic_upload.py` | Index OCR / speech / audio / keyframe-map records into Elastic. |
+| `elastic_upload_batch2_ocr_speech.py` | Append batch-2 OCR (M/N/S01) and speech (M/S01) to the InfoShot++ `*_v2` indices, pinned to the audited sources. |
+| `build_traffic_camera_catalog.py` | Build `backend/app/traffic_cameras.json` (junction, date, per-minute keyframe windows of the 298 N videos) from the batch-2 OCR banner fields. |
 | `milvus_upload.py` | Upload PE-Core-G14 image vectors into Milvus. |
 | `milvus_upload_pe_core.py` | Audit + upload the InfoShot++ PE-Core-G14-448 Parquet dataset (1280-d) into `aic26_image_peg14_infoshotpp_v1`. |
 | `milvus_upload_qwen3_vl_embedding_8b.py` | Audit + upload the InfoShot++ Qwen3-VL-Embedding-8B dataset (native 4096-d, 1.339.055 keyframe, 658 shard) into `aic26_image_qwen3vl8b_infoshotpp_v3`. Shard-atomic resume; joins `frame_id` against the final map CSVs and never treats `frame_idx` as the keyframe ordinal. |

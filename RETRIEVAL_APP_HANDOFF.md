@@ -111,10 +111,10 @@ All endpoints are under `/api`. Responses are JSON.
 |---|---|---|
 | GET | `/api/health` | service reachability + `mode` (`mock`/`live`) + `capabilities` flags + `warnings[]` |
 | POST | `/api/query/parse` | `{query, query_type_hint, previous_hints[], manual_overrides, translate?}` → routing JSON |
-| POST | `/api/search` | `{query, query_type_hint, previous_hints[], manual_overrides, parsed?, feedback?, image_models?, translate?, top_k, max_videos}` |
-| POST | `/api/search/simple` | `{query, top_k, scope?, rerank?, image_models?, translate?}` → flat keyframe list, no parser and no group-by-video |
-| POST | `/api/search/trake` | `{query, previous_hints[], manual_overrides, image_models?, translate?}` → `videos[]` (video-centric: per-event heat peaks + representatives + best chain) **and** `sequences[]` (the same assembly as flat chains) |
-| POST | `/api/answers/generate` | `{query, query_type_hint, scope?, limit<=100, params?, answer_text?, event_count?, groups?/sequences?}` → the ordered answer list (§10). Pass `groups`/`sequences` to rank a result already on screen instead of searching again; `event_count` is the TRAKE row width taken from the statement |
+| POST | `/api/search` | `{query, query_type_hint, previous_hints[], manual_overrides, parsed?, feedback?, image_models?, translate?, scope?, traffic?, top_k, max_videos}` |
+| POST | `/api/search/simple` | `{query, top_k, scope?, traffic?, rerank?, image_models?, translate?}` → flat keyframe list, no parser and no group-by-video |
+| POST | `/api/search/trake` | `{query, previous_hints[], manual_overrides, image_models?, translate?, scope?, traffic?}` → `videos[]` (video-centric: per-event heat peaks + representatives + best chain) **and** `sequences[]` (the same assembly as flat chains) |
+| POST | `/api/answers/generate` | `{query, query_type_hint, scope?, traffic?, limit<=100, params?, answer_text?, event_count?, groups?/sequences?}` → the ordered answer list (§10). Pass `groups`/`sequences` to rank a result already on screen instead of searching again; `event_count` is the TRAKE row width taken from the statement |
 | GET | `/api/canvas/palette` | V-KIS canvas vocabulary: 16 OD colours + canonical labels (+ `colorable`) |
 | POST | `/api/search/canvas` | `{canvas{objects[{label,bbox,color,required}], action_text, mode}}` → same group shape, plus `object_layout` evidence |
 | POST | `/api/qa/analyze` | `{question, candidates[{submit_keyframe_id,...}], max_answers}` → grounded answers + hotspots |
@@ -169,6 +169,11 @@ Two independent visual indices answer the **InfoShot++** keyframes:
   "query": "...",
   "image_models": ["pe"],                  // which visual indices answered
   "parsed": { /* routing JSON, see §5 */ },
+  // InfoShot++: what the query's junction/date/time/stage cues narrowed. Only the
+  // N cameras and the S01 race are ever filtered; `traffic: "off"` disables it.
+  "traffic": {"mode": "auto", "active": true, "cameras": [{"id","label","banner","videos"}],
+              "dates": ["2026-06-15"], "time": {"from": "19:03", "to": "19:07", "text": "19:05"},
+              "race_stage": null, "videos": 2, "keyframes": 208, "warnings": [], "reason_en": "..."},
   "groups": [{
     "video_id": "K01_V001",
     "video_score": 1.23, "max_score": 0.9, "mean_top_score": 0.5,
@@ -183,7 +188,9 @@ Two independent visual indices answer the **InfoShot++** keyframes:
       "per_channel_score": {"image_pe": 0.9, "ocr": 5.0},
       "keyframe_url": "https://.../Keyframes/Keyframes_K01/K01_V001/001.jpg",
       "video_url": "https://.../Videos/Videos_K01/K01_V001.mp4",
-      "evidence": [{"type":"ocr","score":5.0,"text":"...","clock":"18:29:57"}]
+      "evidence": [{"type":"ocr","score":5.0,"text":"...","clock":"18:29:57"}],
+      // N / S01 frames only: what the camera banner or race HUD printed.
+      "overlay": {"camera": "Nguyễn Trãi – Cống Quỳnh (1)", "banner_date": "2026-06-15", "clock": "19:05:08"}
     }]
   }],
   "latency_ms": {"parse_ms":1,"fusion_ms":0.2,"channels":{...},"total_ms":5},
@@ -502,6 +509,10 @@ backend/app/
   trake.py             sequence assembly, order validation, keyframe snapping
   canvas.py            V-KIS canvas: palette, zones, PE text, Hungarian matching
   query_parser.py      Nemotron + heuristic routing, manual overrides
+  scope.py             folder scope + FrameFilter (families of videos narrowed to
+                       videos / keyframe_n windows), Milvus/Elastic push-down
+  traffic.py           junction / date / time / race-stage cues -> FrameFilter,
+                       from traffic_cameras.json (build_traffic_camera_catalog.py)
   types.py / models.py internal dataclasses / pydantic request models
   adapters/            elastic_client, milvus_client, pe_encoder,
                        qwen3_vl_encoder (4096-d text queries), nvila_client,

@@ -16,7 +16,7 @@ from typing import Any
 from .. import mock_data
 from ..config import Settings
 from ..identity import group_from_video_id
-from ..scope import elastic_filter_clause
+from ..scope import FrameFilter, elastic_filter_clause
 from ..scoring import audio_score_multiplier, speech_score_multiplier
 from ..text_normalization import fold_vietnamese
 from .http_pool import PooledHttpClient, failure_reason
@@ -24,6 +24,81 @@ from .http_pool import PooledHttpClient, failure_reason
 
 _OCR_TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
 _OCR_FALLBACK_STRICT_FLOOR = 10
+
+# Batch-2 OCR (M, N, S01) labels every box with the screen region it sits in and
+# keeps overlay text out of `text_clean`: the M news ticker (often a different
+# story from the picture), the N camera banner (junction/date/clock), the S01 race
+# HUD, and channel logos. Scene text stays the strongest evidence; ticker, banner
+# and HUD are still found, but only through their own low-boost clauses, and logos
+# not at all. The L documents predate regions: they carry no `profile`, keep every
+# box, and keep their `text_nfc` clauses, so their ranking is unchanged.
+_OVERLAY_REGIONS = ["ticker", "banner", "hud", "logo_clock"]
+_OVERLAY_FIELDS = ("text_ticker", "text_banner", "text_hud")
+_OVERLAY_PHRASE_BOOST = 3.0
+_OVERLAY_EXACT_BOOST = 4.0
+_OVERLAY_AND_BOOST = 1.5
+_OVERLAY_FOLD_BOOST = 1.5
+#: Fields a hit carries so the console can show what the banner / HUD said.
+_OCR_OVERLAY_SOURCE = ("banner_camera", "banner_date", "race_stage", "race_time", "text_ticker")
+_CLOCK_TEXT = re.compile(r"\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*")
+
+
+def _scene_boxes_phrase(query: str, boost: float) -> dict[str, Any]:
+    """Nested phrase match on one box that is scene text (or predates regions)."""
+    return {
+        "nested": {
+            "path": "boxes",
+            "score_mode": "max",
+            "query": {
+                "bool": {
+                    "must": [{"match_phrase": {"boxes.text": {"query": query, "boost": boost}}}],
+                    "must_not": [{"terms": {"boxes.region": _OVERLAY_REGIONS}}],
+                }
+            },
+        }
+    }
+
+
+def _l_side_only(clause: dict[str, Any]) -> dict[str, Any]:
+    """`text_nfc` holds every box; only documents without regions may score on it."""
+    return {"bool": {"must": [clause], "must_not": [{"exists": {"field": "profile"}}]}}
+
+
+def _overlay_clauses(query: str, *, exact: bool) -> list[dict[str, Any]]:
+    phrase_boost = _OVERLAY_EXACT_BOOST if exact else _OVERLAY_PHRASE_BOOST
+    clauses: list[dict[str, Any]] = []
+    for field in _OVERLAY_FIELDS:
+        clauses.append({"match_phrase": {field: {"query": query, "boost": phrase_boost}}})
+        if not exact:
+            clauses.append({"match": {field: {"query": query, "operator": "and", "boost": _OVERLAY_AND_BOOST}}})
+    return clauses
+
+
+def _time_filters(hour: int | None, clock: str | None) -> list[dict[str, Any]]:
+    """Broadcast/banner clock or race clock; the hour alone only when no clock is given.
+
+    Clocks are stored as printed: HTV7 drops the leading zero ("8:30:13"), the
+    camera banners keep it ("08:12:03"), so both spellings are asked for. A clock
+    without seconds matches every second of that minute, and the S01 race HUD's
+    elapsed `race_time` answers a clock too.
+    """
+    if clock:
+        match = _CLOCK_TEXT.fullmatch(clock)
+        if not match:
+            return [{"term": {"clock": clock}}]
+        hour_text = int(match.group(1))
+        hours = sorted({f"{hour_text:02d}", str(hour_text)})
+        minute, second = match.group(2), match.group(3)
+        should: list[dict[str, Any]] = []
+        for field in ("clock", "race_time"):
+            if second:
+                should.append({"terms": {field: [f"{h}:{minute}:{second}" for h in hours]}})
+            else:
+                should.extend({"prefix": {field: f"{h}:{minute}:"}} for h in hours)
+        return [{"bool": {"should": should, "minimum_should_match": 1}}]
+    if hour is not None:
+        return [{"term": {"hour": hour}}]
+    return []
 
 
 def _unique_text(values: list[str] | None) -> list[str]:
@@ -107,19 +182,9 @@ def _strict_ocr_clauses(
     for phrase in exact_phrases:
         clauses.extend(
             [
-                {
-                    "nested": {
-                        "path": "boxes",
-                        "score_mode": "max",
-                        "query": {
-                            "match_phrase": {
-                                "boxes.text": {"query": phrase, "boost": 16.0}
-                            }
-                        },
-                    }
-                },
+                _scene_boxes_phrase(phrase, 16.0),
                 {"match_phrase": {"text_clean": {"query": phrase, "boost": 12.0}}},
-                {"match_phrase": {"text_nfc": {"query": phrase, "boost": 10.0}}},
+                _l_side_only({"match_phrase": {"text_nfc": {"query": phrase, "boost": 10.0}}}),
                 {
                     "match_phrase": {
                         "text_clean_fold": {
@@ -128,23 +193,14 @@ def _strict_ocr_clauses(
                         }
                     }
                 },
+                *_overlay_clauses(phrase, exact=True),
             ]
         )
 
     for query in queries_vi:
         clauses.extend(
             [
-                {
-                    "nested": {
-                        "path": "boxes",
-                        "score_mode": "max",
-                        "query": {
-                            "match_phrase": {
-                                "boxes.text": {"query": query, "boost": 12.0}
-                            }
-                        },
-                    }
-                },
+                _scene_boxes_phrase(query, 12.0),
                 {"match_phrase": {"text_clean": {"query": query, "boost": 8.0}}},
                 {
                     "match": {
@@ -155,15 +211,18 @@ def _strict_ocr_clauses(
                         }
                     }
                 },
-                {
-                    "match": {
-                        "text_nfc": {
-                            "query": query,
-                            "operator": "and",
-                            "boost": 3.0,
+                _l_side_only(
+                    {
+                        "match": {
+                            "text_nfc": {
+                                "query": query,
+                                "operator": "and",
+                                "boost": 3.0,
+                            }
                         }
                     }
-                },
+                ),
+                *_overlay_clauses(query, exact=False),
             ]
         )
 
@@ -184,6 +243,7 @@ def _strict_ocr_clauses(
                         }
                     }
                 },
+                {"match_phrase": {"text_ticker_fold": {"query": query, "boost": _OVERLAY_FOLD_BOOST}}},
             ]
         )
     return clauses
@@ -269,18 +329,22 @@ def _ocr_hits(data: dict[str, Any]) -> list[dict[str, Any]]:
                 "clock": src.get("clock"),
                 "hour": src.get("hour"),
                 "boxes": src.get("boxes") or [],
+                **{name: src.get(name) for name in _OCR_OVERLAY_SOURCE if src.get(name) not in (None, "")},
             }
         )
     return out
 
 
-def _keep_categories(hits: list[dict[str, Any]], categories: tuple[str, ...]) -> list[dict[str, Any]]:
-    """Mock-mode stand-in for the pushed-down scope filter (same prefix rule)."""
-    if not categories:
-        return hits
+def _keep_categories(
+    hits: list[dict[str, Any]], categories: tuple[str, ...], frames: FrameFilter | None = None
+) -> list[dict[str, Any]]:
+    """Mock-mode stand-in for the pushed-down scope and frame filters (same rules)."""
     wanted = set(categories)
     return [
-        hit for hit in hits if group_from_video_id(str(hit.get("video_id") or "")) in wanted
+        hit
+        for hit in hits
+        if (not wanted or group_from_video_id(str(hit.get("video_id") or "")) in wanted)
+        and (not frames or frames.allows(str(hit.get("video_id") or ""), int(hit.get("keyframe_n") or 0)))
     ]
 
 
@@ -326,6 +390,7 @@ class ElasticClient:
         hour: int | None = None,
         clock: str | None = None,
         categories: tuple[str, ...] = (),
+        frames: FrameFilter | None = None,
         size: int = 100,
     ) -> list[dict[str, Any]]:
         queries_vi = _unique_text(queries_vi)
@@ -355,6 +420,7 @@ class ElasticClient:
                     size=size,
                 ),
                 categories,
+                frames,
             )
 
         safe_numbers = _safe_numbers(
@@ -382,14 +448,10 @@ class ElasticClient:
             # option of a dis_max alongside "69" it costs nothing.
             strict += _strict_ocr_clauses([], [], safe_numbers)
 
-        time_filters: list[dict] = []
-        if hour is not None:
-            time_filters.append({"term": {"hour": hour}})
-        if clock:
-            time_filters.append({"term": {"clock": clock}})
+        time_filters = _time_filters(hour, clock)
         # The scope constrains WHERE to look, never WHAT counts as a match, so it
         # rides in `filter` (no scoring effect) and applies to the fuzzy pass too.
-        scope_clause = elastic_filter_clause(categories)
+        scope_clause = elastic_filter_clause(categories, frames)
         scope_filters = [scope_clause] if scope_clause else []
 
         if strict:
@@ -455,19 +517,20 @@ class ElasticClient:
         *,
         exact_phrases: list[str] | None = None,
         categories: tuple[str, ...] = (),
+        frames: FrameFilter | None = None,
         size: int = 100,
     ) -> list[dict[str, Any]]:
         if not queries_vi and not (exact_phrases or []):
             return []
         if self.mock:
-            return _keep_categories(self._mock_speech(queries_vi, size=size), categories)
+            return _keep_categories(self._mock_speech(queries_vi, size=size), categories, frames)
 
         should: list[dict] = [{"match": {"text": {"query": q}}} for q in queries_vi]
         for p in (exact_phrases or []):
             should.append({"match_phrase": {"text": {"query": p, "boost": 3.0}}})
         if not should:
             return []
-        scope_clause = elastic_filter_clause(categories)
+        scope_clause = elastic_filter_clause(categories, frames)
         body = {
             "size": size,
             "query": {
@@ -507,13 +570,14 @@ class ElasticClient:
         sound_labels: list[str] | None = None,
         *,
         categories: tuple[str, ...] = (),
+        frames: FrameFilter | None = None,
         size: int = 100,
     ) -> list[dict[str, Any]]:
         if not queries_en and not (sound_labels or []):
             return []
         if self.mock:
             return _keep_categories(
-                self._mock_audio(queries_en + (sound_labels or []), size=size), categories
+                self._mock_audio(queries_en + (sound_labels or []), size=size), categories, frames
             )
 
         should: list[dict] = []
@@ -526,7 +590,7 @@ class ElasticClient:
             should.append({"match": {"tag_labels": {"query": q}}})
         if not should:
             return []
-        scope_clause = elastic_filter_clause(categories)
+        scope_clause = elastic_filter_clause(categories, frames)
         body = {
             "size": size,
             "query": {
@@ -600,6 +664,32 @@ class ElasticClient:
             if doc.get("found"):
                 out2[doc["_id"]] = doc.get("_source", {})
         return out2
+
+    async def get_ocr_overlays(self, ids: list[str]) -> dict[str, dict[str, Any]]:
+        """What the banner / HUD / clock of these keyframes read, by submit_keyframe_id.
+
+        One `_mget` on the OCR index (whose `_id` is the submit id). Only the
+        overlay fields travel; frames without OCR are simply absent.
+        """
+        if not ids or self.mock:
+            return {}
+        fields = ["banner_camera", "banner_date", "clock", "race_stage", "race_time"]
+        url = f"{self._base}/{self.s.idx_ocr}/_mget"
+        resp = await self._http.get().post(
+            url,
+            params={"_source_includes": ",".join(fields)},
+            json={"ids": ids},
+            headers=self._headers(),
+            timeout=20.0,
+        )
+        resp.raise_for_status()
+        out: dict[str, dict[str, Any]] = {}
+        for doc in resp.json().get("docs", []):
+            source = doc.get("_source") or {}
+            values = {name: source[name] for name in fields if source.get(name) not in (None, "")}
+            if doc.get("found") and values:
+                out[doc["_id"]] = values
+        return out
 
     async def nearest_keyframes_by_time(
         self, positions: list[tuple[str, float]]

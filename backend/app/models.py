@@ -46,6 +46,11 @@ class SearchScope(BaseModel):
     categories: list[str] = Field(default_factory=list, max_length=256)
 
 
+#: `auto` narrows the traffic cameras / cycling race to the junction, date, time or
+#: stage the query names (`app.traffic`); `off` searches them unfiltered.
+TrafficFilterMode = Literal["auto", "off"]
+
+
 class ManualOverrides(BaseModel):
     force_channels: list[str] = Field(default_factory=list)
     disable_channels: list[str] = Field(default_factory=list)
@@ -77,6 +82,7 @@ class SearchRequest(ImageModelSelection):
     query: str = ""
     query_type_hint: QueryTypeHint = "auto"
     scope: SearchScope = Field(default_factory=SearchScope)
+    traffic: TrafficFilterMode = "auto"
     previous_hints: list[str] = Field(default_factory=list)
     manual_overrides: ManualOverrides = Field(default_factory=ManualOverrides)
     parsed: dict[str, Any] | None = None  # reuse a prior parse to skip re-parsing
@@ -101,6 +107,7 @@ class SearchRequest(ImageModelSelection):
 class SimpleSearchRequest(ImageModelSelection):
     query: str = ""
     scope: SearchScope = Field(default_factory=SearchScope)
+    traffic: TrafficFilterMode = "auto"
     top_k: int = 60
     rerank: bool = False
     #: VI→EN translation of the visual query, ticked on by default in the console.
@@ -117,6 +124,7 @@ class TranslateRequest(BaseModel):
 class TrakeSearchRequest(ImageModelSelection):
     query: str = ""
     scope: SearchScope = Field(default_factory=SearchScope)
+    traffic: TrafficFilterMode = "auto"
     previous_hints: list[str] = Field(default_factory=list)
     manual_overrides: ManualOverrides = Field(default_factory=ManualOverrides)
     parsed: dict[str, Any] | None = None
@@ -151,6 +159,7 @@ class AnswerGenerateRequest(ImageModelSelection):
     query: str = ""
     query_type_hint: QueryTypeHint = "T-KIS"
     scope: SearchScope = Field(default_factory=SearchScope)
+    traffic: TrafficFilterMode = "auto"
     previous_hints: list[str] = Field(default_factory=list)
     manual_overrides: ManualOverrides = Field(default_factory=ManualOverrides)
     parsed: dict[str, Any] | None = None

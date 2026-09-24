@@ -120,7 +120,10 @@ async def test_ocr_digits_only_query_scores_on_boxes_not_just_filters(settings, 
     # The overlay number is its own OCR box, so the boxes clause is what ranks the
     # right frame above a long ticker that happens to mention the same digits.
     assert nested and nested[0]["nested"]["path"] == "boxes"
-    assert nested[0]["nested"]["query"]["match_phrase"]["boxes.text"]["query"] == "69"
+    box_query = nested[0]["nested"]["query"]["bool"]
+    assert box_query["must"][0]["match_phrase"]["boxes.text"]["query"] == "69"
+    # Only scene boxes rank this high: a ticker/banner/HUD box is overlay text.
+    assert box_query["must_not"] == [{"terms": {"boxes.region": ["ticker", "banner", "hud", "logo_clock"]}}]
     # ...and the number stays required, not merely preferred.
     numeric = bodies[0]["query"]["bool"]["filter"][0]["dis_max"]["queries"]
     assert {next(iter(q["match"].values()))["query"] for q in numeric} == {"69"}
@@ -184,9 +187,18 @@ async def test_ocr_clock_only_query_still_searches(settings, monkeypatch):
     await client.search_ocr([], [], hour=18, clock="18:29:57")
 
     assert len(bodies) == 1
+    # The clock implies the hour; it matches the broadcast/banner clock as printed
+    # (with or without the leading zero) or the S01 race clock.
     assert bodies[0]["query"]["bool"]["filter"] == [
-        {"term": {"hour": 18}},
-        {"term": {"clock": "18:29:57"}},
+        {
+            "bool": {
+                "should": [
+                    {"terms": {"clock": ["18:29:57"]}},
+                    {"terms": {"race_time": ["18:29:57"]}},
+                ],
+                "minimum_should_match": 1,
+            }
+        }
     ]
     assert bodies[0]["query"]["bool"]["must"] == []
 

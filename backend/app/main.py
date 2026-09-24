@@ -404,6 +404,7 @@ async def search_simple(req: SimpleSearchRequest):
             rerank=req.rerank,
             image_models=req.image_models,
             translate=req.translate,
+            traffic_mode=req.traffic,
         )
     except ServiceUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

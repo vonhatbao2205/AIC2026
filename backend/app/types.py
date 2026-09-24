@@ -90,6 +90,9 @@ class FusedFrame:
     # keeps the undistorted value for the TRAKE heatmap, which normalizes every
     # event on its own scale.
     fill_quality: float | None = None
+    # What the traffic-camera banner / race HUD printed on this frame (junction,
+    # date, clock, stage), for the operator to check before submitting.
+    overlay: dict[str, Any] = field(default_factory=dict)
 
     @property
     def image_id(self) -> str:

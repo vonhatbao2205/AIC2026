@@ -897,6 +897,11 @@ button { font-family: inherit; }
 .order-fb button:disabled { opacity: .35; cursor: default; }
 .order-fb button:disabled:hover { color: var(--fg-faint); }
 .order-tag { color: var(--accent); font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+/* Traffic-camera / race-stage filter in the query-understanding panel. */
+.traffic-filter { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); font-size: 12px; }
+.traffic-head { display: flex; justify-content: space-between; align-items: center; }
+.traffic-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.badge.traffic { color: var(--ch-ocr); background: color-mix(in srgb, var(--ch-ocr) 14%, transparent); }
 .badge.similar { background: color-mix(in srgb, var(--e3) 18%, transparent); color: var(--e3); }
 
 /* ---- Neighbour keyframe browser (K) ------------------------------------- */

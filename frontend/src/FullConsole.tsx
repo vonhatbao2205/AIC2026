@@ -23,6 +23,8 @@ import type {
   SubmitEntry,
   SubmitPreview,
   Timeline as TimelineData,
+  TrafficFilterInfo,
+  TrafficFilterMode,
   TrakeHeatPeak,
   TrakeVideoResult,
   VideoGroup,
@@ -203,6 +205,11 @@ export default function FullConsole({
   const [scopeCatalogue, setScopeCatalogue] = useState<ScopeCatalogue | null>(null);
   const [scopeError, setScopeError] = useState<string | null>(null);
   const [appliedScope, setAppliedScope] = useState<ResolvedScope | null>(null);
+  // Camera / date / time / race-stage cues of the query. `trafficMode` is the
+  // policy for the next search, `appliedTraffic` what the last one restricted —
+  // the backend reads the cues, so only it can say. Neither re-runs a search.
+  const [trafficMode, setTrafficMode] = useState<TrafficFilterMode>("auto");
+  const [appliedTraffic, setAppliedTraffic] = useState<TrafficFilterInfo | null>(null);
   const [groups, setGroups] = useState<VideoGroup[]>([]);
   // Videos whose frame strip is shown chronologically instead of by relevance.
   // The retrieval ranking in `groups` is never mutated, so "undo" is just
@@ -829,6 +836,7 @@ export default function FullConsole({
     setScopeError(null);
     // The applied scope was resolved against the other profile's folders.
     setAppliedScope(null);
+    setAppliedTraffic(null);
     api.searchScope(retrievalDatabase).then(
       (body) => {
         if (cancelled) return;
@@ -902,10 +910,11 @@ export default function FullConsole({
     setCanvasQueries([]);
     try {
       if (queryType === "TRAKE") {
-        const res = await api.searchTrake({ retrieval_database: retrievalDatabase, image_models: imageModelsForSearch(retrievalDatabase, imageModels), query, scope: scopeRequest(scopeMode, scopeSelection), previous_hints: hints, manual_overrides: overrides, use_llm: useLLM, expand, translate, top_k: Math.max(topK, TRAKE_MIN_TOP_K) });
+        const res = await api.searchTrake({ retrieval_database: retrievalDatabase, image_models: imageModelsForSearch(retrievalDatabase, imageModels), query, scope: scopeRequest(scopeMode, scopeSelection), traffic: trafficMode, previous_hints: hints, manual_overrides: overrides, use_llm: useLLM, expand, translate, top_k: Math.max(topK, TRAKE_MIN_TOP_K) });
         if (owner !== searchOwner.current) return;
         setParsed(res.parsed);
         setAppliedScope(res.scope ?? null);
+        setAppliedTraffic(res.traffic ?? null);
         const grp: VideoGroup[] = res.sequences.map((s) => ({
           video_id: s.video_id,
           video_score: s.score,
@@ -948,6 +957,7 @@ export default function FullConsole({
           query,
           query_type_hint: queryType,
           scope: scopeRequest(scopeMode, scopeSelection),
+          traffic: trafficMode,
           previous_hints: hints,
           manual_overrides: overrides,
           feedback,
@@ -966,6 +976,7 @@ export default function FullConsole({
         setGroups(res.groups);
         setLatency(res.latency_ms);
         setAppliedScope(res.scope ?? null);
+        setAppliedTraffic(res.traffic ?? null);
         if (res.warnings?.length) {
           setToast({ msg: res.warnings.join(" · "), kind: "bad" });
         }
@@ -982,7 +993,7 @@ export default function FullConsole({
       if (owner === searchOwner.current) setLoading(false);
     }
     // `topK` is read here, not watched: nothing re-runs a search when it moves.
-  }, [queryState, hints, overrides, queryType, feedback, useLLM, expand, translate, rerank, imageModels, retrievalDatabase, topK, scopeMode, scopeSelection, progressiveActive]);
+  }, [queryState, hints, overrides, queryType, feedback, useLLM, expand, translate, rerank, imageModels, retrievalDatabase, topK, scopeMode, scopeSelection, trafficMode, progressiveActive]);
 
   // The tab rail shows a spinner per tab, so the parent has to know which tabs
   // are still running after an import kicked all of them off at once.
@@ -1047,6 +1058,7 @@ export default function FullConsole({
       setChainOverrides({});
       setLatency(res.latency_ms);
       setAppliedScope(res.scope ?? null);
+      setAppliedTraffic(null);
       setCanvasQueries(res.canvas.queries_en ?? []);
       setSelectedVideo(0);
       setSelectedFrame(0);
@@ -2187,7 +2199,12 @@ export default function FullConsole({
           />
           }
           {!progressiveActive && <ChannelControls retrievalDatabase={retrievalDatabase} parsed={parsed} overrides={overrides} onToggle={toggleChannel} />}
-          <QueryUnderstanding parsed={parsed} />
+          <QueryUnderstanding
+            parsed={parsed}
+            traffic={appliedTraffic}
+            trafficMode={trafficMode}
+            onTrafficMode={setTrafficMode}
+          />
         </div>
 
         {/* CENTER */}

@@ -28,6 +28,7 @@ import type {
   SearchResponse,
   SearchScope,
   SimpleSearchResponse,
+  TrafficFilterMode,
   SnapResult,
   SubmitEntry,
   SubmitPreview,
@@ -178,6 +179,8 @@ export const api = {
     query: string;
     query_type_hint: QueryTypeHint;
     scope?: SearchScope;
+    /** Camera / date / time / race-stage cues of the query (default `auto`). */
+    traffic?: TrafficFilterMode;
     previous_hints: string[];
     manual_overrides: ManualOverrides;
     parsed?: ParsedQuery | null;
@@ -197,7 +200,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
-  searchTrake: (body: { retrieval_database: RetrievalDatabase; image_models: ImageEmbeddingModel[]; query: string; scope?: SearchScope; previous_hints: string[]; manual_overrides: ManualOverrides; use_llm?: boolean; expand?: boolean; translate?: boolean; top_k?: number }) =>
+  searchTrake: (body: { retrieval_database: RetrievalDatabase; image_models: ImageEmbeddingModel[]; query: string; scope?: SearchScope; traffic?: TrafficFilterMode; previous_hints: string[]; manual_overrides: ManualOverrides; use_llm?: boolean; expand?: boolean; translate?: boolean; top_k?: number }) =>
     request<TrakeSearchResponse>("/api/search/trake", {
       method: "POST",
       body: JSON.stringify(body),
