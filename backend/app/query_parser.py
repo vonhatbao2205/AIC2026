@@ -160,7 +160,7 @@ def heuristic_parse(
     is_trake = query_type_hint == "TRAKE" or any(c in low for c in _TRAKE_CONNECTORS)
     is_qa = query_type_hint == "QA" or any(m in low for m in _QA_MARKERS)
 
-    if query_type_hint in {"T-KIS", "QA", "V-KIS", "TRAKE"}:
+    if query_type_hint in {"T-KIS", "QA", "V-KIS", "TRAKE", "AVS"}:
         query_type = query_type_hint
     elif is_trake:
         query_type = "TRAKE"
@@ -237,7 +237,7 @@ def heuristic_parse(
         "original_query": query,
         "normalized_vi": combined,
         "translated_en_visual": combined,
-        "operator_summary_vi": f"Heuristic routing cho query: {query}",
+        "operator_summary_vi": f"Heuristic routing for query: {query}",
         "channels": channels,
         "filters": {"video_ids": [], "categories": [], "time_range_seconds": None, "must_include": [], "must_not_include": []},
         "trake": trake,
@@ -323,7 +323,7 @@ Return JSON only using exactly this schema:
 
 _SCHEMA_HINT = json.dumps(
     {
-        "query_type": "T-KIS|QA|V-KIS|TRAKE",
+        "query_type": "T-KIS|QA|V-KIS|TRAKE|AVS",
         "confidence": 0.0,
         "original_query": "",
         "normalized_vi": "",
@@ -362,7 +362,7 @@ NOT TRAKE — do not invent events. Do NOT output rerank_policy, ui_hints, or qa
 
 _SLIM_SCHEMA_HINT = json.dumps(
     {
-        "query_type": "T-KIS|QA|V-KIS|TRAKE",
+        "query_type": "T-KIS|QA|V-KIS|TRAKE|AVS",
         "confidence": 0.0,
         "translated_en_visual": "",
         "channels": {
@@ -502,6 +502,9 @@ class QueryParser:
                 # translation" would still search with English the operator
                 # never wrote.
                 _drop_translation(parsed)
+            if query_type_hint == "AVS":
+                parsed["query_type"] = "AVS"
+                parsed["trake"] = {"enabled": False, "events": []}
             base = parsed
             # A failed VI→EN translation is transient — a rate limit, or the
             # network buckling under a bulk run. `translate.py` refuses to cache

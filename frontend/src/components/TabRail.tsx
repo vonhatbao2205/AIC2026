@@ -27,6 +27,7 @@ interface Props {
 }
 
 const TYPE_CLASS: Record<QueryType, string> = {
+  AVS: "tkis",
   "T-KIS": "tkis",
   QA: "qa",
   "V-KIS": "vkis",
@@ -35,6 +36,7 @@ const TYPE_CLASS: Record<QueryType, string> = {
 
 /** Two-letter stand-ins shown while the rail is collapsed. */
 const TYPE_CODE: Record<QueryType, string> = {
+  AVS: "AV",
   "T-KIS": "TK",
   QA: "QA",
   "V-KIS": "VK",

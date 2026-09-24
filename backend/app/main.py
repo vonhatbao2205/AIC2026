@@ -1,4 +1,4 @@
-"""AIC26 retrieval backend — FastAPI app.
+"""ClueScope retrieval backend — FastAPI app.
 
 Endpoints:
   GET  /api/health
@@ -73,7 +73,7 @@ from .services.trake_service import TrakeService
 from .trake import snap_to_keyframe
 
 settings = get_settings()
-app = FastAPI(title="AIC26 Retrieval Backend", version="1.0.0")
+app = FastAPI(title="ClueScope Retrieval Backend", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -765,6 +765,8 @@ async def submit(req: SubmitRequest):
             answer_mode=req.answer_mode,
             pad_ms=req.segment_pad_ms,
             allow_duplicate=req.allow_duplicate,
+            require_dres=req.require_dres,
+            expected_task_name=req.expected_task_name,
         )
     except DuplicateSubmitError as exc:
         raise HTTPException(

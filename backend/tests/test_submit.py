@@ -4,6 +4,7 @@ from app.services.submit_service import (
     DuplicateSubmitError,
     SubmitFormatError,
     SubmitService,
+    answer_shape_mismatch,
     build_answer_sets,
     resolve_answer_mode,
 )
@@ -156,20 +157,27 @@ def test_explicit_ms_window_wins_and_is_ordered():
     assert answers[0] == {"mediaItemName": "L21_V029", "start": 3000, "end": 9000}
 
 
-def test_qa_answer_carries_the_segment_and_the_text():
-    """BTC's payload example: mediaItemName + start + end + text in ONE answer."""
+def test_qa_answer_is_the_final_round_text_form():
+    """HD-ChungKet-2026: {"text": "QA-<ANSWER>-<VIDEO_ID>-<TIME(ms)>"}, the frame's instant."""
     sets = build_answer_sets(
         task_name="qa-00",
         query_type="QA",
-        payload={"video_id": "L02_V003", "frame_idx": 888, "timestamp": 35.5, "answer": "15 người"},
+        payload={"video_id": "L02_V003", "frame_idx": 888, "timestamp": 35.5, "answer": " 15  người\n"},
         pad_ms=500,
     )
-    assert sets == [{
-        "taskName": "qa-00",
-        "answers": [{
-            "mediaItemName": "L02_V003", "start": 35000, "end": 36000, "text": "15 người",
-        }],
-    }]
+    assert sets == [{"taskName": "qa-00", "answers": [{"text": "QA-15 người-L02_V003-35500"}]}]
+
+
+def test_qa_segment_plus_text_stays_available_as_an_override():
+    """The preliminary round's form: mediaItemName + start + end + text in ONE answer."""
+    answers = build_answer_sets(
+        task_name="qa-00",
+        query_type="QA",
+        payload={"video_id": "L02_V003", "frame_idx": 888, "timestamp": 35.5, "answer": "15 người"},
+        answer_mode="temporal_text",
+        pad_ms=500,
+    )[0]["answers"]
+    assert answers == [{"mediaItemName": "L02_V003", "start": 35000, "end": 36000, "text": "15 người"}]
 
 
 def test_qa_text_only_mode_drops_the_segment():
@@ -201,7 +209,26 @@ def test_kis_without_any_time_is_rejected():
         build_answer_sets(task_name="tkis-00", query_type="T-KIS", payload={"video_id": "L21_V029"})
 
 
-def test_trake_is_one_ordered_answer_per_event():
+def test_trake_is_the_final_round_frame_list():
+    """HD-ChungKet-2026: {"text": "TR-<VIDEO_ID>-<FRAME_ID1>,<FRAME_ID2>,..."} in event order."""
+    payload = {
+        "video_id": "N001-V001",
+        "events": [
+            {"event_index": 3, "pts_time": 20.0, "fps": 25.0},
+            {"event_index": 2, "frame_idx": 400, "pts_time": 16.0},
+            {"event_index": 1, "frame_idx": 100, "pts_time": 4.0},
+        ],
+    }
+    answers = build_answer_sets(task_name="trake-00", query_type="TRAKE", payload=payload)[0]["answers"]
+    # A moment picked on the player has only its time: 20.0 s × 25 fps = frame 500.
+    assert answers == [{"text": "TR-N001-V001-100,400,500"}]
+
+    mixed = {**payload, "events": [*payload["events"], {"event_index": 4, "video_id": "N001-V002", "frame_idx": 9}]}
+    with pytest.raises(SubmitFormatError, match="two videos"):
+        build_answer_sets(task_name="trake-00", query_type="TRAKE", payload=mixed)
+
+
+def test_trake_one_temporal_answer_per_event_stays_available_as_an_override():
     answers = build_answer_sets(
         task_name="trake-00",
         query_type="TRAKE",
@@ -212,6 +239,7 @@ def test_trake_is_one_ordered_answer_per_event():
                 {"event_index": 1, "frame_idx": 100, "pts_time": 4.0},
             ],
         },
+        answer_mode="temporal",
         pad_ms=250,
     )[0]["answers"]
     assert answers == [
@@ -233,11 +261,34 @@ def test_answer_mode_override_forces_text_or_item():
     assert item_mode == [{"mediaItemName": "L21_V029"}]
 
 
+def test_collection_name_rides_on_every_video_answer():
+    kis = build_answer_sets(
+        task_name="t", query_type="T-KIS", payload={"video_id": "L21_V013", "timestamp": 745.0},
+        pad_ms=500, collection="AIC2026",
+    )[0]["answers"]
+    assert kis == [{"mediaItemName": "L21_V013", "mediaItemCollectionName": "AIC2026", "start": 744500, "end": 745500}]
+    # Text answers name no media item, so they carry no collection either.
+    qa = build_answer_sets(
+        task_name="t", query_type="QA", payload={"video_id": "L21_V013", "timestamp": 1.0, "answer": "3"},
+        collection="AIC2026",
+    )[0]["answers"]
+    assert qa == [{"text": "QA-3-L21_V013-1000"}]
+
+
 def test_answer_mode_defaults_per_query_type():
     assert resolve_answer_mode("T-KIS") == "temporal"
     assert resolve_answer_mode("V-KIS") == "temporal"
-    assert resolve_answer_mode("TRAKE") == "temporal"
-    assert resolve_answer_mode("QA") == "temporal_text"
+    assert resolve_answer_mode("TRAKE") == "trake_text"
+    assert resolve_answer_mode("QA") == "qa_text"
+
+
+def test_trake_text_is_only_rejected_on_a_task_that_says_kis():
+    assert answer_shape_mismatch("Textual KIS", "trake_text")
+    # The organisers name the TRAKE task type; an unexpected name must not block it.
+    assert answer_shape_mismatch("TRAKE", "trake_text") is None
+    assert answer_shape_mismatch("Multi-event", "trake_text") is None
+    assert answer_shape_mismatch("Question Answering", "qa_text") is None
+    assert answer_shape_mismatch("Question Answering", "trake_text")
 
 
 def test_task_name_omitted_when_unknown():

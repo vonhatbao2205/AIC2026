@@ -3,10 +3,13 @@
 Two jobs, in this order:
 
 1. **Correct format.** DRES v2 takes `{"answerSets":[{"taskName", "answers":[…]}]}`.
-   An answer carries `mediaItemName` + `start`/`end` **in milliseconds** (KIS,
-   one answer per event for TRAKE) and/or `text`. QA sends all four in ONE
-   answer — the segment plus the answer — which is the form the BTC payload
-   example documents. `build_answer_sets` picks the shape from the query type.
+   The final round (HD-ChungKet-2026) fixes one answer shape per task type:
+     KIS    {"mediaItemName": "<VIDEO_ID>", "start": <ms>, "end": <ms>}
+     QA     {"text": "QA-<ANSWER>-<VIDEO_ID>-<TIME(ms)>"}
+     TRAKE  {"text": "TR-<VIDEO_ID>-<FRAME_ID1>,<FRAME_ID2>,..."}
+   `build_answer_sets` picks the shape from the query type. The preliminary
+   round's shapes (segment + text in one answer, one temporal answer per TRAKE
+   event) stay available as explicit `answer_mode` overrides.
 2. **Reduce wrong submits.** A submit is blocked when the same answer was
    already sent for the same open task (per evaluation + task name), and the
    local history keeps every attempt with the DRES verdict for the operator.
@@ -32,19 +35,23 @@ from ..config import Settings
 
 # How a UI query type maps onto the DRES answer shape.
 #   temporal      -> mediaItemName + start/end (ms)
+#   qa_text       -> text "QA-<ANSWER>-<VIDEO_ID>-<TIME(ms)>"   (final round)
+#   trake_text    -> text "TR-<VIDEO_ID>-<FRAME_ID1>,<FRAME_ID2>,..." (final round)
 #   text          -> text only
-#   temporal_text -> both in ONE answer: the QA form BTC documents, where the
-#                    answer must identify the segment AND state the answer.
+#   temporal_text -> segment + text in ONE answer (preliminary-round QA form)
 ANSWER_MODE_BY_QUERY_TYPE = {
+    "AVS": "temporal",
     "T-KIS": "temporal",
     "V-KIS": "temporal",
-    "TRAKE": "temporal",
-    "QA": "temporal_text",
+    "TRAKE": "trake_text",
+    "QA": "qa_text",
 }
+TEXT_ANSWER_MODES = frozenset({"text", "temporal_text", "qa_text", "trake_text"})
 
 # Tokens that identify which evaluation run belongs to which query type. Matched
 # against the run name + its task groups/types ("tkis", "T-KIS Group", …).
 EVALUATION_KEYWORDS = {
+    "AVS": (r"\bavs\b", r"ad[ -]?hoc"),
     "T-KIS": (r"t-?kis", r"textual"),
     "V-KIS": (r"v-?kis", r"visual"),
     "QA": (r"\bqa\b", r"question"),
@@ -112,6 +119,32 @@ def _ms_from(
     return max(0, start), max(0, end)
 
 
+def _trake_frame_ids(payload: dict[str, Any], media_item: str) -> list[str]:
+    """Frame numbers of the TRAKE events in event order, all from one video.
+
+    `frame_idx` is the frame's index in the original video; a moment picked on
+    the player carries only its time, which `pts_time × fps` converts.
+    """
+    events = sorted(payload.get("events") or [], key=lambda e: e.get("event_index") or 0)
+    if not events:
+        raise SubmitFormatError("TRAKE requires at least one event frame.")
+    frames: list[str] = []
+    for event in events:
+        video = _clean_media_item_name(event.get("video_id") or media_item)
+        if video != media_item:
+            raise SubmitFormatError(f"TRAKE events span two videos ({media_item}, {video}); pick one video.")
+        frame_idx = event.get("frame_idx")
+        if frame_idx is None:
+            fps = event.get("fps") or payload.get("fps")
+            if event.get("pts_time") is None or not fps:
+                raise SubmitFormatError(
+                    f"TRAKE event {event.get('event_index')} has no frame_idx (or pts_time + fps)."
+                )
+            frame_idx = round(float(event["pts_time"]) * float(fps))
+        frames.append(str(int(frame_idx)))
+    return frames
+
+
 def resolve_answer_mode(query_type: str, requested: str = "auto") -> str:
     if requested and requested != "auto":
         return requested
@@ -129,7 +162,7 @@ def build_answers(
     mode = resolve_answer_mode(query_type, answer_mode)
 
     text = (payload.get("answer") or "").strip()
-    if mode in {"text", "temporal_text"} and not text:
+    if mode in {"text", "temporal_text", "qa_text"} and not text:
         raise SubmitFormatError("QA tasks require `text` (answer); the answer field is empty.")
     if mode == "text":
         return [{"text": text}]
@@ -140,6 +173,21 @@ def build_answers(
 
     if mode == "item":
         return [{"mediaItemName": media_item}]
+
+    if mode == "qa_text":
+        start, end = _ms_from(
+            timestamp=payload.get("timestamp"),
+            frame_idx=payload.get("frame_idx"),
+            fps=payload.get("fps"),
+            start_ms=payload.get("start_ms"),
+            end_ms=payload.get("end_ms"),
+        )
+        # One instant: the time of the frame the answer was read from.
+        # One line: the organisers parse the dashes, a newline would break it.
+        return [{"text": f"QA-{_WS.sub(' ', text)}-{media_item}-{(start + end) // 2}"}]
+
+    if mode == "trake_text":
+        return [{"text": f"TR-{media_item}-{','.join(_trake_frame_ids(payload, media_item))}"}]
 
     if mode == "temporal_text":
         # One answer carrying the segment AND the answer text, exactly as the BTC
@@ -195,11 +243,22 @@ def build_answer_sets(
     payload: dict[str, Any],
     answer_mode: str = "auto",
     pad_ms: int = 0,
+    collection: str | None = None,
 ) -> list[dict[str, Any]]:
-    """The full `answerSets` body sent to POST /api/v2/submit/{evaluationId}."""
+    """The full `answerSets` body sent to POST /api/v2/submit/{evaluationId}.
+
+    `collection` names the DRES media collection. A server holding several
+    collections cannot resolve a bare video name and rejects the answer with
+    "Could not find media item … Maybe collection name is required".
+    """
     answers = build_answers(
         query_type=query_type, payload=payload, answer_mode=answer_mode, pad_ms=pad_ms
     )
+    if collection:
+        answers = [
+            {**answer, "mediaItemCollectionName": collection} if "mediaItemName" in answer else answer
+            for answer in answers
+        ]
     answer_set: dict[str, Any] = {"answers": answers}
     # taskName is optional for DRES (it infers the open task) but the BTC rules
     # require an exact match, so it is always sent when known.
@@ -224,17 +283,29 @@ def answer_shape_mismatch(task_type: str | None, mode: str) -> str | None:
     """
     if not task_type:
         return None
-    if is_qa_task_type(task_type) and mode not in {"text", "temporal_text"}:
-        return (
-            f"DRES task “{task_type}” requires `text`, but the payload uses "
-            f"“{mode}”; your answer WILL BE OMITTED. Set 'answer as' to auto."
-        )
-    if not is_qa_task_type(task_type) and mode in {"text", "temporal_text"}:
+    if is_qa_task_type(task_type):
+        if mode not in {"text", "temporal_text", "qa_text"}:
+            return (
+                f"DRES task “{task_type}” requires `text`, but the payload uses "
+                f"“{mode}”; your answer WILL BE OMITTED. Set 'answer as' to auto."
+            )
+        return None
+    # TRAKE is also answered as text in the final round. Its DRES task type name
+    # is the organisers' choice, so only a type that clearly says KIS rejects it:
+    # blocking a valid TRAKE submit on a naming guess would cost the whole task.
+    if mode == "trake_text" and not is_kis_task_type(task_type):
+        return None
+    if mode in TEXT_ANSWER_MODES:
         return (
             f"DRES task “{task_type}” requires `mediaItemName` + start/end, but "
             f"the payload includes `text`; DRES may evaluate it incorrectly. Set 'answer as' to auto."
         )
     return None
+
+
+def is_kis_task_type(task_type: str | None) -> bool:
+    text = (task_type or "").lower()
+    return "kis" in text or "known" in text
 
 
 def _matches_query_type(evaluation: dict[str, Any], query_type: str) -> bool:
@@ -245,7 +316,7 @@ def _matches_query_type(evaluation: dict[str, Any], query_type: str) -> bool:
         [str(evaluation.get("name") or "")]
         + [
             f"{t.get('taskGroup') or ''} {t.get('taskType') or ''} {t.get('name') or ''}"
-            for t in (evaluation.get("taskTemplates") or [])
+            for t in (evaluation.get("task_templates") or evaluation.get("taskTemplates") or [])
         ]
     ).lower()
     return any(re.search(p, haystack) for p in patterns)
@@ -343,7 +414,7 @@ class SubmitService:
             return {f"{video_id}|{seq}"}
         if video_id is not None and payload.get("frame_idx") is not None:
             frame_key = f"{video_id}:{payload['frame_idx']}"
-            return {f"{frame_key}|text:{text}"} if mode == "temporal_text" else {frame_key}
+            return {f"{frame_key}|text:{text}"} if mode in {"temporal_text", "qa_text"} else {frame_key}
         return set()
 
     def is_duplicate(
@@ -544,6 +615,11 @@ class SubmitService:
         mismatch = answer_shape_mismatch(task_type, mode)
         if mismatch:
             warnings.append(mismatch)
+        if mode == "qa_text" and "-" in (payload.get("answer") or ""):
+            warnings.append(
+                "The answer contains '-', which QA-<ANSWER>-<VIDEO_ID>-<TIME> also uses as its "
+                "separator; check how the organisers parse it before submitting."
+            )
 
         answer_sets = build_answer_sets(
             task_name=resolved_task,
@@ -551,6 +627,7 @@ class SubmitService:
             payload=payload,
             answer_mode=answer_mode,
             pad_ms=pad,
+            collection=self.s.dres_collection_name,
         )
         scope = self._task_scope(resolved_eval, resolved_task, task_id)
         return {
@@ -587,7 +664,13 @@ class SubmitService:
         answer_mode: str = "auto",
         pad_ms: int | None = None,
         allow_duplicate: bool = False,
+        require_dres: bool = False,
+        expected_task_name: str | None = None,
     ) -> dict[str, Any]:
+        if require_dres and not self.s.has_dres:
+            raise SubmitFormatError("DRES is unavailable; reconnect before submitting.")
+        if require_dres and not expected_task_name:
+            raise SubmitFormatError("Preview the current task before submitting.")
         prepared = await self.prepare(
             query_type=query_type,
             payload=payload,
@@ -598,6 +681,20 @@ class SubmitService:
             pad_ms=pad_ms,
         )
         scope = prepared["task_id"]
+
+        if require_dres:
+            if not prepared["evaluation_id"] or not prepared["task_name"]:
+                raise SubmitFormatError("Could not resolve the DRES task; preview again.")
+            # Re-read the live task after preview. Never redirect an old answer
+            # to the next task, or hide a failed server call as a local save.
+            try:
+                current = await self.dres.current_task(prepared["evaluation_id"]) or {}
+            except (DresError, DresNotConfigured) as exc:
+                raise SubmitFormatError("Could not verify the current DRES task.") from exc
+            if current.get("name") != expected_task_name or prepared["task_name"] != expected_task_name:
+                raise SubmitFormatError("The DRES task changed; preview the answer again.")
+            if prepared["answer_mode_mismatch"]:
+                raise SubmitFormatError("Answer format does not match the current DRES task.")
 
         with self._lock:
             dup = self.is_duplicate(scope, payload, query_type, answer_mode)
@@ -615,7 +712,13 @@ class SubmitService:
                 verdict = dres_result.get("verdict")
                 status = "dres_ok"
             except DresError as exc:  # recorded, but the local entry is still kept
-                dres_result = {"error": str(exc), "status": exc.status, "detail": exc.detail}
+                message = str(exc)
+                if "collection name is required" in message.lower():
+                    message += (
+                        " — set DRES_COLLECTION_NAME (⚙ Settings → DRES) to the media collection "
+                        "name the organisers use, then submit again."
+                    )
+                dres_result = {"error": message, "status": exc.status, "detail": exc.detail}
                 status = "dres_error"
             except Exception as exc:  # noqa: BLE001 - never lose the history entry
                 dres_result = {"error": str(exc)}

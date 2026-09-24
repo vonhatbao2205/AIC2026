@@ -12,10 +12,15 @@ def test_profiles_expose_the_folders_they_actually_hold():
 
     assert btc[:10] == tuple(f"L{n}" for n in range(21, 31))
     assert btc[10:] == tuple(f"K{n:02d}" for n in range(1, 21))
-    # InfoShot++ was re-extracted from the L-side only, so offering K01-K20 there
-    # would be a filter that can only ever return nothing.
-    assert infoshot == tuple(f"L{n}" for n in range(21, 31))
+    # InfoShot++ was re-extracted from the L-side and also holds data batch 2;
+    # offering K01-K20 there (or batch 2 on BTC) would be a filter that can only
+    # ever return nothing.
+    assert infoshot[:10] == tuple(f"L{n}" for n in range(21, 31))
+    assert infoshot[10:20] == tuple(f"M{n:02d}" for n in range(1, 11))
+    assert infoshot[20:120] == tuple(f"N{n:03d}" for n in range(1, 101))
+    assert infoshot[120:] == ("S01",)
     assert not [cat for cat in infoshot if cat.startswith("K")]
+    assert not [cat for cat in btc if cat[0] in "MNS"]
 
 
 def test_catalogue_labels_every_folder_with_its_programme():
@@ -33,12 +38,15 @@ def test_catalogue_labels_every_folder_with_its_programme():
 
 
 def test_catalogue_hides_topics_with_no_folder_in_this_profile():
-    topics = {topic["topic_id"] for topic in scope.catalogue("infoshotpp")["topics"]}
-    # Every topic's folders are on the L-side, so all of them survive; what must
-    # NOT survive is a K-only category inside one of them.
-    news = next(t for t in scope.catalogue("infoshotpp")["topics"] if t["topic_id"] == "news")
-    assert topics
-    assert news["categories"] == ["L21", "L22"]
+    infoshot = {topic["topic_id"]: topic for topic in scope.catalogue("infoshotpp")["topics"]}
+    btc = {topic["topic_id"]: topic for topic in scope.catalogue("btc")["topics"]}
+    # What must NOT survive is a category the profile lacks inside a topic: K-only
+    # news folders on InfoShot++, batch-2 folders on BTC.
+    assert infoshot["news"]["categories"] == ["L21", "L22", *(f"M{n:02d}" for n in range(1, 11))]
+    assert infoshot["cycling"]["categories"] == ["L23", "S01"]
+    assert btc["cycling"]["categories"] == ["L23"]
+    # The traffic-camera topic has no folder at all on BTC, so it is hidden there.
+    assert "traffic" in infoshot and "traffic" not in btc
 
 
 # ---- topic heuristic --------------------------------------------------
@@ -152,6 +160,24 @@ def test_all_mode_and_an_unknown_mode_both_search_everything():
         assert scope.resolve_scope(spec, query="nấu ăn", retrieval_database="btc").categories == ()
 
 
+def test_infoshotpp_topics_reach_the_batch2_folders():
+    def auto(query):
+        return scope.resolve_scope({"mode": "auto"}, query=query, retrieval_database="infoshotpp")
+
+    cycling = auto("Tìm đoạn đua xe đạp, một tay đua áo xanh vượt lên")
+    assert {"L23", "S01"} <= set(cycling.strict_categories)
+    # The M bulletins are open-subject (M06 replays the race); cameras are not.
+    assert "M06" in cycling.categories and "N001" not in cycling.categories
+
+    traffic = auto("camera giao thông ở ngã tư, một xe buýt rẽ trái")
+    assert set(traffic.strict_categories) == set(scope.N_CATEGORIES)
+    assert "M01" in traffic.categories and "S01" not in traffic.categories
+
+    cooking = auto("Cảnh người đầu bếp rưới nước sốt vào nồi")
+    assert "L26" in cooking.categories
+    assert not {"S01", "N001"} & set(cooking.categories)
+
+
 # ---- push-down filters ------------------------------------------------
 def test_milvus_expression_matches_on_the_video_id_prefix():
     assert scope.milvus_filter_expr(("L26",)) == '(video_id like "L26_%")'
@@ -159,6 +185,14 @@ def test_milvus_expression_matches_on_the_video_id_prefix():
         '(video_id like "L26_%" or video_id like "K01_%")'
     )
     assert scope.milvus_filter_expr(()) == ""
+
+
+def test_hyphenated_batch2_folders_filter_on_their_own_separator():
+    """N001-V001 / S01-V001 would never match a "N001_" prefix."""
+    assert scope.milvus_filter_expr(("M01", "N001", "S01")) == (
+        '(video_id like "M01_%" or video_id like "N001-%" or video_id like "S01-%")'
+    )
+    assert scope.elastic_filter_clause(("N100",))["bool"]["should"] == [{"prefix": {"video_id": "N100-"}}]
 
 
 def test_a_category_that_is_not_catalogue_shaped_never_reaches_a_query_string():
@@ -221,3 +255,9 @@ async def test_an_unscoped_search_is_unchanged(settings):
 
     assert scoped["scope"]["active"] is False
     assert [g["video_id"] for g in scoped["groups"]] == [g["video_id"] for g in plain["groups"]]
+
+
+def test_only_the_camera_group_is_collapsed_in_the_picker():
+    groups = {group["id"]: group for group in scope.catalogue("infoshotpp")["groups"]}
+    assert [gid for gid, group in groups.items() if group["collapsed"]] == ["N"]
+    assert len(groups["N"]["categories"]) == 100

@@ -188,11 +188,9 @@ def test_submit_preview_returns_the_exact_dres_body():
     )
     assert r.status_code == 200
     body = r.json()
-    assert body["answer_mode"] == "temporal_text"
-    # QA carries the segment AND the answer, per the BTC payload example.
-    assert body["body"]["answerSets"][0]["answers"] == [
-        {"mediaItemName": "K01_V001", "start": 5500, "end": 6500, "text": "HTV7"}
-    ]
+    assert body["answer_mode"] == "qa_text"
+    # The final-round QA form: answer, video and the frame's instant in one text.
+    assert body["body"]["answerSets"][0]["answers"] == [{"text": "QA-HTV7-K01_V001-6000"}]
 
 
 def test_dres_status_reports_disabled_in_mock_mode():

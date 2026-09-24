@@ -27,6 +27,7 @@ import type {
   TrakeVideoResult,
   VideoGroup,
 } from "./api/types";
+import { AvsPanel } from "./components/AvsPanel";
 import { CanvasPanel } from "./components/CanvasPanel";
 import { ChannelControls } from "./components/ChannelControls";
 import { DetailPanel } from "./components/DetailPanel";
@@ -90,13 +91,6 @@ export interface StickyTrakeRestoreRequest {
 
 /** The submit guard acts on exactly one of these; they never shadow each other. */
 type GuardTarget = "result" | "paused";
-
-/** DRES submission is switched off: answers are collected in the Submission tab
- *  and exported as a CSV pack instead of being posted to the evaluation server.
- *  The DRES code below is kept intact and gated on this flag rather than deleted,
- *  so a live run can be turned back on by flipping it (and `DRES_ENABLED` in
- *  `backend/app/config.py`) without rebuilding the submit path. */
-const DRES_ENABLED = false;
 
 /** Keyframes a search retrieves before fusion, and the slider's starting point. */
 const DEFAULT_TOP_K = 100;
@@ -380,7 +374,13 @@ export default function FullConsole({
   // ---- DRES (official evaluation server) ----
   // The run and the open task come from the server; `pinnedEvaluationId` is set
   // only when the operator overrides the auto-routing by query type.
+  const [avsRequested, setAvsRequested] = useState<{ frame: FrameResult; id: number; scope: string } | null>(null);
   const [dresStatus, setDresStatus] = useState<DresStatus | null>(null);
+  // On by default: the final round is judged live on DRES. Unticking it falls
+  // back to collecting rows for the CSV pack; it only exists when the backend
+  // reports DRES configured (DRES_ENABLED + credentials).
+  const [dresRequested, setDresRequested] = useState(true);
+  const dresEnabled = dresRequested && Boolean(dresStatus?.configured);
   const [dresEvaluations, setDresEvaluations] = useState<DresEvaluation[]>([]);
   const [pinnedEvaluationId, setPinnedEvaluationId] = useState<string | null>(null);
   const [dresError, setDresError] = useState<string | null>(null);
@@ -642,7 +642,6 @@ export default function FullConsole({
   }, []);
 
   useEffect(() => {
-    if (!DRES_ENABLED) return;
     let cancelled = false;
     api.dresStatus()
       .then((s) => {
@@ -654,12 +653,12 @@ export default function FullConsole({
       })
       .catch(() => !cancelled && setDresStatus(null));
     return () => { cancelled = true; };
-  }, [refreshDresEvaluations]);
+  }, [refreshDresEvaluations, configVersion]);
 
   // The open task changes without warning during a run, so poll it. 5 s is well
   // under the shortest task and the backend caches for 2 s.
   useEffect(() => {
-    if (!DRES_ENABLED || !dresStatus?.configured) return;
+    if (!dresEnabled || !dresStatus?.configured) return;
     const id = setInterval(() => refreshDresEvaluations(), 5000);
     return () => clearInterval(id);
   }, [dresStatus?.configured, refreshDresEvaluations]);
@@ -675,6 +674,8 @@ export default function FullConsole({
       ? `${evaluationId}/${submitTaskName}`
       : submitTaskName
     : "unknown-task";
+
+  const avsScope = `${retrievalDatabase}:${evaluationId ?? "local"}:${currentTaskName || question?.id || "manual"}`;
 
   // Countdown between polls: seed from the server, tick locally.
   useEffect(() => {
@@ -715,7 +716,7 @@ export default function FullConsole({
   );
 
   useEffect(() => {
-    if (!DRES_ENABLED || !dresStatus?.configured || !evaluationId) {
+    if (!dresEnabled || !dresStatus?.configured || !evaluationId) {
       setTaskHint(null);
       return;
     }
@@ -793,7 +794,7 @@ export default function FullConsole({
     } finally {
       setDresBusy(false);
     }
-  }, [refreshDresEvaluations]);
+  }, [refreshDresEvaluations, configVersion]);
 
   // ---- load timeline only for the video actually being shown inline ----
   const selectedVideoId = selectedGroup?.video_id;
@@ -1554,7 +1555,7 @@ export default function FullConsole({
     ? rowToCsvLine({ ...guardDraft, id: "" }, question ? question.kind : kindForQueryType(queryType))
     : null;
   const guardCsvError = (() => {
-    if (DRES_ENABLED) return null;
+    if (dresEnabled) return null;
     if (!question) return "No question assigned to this tab. Select a question in QUERY PACK before submitting.";
     if (!guardDraft) return "Could not determine video/frame_idx to save.";
     if (question.kind === "qa" && !answer.trim()) return "Q&A questions require an answer.";
@@ -1591,7 +1592,7 @@ export default function FullConsole({
     return `${frameKey}|text:${answer.trim().replace(/\s+/g, " ").toLowerCase()}`;
   }
   function computeDuplicate(target: GuardTarget): string | null {
-    if (!DRES_ENABLED) {
+    if (!dresEnabled) {
       // The submission table is the record now, so it is also the dedup scope.
       const draft = buildDraft(target);
       if (!draft || !question) return null;
@@ -1608,6 +1609,15 @@ export default function FullConsole({
   }
 
   function openGuard(target: GuardTarget = "result") {
+    if (queryType === "AVS") {
+      const frame: FrameResult | null = target === "paused" && pausedFrame ? {
+        ...pausedFrame, image_id: `paused:${pausedFrame.video_id}:${pausedFrame.frame_idx}`,
+        submit_keyframe_id: "", keyframe_n: 0, score: 0, channels: [], per_channel_score: {}, evidence: [],
+        keyframe_url: pausedFrame.thumbnail ?? "", video_url: groups.find(g => g.video_id === pausedFrame.video_id)?.video_url ?? "",
+      } : selectedFrameObj;
+      if (frame) setAvsRequested({ frame, id: Date.now(), scope: avsScope });
+      return;
+    }
     if (queryType === "TRAKE") {
       if (trakeSlots.every((s) => s === null)) {
         setToast({ msg: "No TRAKE frames selected", kind: "bad" });
@@ -1692,7 +1702,7 @@ export default function FullConsole({
   // While the guard is open, ask the backend for the exact DRES body. This is
   // what turns "hope the format is right" into something the operator can read.
   useEffect(() => {
-    if (!DRES_ENABLED || !guardOpen) {
+    if (!dresEnabled || !guardOpen) {
       setSubmitPreview(null);
       setPreviewError(null);
       return;
@@ -1724,11 +1734,11 @@ export default function FullConsole({
     }, 150); // debounce: the answer / pad inputs change on every keystroke
     return () => { cancelled = true; clearTimeout(id); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guardOpen, guardTarget, queryType, answer, answerMode, segmentPadMs, taskNameOverride,
+  }, [dresEnabled, guardOpen, guardTarget, queryType, answer, answerMode, segmentPadMs, taskNameOverride,
       evaluationId, currentTaskName, selectedFrameObj, pausedFrame, trakeSlots]);
 
   async function confirmSubmit() {
-    if (!DRES_ENABLED) {
+    if (!dresEnabled) {
       const draft = buildDraft(guardTarget);
       if (!draft || guardCsvError) {
         setToast({ msg: guardCsvError ?? "Could not build the submission row.", kind: "bad" });
@@ -1740,6 +1750,7 @@ export default function FullConsole({
       setDuplicateId(null);
       return;
     }
+    if (!submitPreview || previewLoading || previewError || submitPreview.answer_mode_mismatch || submitting) return;
     const body = buildSubmitBody();
     if (!body) {
       setToast({ msg: "Could not determine frame_idx; this frame cannot be submitted.", kind: "bad" });
@@ -1747,7 +1758,9 @@ export default function FullConsole({
     }
     setSubmitting(true);
     try {
-      const entry = await api.submit({ ...body, allow_duplicate: duplicateId != null });
+      const entry = await api.submit({ ...body, evaluation_id: submitPreview.evaluation_id,
+        task_name: submitPreview.task_name, expected_task_name: submitPreview.task_name,
+        require_dres: true, allow_duplicate: duplicateId != null });
       const verdict = entry.verdict ?? null;
       setToast({
         msg: entry.status === "dres_error"
@@ -2062,7 +2075,11 @@ export default function FullConsole({
         onShowKeymap={() => setKeymapOpen(true)}
         onShowSettings={onShowSettings}
       />
-      {DRES_ENABLED ? (
+      {dresStatus?.configured && <label className="phm-toggle">
+        <input type="checkbox" checked={dresRequested} onChange={e => { setDresRequested(e.target.checked); setGuardOpen(false); }} />
+        Direct DRES submission
+      </label>}
+      {dresEnabled ? (
         <DresBar
           status={dresStatus}
           evaluations={dresEvaluations}
@@ -2231,6 +2248,14 @@ export default function FullConsole({
           {!trakeVideoView && !progressiveActive && (
             <FeedbackBar feedback={feedback} onRemove={removeFeedback} onClear={clearFeedback} />
           )}
+          {queryType === "AVS" && <AvsPanel
+            key={avsScope}
+            scopeId={avsScope}
+            groups={displayGroups} query={query} database={retrievalDatabase} imageModels={imageModels}
+            dresEnabled={dresEnabled} evaluationId={evaluationId} taskName={currentTaskName ?? ""}
+            selected={selectedFrameObj} requested={avsRequested?.scope === avsScope ? avsRequested : null}
+            onInspect={frame => focusQaEvidence(frame.submit_keyframe_id, false)}
+          />}
           {trakeVideoView ? (
           <TrakeVideoResults
             videos={trakeVideos}
@@ -2373,7 +2398,7 @@ export default function FullConsole({
         trakeSlots={trakeSlots}
         answer={answer}
         setAnswer={setAnswer}
-        dresEnabled={DRES_ENABLED}
+        dresEnabled={dresEnabled}
         questionId={question?.id ?? null}
         csvLine={guardCsvLine}
         csvError={guardCsvError}

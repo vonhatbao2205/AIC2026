@@ -501,6 +501,9 @@ let historyStore: any[] = [];
 let canvasRequests: any[] = [];
 
 let answerGenRequests: any[] = [];
+/** DRES is the default submission path whenever the server is configured, so
+ *  the CSV-pack tests run with it unavailable; the DRES tests switch it on. */
+let dresConfigured = false;
 let inFlightSearches = 0;
 let maxConcurrentSearches = 0;
 
@@ -515,7 +518,7 @@ function mockFetch(historySeed: any[] = []) {
       return json({ ok: true, mode: "mock", retrieval_database: path.includes("infoshotpp") ? "infoshotpp" : "btc", services: {}, capabilities: { qa_nvila: true, qa_web_grounding: true, qa_visual_verification: true, canvas_object_search: true }, warnings: [] });
     if (path.endsWith("/api/config"))
       return json({ configured: true, mock_mode: true, missing_required: [], env_path: "/config/.env", env_exists: true, groups: [] });
-    if (path.endsWith("/api/dres/status")) return json(DRES_STATUS);
+    if (path.endsWith("/api/dres/status")) return json({ ...DRES_STATUS, configured: dresConfigured });
     if (path.includes("/api/dres/task-hint")) return json(taskHintFor(path));
     if (path.includes("/api/dres/evaluations"))
       return json({ evaluations: DRES_EVALUATIONS, server_time: 1, pinned_evaluation_id: null });
@@ -650,6 +653,7 @@ afterEach(() => {
   answerGenRequests = [];
   inFlightSearches = 0;
   maxConcurrentSearches = 0;
+  dresConfigured = false;
 });
 
 describe("V-KIS canvas", () => {
@@ -2781,10 +2785,28 @@ describe("query pack + submission table", () => {
     expect(screen.getAllByTestId(/^rail-tab-\d+$/)).toHaveLength(1);
   });
 
-  it("never posts to DRES: a submit writes a row into the submission table", async () => {
+  it("submits live to DRES by default once the server is configured", async () => {
+    dresConfigured = true;
+    const user = userEvent.setup();
+    render(<App />);
+
+    expect(await screen.findByTestId("dres-bar")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /direct dres submission/i })).toBeChecked();
+    expect(screen.queryByTestId("question-bar")).not.toBeInTheDocument();
+
+    // Unticking it brings the preliminary round's query-pack workflow back.
+    await user.click(screen.getByRole("checkbox", { name: /direct dres submission/i }));
+    expect(await screen.findByTestId("question-bar")).toBeInTheDocument();
+    expect(screen.queryByTestId("dres-bar")).not.toBeInTheDocument();
+  });
+
+  it("never posts to DRES once unticked: a submit writes a row into the submission table", async () => {
+    dresConfigured = true;
     const user = userEvent.setup();
     render(<App />);
     await importPack();
+    // The switch belongs to each search tab; untick it on the question's tab.
+    await user.click(await screen.findByRole("checkbox", { name: /direct dres submission/i }));
     await waitFor(() => screen.getByTestId("detail-panel"));
 
     await user.click(screen.getByTestId("open-submit"));

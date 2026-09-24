@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-QueryTypeHint = Literal["auto", "T-KIS", "QA", "V-KIS", "TRAKE"]
+QueryTypeHint = Literal["auto", "T-KIS", "QA", "V-KIS", "TRAKE", "AVS"]
 RetrievalDatabase = Literal["btc", "infoshotpp"]
 ImageEmbeddingModel = Literal["pe", "qwen3_vl"]
 
@@ -38,11 +38,12 @@ class SearchScope(BaseModel):
 
     `all` searches the whole profile, `manual` exactly the ticked folders, `auto`
     lets the topic heuristic in `app.scope` pick them from the query text. The
-    length cap is the full BTC catalogue (L21-L30 + K01-K20) with room to spare.
+    length cap is the largest catalogue (InfoShot++: L21-L30 + 111 batch-2
+    folders, 100 of them N cameras) with room to spare.
     """
 
     mode: Literal["all", "auto", "manual"] = "all"
-    categories: list[str] = Field(default_factory=list, max_length=64)
+    categories: list[str] = Field(default_factory=list, max_length=256)
 
 
 class ManualOverrides(BaseModel):
@@ -277,15 +278,17 @@ class SubmitPayload(BaseModel):
 
 
 class SubmitRequest(BaseModel):
+    require_dres: bool = False
+    expected_task_name: str | None = None
     # Free-text label used only when DRES has no open task (offline practice).
     task_id: str = ""
     # DRES run to submit to, and the exact open task name. Both are resolved
     # from the live server when omitted.
     evaluation_id: str | None = None
     task_name: str | None = None
-    query_type: Literal["T-KIS", "QA", "V-KIS", "TRAKE"]
+    query_type: Literal["T-KIS", "QA", "V-KIS", "TRAKE", "AVS"]
     payload: SubmitPayload
-    # auto → temporal for KIS/TRAKE, temporal_text (segment + answer) for QA.
-    answer_mode: Literal["auto", "temporal", "temporal_text", "text", "item"] = "auto"
+    # auto → temporal for KIS, qa_text / trake_text (final-round text forms) for QA / TRAKE.
+    answer_mode: Literal["auto", "temporal", "qa_text", "trake_text", "temporal_text", "text", "item"] = "auto"
     segment_pad_ms: int | None = Field(default=None, ge=0, le=60_000)
     allow_duplicate: bool = False

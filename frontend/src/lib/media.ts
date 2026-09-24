@@ -1,8 +1,10 @@
 // R2 media URL helpers. The backend already returns built URLs; these mirror the
 // convention for any client-side need. Never rely on local/Kaggle paths.
 
+/** Media folder of a video: "L21_V001" -> "L21". The batch-2 camera and cycling
+ *  series join group and number with a hyphen ("N001-V001" -> "N001"). */
 export function groupFromVideoId(videoId: string): string {
-  return videoId.split("_")[0];
+  return videoId.split(/[_-]/)[0];
 }
 
 export function keyframeUrl(baseUrl: string, videoId: string, keyframeN: number): string {
@@ -43,7 +45,9 @@ export const swapVideoOrigin = swapMediaOrigin;
 
 export function videoUrl(baseUrl: string, videoId: string): string {
   const group = groupFromVideoId(videoId);
-  return `${baseUrl.replace(/\/$/, "")}/Videos/Videos_${group}/${videoId}.mp4`;
+  // N camera videos play from their repaired copies (backend `media.py`).
+  const root = group.startsWith("N") ? "Videos_Web" : "Videos";
+  return `${baseUrl.replace(/\/$/, "")}/${root}/Videos_${group}/${videoId}.mp4`;
 }
 
 /** Where a frame sits on the video's timeline, for chronological ordering.

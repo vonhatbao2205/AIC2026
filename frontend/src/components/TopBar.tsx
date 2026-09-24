@@ -2,7 +2,7 @@ import type { HealthResponse, LatencyBreakdown, QueryType, RetrievalDatabase } f
 import { formatTime } from "../lib/media";
 import { ThemeToggle } from "./ThemeToggle";
 
-const TYPES: QueryType[] = ["T-KIS", "QA", "V-KIS", "TRAKE"];
+const TYPES: QueryType[] = ["T-KIS", "QA", "V-KIS", "TRAKE", "AVS"];
 
 interface Props {
   queryType: QueryType;
@@ -22,8 +22,8 @@ export function TopBar({ queryType, onQueryType, elapsed, penalties, latency, he
   const dot = !health ? "warn" : health.ok ? "ok" : health.warnings.length ? "warn" : "bad";
   return (
     <div className="topbar">
-      <div className="brand">
-        AIC<span>26</span> Console
+      <div className="brand" title="From clues to moments.">
+        Clue<span>Scope</span>
       </div>
       <select
         className="btn sm ghost"

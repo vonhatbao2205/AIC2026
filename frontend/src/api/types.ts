@@ -3,7 +3,7 @@
 export type Channel =
   | "image_pe" | "image_qwen" | "image_visual" | "tara" | "ocr" | "speech" | "audio" | "similar"
   | "object_layout" | "canvas_image";
-export type QueryType = "T-KIS" | "QA" | "V-KIS" | "TRAKE";
+export type QueryType = "T-KIS" | "QA" | "V-KIS" | "TRAKE" | "AVS";
 export type QueryTypeHint = "auto" | QueryType;
 export type RetrievalDatabase = "btc" | "infoshotpp";
 /** Image-vector indices that can answer an InfoShot++ search. BTC remains PE-only. */
@@ -51,7 +51,8 @@ export interface ScopeCategory {
 export interface ScopeCatalogue {
   retrieval_database: RetrievalDatabase;
   categories: ScopeCategory[];
-  groups: { id: string; label_vi: string; label_en?: string; categories: string[] }[];
+  /** `collapsed` groups are picked as a whole: the list shows only their header. */
+  groups: { id: string; label_vi: string; label_en?: string; categories: string[]; collapsed?: boolean }[];
   topics: { topic_id: string; label_vi: string; label_en?: string; categories: string[] }[];
 }
 
@@ -717,7 +718,8 @@ export interface DresStatus {
   error: string | null;
 }
 
-export type AnswerMode = "auto" | "temporal" | "temporal_text" | "text" | "item";
+/** `qa_text` / `trake_text` are the final-round text forms (HD-ChungKet-2026). */
+export type AnswerMode = "auto" | "temporal" | "qa_text" | "trake_text" | "temporal_text" | "text" | "item";
 
 /** The exact request the backend would send to DRES for the current pick. */
 export interface SubmitPreview {

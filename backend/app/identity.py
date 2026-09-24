@@ -6,6 +6,9 @@ Rules (from the handoff docs — these are load-bearing):
 - Never use `image_path` / `source_path` for routing, joins, media lookup, cache
   keys, or submit. Robust joins use `video_id + keyframe_n`.
 - L26 shards (`L26_a`, `L26_b`, ...) normalize to category `L26` for submit/display.
+- Video ids keep the organisers' file names: `K01_V001`, `L21_V001`, `M01_V001`
+  use an underscore, but the batch-2 traffic-camera and cycling series use a
+  hyphen (`N001-V001`, `S01-V001`). The group is never `split("_")` of the id.
 """
 from __future__ import annotations
 
@@ -14,6 +17,9 @@ from dataclasses import dataclass
 
 # Matches a shard suffix like "_a", "_b", "_a1" appended to an L-style category.
 _SHARD_SUFFIX = re.compile(r"^(?P<base>[A-Za-z]+\d+)(?:_[A-Za-z0-9]+)+$")
+_VIDEO_ID_SEPARATOR = re.compile(r"[_-]")
+# Series whose video ids join the group and the video number with "-".
+_HYPHEN_SERIES = frozenset({"N", "S"})
 
 
 def normalize_category(raw_category: str) -> str:
@@ -30,8 +36,14 @@ def normalize_category(raw_category: str) -> str:
 
 
 def group_from_video_id(video_id: str) -> str:
-    """Media group prefix: "K01_V001" -> "K01", "L26_V001" -> "L26"."""
-    return video_id.split("_")[0]
+    """Media group prefix: "K01_V001" -> "K01", "N001-V001" -> "N001"."""
+    return _VIDEO_ID_SEPARATOR.split(video_id, maxsplit=1)[0]
+
+
+def video_id_prefix(category: str) -> str:
+    """How the video ids of one folder start: "L21" -> "L21_", "N001" -> "N001-"."""
+    separator = "-" if category[:1].upper() in _HYPHEN_SERIES else "_"
+    return f"{category}{separator}"
 
 
 def category_from_video_id(video_id: str) -> str:

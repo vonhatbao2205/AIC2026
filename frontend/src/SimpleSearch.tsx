@@ -148,7 +148,7 @@ export default function SimpleSearch({
     <div className="simple-app">
       <header className="simple-head">
         <div className="simple-title">
-          AIC<span>26</span> · Vector Search
+          <div title="From clues to moments.">Clue<span>Scope</span> · Vector Search</div>
           {mode && <span className={`mode-pill ${mode}`} style={{ marginLeft: 8 }}>{mode}</span>}
           <button className="btn sm ghost" style={{ marginLeft: 12 }} onClick={onFullMode}>
             Console ⤴

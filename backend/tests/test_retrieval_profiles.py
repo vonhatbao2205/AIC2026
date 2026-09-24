@@ -121,11 +121,11 @@ def test_unknown_profile_is_rejected():
         raise AssertionError("unknown retrieval profile was accepted")
 
 
-def test_live_dres_submission_is_locked_off_by_default():
-    """Answers are collected in the app's Submission tab and exported as CSV.
+def test_live_dres_submission_is_on_by_default_for_the_final():
+    """The final round is judged live on DRES, so credentials are enough.
 
-    Nothing may reach the evaluation server unless someone sets DRES_ENABLED, so
-    a fully-credentialled config still reports DRES as unavailable.
+    DRES_ENABLED=false brings back the preliminary round's CSV-pack workflow, and
+    mock mode never reaches the evaluation server whatever the flag says.
     """
     credentialled = Settings(
         mock_mode=False,
@@ -133,6 +133,7 @@ def test_live_dres_submission_is_locked_off_by_default():
         dres_username="fourier1",
         dres_password="secret",
     )
-    assert credentialled.dres_enabled is False
-    assert credentialled.has_dres is False
-    assert replace(credentialled, dres_enabled=True).has_dres is True
+    assert credentialled.dres_enabled is True
+    assert credentialled.has_dres is True
+    assert replace(credentialled, dres_enabled=False).has_dres is False
+    assert replace(credentialled, mock_mode=True).has_dres is False

@@ -22,6 +22,7 @@ from ..answer_gen import (
     generate_from_pools,
     generate_trake_rows,
 )
+from ..avs import AVS_PARAMS, generate_avs
 from ..config import Settings
 from ..media import MediaUrlBuilder
 from .search_service import SearchService
@@ -106,26 +107,34 @@ class AnswerService:
                 scope = result.get("scope")
                 warnings = list(result.get("warnings") or [])
                 latency = dict(result.get("latency_ms") or {})
-            # One pool build, used for both the ranking and the report on it.
-            pools = build_pools(groups or [], params.validated())
-            answers = [
-                self._decorate(a.to_dict(), answer_text)
-                for a in generate_from_pools(
-                    pools,
-                    params,
-                    limit=limit,
-                    # One frame per answer outside TRAKE, so the first is the one.
+            if query_type == "AVS":
+                params = AVS_PARAMS
+                rows, diagnostics = generate_avs(
+                    groups or [], limit=limit,
                     taken=[(video, frames[0]) for video, frames in taken],
                 )
-            ]
-            diagnostics = {
-                "n_videos_in_pool": len(pools),
-                "n_anchors": sum(len(p.anchors) for p in pools),
-                "anchor_budget": anchor_budget(params.validated()),
-                "ambiguous_videos": sum(1 for p in pools if p.ambiguous),
-                "videos_used": len({a["video_id"] for a in answers}),
-                "taken": len(taken),
-            }
+                answers = [self._decorate(row, "") for row in rows]
+            else:
+                # One pool build, used for both the ranking and the report on it.
+                pools = build_pools(groups or [], params.validated())
+                answers = [
+                    self._decorate(a.to_dict(), answer_text)
+                    for a in generate_from_pools(
+                        pools,
+                        params,
+                        limit=limit,
+                        # One frame per answer outside TRAKE, so the first is the one.
+                        taken=[(video, frames[0]) for video, frames in taken],
+                    )
+                ]
+                diagnostics = {
+                    "n_videos_in_pool": len(pools),
+                    "n_anchors": sum(len(p.anchors) for p in pools),
+                    "anchor_budget": anchor_budget(params.validated()),
+                    "ambiguous_videos": sum(1 for p in pools if p.ambiguous),
+                    "videos_used": len({a["video_id"] for a in answers}),
+                    "taken": len(taken),
+                }
 
         if len(answers) < limit:
             warnings.append(

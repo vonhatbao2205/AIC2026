@@ -19,6 +19,7 @@ from ..adapters.qwen_reranker import QwenRerankerClient
 from ..adapters.tara_encoder import TaraEncoderClient
 from ..config import Settings
 from ..fusion import DEFAULT_RRF_K, group_by_video, reciprocal_rank_fusion
+from ..identity import group_from_video_id
 from ..media import MediaUrlBuilder
 from ..query_parser import QueryParser
 from ..scope import ResolvedScope, resolve_scope
@@ -832,7 +833,7 @@ class SearchService:
                 tara_videos = [
                     item for item in tara_videos
                     if (not video_ids or item["video_id"] in video_ids)
-                    and (not parser_categories or item["video_id"].split("_")[0] in parser_categories)
+                    and (not parser_categories or group_from_video_id(item["video_id"]) in parser_categories)
                 ]
                 latency["channels"]["tara"] = round(tara_ms, 1)
                 weights["tara"] = float(tara_cfg.get("weight") or 1.0)

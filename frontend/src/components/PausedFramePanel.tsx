@@ -35,7 +35,7 @@ export function PausedFramePanel(props: Props) {
       {!frame ? (
         <div className="paused-frame-empty">
           Open the video with <span className="kbd">V</span>, then pause at the frame to
-          submit. Available for T-KIS, QA, V-KIS and TRAKE.
+          select. Save the selected moment as an answer or a sticky note.
         </div>
       ) : (
         <div

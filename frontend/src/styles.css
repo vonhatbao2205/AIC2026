@@ -1,5 +1,5 @@
 /* ============================================================
-   AIC26 Console — soft, professional theme (dark + light)
+   ClueScope — soft, professional theme (dark + light)
    Token NAMES are kept stable (inline styles in TSX reference them);
    only their VALUES change per theme.
    ============================================================ */
@@ -1215,3 +1215,18 @@ button { font-family: inherit; }
 /* Blocking errors read differently from advisory warnings. */
 .submission-problems li.error { color: var(--bad); }
 .submission-problems li.warning { color: var(--warn); }
+
+/* AVS collection: review candidates and retain accepted moments across searches. */
+.avs-panel { margin: 10px; padding: 14px; }
+.avs-panel p { font-size: 12px; line-height: 1.5; }
+.avs-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.avs-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.avs-list { max-height: 280px; overflow: auto; }
+.avs-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 11px; }
+.avs-row img { width: 76px; height: 44px; object-fit: cover; }
+.avs-row span { flex: 1; min-width: 100px; }
+.avs-row small { display: block; margin-top: 4px; }
+.avs-review { margin: 12px 0; }
+.avs-review video { display: block; width: 100%; max-height: 260px; margin: 8px 0; }
+.avs-panel pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 1050px) { .avs-columns { grid-template-columns: 1fr; } }

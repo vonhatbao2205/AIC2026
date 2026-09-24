@@ -221,7 +221,7 @@ async def test_submit_posts_to_dres_and_records_the_verdict(tmp_path, allow_test
     )
 
     assert posted == [{"answerSets": [{"taskName": "qa-00", "answers": [
-        {"mediaItemName": "L30_V095", "start": 9500, "end": 10500, "text": "HTV7"}
+        {"text": "QA-HTV7-L30_V095-10000"}
     ]}]}]
     assert entry["status"] == "dres_ok"
     assert entry["verdict"] == "CORRECT"
@@ -283,11 +283,9 @@ async def test_auto_mode_matches_every_task_type(tmp_path):
     qa = await shape_service(tmp_path, "Question Answering").prepare(
         query_type="QA", payload={"video_id": "L30_V090", "timestamp": 22.0, "answer": "Nguyễn Thắm"},
     )
-    assert qa["answer_mode"] == "temporal_text"
+    assert qa["answer_mode"] == "qa_text"
     assert qa["answer_mode_mismatch"] is False
-    assert qa["body"]["answerSets"][0]["answers"] == [
-        {"mediaItemName": "L30_V090", "start": 21500, "end": 22500, "text": "Nguyễn Thắm"}
-    ]
+    assert qa["body"]["answerSets"][0]["answers"] == [{"text": "QA-Nguyễn Thắm-L30_V090-22000"}]
 
     kis = await shape_service(tmp_path, "Textual KIS").prepare(
         query_type="T-KIS", payload={"video_id": "L30_V090", "timestamp": 22.0}, pad_ms=500,

@@ -75,6 +75,8 @@ export interface ManualOverrides {
  *  are resolved from the live DRES run when omitted; `start_ms`/`end_ms` override
  *  the ms window the backend derives from `timestamp` (or `frame_idx` + `fps`). */
 export interface SubmitBody {
+  require_dres?: boolean;
+  expected_task_name?: string | null;
   task_id?: string;
   evaluation_id?: string | null;
   task_name?: string | null;

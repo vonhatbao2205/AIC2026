@@ -15,6 +15,7 @@ from typing import Any
 
 from .. import mock_data
 from ..config import Settings
+from ..identity import group_from_video_id
 from ..scope import elastic_filter_clause
 from ..scoring import audio_score_multiplier, speech_score_multiplier
 from ..text_normalization import fold_vietnamese
@@ -279,7 +280,7 @@ def _keep_categories(hits: list[dict[str, Any]], categories: tuple[str, ...]) ->
         return hits
     wanted = set(categories)
     return [
-        hit for hit in hits if str(hit.get("video_id") or "").split("_")[0] in wanted
+        hit for hit in hits if group_from_video_id(str(hit.get("video_id") or "")) in wanted
     ]
 
 
@@ -689,16 +690,31 @@ class ElasticClient:
                 out[str(bucket["key"])] = float(value)
         return out
 
-    async def get_video_keyframes(self, video_id: str, *, size: int = 5000) -> list[dict[str, Any]]:
+    async def get_video_keyframes(self, video_id: str, *, page_size: int = 10_000) -> list[dict[str, Any]]:
+        """Every keyframe of one video, in ordinal order.
+
+        One page is not enough: an S01 race video holds up to 75,123 keyframes,
+        far past Elastic's 10,000-hit result window, and even L22_V016 (5,152)
+        overflowed the old single 5,000-hit page. The map is therefore paged with
+        `search_after` on `keyframe_n`, which is unique within a video.
+        """
         if self.mock:
             return list(mock_data.MOCK_KEYFRAMES.get(video_id, []))
-        body = {
-            "size": size,
-            "query": {"term": {"video_id": video_id}},
-            "sort": [{"keyframe_n": "asc"}],
-        }
-        data = await self._search(self.s.idx_keyframe_map, body)
-        return [h["_source"] for h in data.get("hits", {}).get("hits", [])]
+        out: list[dict[str, Any]] = []
+        search_after: list[Any] | None = None
+        while True:
+            body: dict[str, Any] = {
+                "size": page_size,
+                "query": {"term": {"video_id": video_id}},
+                "sort": [{"keyframe_n": "asc"}],
+            }
+            if search_after is not None:
+                body["search_after"] = search_after
+            hits = (await self._search(self.s.idx_keyframe_map, body)).get("hits", {}).get("hits", [])
+            out.extend(h["_source"] for h in hits)
+            if len(hits) < page_size:
+                return out
+            search_after = hits[-1]["sort"]
 
     async def get_video_speech(self, video_id: str, *, size: int = 2000) -> list[dict[str, Any]]:
         if self.mock:

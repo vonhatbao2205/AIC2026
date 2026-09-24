@@ -40,6 +40,22 @@ interface Props {
   onCancel: () => void;
 }
 
+/** The final-round answer shape per task (HD-ChungKet-2026); the backend agrees. */
+function defaultAnswerMode(queryType: QueryType): Exclude<AnswerMode, "auto"> {
+  if (queryType === "QA") return "qa_text";
+  if (queryType === "TRAKE") return "trake_text";
+  return "temporal";
+}
+
+const ANSWER_MODE_LABELS: Record<Exclude<AnswerMode, "auto">, string> = {
+  temporal: "media + time",
+  qa_text: "text QA-answer-video-ms",
+  trake_text: "text TR-video-frames",
+  temporal_text: "media + time + text",
+  text: "text only",
+  item: "media item only",
+};
+
 /** DRES windows are milliseconds; show them as mm:ss.mmm so they stay checkable. */
 function msLabel(ms: number | undefined): string {
   if (ms == null) return "—";
@@ -61,9 +77,10 @@ export function SubmitGuard(props: Props) {
 
   const missingFrameIdx = !isTrake && !pausedFrame && !!frame && frameIdx == null;
   const answers = preview?.body.answerSets[0]?.answers ?? [];
-  const resolvedMode = preview?.answer_mode ?? (queryType === "QA" ? "temporal_text" : "temporal");
-  // Only a pure text answer has no segment to widen.
-  const hasSegment = resolvedMode !== "text" && resolvedMode !== "item";
+  const resolvedMode = preview?.answer_mode ?? defaultAnswerMode(queryType);
+  // Only the start/end forms have a segment to widen: the final-round QA text
+  // carries one instant and TRAKE carries frame numbers.
+  const hasSegment = resolvedMode === "temporal" || resolvedMode === "temporal_text";
   const taskLabel = preview?.task_name ?? props.taskNameOverride ?? "";
   // Two ways a TRAKE row can be malformed in a way the export cannot see, so the
   // guard is where they have to stop rather than where they are mentioned:
@@ -82,7 +99,7 @@ export function SubmitGuard(props: Props) {
   const blocked =
     (isTrake ? filledSlots.length === 0 : (!pausedFrame && !frame) || missingFrameIdx) ||
     mixedVideos || outOfOrder ||
-    Boolean(props.dresEnabled ? previewError : props.csvError);
+    Boolean(props.dresEnabled ? (previewError || previewLoading || !preview || !props.dresConfigured || preview.answer_mode_mismatch) : props.csvError);
   const thumbUrl = pausedFrame?.thumbnail ?? frame?.keyframe_url ?? null;
   const previewAlt = pausedFrame
     ? `Paused frame ${pausedFrame.frame_idx}`
@@ -182,9 +199,11 @@ export function SubmitGuard(props: Props) {
                 value={props.answerMode}
                 onChange={(e) => props.setAnswerMode(e.target.value as AnswerMode)}
               >
-                <option value="auto">auto ({queryType === "QA" ? "media + time + text" : "media + time"})</option>
-                <option value="temporal_text">media + time + text (QA)</option>
+                <option value="auto">auto ({ANSWER_MODE_LABELS[defaultAnswerMode(queryType)]})</option>
+                <option value="qa_text">{ANSWER_MODE_LABELS.qa_text}</option>
+                <option value="trake_text">{ANSWER_MODE_LABELS.trake_text}</option>
                 <option value="temporal">media + time (start/end ms)</option>
+                <option value="temporal_text">media + time + text (preliminary QA)</option>
                 <option value="text">text only</option>
                 <option value="item">media item only</option>
               </select>

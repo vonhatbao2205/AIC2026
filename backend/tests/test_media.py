@@ -41,3 +41,35 @@ def test_split_keyframe_hf_and_video_r2_origins():
 
     assert b.keyframe_url("L26_V001", 12).startswith("https://hf.test/resolve/Keyframes/")
     assert b.video_url("L26_V001") == "https://r2.test/Videos/Videos_L26/L26_V001.mp4"
+
+
+def test_batch2_hyphenated_video_ids_resolve_to_their_folder():
+    b = MediaUrlBuilder(BASE)
+    assert (
+        b.keyframe_url_from_submit_id("N001/N001-V001/002")
+        == "https://media.example.com/Keyframes/Keyframes_N001/N001-V001/002.jpg"
+    )
+    assert b.video_url("S01-V007") == "https://media.example.com/Videos/Videos_S01/S01-V007.mp4"
+
+
+def test_traffic_camera_videos_play_from_their_repaired_copies():
+    b = MediaUrlBuilder(BASE)
+    assert b.video_url("N001-V001") == "https://media.example.com/Videos_Web/Videos_N001/N001-V001.mp4"
+    # Keyframes and every other series keep the original layout.
+    assert "/Keyframes/Keyframes_N001/" in b.keyframe_url("N001-V001", 1)
+    assert b.video_url("M01_V001") == "https://media.example.com/Videos/Videos_M01/M01_V001.mp4"
+
+
+def test_republished_videos_follow_the_overrides_file(tmp_path, monkeypatch):
+    import json
+    from app import media
+
+    path = tmp_path / "video_overrides.json"
+    monkeypatch.setattr(media, "_OVERRIDES_PATH", path)
+    monkeypatch.setattr(media, "_overrides", (-1.0, {}))
+    b = MediaUrlBuilder(BASE)
+    assert "/Videos_Web/Videos_N027/" in b.video_url("N027-V003")  # no file yet
+
+    path.write_text(json.dumps({"roots": {"Videos_Web_v2": ["N027-V003"]}}), encoding="utf-8")
+    assert b.video_url("N027-V003") == "https://media.example.com/Videos_Web_v2/Videos_N027/N027-V003.mp4"
+    assert "/Videos_Web/Videos_N027/N027-V001.mp4" in b.video_url("N027-V001")

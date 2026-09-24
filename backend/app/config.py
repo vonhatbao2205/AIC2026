@@ -201,10 +201,15 @@ class Settings:
     # overlap checks, and ±0.5 s stays far inside a typical KIS target segment.
     dres_segment_pad_ms: int = 500
     dres_timeout_seconds: float = 20.0
-    # Master switch for live submission. Answers are collected in the app's
-    # Submission tab and exported as a CSV pack, so nothing may reach the
-    # evaluation server by accident; set DRES_ENABLED=true to run live again.
-    dres_enabled: bool = False
+    # Master switch for live submission. On for the final round, which is judged
+    # live on DRES (HD-ChungKet-2026). DRES_ENABLED=false falls back to the
+    # preliminary round's workflow: answers collected in the Submission tab and
+    # exported as a CSV pack, so nothing reaches the evaluation server.
+    dres_enabled: bool = True
+    # DRES media collection, sent as `mediaItemCollectionName` with every video
+    # answer. Needed when the server holds several collections and cannot
+    # resolve a bare video name; empty = let DRES pick.
+    dres_collection_name: str | None = None
 
     # Index / collection names (override only if you re-uploaded with a new prefix).
     # `_1` = BTC keyframes (v1 indices), `_2` = InfoShot++ keyframes (v2 indices).
@@ -556,15 +561,17 @@ def get_settings() -> Settings:
         deepseek_grounding_auto_threshold=min(1.0, max(0.0, deepseek_grounding_auto_threshold)),
         deepseek_grounding_max_output_tokens=min(64000, max(1000, deepseek_grounding_max_output_tokens)),
         deepseek_grounding_reasoning_effort=reasoning_effort,
-        # The public BTC host; inside SELab (I87) override with http://10.0.1.21:20740.
-        dres_base_url=(_env("DRES_BASE_URL") or "http://if-wan4.selab.edu.vn:20740").rstrip("/"),
+        # The final-round host (HD-ChungKet-2026); the organisers may announce
+        # another URL on the day, which DRES_BASE_URL overrides.
+        dres_base_url=(_env("DRES_BASE_URL") or "https://eventretrieval.one").rstrip("/"),
         dres_username=_env("DRES_USERNAME"),
         dres_password=_env("DRES_PASSWORD"),
         dres_session=_env("DRES_SESSION"),
         dres_evaluation_id=_env("DRES_EVALUATION_ID"),
         dres_segment_pad_ms=max(0, dres_segment_pad_ms),
         dres_timeout_seconds=max(5.0, dres_timeout_seconds),
-        dres_enabled=(_env("DRES_ENABLED", "false") or "false").lower() in {"1", "true", "yes", "on"},
+        dres_enabled=(_env("DRES_ENABLED", "true") or "true").lower() in {"1", "true", "yes", "on"},
+        dres_collection_name=_env("DRES_COLLECTION_NAME"),
         idx_keyframe_map=idx_keyframe_map_1,
         idx_keyframe_map_1=idx_keyframe_map_1,
         idx_keyframe_map_2=(

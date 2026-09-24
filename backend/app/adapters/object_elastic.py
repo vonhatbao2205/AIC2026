@@ -18,7 +18,7 @@ from typing import Any
 
 from .. import mock_data
 from ..config import Settings
-from ..identity import make_submit_keyframe_id
+from ..identity import group_from_video_id, make_submit_keyframe_id
 from ..scope import elastic_filter_clause
 from .http_pool import PooledHttpClient, failure_reason
 
@@ -110,7 +110,7 @@ class ObjectElasticClient:
             if not categories:
                 return frames
             wanted = set(categories)
-            return [f for f in frames if str(f.get("video_id") or "").split("_")[0] in wanted]
+            return [f for f in frames if group_from_video_id(str(f.get("video_id") or "")) in wanted]
 
         required = max(1, int(len(labels) * min_label_ratio))
         # Frame-level `canonical_labels` gates candidates without paying for a

@@ -84,11 +84,13 @@ GROUPS: tuple[ConfigGroup, ...] = (
         "DRES",
         "The evaluation server answers are submitted to.",
         (
+            ConfigKey("DRES_ENABLED", "Submit live to DRES (false = CSV pack only)"),
             ConfigKey("DRES_BASE_URL", "Server URL"),
             ConfigKey("DRES_USERNAME", "Participant username"),
             ConfigKey("DRES_PASSWORD", "Participant password", secret=True),
             ConfigKey("DRES_SESSION", "Pre-issued session id (optional)", secret=True),
             ConfigKey("DRES_EVALUATION_ID", "Pin one evaluation run (optional)"),
+            ConfigKey("DRES_COLLECTION_NAME", "Media collection name (when DRES asks for it)"),
             ConfigKey("DRES_SEGMENT_PAD_MS", "± ms padded around the picked instant"),
             ConfigKey("DRES_TIMEOUT_SECONDS", "Request timeout"),
         ),

@@ -6,6 +6,7 @@
 import type { DresEvaluation, QueryType } from "../api/types";
 
 const KEYWORDS: Record<QueryType, RegExp[]> = {
+  AVS: [/\bavs\b/, /ad[ -]?hoc/],
   "T-KIS": [/t-?kis/, /textual/],
   "V-KIS": [/v-?kis/, /visual/],
   QA: [/\bqa\b/, /question/],

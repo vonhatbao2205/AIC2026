@@ -7,6 +7,7 @@ from app.identity import (
     make_submit_keyframe_id,
     normalize_category,
     parse_submit_keyframe_id,
+    video_id_prefix,
 )
 
 
@@ -61,3 +62,16 @@ def test_canonical_idempotent():
     assert canonical_submit_keyframe_id("L26_a/L26_V001/14") == "L26/L26_V001/014"
     once = canonical_submit_keyframe_id("L26_a/L26_V001/14")
     assert canonical_submit_keyframe_id(once) == once
+
+
+def test_batch2_hyphenated_video_ids_keep_their_folder():
+    # BTC names the camera (N) and cycling (S) series with a hyphen.
+    assert group_from_video_id("M01_V001") == "M01"
+    assert group_from_video_id("N001-V001") == "N001"
+    assert category_from_video_id("S01-V012") == "S01"
+    assert make_submit_keyframe_id("N001-V001", 2) == "N001/N001-V001/002"
+    parsed = parse_submit_keyframe_id("S01/S01-V007/75123")
+    assert (parsed.category, parsed.video_id, parsed.keyframe_n) == ("S01", "S01-V007", 75123)
+    assert [video_id_prefix(cat) for cat in ("L21", "K01", "M10", "N100", "S01")] == [
+        "L21_", "K01_", "M10_", "N100-", "S01-",
+    ]

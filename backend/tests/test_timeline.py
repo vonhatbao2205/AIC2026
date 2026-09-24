@@ -56,3 +56,29 @@ async def test_timeline_no_heavy_tracks(settings):
     tl = await svc.build("K01_V001")
     for removed in ("speech_segments", "ocr_markers", "audio_windows", "heatmap"):
         assert removed not in tl
+
+
+@pytest.mark.asyncio
+async def test_video_keyframes_are_paged_past_the_result_window(settings):
+    """An S01 race video has up to 75,123 keyframes, more than one Elastic page."""
+    from dataclasses import replace
+
+    from app.adapters.elastic_client import ElasticClient
+
+    client = ElasticClient(replace(settings, mock_mode=False, elastic_endpoint="https://es.test", elastic_api_key="k"))
+    total = 7
+    bodies = []
+
+    async def fake_search(index, body):
+        bodies.append(body)
+        start = body.get("search_after", [0])[0]
+        stop = min(start + body["size"], total)
+        return {"hits": {"hits": [
+            {"_source": {"keyframe_n": n}, "sort": [n]} for n in range(start + 1, stop + 1)
+        ]}}
+
+    client._search = fake_search
+    frames = await client.get_video_keyframes("S01-V007", page_size=3)
+
+    assert [frame["keyframe_n"] for frame in frames] == list(range(1, total + 1))
+    assert [body.get("search_after") for body in bodies] == [None, [3], [6]]

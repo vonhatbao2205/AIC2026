@@ -3,8 +3,9 @@
 Two things live here.
 
 1. The **catalogue**: which categories each retrieval profile actually holds, and
-   what programme each one is. BTC carries the whole corpus (L21-L30 + K01-K20);
-   InfoShot++ was re-extracted from the L-side only (L21-L30).
+   what programme each one is. BTC carries the first-round corpus (L21-L30 +
+   K01-K20); InfoShot++ was re-extracted from the L-side (L21-L30) and also holds
+   data batch 2 (M01-M10 news, N001-N100 traffic cameras, S01 cycling).
 
 2. The **topic heuristic**: the folders are not an arbitrary split, they are one
    programme each ("Nấu ăn của HTV Online" IS L26, "Đua xe đạp của HTV Thể thao"
@@ -22,12 +23,19 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from .identity import video_id_prefix
 from .text_normalization import fold_vietnamese
 
 #: L-side: the ten InfoShot++ programmes. K-side: the twenty BTC news batches.
 L_CATEGORIES: tuple[str, ...] = tuple(f"L{n}" for n in range(21, 31))
 K_CATEGORIES: tuple[str, ...] = tuple(f"K{n:02d}" for n in range(1, 21))
-ALL_CATEGORIES: tuple[str, ...] = (*L_CATEGORIES, *K_CATEGORIES)
+#: Data batch 2 (InfoShot++ only): HTV7 "60 giây" bulletins, one folder per fixed
+#: traffic camera, and the 2026 Television Cup cycling race.
+M_CATEGORIES: tuple[str, ...] = tuple(f"M{n:02d}" for n in range(1, 11))
+N_CATEGORIES: tuple[str, ...] = tuple(f"N{n:03d}" for n in range(1, 101))
+S_CATEGORIES: tuple[str, ...] = ("S01",)
+BATCH2_CATEGORIES: tuple[str, ...] = (*M_CATEGORIES, *N_CATEGORIES, *S_CATEGORIES)
+ALL_CATEGORIES: tuple[str, ...] = (*L_CATEGORIES, *K_CATEGORIES, *BATCH2_CATEGORIES)
 
 #: The K batches sourced from HTV7; the rest of the K-side is HTV9.
 _HTV7_BATCHES = frozenset({"K01", "K04", "K06", "K08", "K10", "K12", "K14", "K16", "K18", "K20"})
@@ -46,6 +54,9 @@ CATEGORY_LABELS: dict[str, str] = {
     "L29": "Lưu vực sông Mekong (chương trình khác) — HTV Online",
     "L30": "Lan tỏa năng lượng tích cực — Tuổi Trẻ TV",
     **{cat: f"Thời sự 60 giây — {'HTV7' if cat in _HTV7_BATCHES else 'HTV9'}" for cat in K_CATEGORIES},
+    **{cat: "Thời sự 60 giây — HTV7 (batch 2)" for cat in M_CATEGORIES},
+    **{cat: f"Camera giao thông {cat} (batch 2)" for cat in N_CATEGORIES},
+    "S01": "Đua xe đạp — Cúp Truyền hình 2026 (batch 2)",
 }
 
 CATEGORY_LABELS_EN: dict[str, str] = {
@@ -60,20 +71,30 @@ CATEGORY_LABELS_EN: dict[str, str] = {
     "L29": "Mekong River basin (alternate program) — HTV Online",
     "L30": "Spreading positive energy — Tuoi Tre TV",
     **{cat: f"60-second news — {'HTV7' if cat in _HTV7_BATCHES else 'HTV9'}" for cat in K_CATEGORIES},
+    **{cat: "60-second news — HTV7 (batch 2)" for cat in M_CATEGORIES},
+    **{cat: f"Traffic camera {cat} (batch 2)" for cat in N_CATEGORIES},
+    "S01": "Cycling — 2026 Television Cup (batch 2)",
 }
 TOPIC_LABELS_EN = {
     "cooking": "Cooking", "cycling": "Cycling", "lion_dance": "Lion and dragon dance",
     "exam": "National high school exam revision", "culture": "Exploring Vietnamese culture",
     "mekong": "Mekong River basin / delta", "positive_energy": "Spreading positive energy",
-    "news": "60-second news",
+    "news": "60-second news", "traffic": "Traffic cameras",
 }
-GROUP_LABELS_EN = {"L": "L21–L30 · themed programs (InfoShot++)", "K": "K01–K20 · 60-second news (BTC)"}
+GROUP_LABELS_EN = {
+    "L": "L21–L30 · themed programs (InfoShot++)",
+    "K": "K01–K20 · 60-second news (BTC)",
+    "M": "M01–M10 · 60-second news HTV7 (batch 2)",
+    "N": "N001–N100 · traffic cameras (batch 2)",
+    "S": "S01 · cycling (batch 2)",
+}
 
 #: Categories each retrieval profile can return. InfoShot++ has no K-side data,
-#: so offering K01-K20 there would be a filter that always returns nothing.
+#: and batch 2 was only ever extracted and embedded for InfoShot++, so offering a
+#: folder a profile lacks would be a filter that always returns nothing.
 PROFILE_CATEGORIES: dict[str, tuple[str, ...]] = {
-    "btc": ALL_CATEGORIES,
-    "infoshotpp": L_CATEGORIES,
+    "btc": (*L_CATEGORIES, *K_CATEGORIES),
+    "infoshotpp": (*L_CATEGORIES, *BATCH2_CATEGORIES),
 }
 
 #: Folders whose programme has no fixed subject: the 60-second bulletin reports
@@ -81,14 +102,22 @@ PROFILE_CATEGORIES: dict[str, tuple[str, ...]] = {
 #: contest that accepts anything. A topic cue is evidence about which SPECIALITY
 #: folder could hold the answer; it is never evidence against these. Measured on
 #: the ground-truth queries, excluding them is exactly what loses the answer: a
-#: cycling report really does live in K19, a cooking clip in K14 and L30.
-OPEN_SUBJECT_CATEGORIES: tuple[str, ...] = ("L21", "L22", "L30", *K_CATEGORIES)
+#: cycling report really does live in K19, a cooking clip in K14 and L30. The
+#: batch-2 M folders are the same HTV7 bulletin (M06 replays the S01 race).
+OPEN_SUBJECT_CATEGORIES: tuple[str, ...] = ("L21", "L22", "L30", *K_CATEGORIES, *M_CATEGORIES)
 
 #: Coarse grouping for the UI's "select a whole side" shortcut.
 CATEGORY_GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("L", "L21–L30 · chuyên đề (InfoShot++)", L_CATEGORIES),
     ("K", "K01–K20 · Thời sự 60 giây (BTC)", K_CATEGORIES),
+    ("M", "M01–M10 · Thời sự 60 giây HTV7 (batch 2)", M_CATEGORIES),
+    ("N", "N001–N100 · Camera giao thông (batch 2)", N_CATEGORIES),
+    ("S", "S01 · Đua xe đạp (batch 2)", S_CATEGORIES),
 )
+#: Groups the picker shows as a single checkbox. The hundred N folders are one
+#: street camera each and differ only by their code, so listing them one by one
+#: buries every other folder under a hundred rows that say nothing.
+COLLAPSED_GROUPS: frozenset[str] = frozenset({"N"})
 
 
 @dataclass(frozen=True)
@@ -122,7 +151,7 @@ TOPICS: tuple[Topic, ...] = (
     Topic(
         id="cycling",
         label_vi="Đua xe đạp",
-        categories=("L23",),
+        categories=("L23", *S_CATEGORIES),
         keywords=(
             "đua xe đạp", "xe đạp", "tay đua", "cua rơ", "cuarơ", "chặng đua",
             "đoàn đua", "áo vàng", "peloton", "cycling", "cyclist", "bicycle",
@@ -189,12 +218,26 @@ TOPICS: tuple[Topic, ...] = (
         id="news",
         label_vi="Thời sự 60 giây",
         # L21/L22 are the InfoShot++ copies of the same bulletin the whole K-side
-        # carries, so a news cue must keep both sides.
-        categories=("L21", "L22", *K_CATEGORIES),
+        # carries, and M01-M10 are more HTV7 editions of it, so a news cue must
+        # keep all three.
+        categories=("L21", "L22", *K_CATEGORIES, *M_CATEGORIES),
         keywords=(
             "thời sự", "bản tin", "60 giây", "htv7", "htv9", "đưa tin",
             "phóng sự", "tin tức", "phóng viên", "mẩu tin", "đoạn tin",
             "newscast", "news bulletin", "news report",
+        ),
+    ),
+    # The N folders are fixed street cameras: no cuts, no presenter, a banner with
+    # the junction and the clock. Only words naming that FORMAT are listed —
+    # "xe máy" or "đèn đỏ" turn up in news reports just as often.
+    Topic(
+        id="traffic",
+        label_vi="Camera giao thông",
+        categories=N_CATEGORIES,
+        keywords=(
+            "camera giao thông", "camera an ninh", "camera quan sát", "camera cố định",
+            "camera đường phố", "nút giao", "ngã tư", "giao lộ", "traffic camera",
+            "cctv", "surveillance camera", "intersection",
         ),
     ),
 )
@@ -404,9 +447,10 @@ def resolve_scope(spec: dict | None, *, query: str, retrieval_database: str) -> 
 
 # ---- push-down filters -------------------------------------------------
 # `video_id` is a keyword field in every Elastic index and a VARCHAR in the
-# Milvus image collection, and it always starts with "<category>_". Filtering on
-# its prefix therefore works on every channel, unlike a category field that only
-# the OCR and keyframe-map indices carry (speech and audio have none).
+# Milvus image collection, and it always starts with its category plus a
+# separator ("L21_", "N001-", see `identity.video_id_prefix`). Filtering on that
+# prefix therefore works on every channel, unlike a category field that only the
+# OCR and keyframe-map indices carry (speech and audio have none).
 
 _SAFE_CATEGORY = re.compile(r"^[A-Za-z0-9]{1,16}$")
 
@@ -418,13 +462,13 @@ def _safe(category: str) -> bool:
 
 def milvus_filter_expr(categories: tuple[str, ...]) -> str:
     """Milvus boolean expression restricting a search to these categories."""
-    clauses = " or ".join(f'video_id like "{cat}_%"' for cat in categories if _safe(cat))
+    clauses = " or ".join(f'video_id like "{video_id_prefix(cat)}%"' for cat in categories if _safe(cat))
     return f"({clauses})" if clauses else ""
 
 
 def elastic_filter_clause(categories: tuple[str, ...]) -> dict | None:
     """Elastic bool clause restricting a search to these categories."""
-    prefixes = [{"prefix": {"video_id": f"{cat}_"}} for cat in categories if _safe(cat)]
+    prefixes = [{"prefix": {"video_id": video_id_prefix(cat)}} for cat in categories if _safe(cat)]
     return {"bool": {"should": prefixes, "minimum_should_match": 1}} if prefixes else None
 
 
@@ -444,7 +488,7 @@ def catalogue(retrieval_database: str) -> dict:
         ],
         "groups": [
             {"id": gid, "label_vi": label, "label_en": GROUP_LABELS_EN.get(gid, gid),
-             "categories": [c for c in cats if c in universe]}
+             "categories": [c for c in cats if c in universe], "collapsed": gid in COLLAPSED_GROUPS}
             for gid, label, cats in CATEGORY_GROUPS
             if any(c in universe for c in cats)
         ],

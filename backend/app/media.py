@@ -10,7 +10,44 @@ URLs are built ONLY from submit_keyframe_id / video_id + keyframe_n.
 """
 from __future__ import annotations
 
+import json
+import threading
+from pathlib import Path
+
 from .identity import group_from_video_id, parse_submit_keyframe_id
+
+#: Series whose playable copies live under their own prefix. The N traffic-camera
+#: recordings carry malformed SEI that Chrome refuses to decode; the repaired
+#: copies (same frames and timestamps, see `r2_publish_n_web_videos.py`) sit at
+#: `Videos_Web/`, a new key so the year-long immutable CDN cache of the broken
+#: originals can never mask them.
+_WEB_VIDEO_SERIES = frozenset({"N"})
+
+#: Individual videos republished under yet another root, written by
+#: `r2_reencode_n_damaged_videos.py` as each one is uploaded: N recordings whose
+#: cameras also dropped frames, re-encoded so Chrome never stops on the damage.
+#: Re-read when the file changes, so a published video switches over without a
+#: restart; a missing or unreadable file means no overrides.
+_OVERRIDES_PATH = Path(__file__).with_name("video_overrides.json")
+_overrides_lock = threading.Lock()
+_overrides: tuple[float, dict[str, str]] = (-1.0, {})
+
+
+def _video_root_overrides() -> dict[str, str]:
+    global _overrides
+    try:
+        mtime = _OVERRIDES_PATH.stat().st_mtime
+    except OSError:
+        return {}
+    with _overrides_lock:
+        if mtime != _overrides[0]:
+            try:
+                roots = json.loads(_OVERRIDES_PATH.read_text(encoding="utf-8")).get("roots") or {}
+                mapping = {video: root for root, videos in roots.items() for video in videos}
+            except (OSError, ValueError, AttributeError):
+                mapping = _overrides[1]
+            _overrides = (mtime, mapping)
+        return _overrides[1]
 
 
 class MediaUrlBuilder:
@@ -33,4 +70,7 @@ class MediaUrlBuilder:
 
     def video_url(self, video_id: str) -> str:
         group = group_from_video_id(video_id)
-        return f"{self.video_base_url}/Videos/Videos_{group}/{video_id}.mp4"
+        root = _video_root_overrides().get(video_id) or (
+            "Videos_Web" if group[:1] in _WEB_VIDEO_SERIES else "Videos"
+        )
+        return f"{self.video_base_url}/{root}/Videos_{group}/{video_id}.mp4"

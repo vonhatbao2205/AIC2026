@@ -20,11 +20,12 @@ interface Props {
   searchingAll: boolean;
 }
 
-/** Replaces the DRES bar: the run/task selector became a query-pack selector.
+/** Takes the DRES bar's place when a tab is not submitting live to DRES.
  *
- *  DRES submission is switched off (see `DRES_ENABLED` in FullConsole), so there
- *  is no open task to route to any more — a submit now writes a row into the
- *  submission table for whichever imported question this tab is answering.
+ *  Live DRES submission is the default (the final round is judged on DRES); with
+ *  "Direct DRES submission" unticked, or DRES not configured, there is no open
+ *  task to route to — a submit writes a row into the submission table for
+ *  whichever imported question this tab is answering.
  */
 export function QuestionBar(props: Props) {
   const { questions, selectedId, rowCount } = props;

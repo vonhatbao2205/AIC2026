@@ -92,6 +92,16 @@ milvus_upload_checkpoint.json
 .milvus_upload_state_*.json
 milvus_upload_pe_core_verification.json
 milvus_upload_qwen3_vl_embedding_8b_verification.json
+milvus_upload_pe_core_batch2_verification.json
+.elastic_upload_batch2_keyframe_map_state.json
+elastic_upload_batch2_keyframe_map_verification.json
+r2_publish_n_web_videos_report.json
+r2_reencode_n_damaged_videos_report.json
+
+# ---- Paper (kept out of git) -----------------------------------------------
+Paper/
+# MMM 2026 proceedings (Springer LNCS), reference reading for the paper
+Part4.pdf
 .hf_media_local_upload_state*.json
 
 # ---- OS / editor ------------------------------------------------------------

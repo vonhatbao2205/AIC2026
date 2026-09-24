@@ -39,8 +39,9 @@ The repository contains two parts:
   the union order (RRF over the indices, never a sum of their cosines) is kept and the
   panel says so. Serve it with `aic26_qwen3vl_reranker8b_colab_server.ipynb`; the box is
   hidden when no worker answers.
-- **Search scope** — a checkbox filter over the dataset folders (L21–L30 +
-  K01–K20), pushed down into the Milvus/Elastic queries. Each folder is one
+- **Search scope** — a checkbox filter over the dataset folders (BTC: L21–L30 +
+  K01–K20; InfoShot++: L21–L30 + batch 2 M01–M10 news, N001–N100 traffic
+  cameras, S01 cycling), pushed down into the Milvus/Elastic queries. Each folder is one
   programme, so a topic heuristic reads the folders off the query the same way
   the parser reads channels ("đầu bếp" → L26), while never excluding the
   programmes that carry every subject (the 60-second bulletins and L30).

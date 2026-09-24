@@ -153,7 +153,7 @@ export function ScopeFilter(props: Props) {
                     />
                     <span className="scope-code">{group.label_en ?? group.id}</span>
                   </label>
-                  {groupCats.map((cat) => {
+                  {!group.collapsed && groupCats.map((cat) => {
                     const item = categories.find((entry) => entry.category === cat);
                     return (
                       <label key={cat} className="scope-row" title={item?.label_en ?? cat}>
