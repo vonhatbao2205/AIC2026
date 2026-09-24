@@ -81,7 +81,9 @@ async def _via_llm(text: str, settings: Any, timeout: float) -> str:
     Worth the extra second only when both Google hosts are refusing — but it is
     what keeps translation working at all when they are.
     """
-    if settings is None or not getattr(settings, "has_llm", False):
+    # NVIDIA NIM, not the query LLM: this path only runs when both Google
+    # endpoints are down, and it predates the DeepSeek parser.
+    if settings is None or not getattr(settings, "nvidia_api_key", None):
         return ""
     body = {
         "model": settings.nvidia_fast_model,

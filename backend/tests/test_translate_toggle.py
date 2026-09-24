@@ -124,7 +124,7 @@ async def test_the_llm_rewrite_is_undone_when_unticked(settings, monkeypatch):
         }
 
     monkeypatch.setattr(parser, "_llm_parse", fake_llm_parse)
-    monkeypatch.setattr(parser.s, "nvidia_api_key", "nim-key")
+    monkeypatch.setattr(parser.s, "query_llm_api_key", "llm-key")
 
     parsed = await parser.parse(VI, use_llm=True, translate=False)
 

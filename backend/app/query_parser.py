@@ -1,22 +1,30 @@
 """Query understanding + retrieval routing.
 
-Primary path: NVIDIA Nemotron (OpenAI-compatible chat.completions) returns the
-strict routing JSON schema. Fallback: deterministic heuristics so the system
-works without an LLM. After either path, `manual_overrides` are applied and at
-least `image_pe` is guaranteed enabled.
+Primary path (the console's "LLM" switch): the query LLM — DeepSeek
+`deepseek-flash` by default — returns a compact routing JSON that
+`app.query_llm` validates and expands. Fallback: deterministic heuristics, so the
+system works without an LLM or when the call fails. After either path,
+`manual_overrides` are applied and at least `image_pe` is guaranteed enabled.
 
-Secrets (NVIDIA_API_KEY) never leave the backend.
+Secrets (QUERY_LLM_API_KEY / DEEPSEEK_API_KEY) never leave the backend.
 """
 from __future__ import annotations
 
 import copy
-import json
 import re
 from typing import Any
 
-import httpx
-
 from .config import Settings
+from .query_llm import (
+    EXPAND_SYSTEM_PROMPT,
+    PARSER_SYSTEM_PROMPT,
+    QueryLlm,
+    QueryLlmError,
+    expand_user_message,
+    expand_variants,
+    parser_user_message,
+    to_routing,
+)
 from .text_normalization import fold_vietnamese
 
 # ---- Heuristic signal lexicons (Vietnamese) ---------------------------
@@ -298,169 +306,14 @@ def _split_trake_events(query: str) -> list[str]:
     return parts if len(parts) >= 2 else [query]
 
 
-# ---- LLM path ---------------------------------------------------------
-SYSTEM_PROMPT = """You are the query understanding and retrieval routing engine for an AIC26 Vietnamese video retrieval system.
-Parse a user query, translate it when needed, classify the task type, decide which retrieval channels should run, and produce structured instructions for the backend.
-Channels: image_pe (PE-Core-G14 visual semantic, needs English visual query), ocr (Elastic OCR text, Vietnamese + folded), speech (Elastic ASR transcript, Vietnamese), audio (Elastic audio event tags/caption, English sound labels), trake_sequence (ordered events in one video).
-Prefer recall: enable image_pe for almost every visual query. Enable OCR only when visible text matters; speech only for spoken content; audio only for non-speech sounds. Parse negations as filters/warnings, do not over-trust them in vector search. Always output valid JSON only, no markdown, no commentary.
-Write operator-facing reasons and ui_hints.warning_vi in English (the latter is a legacy field name). Preserve the original language of quoted text, OCR queries, speech queries and answer content.
-
-QUERY EXPANSION (important for recall): for image_pe.queries_en, output 2-3 SHORT, DIVERSE English visual rephrasings of the same target — describe what is literally VISIBLE (objects, colors, shapes, scene), not named entities alone. A named character must be paired with a visual description (e.g. for "The Thing" use ["The Thing superhero","orange rocky stone-skinned muscular man","brown cracked rock-textured humanoid"]). Avoid one long sentence; use compact phrases. Do the same for each trake event's image_pe_queries_en."""
-
-USER_TEMPLATE = """Parse this AIC26 retrieval query.
-
-User query:
-{query}
-
-Query type hint:
-{hint}
-
-Previous accumulated hints, if any:
-{previous}
-
-Return JSON only using exactly this schema:
-{schema}"""
-
-_SCHEMA_HINT = json.dumps(
-    {
-        "query_type": "T-KIS|QA|V-KIS|TRAKE|AVS",
-        "confidence": 0.0,
-        "original_query": "",
-        "normalized_vi": "",
-        "translated_en_visual": "",
-        "operator_summary_vi": "",
-        "channels": {
-            "image_pe": {"enabled": True, "weight": 1.0, "reason": "", "queries_en": [], "positive_concepts_en": [], "negative_concepts_en": []},
-            "ocr": {"enabled": False, "weight": 0.0, "reason": "", "queries_vi": [], "queries_folded": [], "exact_phrases": [], "numbers": [], "time_filters": {"hour": None, "clock": None}},
-            "speech": {"enabled": False, "weight": 0.0, "reason": "", "queries_vi": [], "exact_phrases": [], "speaker_or_role_hints": []},
-            "audio": {"enabled": False, "weight": 0.0, "reason": "", "queries_en": [], "sound_labels_en": []},
-        },
-        "filters": {"video_ids": [], "categories": [], "time_range_seconds": None, "must_include": [], "must_not_include": []},
-        "trake": {"enabled": False, "events": [], "ordering_rule": "strict_increasing_time", "fallback_policy": "allow_partial_confident_events_with_warning"},
-        "qa": {"enabled": False, "question_vi": "", "answer_evidence_channels": ["ocr", "speech", "audio"], "draft_answer_allowed_from_text_evidence_only": True},
-        "rerank_policy": {"use_rrf": True, "rrf_k": 60, "group_by_video": True, "prefer_temporal_cooccurrence": True},
-        "ui_hints": {"show_timeline": False, "show_ocr_snippets": False, "show_speech_snippets": False, "show_audio_badges": False, "require_submit_guard": True, "warning_vi": ""},
-    },
-    ensure_ascii=False,
-)
-
-# ---- Slim schema: the LLM emits ONLY the decisions; the backend fills all the
-# boilerplate/derivable fields (rerank_policy, ui_hints, qa block, empty arrays).
-# Far fewer output tokens => much faster, while every decision-bearing field is
-# kept (query_type, per-channel enable/weight/queries, trake events, negations),
-# so routing/translation/event-split quality is unchanged. A short per-channel
-# `reason` is kept as a light reasoning scaffold.
-SLIM_SYSTEM_PROMPT = SYSTEM_PROMPT + """
-
-OUTPUT THE SLIM SCHEMA ONLY (the backend fills the rest). Keep all decisions:
-query_type, confidence, translated_en_visual, per-channel enabled/weight/reason/
-queries (image_pe.queries_en expanded to 2-3 visual variants), negations.
-Rules: enable ocr/speech/audio ONLY when clearly needed — default them to false.
-trake_events MUST be [] UNLESS query_type is exactly "TRAKE" (a query describing
-several events in chronological order). A single scene/moment is T-KIS or V-KIS,
-NOT TRAKE — do not invent events. Do NOT output rerank_policy, ui_hints, or qa."""
-
-_SLIM_SCHEMA_HINT = json.dumps(
-    {
-        "query_type": "T-KIS|QA|V-KIS|TRAKE|AVS",
-        "confidence": 0.0,
-        "translated_en_visual": "",
-        "channels": {
-            "image_pe": {"enabled": True, "weight": 1.0, "reason": "", "queries_en": []},
-            "ocr": {"enabled": False, "weight": 0.0, "reason": "", "queries_vi": [], "queries_folded": [], "exact_phrases": [], "numbers": [], "hour": None, "clock": None},
-            "speech": {"enabled": False, "weight": 0.0, "reason": "", "queries_vi": [], "exact_phrases": []},
-            "audio": {"enabled": False, "weight": 0.0, "reason": "", "queries_en": [], "sound_labels_en": []},
-        },
-        "negations": [],
-        "trake_events": [],
-    },
-    ensure_ascii=False,
-)
-
-
-def slim_to_full(slim: dict[str, Any], query: str, hint: str) -> dict[str, Any]:
-    """Expand the slim LLM output into the full routing dict (same shape the rest
-    of the app expects). Boilerplate is filled here, not generated by the LLM."""
-    ch = slim.get("channels") or {}
-
-    def chan(name: str, extra_keys: tuple[str, ...]) -> dict[str, Any]:
-        c = ch.get(name) or {}
-        out = _empty_channel(name)
-        out["enabled"] = bool(c.get("enabled", out["enabled"]))
-        out["weight"] = float(c.get("weight") or (1.0 if out["enabled"] else 0.0))
-        out["reason"] = c.get("reason") or ""
-        for k in extra_keys:
-            if k in c and c[k] is not None:
-                out[k] = c[k]
-        return out
-
-    image_pe = chan("image_pe", ("queries_en", "positive_concepts_en", "negative_concepts_en"))
-    ocr = chan("ocr", ("queries_vi", "queries_folded", "exact_phrases", "numbers"))
-    oc = ch.get("ocr") or {}
-    ocr["time_filters"] = {"hour": oc.get("hour"), "clock": oc.get("clock")}
-    speech = chan("speech", ("queries_vi", "exact_phrases", "speaker_or_role_hints"))
-    audio = chan("audio", ("queries_en", "sound_labels_en"))
-
-    qtype = slim.get("query_type") or "T-KIS"
-    negations = slim.get("negations") or []
-
-    events = slim.get("trake_events") or []
-    trake_events = [
-        {
-            "event_index": i + 1,
-            "description_vi": "",
-            "description_en_visual": (ev.get("image_pe_queries_en") or [""])[0],
-            "image_pe_queries_en": ev.get("image_pe_queries_en") or [],
-            "ocr_queries_vi": ev.get("ocr_queries_vi") or [],
-            "speech_queries_vi": ev.get("speech_queries_vi") or [],
-            "audio_queries_en": ev.get("audio_queries_en") or [],
-            "expected_order_hint": "before" if i == 0 else "after",
-            "required": True,
-        }
-        for i, ev in enumerate(events)
-    ]
-    trake_enabled = qtype == "TRAKE" and len(trake_events) >= 1
-
-    return {
-        "query_type": qtype,
-        "confidence": float(slim.get("confidence") or 0.6),
-        "original_query": query,
-        "normalized_vi": query,
-        "translated_en_visual": slim.get("translated_en_visual") or "",
-        "operator_summary_vi": "",
-        "channels": {"image_pe": image_pe, "ocr": ocr, "speech": speech, "audio": audio},
-        "filters": {"video_ids": [], "categories": [], "time_range_seconds": None, "must_include": [], "must_not_include": negations},
-        "trake": {
-            "enabled": trake_enabled,
-            "events": trake_events,
-            "ordering_rule": "strict_increasing_time",
-            "fallback_policy": "allow_partial_confident_events_with_warning",
-        },
-        "qa": {
-            "enabled": qtype == "QA",
-            "question_vi": query if qtype == "QA" else "",
-            "answer_evidence_channels": ["ocr", "speech", "audio"],
-            "draft_answer_allowed_from_text_evidence_only": True,
-        },
-        "rerank_policy": {"use_rrf": True, "rrf_k": 60, "group_by_video": True, "prefer_temporal_cooccurrence": True},
-        "ui_hints": {
-            "show_timeline": trake_enabled,
-            "show_ocr_snippets": ocr["enabled"],
-            "show_speech_snippets": speech["enabled"],
-            "show_audio_badges": audio["enabled"],
-            "require_submit_guard": True,
-            "warning_vi": "",
-        },
-        "_engine": "nemotron-slim",
-    }
-
-
 class QueryParser:
     def __init__(self, settings: Settings):
         self.s = settings
         # Cache the pre-override parse so toggling a channel / re-running the same
         # query does not pay the LLM round-trip again.
         self._cache: dict[tuple, dict[str, Any]] = {}
+        self._expand_cache: dict[tuple, list[str]] = {}
+        self.llm = QueryLlm(settings)
 
     async def parse(
         self,
@@ -489,10 +342,21 @@ class QueryParser:
         if base is None:
             translate_on = translate and self.s.translate_to_en and not self.s.mock_mode
             parsed: dict[str, Any] | None = None
-            if use_llm and self.s.has_llm and not self.s.mock_mode:
-                parsed = await self._llm_parse(query, query_type_hint, previous_hints)
+            llm_failure: str | None = None
+            if use_llm and self.llm.available:
+                try:
+                    parsed = await self._llm_parse(query, query_type_hint, previous_hints)
+                except QueryLlmError as exc:
+                    llm_failure = str(exc)
             if parsed is None:
                 parsed = heuristic_parse(query, query_type_hint, previous_hints)
+                if use_llm and self.llm.available:
+                    # Said on screen: an operator who asked for the LLM must not be
+                    # left believing a heuristic routing came from it.
+                    parsed["ui_hints"]["warning_vi"] = (
+                        f"LLM parser unavailable ({llm_failure or 'no usable visual query'}); "
+                        "heuristic routing used."
+                    )
                 # LLM off → translate VI→EN so the PE visual query is English.
                 if translate_on:
                     await self._apply_translation(parsed)
@@ -537,54 +401,31 @@ class QueryParser:
         result = ensure_image_pe(result)
         return result
 
-    async def expand_visual(self, text: str, n: int = 3) -> list[str]:
-        """Lightweight Nemotron query expansion: turn a visual query into a few
-        short, diverse English visual rephrasings (objects/colors/scene). Uses a
-        tiny prompt + small max_tokens so it's far faster than the full parser.
-        Returns [] on any failure (caller keeps the original query)."""
-        text = (text or "").strip()
-        if not text or not self.s.has_llm or self.s.mock_mode:
-            return []
-        sys = (
-            "You expand an image-retrieval query into short, diverse English visual "
-            "descriptions of what is literally VISIBLE (objects, colors, shapes, scene). "
-            "Pair any named entity with a visual description. Output ONLY a JSON array of "
-            f"{n} concise strings, no prose."
-        )
-        body = {
-            "model": self.s.nvidia_fast_model,  # fast model — the 550B is too slow for this
-            "messages": [{"role": "system", "content": sys}, {"role": "user", "content": text}],
-            "temperature": 0.2,  # lower => more reproducible variants run-to-run
-            "max_tokens": 220,
-        }
-        headers = {"Authorization": f"Bearer {self.s.nvidia_api_key}", "Content-Type": "application/json"}
-        try:
-            async with httpx.AsyncClient(timeout=45.0) as client:
-                resp = await client.post(
-                    f"{self.s.nvidia_base_url}/chat/completions", json=body, headers=headers
-                )
-                resp.raise_for_status()
-                content = resp.json()["choices"][0]["message"]["content"].strip()
-        except Exception:  # noqa: BLE001
-            return []
-        # Parse a JSON array; fall back to line splitting.
-        variants: list[str] = []
-        data = _extract_json_array(content)
-        if data is not None:
-            variants = [str(x).strip() for x in data if str(x).strip()]
-        else:
-            variants = [ln.strip(" -*0123456789.\t\"'") for ln in content.splitlines() if ln.strip()]
-        # Dedup + drop non-English variants (guard against a model echoing the
-        # Vietnamese input — keeps the PE visual query English regardless of model).
-        from .translate import _looks_english
+    async def expand_visual(self, text: str, n: int = 3, *, original_vi: str | None = None) -> list[str]:
+        """Up to `n` more English phrasings of a visual query ("Expand").
 
-        seen, out = set(), []
-        for v in variants:
-            k = v.lower()
-            if v and k not in seen and _looks_english(v):
-                seen.add(k)
-                out.append(v)
-        return out[:n]
+        Each is searched on its own and a frame keeps its best score, so a frame
+        that matches ANY phrasing strongly rises. Returns [] on any failure: the
+        search then runs on the query it already had.
+        """
+        text = (text or "").strip()
+        if not text or not self.llm.available:
+            return []
+        key = (text, original_vi or "", n)
+        if key in self._expand_cache:
+            return list(self._expand_cache[key])
+        try:
+            data = await self.llm.chat_json(
+                EXPAND_SYSTEM_PROMPT, expand_user_message(text, original_vi), max_tokens=400
+            )
+        except QueryLlmError:
+            return []
+        variants = expand_variants(data, existing=[text], n=n)
+        if variants:
+            if len(self._expand_cache) > 512:
+                self._expand_cache.clear()
+            self._expand_cache[key] = variants
+        return list(variants)
 
     async def _apply_translation(self, parsed: dict[str, Any]) -> None:
         """Translate the Vietnamese query to English for the image_pe channel.
@@ -618,71 +459,19 @@ class QueryParser:
                     ev["image_pe_queries_en"] = [ev_en]
 
     async def _llm_parse(self, query, hint, previous_hints) -> dict[str, Any] | None:
-        # Default: full schema (accurate routing). Slim schema (opt-in via
-        # SLIM_PARSE) is ~2x faster but A/B showed it can misroute query_type on
-        # ambiguous queries, so it is not the default.
-        slim = self.s.slim_parse
-        system = SLIM_SYSTEM_PROMPT if slim else SYSTEM_PROMPT
-        prompt = USER_TEMPLATE.format(
-            query=query,
-            hint=hint,
-            previous=json.dumps(previous_hints, ensure_ascii=False),
-            schema=_SLIM_SCHEMA_HINT if slim else _SCHEMA_HINT,
+        """Route through the query LLM; None when its answer has no usable visual query.
+
+        Raises `QueryLlmError` when the call itself fails.
+        """
+        data = await self.llm.chat_json(
+            PARSER_SYSTEM_PROMPT,
+            parser_user_message(query, hint, previous_hints, self.s.retrieval_database),
+            max_tokens=1600,
         )
-        for attempt in range(2):
-            extra_instruction = "" if attempt == 0 else "\nReturn valid JSON only."
-            try:
-                content = await self._chat(system, prompt + extra_instruction)
-                data = _extract_json(content)
-                if not data:
-                    continue
-                if slim and data.get("channels"):
-                    return slim_to_full(data, query, hint)
-                data["_engine"] = "nemotron"
-                return data
-            except Exception:  # noqa: BLE001 - fall back to heuristics
-                break
-        return None
-
-    async def _chat(self, system: str, user: str) -> str:
-        body = {
-            "model": self.s.nvidia_model,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            "temperature": 0.1,
-            "max_tokens": 2048,  # full schema output is large; slim stops earlier
-        }
-        headers = {
-            "Authorization": f"Bearer {self.s.nvidia_api_key}",
-            "Content-Type": "application/json",
-        }
-        async with httpx.AsyncClient(timeout=40.0) as client:
-            resp = await client.post(
-                f"{self.s.nvidia_base_url}/chat/completions", json=body, headers=headers
-            )
-            resp.raise_for_status()
-            data = resp.json()
-        return data["choices"][0]["message"]["content"]
-
-
-def _extract_json(content: str) -> dict[str, Any] | None:
-    content = content.strip()
-    if content.startswith("```"):
-        content = re.sub(r"^```[a-zA-Z]*\n?", "", content)
-        content = content.rstrip("`").rstrip()
-    try:
-        return json.loads(content)
-    except json.JSONDecodeError:
-        start = content.find("{")
-        end = content.rfind("}")
-        if start != -1 and end != -1 and end > start:
-            try:
-                return json.loads(content[start : end + 1])
-            except json.JSONDecodeError:
-                return None
-    return None
+        routed = to_routing(data, query=query, hint=hint, previous_hints=previous_hints)
+        if routed is not None:
+            routed["_engine"] = f"llm:{self.s.query_llm_model}"
+        return routed
 
 
 def _populate_channel_queries(parsed: dict[str, Any], name: str, channel: dict[str, Any]) -> None:
@@ -702,20 +491,6 @@ def _populate_channel_queries(parsed: dict[str, Any], name: str, channel: dict[s
         channel["queries_vi"] = [q_vi] if q_vi else []
     elif name == "audio" and not channel.get("queries_en"):
         channel["queries_en"] = [q_en] if q_en else []
-
-
-def _extract_json_array(content: str) -> list | None:
-    content = content.strip()
-    if content.startswith("```"):
-        content = re.sub(r"^```[a-zA-Z]*\n?", "", content).rstrip("`").rstrip()
-    start, end = content.find("["), content.rfind("]")
-    if start != -1 and end != -1 and end > start:
-        try:
-            data = json.loads(content[start : end + 1])
-            return data if isinstance(data, list) else None
-        except json.JSONDecodeError:
-            return None
-    return None
 
 
 def apply_manual_overrides(parsed: dict[str, Any], overrides: dict[str, Any]) -> dict[str, Any]:

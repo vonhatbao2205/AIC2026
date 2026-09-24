@@ -27,8 +27,10 @@ The repository contains two parts:
     combines ranks with RRF and never adds their incomparable cosine scores.
   - `ocr` / `speech` / `audio` — full-text + filters in **Elastic**
   - `audio` vector — **GLAP** audio↔text embeddings in Milvus, fused with the Elastic audio signal
-- **Query understanding** via NVIDIA Nemotron (OpenAI-compatible) with a
-  deterministic heuristic fallback; VI→EN translation of the visual query.
+- **Query understanding** via DeepSeek V4.1 Flash (`deepseek-flash`, thinking off,
+  JSON output, ~2 s) with a prompt written for the final-round collection and task
+  types, validated field by field, and a deterministic heuristic fallback; VI→EN
+  translation of the visual query. The same model writes the **Expand** paraphrases.
 - **Qwen3-VL visual reranker** (opt-in, off by default) — a **Rerank** tick box in the
   query panel widens EVERY selected image index to `QWEN_RERANKER_CANDIDATES`, merges
   their candidates into one pool (round-robin over the two rank lists, so a frame only
@@ -242,7 +244,9 @@ Key variables (full list in [backend/.env.example](backend/.env.example)):
 | `MEDIA_BASE_URL` | Cloudflare R2: BTC keyframes và video của cả hai profile |
 | `KEYFRAME_MEDIA_BASE_URL_2` | Cloudflare R2 public base cho keyframe InfoShot++ |
 | `KEYFRAME_MEDIA_FALLBACK_BASE_URL_2` | Hugging Face fallback khi keyframe InfoShot++ trên R2 tải lỗi |
-| `NVIDIA_API_KEY` | enables the Nemotron query parser (else heuristics) |
+| `QUERY_LLM_API_KEY` | query LLM for the LLM switch and Expand; defaults to `DEEPSEEK_API_KEY` (else heuristics) |
+| `QUERY_LLM_MODEL`, `QUERY_LLM_BASE_URL` | default `deepseek-flash` at `https://api.deepseek.com` |
+| `NVIDIA_API_KEY` | optional LLM fallback of VI→EN translation when Google fails |
 | `DRES_BASE_URL` | official DRES host (SELab: `http://10.0.1.21:20740`) |
 | `DRES_USERNAME`, `DRES_PASSWORD` | participant account — the backend logs in (Client API v2) and keeps the session |
 | `DRES_EVALUATION_ID`, `DRES_SEGMENT_PAD_MS` | optional: pin one run / ± ms around the picked instant (default 500) |
@@ -288,7 +292,7 @@ cd frontend && npm run test                       # vitest component tests
 ## Tech stack
 
 **Backend:** Python · FastAPI · Uvicorn · Elasticsearch · Milvus/pymilvus ·
-NVIDIA NIM (Nemotron) · Whisper (voice input).
+DeepSeek (query LLM, web grounding) · Whisper (voice input).
 **Frontend:** TypeScript · React 18 · Vite · Vitest.
 **Infra:** Elastic Cloud · Zilliz/Milvus · Cloudflare R2 · Kaggle GPU encoders.
 

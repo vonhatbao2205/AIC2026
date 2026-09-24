@@ -258,7 +258,7 @@ export function QueryPanel(props: Props) {
           className={`btn sm ${useLLM ? "primary" : "ghost"}`}
           data-testid="llm-toggle"
           onClick={onToggleLLM}
-          title="LLM routing translates VI→EN and auto-routes channels, but adds several seconds per new query."
+          title="LLM routing (DeepSeek V4.1 Flash, ~2 s per new query): separates a QA question from the event, routes OCR/speech/audio, splits TRAKE events and writes short English visual phrases."
         >
           {useLLM ? "🧠 LLM on" : "LLM off (fast)"}
         </button>
@@ -266,7 +266,7 @@ export function QueryPanel(props: Props) {
           className={`btn sm ${expand ? "primary" : "ghost"}`}
           data-testid="expand-toggle"
           onClick={onToggleExpand}
-          title="Query expansion: adds 2-3 visual paraphrases per query for better recall (slower — extra LLM call)."
+          title="Query expansion: adds 2-3 more English phrasings of the visual query (DeepSeek); a frame matching any of them rises. One extra LLM call per new query."
         >
           {expand ? "🔎 Expand on" : "Expand off"}
         </button>

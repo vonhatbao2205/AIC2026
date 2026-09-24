@@ -96,14 +96,23 @@ GROUPS: tuple[ConfigGroup, ...] = (
         ),
     ),
     ConfigGroup(
-        "Query parser (optional)",
-        "NVIDIA NIM. Without a key the deterministic heuristics are used.",
+        "Query LLM (optional)",
+        "Routing parser (LLM switch) and query expansion (Expand). DeepSeek by default; "
+        "without a key the deterministic heuristics are used.",
+        (
+            ConfigKey("QUERY_LLM_API_KEY", "API key (defaults to DEEPSEEK_API_KEY)", secret=True),
+            ConfigKey("QUERY_LLM_BASE_URL", "Base URL (https://api.deepseek.com)"),
+            ConfigKey("QUERY_LLM_MODEL", "Model (deepseek-flash = V4.1 Flash)"),
+            ConfigKey("QUERY_LLM_TIMEOUT_SECONDS", "Request timeout"),
+        ),
+    ),
+    ConfigGroup(
+        "Translation fallback (optional)",
+        "NVIDIA NIM model used only when both Google translation endpoints fail.",
         (
             ConfigKey("NVIDIA_API_KEY", "NIM API key", secret=True),
             ConfigKey("NVIDIA_BASE_URL", "NIM base URL"),
-            ConfigKey("NVIDIA_MODEL", "Routing parser model"),
-            ConfigKey("NVIDIA_FAST_MODEL", "Fast model for query expansion"),
-            ConfigKey("SLIM_PARSE", "Slim schema: faster, can misroute (true/false)"),
+            ConfigKey("NVIDIA_FAST_MODEL", "Translation model"),
         ),
     ),
     ConfigGroup(

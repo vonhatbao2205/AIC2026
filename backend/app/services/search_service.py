@@ -1259,7 +1259,8 @@ class SearchService:
         img = (parsed.get("channels") or {}).get("image_pe") or {}
         if img.get("enabled"):
             base = (img.get("queries_en") or [None])[0] or parsed.get("translated_en_visual")
-            variants = await self.parser.expand_visual(base) if base else []
+            original = parsed.get("normalized_vi") or parsed.get("original_query")
+            variants = await self.parser.expand_visual(base, original_vi=original) if base else []
             if variants:
                 merged = list(dict.fromkeys([*(img.get("queries_en") or []), *variants]))
                 img["queries_en"] = merged
@@ -1269,7 +1270,7 @@ class SearchService:
                 base = (ev.get("image_pe_queries_en") or [None])[0] or ev.get("description_en_visual")
                 if not base:
                     continue
-                variants = await self.parser.expand_visual(base)
+                variants = await self.parser.expand_visual(base, original_vi=ev.get("description_vi"))
                 if variants:
                     ev["image_pe_queries_en"] = list(dict.fromkeys([*(ev.get("image_pe_queries_en") or []), *variants]))
 

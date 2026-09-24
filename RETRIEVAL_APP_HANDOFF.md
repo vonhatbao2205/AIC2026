@@ -2,7 +2,7 @@
 
 An operator-first video retrieval console for AIC26 over the existing assets
 (PE-Core-G14 image vectors in Milvus; OCR / speech / audio / keyframe-map in
-Elastic; media on Cloudflare R2; optional NVIDIA Nemotron query parser; optional
+Elastic; media on Cloudflare R2; optional DeepSeek query parser; optional
 DRES submit). Design principle: **UI > Method > Model** — reduce wrong submits
 and navigation time.
 
@@ -47,8 +47,9 @@ files already in the repo root). See `backend/.env.example`.
 | `TARA_ENABLED`, `TARA_ENCODER_URL`, `TARA_ENCODER_TOKEN` | optional, InfoShot++ only | TARA text worker; all three enable clip retrieval |
 | `TARA_ENCODER_TIMEOUT_SECONDS` | optional | TARA text-encode timeout, default 120s |
 | `MEDIA_BASE_URL` | yes | Cloudflare R2 public base (keyframes/videos) |
-| `NVIDIA_API_KEY` | optional | enables Nemotron query parser (else heuristics) |
-| `NVIDIA_BASE_URL`, `NVIDIA_MODEL` | optional | default NIM endpoint + `nvidia/nemotron-3-ultra-550b-a55b` |
+| `QUERY_LLM_API_KEY` | optional | query LLM for parsing and Expand; defaults to `DEEPSEEK_API_KEY` (else heuristics) |
+| `QUERY_LLM_BASE_URL`, `QUERY_LLM_MODEL` | optional | default `https://api.deepseek.com` + `deepseek-flash` (DeepSeek-V4.1-Flash) |
+| `NVIDIA_API_KEY`, `NVIDIA_BASE_URL`, `NVIDIA_FAST_MODEL` | optional | LLM fallback of VI→EN translation only |
 | `NVILA_BASE_URL`, `NVILA_TOKEN` | optional | Colab A100 NVILA-8B QA worker; both are required to enable it |
 | `NVILA_TIMEOUT_SECONDS`, `NVILA_MAX_CANDIDATES` | optional | visual QA timeout and trusted candidate cap (defaults 240s/12) |
 | `DEEPSEEK_API_KEY` | optional | DeepSeek built-in `web_search` grounding for QA; backend-only secret |
@@ -208,9 +209,14 @@ when the same frame was already submitted for the task (unless `allow_duplicate`
 
 ## 5. Pipeline
 
-1. **Parse** (`query_parser.py`): NVIDIA Nemotron (OpenAI-compatible
-   `chat.completions`, `temperature=0.1`, `enable_thinking:false`, one JSON
-   retry) when `NVIDIA_API_KEY` is set; otherwise deterministic heuristics.
+1. **Parse** (`query_parser.py` + `query_llm.py`): with the LLM switch on, one
+   DeepSeek `deepseek-flash` call (OpenAI-compatible `chat.completions`,
+   `thinking: disabled`, `response_format: json_object`, `temperature=0.1`, one
+   retry) returns a compact routing JSON — task type (the operator's hint wins),
+   event vs QA question, 2–3 short English visual phrases, literal OCR strings,
+   spoken phrases with numbers as words, sound labels, ordered TRAKE events — which
+   `query_llm.to_routing` validates field by field. On failure, or with the switch
+   off, deterministic heuristics route the query and the panel says why.
    `manual_overrides` (operator channel toggles) are applied last and
    `image_pe` is force-enabled if everything else is off.
 2. **Retrieve in parallel** over enabled channels:

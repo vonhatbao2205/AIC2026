@@ -139,14 +139,18 @@ class Settings:
     video_media_fallback_base_url: str = ""
     video_media_fallback_base_url_1: str = ""
     video_media_fallback_base_url_2: str = ""
+    # Query LLM: the routing parser (the console's "LLM" switch) and visual query
+    # expansion ("Expand"). OpenAI-compatible chat completions; the default is
+    # DeepSeek's `deepseek-flash` (DeepSeek-V4.1-Flash), called with thinking
+    # off and JSON output on. The key defaults to DEEPSEEK_API_KEY.
+    query_llm_api_key: str | None = None
+    query_llm_base_url: str = "https://api.deepseek.com"
+    query_llm_model: str = "deepseek-flash"
+    query_llm_timeout_seconds: float = 30.0
+    # NVIDIA NIM: only the LLM fallback of VI->EN translation when both Google
+    # endpoints fail. Qwen3-next reliably answers in English for Vietnamese input.
     nvidia_api_key: str | None = None
     nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
-    # Routing parser model. qwen3-next (3B-active MoE) is the fastest model that
-    # still returns the full valid JSON schema (~28s vs ~45s for the 550B).
-    nvidia_model: str = "qwen/qwen3-next-80b-a3b-instruct"
-    # A fast NIM model for lightweight calls (query expansion). Qwen3-next is a
-    # 3B-active MoE: ~2s, strong multilingual, and reliably outputs ENGLISH for
-    # Vietnamese input (llama-3.1-8b echoed Vietnamese; the 550B is ~45s/call).
     nvidia_fast_model: str = "qwen/qwen3-next-80b-a3b-instruct"
     # NVILA-8B visual QA server (the companion Colab notebook exposes /qa/analyze).
     # The URL is a volatile Cloudflare quick-tunnel URL unless a named tunnel is used.
@@ -183,9 +187,6 @@ class Settings:
     # Thinking is enabled by default and draws from the same budget as the answer.
     deepseek_grounding_max_output_tokens: int = 8000
     deepseek_grounding_reasoning_effort: str = "high"
-    # Slim-schema parse: ~2x faster but A/B showed it occasionally misroutes
-    # query_type (TKIS→TRAKE) on ambiguous queries — off by default (accuracy).
-    slim_parse: bool = False
     # --- DRES (official BTC evaluation server, Client API v2) ---
     # Auth is a session: POST /api/v2/login returns a sessionId that every other
     # call carries as ?session=…. Credentials stay backend-side.
@@ -359,7 +360,8 @@ class Settings:
 
     @property
     def has_llm(self) -> bool:
-        return bool(self.nvidia_api_key)
+        """A query LLM is configured (routing parser + expansion)."""
+        return bool(self.query_llm_api_key and self.query_llm_model)
 
     @property
     def has_nvila(self) -> bool:
@@ -415,8 +417,11 @@ def get_settings() -> Settings:
     translate_env = (_env("TRANSLATE_TO_EN", "true") or "true").lower()
     translate_to_en = translate_env in {"1", "true", "yes", "on"}
 
-    slim_env = (_env("SLIM_PARSE", "false") or "false").lower()
-    slim_parse = slim_env in {"1", "true", "yes", "on"}
+    try:
+        query_llm_timeout_seconds = float(_env("QUERY_LLM_TIMEOUT_SECONDS", "30") or "30")
+    except ValueError:
+        query_llm_timeout_seconds = 30.0
+    deepseek_api_key = _env("DEEPSEEK_API_KEY") or file_default("deepseek_apikey.txt")
 
     try:
         nvila_timeout_seconds = float(_env("NVILA_TIMEOUT_SECONDS", "240") or "240")
@@ -539,9 +544,12 @@ def get_settings() -> Settings:
         # dress a single point of failure up as redundancy.
         video_media_fallback_base_url_1=(_env("VIDEO_MEDIA_FALLBACK_BASE_URL_1") or "").rstrip("/"),
         video_media_fallback_base_url_2=(_env("VIDEO_MEDIA_FALLBACK_BASE_URL_2") or "").rstrip("/"),
+        query_llm_api_key=_env("QUERY_LLM_API_KEY") or deepseek_api_key,
+        query_llm_base_url=(_env("QUERY_LLM_BASE_URL") or "https://api.deepseek.com").rstrip("/"),
+        query_llm_model=_env("QUERY_LLM_MODEL") or "deepseek-flash",
+        query_llm_timeout_seconds=min(120.0, max(5.0, query_llm_timeout_seconds)),
         nvidia_api_key=_env("NVIDIA_API_KEY") or file_default("nvidia_api_key.txt"),
         nvidia_base_url=_env("NVIDIA_BASE_URL") or "https://integrate.api.nvidia.com/v1",
-        nvidia_model=_env("NVIDIA_MODEL") or "qwen/qwen3-next-80b-a3b-instruct",
         nvidia_fast_model=_env("NVIDIA_FAST_MODEL") or "qwen/qwen3-next-80b-a3b-instruct",
         nvila_base_url=(_env("NVILA_BASE_URL") or "").rstrip("/") or None,
         nvila_token=_env("NVILA_TOKEN") or file_default("nvila_token.txt"),
@@ -553,7 +561,7 @@ def get_settings() -> Settings:
         qwen_reranker_timeout_seconds=max(5.0, qwen_reranker_timeout_seconds),
         # The worker itself caps a request at 400 documents.
         qwen_reranker_candidates=min(400, max(10, qwen_reranker_candidates)),
-        deepseek_api_key=_env("DEEPSEEK_API_KEY") or file_default("deepseek_apikey.txt"),
+        deepseek_api_key=deepseek_api_key,
         deepseek_grounding_model=_env("DEEPSEEK_GROUNDING_MODEL") or "deepseek-v4-flash",
         deepseek_grounding_base_url=(_env("DEEPSEEK_GROUNDING_BASE_URL") or "https://api.deepseek.com").rstrip("/"),
         deepseek_grounding_enabled=deepseek_grounding_enabled,
@@ -607,6 +615,5 @@ def get_settings() -> Settings:
         milvus_audio_collection=_env("MILVUS_AUDIO_COLLECTION") or "aic26_audio_glap_v1",
         mock_mode=mock_mode,
         translate_to_en=translate_to_en,
-        slim_parse=slim_parse,
         cors_origins=cors_origins,
     )
