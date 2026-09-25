@@ -44,7 +44,7 @@ files already in the repo root). See `backend/.env.example`.
 | `PE_ENCODER_TOKEN` | optional | sent as `Authorization: Bearer` if set |
 | `QWEN3_VL_ENCODER_URL`, `QWEN3_VL_ENCODER_TOKEN` | optional, InfoShot++ only | Colab A100 Qwen3-VL-Embedding-8B `/encode-text` worker; both are required to enable it |
 | `QWEN3_VL_ENCODER_TIMEOUT_SECONDS` | optional | text-encode timeout, default 120s (covers the worker's cold first inference) |
-| `TARA_ENABLED`, `TARA_ENCODER_URL`, `TARA_ENCODER_TOKEN` | optional, InfoShot++ only | TARA text worker; all three enable clip retrieval |
+| `TARA_ENABLED`, `TARA_ENCODER_URL` | optional, InfoShot++ only | TARA text worker at `https://tara.baoencoder.site`; both enable clip retrieval. `TARA_ENCODER_TOKEN` is optional (the Colab worker has none) |
 | `TARA_ENCODER_TIMEOUT_SECONDS` | optional | TARA text-encode timeout, default 120s |
 | `MEDIA_BASE_URL` | yes | Cloudflare R2 public base (keyframes/videos) |
 | `QUERY_LLM_API_KEY` | optional | query LLM for parsing and Expand; defaults to `DEEPSEEK_API_KEY` (else heuristics) |

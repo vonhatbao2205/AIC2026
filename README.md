@@ -282,7 +282,7 @@ Key variables (full list in [backend/.env.example](backend/.env.example)):
 | `MILVUS_ENDPOINT_2`, `MILVUS_TOKEN_2` | InfoShot++ Milvus/Zilliz (separate PE/Qwen collections) |
 | `PE_ENCODER_URL` / `GLAP_ENCODER_URL` | text/audio encoder endpoints |
 | `QWEN3_VL_ENCODER_URL`, `QWEN3_VL_ENCODER_TOKEN` | optional InfoShot++ Qwen3-VL text encoder tunnel/auth |
-| `TARA_ENABLED`, `TARA_ENCODER_URL`, `TARA_ENCODER_TOKEN` | optional InfoShot++ TARA text encoder and clip retrieval |
+| `TARA_ENABLED`, `TARA_ENCODER_URL` (`https://tara.baoencoder.site`) | optional InfoShot++ TARA text encoder and clip retrieval; `TARA_ENCODER_TOKEN` only if the worker wants one |
 | `MILVUS_QWEN3_VL_IMAGE_COLLECTION_2` | InfoShot++ native 4096-d Qwen image collection |
 | `MILVUS_TARA_COLLECTION_2` | InfoShot++ TARA 3584-d clip collection |
 | `MEDIA_BASE_URL` | Cloudflare R2: BTC keyframes và video của cả hai profile |

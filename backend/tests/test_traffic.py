@@ -189,6 +189,15 @@ class TestFrameFilter:
         combined = milvus_filter_expr(("N001", "L21"), self.frames)
         assert combined.startswith('(video_id like "N001-%" or video_id like "L21_%") and ((not')
 
+    def test_video_level_for_tara_clips(self):
+        # Clips have no keyframe_n: a listed camera passes whole, an unlisted one never.
+        assert self.frames.allows_video("N002-V003") and self.frames.allows_video("M01_V001")
+        assert not self.frames.allows_video("N003-V001")
+        assert self.frames.milvus_video_expr() == (
+            '((not (video_id like "N%")) or video_id in ["N001-V001", "N002-V003"])'
+        )
+        assert FrameFilter(families=("S01-",), windows=()).milvus_video_expr() == '(not (video_id like "S01-%"))'
+
     def test_elastic_clause(self):
         clause = elastic_filter_clause((), self.frames)
         should = clause["bool"]["should"]

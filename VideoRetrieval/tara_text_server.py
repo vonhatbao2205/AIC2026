@@ -2,12 +2,12 @@
 """TARA text-only FastAPI worker for the AIC2026 Colab notebook.
 
 This file is embedded verbatim in the notebook so the notebook is standalone.
-Run under its pinned Python 3.10 environment, with TARA_SERVICE_TOKEN set.
+Run under its pinned Python 3.10 environment. There is no bearer token: the
+endpoints are public behind the tara.baoencoder.site tunnel.
 """
 from __future__ import annotations
 
 import hashlib
-import hmac
 import json
 import os
 import sys
@@ -19,7 +19,7 @@ from typing import Annotated
 import numpy as np
 import torch
 import torch.nn.functional as F
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, HTTPException
 from huggingface_hub import snapshot_download
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
@@ -30,10 +30,7 @@ DIM = 3584
 MAX_TEXTS = 16
 MAX_CHARS = 4096
 MAX_TOTAL_CHARS = 16_384
-SERVICE_TOKEN = os.environ.get("TARA_SERVICE_TOKEN", "")
 HF_TOKEN = os.environ.get("HF_TOKEN") or None
-if len(SERVICE_TOKEN) < 24:
-    raise RuntimeError("TARA_SERVICE_TOKEN must have at least 24 characters")
 if not torch.cuda.is_available():
     raise RuntimeError("CUDA GPU is required")
 
@@ -121,12 +118,6 @@ class EncodeRequest(BaseModel):
         return self
 
 
-def require_bearer(authorization: str | None) -> None:
-    scheme, _, token = (authorization or "").partition(" ")
-    if scheme.lower() != "bearer" or not hmac.compare_digest(token, SERVICE_TOKEN):
-        raise HTTPException(status_code=401, detail="Invalid bearer token")
-
-
 @torch.inference_mode()
 def encode_text(texts: list[str]) -> np.ndarray:
     with LOCK:
@@ -155,8 +146,7 @@ def health():
 
 
 @APP.post("/encode-text")
-def api_encode_text(req: EncodeRequest, authorization: str | None = Header(default=None)):
-    require_bearer(authorization)
+def api_encode_text(req: EncodeRequest):
     started = time.perf_counter()
     try:
         vectors = encode_text(req.texts)

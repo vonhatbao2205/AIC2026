@@ -502,6 +502,8 @@ export interface TrakeSequenceFrame {
   score: number;
   keyframe_url: string;
   via_fill?: boolean;
+  /** Retrieval channels that found this frame ("image_pe", "tara", ...). */
+  channels?: Channel[];
 }
 
 export interface TrakeSequence {
@@ -534,6 +536,7 @@ export interface TrakeHeatPeak {
   via_fill: boolean;
   selected_by_dp: boolean;
   keyframe_url: string;
+  channels?: Channel[];
 }
 
 /** What one video has to say about one event. `in_chain` is false when the DP
@@ -584,6 +587,8 @@ export interface TrakeSearchResponse {
   traffic?: TrafficFilterInfo;
   /** One entry per event query; null when PE was not searched. */
   pe_tokens?: PeQueryReport | null;
+  /** True when the operator dropped every keyframe model and TARA searched alone. */
+  tara_only?: boolean;
   events: { event_index: number; description_vi: string; candidate_count: number }[];
   /** The video-centric result the console renders. */
   videos?: TrakeVideoResult[];

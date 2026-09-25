@@ -967,7 +967,7 @@ export default function FullConsole({
             fps: null,
             pts_time: f.pts_time,
             score: f.score,
-            channels: [] as Channel[],
+            channels: f.channels ?? ([] as Channel[]),
             per_channel_score: {},
             keyframe_url: f.keyframe_url,
             video_url: s.video_url,
@@ -2187,8 +2187,9 @@ export default function FullConsole({
           e.preventDefault();
           // 'v' shows the inline video under the selected keyframe (seeked to it);
           // pressing it again on the same video hides it. It opens PARKED on the
-          // selected frame — see VideoViewer — and Space starts playback.
-          if (!selectedFrameObj || !selectedVideoId) break;
+          // selected frame — see VideoViewer — and Space starts playback. A video
+          // only TARA found has no keyframe; it opens on its best clip instead.
+          if (!selectedVideoId || (!selectedFrameObj && !selectedGroup?.best_clip)) break;
           if (videoVisible && activeVideoId === selectedVideoId) {
             setVideoVisible(false);
             setActiveVideoId(null);
@@ -2309,6 +2310,10 @@ export default function FullConsole({
     && !overrides.disable_channels.includes("tara")
     && (overrides.force_channels.includes("tara")
       || (parsed?.channels?.tara?.enabled ?? true));
+  // The VISUAL channel runs the keyframe models; off with TARA on is a TARA-only search.
+  const keyframesEnabled = !overrides.disable_channels.includes("image_pe")
+    && (overrides.force_channels.includes("image_pe")
+      || (parsed?.channels?.image_pe?.enabled ?? true));
 
   return (
     <div className="app" style={active ? undefined : { display: "none" }}>
@@ -2420,7 +2425,7 @@ export default function FullConsole({
             onToggleRerank={setRerank}
             translate={translate}
             onToggleTranslate={setTranslate}
-            peActive={imageModelsForSearch(retrievalDatabase, imageModels).includes("pe")}
+            peActive={keyframesEnabled && imageModelsForSearch(retrievalDatabase, imageModels).includes("pe")}
             rerankAvailable={Boolean(health?.capabilities.visual_rerank)}
             rerankReport={latency?.reranker ?? null}
             imageModelSelector={
@@ -2432,6 +2437,10 @@ export default function FullConsole({
                   available: taraAvailable,
                   enabled: taraEnabled,
                   onChange: (enabled) => toggleChannel("tara", enabled),
+                }}
+                keyframes={{
+                  enabled: keyframesEnabled,
+                  onChange: (enabled) => toggleChannel("image_pe", enabled),
                 }}
               />
             }

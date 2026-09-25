@@ -17,6 +17,10 @@ from .http_pool import failure_reason
 
 
 _FLOAT16_MIN_NORMAL = 2**-14
+# L21–L30 168,536 + batch 2 (M 127,354 without the M10_V029 black tail, N 154,509,
+# S01 snapshot 45,756), as VideoRetrieval/milvus_upload_tara_batch2.py verified.
+TARA_EXPECTED_ROWS = 496_155
+_TARA_VIDEO_ID = re.compile(r"(?:L2[1-9]|L30|M0[1-9]|M10)_V\d{3}|(?:N\d{3}|S01)-V\d{3}")
 
 
 def _sanitize_float16_vector(vector: list[float]) -> list[float]:
@@ -95,10 +99,10 @@ class MilvusClient:
             stats = client.get_collection_stats(collection_name=name)
             rows = int(stats.get("row_count", stats.get("num_entities", -1)))
             return {
-                "ok": rows == 168_536,
+                "ok": rows == TARA_EXPECTED_ROWS,
                 "collection": name,
                 "rows": rows,
-                **({"reason": "expected 168536 rows"} if rows != 168_536 else {}),
+                **({"reason": f"expected {TARA_EXPECTED_ROWS} rows"} if rows != TARA_EXPECTED_ROWS else {}),
             }
         except Exception as exc:  # noqa: BLE001
             return {"ok": False, "error": failure_reason(exc)}
@@ -111,8 +115,12 @@ class MilvusClient:
         top_k: int = 300,
         categories: tuple[str, ...] = (),
         video_id: str | None = None,
+        frames: FrameFilter | None = None,
     ) -> list[dict[str, Any]]:
-        """Search one TARA temporal scale, with filters pushed into Milvus."""
+        """Search one TARA temporal scale, with filters pushed into Milvus.
+
+        Clips carry no `keyframe_n`, so `frames` narrows cameras / race stages
+        per video, not per keyframe window."""
         if scale not in {"event", "sequence", "scene"}:
             raise ValueError(f"Invalid TARA scale: {scale}")
         if not self.s.is_infoshotpp:
@@ -121,7 +129,7 @@ class MilvusClient:
             return []
         if not self.s.has_milvus:
             raise RuntimeError("InfoShot++ Milvus endpoint/token missing")
-        if video_id is not None and not re.fullmatch(r"L(?:2[1-9]|30)_V\d{3}", video_id):
+        if video_id is not None and not _TARA_VIDEO_ID.fullmatch(video_id):
             raise ValueError("Invalid video_id in TARA filter")
         clauses = [f'scale == "{scale}"']
         if video_id:
@@ -129,6 +137,8 @@ class MilvusClient:
         scope = milvus_filter_expr(categories)
         if scope:
             clauses.append(scope)
+        if frames is not None:
+            clauses.append(frames.milvus_video_expr())
         result = self._connect().search(
             collection_name=self.s.milvus_tara_collection,
             data=[vector],

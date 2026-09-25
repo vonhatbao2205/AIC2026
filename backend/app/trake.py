@@ -63,6 +63,8 @@ class TrakeCandidateFrame:
     frame_idx: int | None = None
     via_fill: bool = False  # came from pass-2 in-video fill (small 0.02-scale score)
     fill_quality: float | None = None  # fill strength on its own [0,1] scale
+    # Retrieval channels that found this frame ("image_pe", "tara", ...).
+    channels: tuple[str, ...] = ()
     # `score` normalized against this event's best hit anywhere (see
     # `candidate_strength`). Filled in before assembly and used as the DP's
     # quality term, so chain selection and video ranking optimise one thing.
@@ -105,6 +107,7 @@ class TrakeSequence:
                     "pts_time": f.pts_time,
                     "score": round(f.score, 4),
                     "via_fill": f.via_fill,
+                    "channels": list(f.channels),
                 }
                 for f in self.frames
             ],
@@ -128,6 +131,7 @@ class TrakeHeatPeak:
     frame_idx: int | None = None
     via_fill: bool = False
     selected_by_dp: bool = False
+    channels: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -140,6 +144,7 @@ class TrakeHeatPeak:
             "strength": round(self.strength, 4),
             "via_fill": self.via_fill,
             "selected_by_dp": self.selected_by_dp,
+            "channels": list(self.channels),
         }
 
 
@@ -322,6 +327,7 @@ def build_video_event_map(
                     frame_idx=f.frame_idx,
                     via_fill=f.via_fill,
                     fill_quality=f.fill_quality,
+                    channels=tuple(f.channels),
                 )
             )
     return videos
@@ -472,6 +478,7 @@ def _assemble_one_video(
                 frame_idx=c.frame_idx,
                 via_fill=c.via_fill,
                 selected_by_dp=pick is not None and c.submit_keyframe_id == pick.submit_keyframe_id,
+                channels=c.channels,
             )
             for c in peaks_per_slot[idx]
         ]
@@ -489,6 +496,7 @@ def _assemble_one_video(
                     frame_idx=pick.frame_idx,
                     via_fill=pick.via_fill,
                     selected_by_dp=True,
+                    channels=pick.channels,
                 )
             )
         heat.sort(key=lambda p: p.pts_time)

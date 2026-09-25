@@ -210,7 +210,8 @@ class SearchService:
         return await self._run_image_model("qwen3_vl", cfg, top_k, categories)
 
     async def _run_tara(
-        self, query: str, top_k: int, categories: tuple[str, ...]
+        self, query: str, top_k: int, categories: tuple[str, ...],
+        frames: FrameFilter | None = None,
     ) -> tuple[list[dict[str, Any]], float]:
         """Search each temporal scale separately, then collapse clips per video."""
         started = time.perf_counter()
@@ -220,6 +221,7 @@ class SearchService:
             asyncio.to_thread(
                 self.milvus.search_tara_clips, vector,
                 scale=scale, top_k=depth, categories=categories,
+                **({"frames": frames} if frames is not None else {}),
             )
             for scale in SCALES
         ))
@@ -817,7 +819,7 @@ class SearchService:
                 and parsed.get("query_type") in {"T-KIS", "QA"}
                 and not parsed.get("translation_failed") and tara_query.strip()):
             tasks["tara"] = asyncio.create_task(
-                self._run_tara(tara_query, top_k, categories)
+                self._run_tara(tara_query, top_k, categories, frames)
             )
         for name, runner in runners.items():
             cfg = channels_cfg.get(name, {})
@@ -871,6 +873,7 @@ class SearchService:
                     item for item in tara_videos
                     if (not video_ids or item["video_id"] in video_ids)
                     and (not parser_categories or group_from_video_id(item["video_id"]) in parser_categories)
+                    and (frames is None or frames.allows_video(item["video_id"]))
                 ]
                 latency["channels"]["tara"] = round(tara_ms, 1)
                 weights["tara"] = float(tara_cfg.get("weight") or 1.0)

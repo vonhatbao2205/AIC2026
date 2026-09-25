@@ -14,6 +14,8 @@ let requests: RecordedRequest[] = [];
 /** Lets one test stage a degraded simple search (a dead encoder) without a second harness. */
 let simpleSearchExtras: Record<string, unknown> = {};
 let healthCapabilities: Record<string, boolean> = {};
+/** Video groups the full-console search answers with. */
+let searchGroups: unknown[] = [];
 
 function parsed(queryType: QueryType) {
   return {
@@ -119,7 +121,7 @@ function mockFetch() {
         retrieval_database: body.retrieval_database,
         query: body.query,
         parsed: parsed((body.query_type_hint as QueryType) || "T-KIS"),
-        groups: [],
+        groups: searchGroups,
         latency_ms: { parse_ms: 0, fusion_ms: 0, total_ms: 1 },
         mode: "mock",
       });
@@ -159,6 +161,7 @@ beforeEach(() => {
   requests = [];
   simpleSearchExtras = {};
   healthCapabilities = {};
+  searchGroups = [];
   vi.stubGlobal("fetch", mockFetch());
 });
 
@@ -231,6 +234,70 @@ describe("InfoShot++ image model selector", () => {
     expect(requestBodies("/api/search").at(-1)?.manual_overrides).toMatchObject({
       disable_channels: ["tara"],
     });
+  });
+
+  it("drops the keyframe models for a TARA-only search, and never leaves no visual model", async () => {
+    const user = userEvent.setup();
+    healthCapabilities = { tara_clip_search: true };
+    render(<App />);
+    await user.selectOptions(screen.getByTestId("retrieval-database"), "infoshotpp");
+
+    const tara = await screen.findByTestId("model-tara") as HTMLInputElement;
+    const pe = screen.getByTestId("image-model-pe") as HTMLInputElement;
+    expect(pe).not.toBeDisabled();
+
+    await user.click(pe);
+    expect(pe).not.toBeChecked();
+    expect(tara).toBeChecked();
+    expect(tara).toBeDisabled();
+    expect(screen.getByTestId("tara-video-fusion")).toHaveTextContent("TARA only");
+    await user.type(screen.getByTestId("query-input"), "a blue bus turning right");
+    await submitSearch(user);
+    const taraOnly = requestBodies("/api/search").at(-1);
+    expect(taraOnly?.manual_overrides).toMatchObject({ disable_channels: ["image_pe"] });
+    expect(taraOnly?.image_models).toEqual(["pe"]);
+
+    requests = [];
+    await user.click(screen.getByTestId("image-model-qwen3_vl"));
+    expect(screen.getByTestId("image-model-qwen3_vl")).toBeChecked();
+    expect(pe).not.toBeChecked();
+    expect(tara).not.toBeDisabled();
+    await submitSearch(user);
+    const back = requestBodies("/api/search").at(-1);
+    expect(back?.image_models).toEqual(["qwen3_vl"]);
+    expect(back?.manual_overrides).toMatchObject({ force_channels: ["image_pe"], disable_channels: [] });
+  });
+
+  it("keeps the last keyframe model when TARA is unavailable", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.selectOptions(screen.getByTestId("retrieval-database"), "infoshotpp");
+    const pe = await screen.findByTestId("image-model-pe") as HTMLInputElement;
+    expect(pe).toBeChecked();
+    expect(pe).toBeDisabled();
+  });
+
+  it("opens the player on the best clip of a video only TARA found", async () => {
+    const user = userEvent.setup();
+    healthCapabilities = { tara_clip_search: true };
+    searchGroups = [{
+      video_id: "N009-V002", video_score: 0.013, max_score: 0, mean_top_score: 0,
+      frame_count: 0, timestamp_dispersion: 0, ambiguous: false, channels: ["tara"], frames: [],
+      video_url: "https://media.test/N009-V002.mp4",
+      best_clip: { clip_id: "N009-V002@sequence@t000404000", scale: "sequence",
+        start_time: 404, end_time: 412, score: 0.31 },
+    }];
+    render(<App />);
+    await user.selectOptions(screen.getByTestId("retrieval-database"), "infoshotpp");
+    await screen.findByTestId("model-tara");
+    await user.type(screen.getByTestId("query-input"), "a blue bus turning right");
+    await submitSearch(user);
+
+    const head = await screen.findByTestId("video-group-head");
+    expect(screen.queryByTestId("video-viewer")).not.toBeInTheDocument();
+    await user.click(head);
+    const player = await screen.findByTestId("video-viewer") as HTMLVideoElement;
+    expect(player.getAttribute("src")).toContain("N009-V002.mp4");
   });
 
   it("names the visual switch for what it gates, not for one of the two indices", async () => {

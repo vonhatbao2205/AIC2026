@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "verified_at": "2026-09-25T15:38:03.778046+00:00",
+  "collection": "aic26_tara_clips_infoshotpp_v1",
+  "endpoint_sha256": "c3176330a031cf8e4baf6561a78f126f07aac996276f4e8e09e0e0d72cc410f5",
+  "embedding_contract_sha256": "611ef1c9b8dac812723d0bd81bacff65346025a0ed6159e3a8cc7f571618e0b3",
+  "artifacts": {
+    "mn": {
+      "directory": "tara-tarsier2-7b-3584-batch2-clip-v1",
+      "semantic_fingerprint": "ef1af4ae8bbcd96fba72d78842ea11a93d837cf981e485a619a3e461723b70ee",
+      "committed_rows": 283454
+    },
+    "s01": {
+      "directory": "tara-tarsier2-7b-3584-batch2-s01-clip-v1",
+      "semantic_fingerprint": "e99c2efaf4395c4e850d6659413906f87c31dc62f5925804b5d6b42fe9643c0a",
+      "committed_rows": 45756
+    }
+  },
+  "dropped_black_tail": {
+    "video_id": "M10_V029",
+    "start_time_gte": 1112.0,
+    "rows": 1591
+  },
+  "before": {
+    "total": 168536,
+    "L": 168536,
+    "M": 0,
+    "N": 0,
+    "S01": 0,
+    "batch2": 0,
+    "other": 0,
+    "black_tail": 0
+  },
+  "after": {
+    "total": 496155,
+    "L": 168536,
+    "M": 127354,
+    "N": 154509,
+    "S01": 45756,
+    "batch2": 327619,
+    "other": 0,
+    "black_tail": 0
+  },
+  "remote_samples_checked": 120,
+  "self_search": [
+    {
+      "set": "M",
+      "scale": "event",
+      "clip_id": "M01_V001@event@t000000000",
+      "score": 1.0
+    },
+    {
+      "set": "N",
+      "scale": "event",
+      "clip_id": "N001-V001@event@t000000000",
+      "score": 0.9999996423721313
+    },
+    {
+      "set": "S01",
+      "scale": "event",
+      "clip_id": "S01-V001@event@t000000000",
+      "score": 1.0
+    }
+  ],
+  "index": {
+    "index_type": "AUTOINDEX",
+    "metric_type": "COSINE",
+    "state": "Finished",
+    "total_rows": 496155,
+    "indexed_rows": 496155,
+    "pending_index_rows": 0
+  }
+}

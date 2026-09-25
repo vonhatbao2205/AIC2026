@@ -530,6 +530,19 @@ class FrameFilter:
             return False
         return not intervals or any(lo <= keyframe_n <= hi for lo, hi in intervals)
 
+    def allows_video(self, video_id: str) -> bool:
+        """`allows` for a whole video: a listed video passes whatever its windows."""
+        return not self._family_of(video_id) or video_id in self.window_map
+
+    def milvus_video_expr(self) -> str:
+        """`milvus_expr` at video granularity, for collections without `keyframe_n`
+        (the TARA clips, which are ranked per video anyway)."""
+        outside = " and ".join(f'not (video_id like "{family}%")' for family in self.families)
+        listed = [video_id for video_id, _ in self.windows]
+        if not listed:
+            return f"({outside})"
+        return f"(({outside}) or video_id in [{', '.join(json.dumps(v) for v in listed)}])"
+
     def milvus_expr(self) -> str:
         """`(outside every family) or (an allowed video [inside its window])`."""
         outside = " and ".join(f'not (video_id like "{family}%")' for family in self.families)

@@ -101,7 +101,8 @@ class Settings:
     qwen3_vl_encoder_url: str | None = None
     qwen3_vl_encoder_token: str | None = None
     qwen3_vl_encoder_timeout_seconds: float = 120.0
-    # TARA video-clip text encoder, pinned to the InfoShot++ L21-L30 artifact.
+    # TARA video-clip text encoder, pinned to the embedding contract of the
+    # InfoShot++ clips (L21-L30 and batch 2 M/N/S01 share it).
     tara_encoder_url: str | None = None
     tara_encoder_token: str | None = None
     tara_encoder_timeout_seconds: float = 120.0
@@ -328,7 +329,7 @@ class Settings:
     def has_tara_search(self) -> bool:
         return bool(
             self.is_infoshotpp and self.tara_enabled and self.has_milvus
-            and self.tara_encoder_url and self.tara_encoder_token
+            and self.tara_encoder_url
             and self.milvus_tara_collection
         )
 

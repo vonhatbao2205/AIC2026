@@ -11,6 +11,9 @@ from .pe_encoder import _pseudo_vector
 DIM = 3584
 MODEL_ID = "bpiyush/TARA"
 MODEL_REVISION = "3e7cb730d86ae10da7eb1c85f17e45ece5a5e353"
+# The worker reports the L21-L30 artifact's fingerprint. The batch-2 artifacts have
+# their own fingerprints but the same embedding contract (611ef1c9…), so one worker
+# serves the whole collection.
 SEMANTIC_FINGERPRINT = "ef197331649dfb93e7057304f294d8bd1cd98bf22b1902bca48daf6dc4874819"
 
 
@@ -25,10 +28,12 @@ class TaraEncoderClient:
         self._http = PooledHttpClient()
 
     def _headers(self) -> dict[str, str]:
-        return {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.s.tara_encoder_token}",
-        }
+        # The Colab worker behind tara.baoencoder.site has no bearer token; one is
+        # sent only when TARA_ENCODER_TOKEN is set for a server that still wants it.
+        headers = {"Content-Type": "application/json"}
+        if self.s.tara_encoder_token:
+            headers["Authorization"] = f"Bearer {self.s.tara_encoder_token}"
+        return headers
 
     @staticmethod
     def _validate_contract(payload: dict[str, Any]) -> None:
@@ -44,8 +49,8 @@ class TaraEncoderClient:
             return {"ok": False, "mode": "disabled"}
         if self.s.mock_mode:
             return {"ok": True, "mode": "mock", "dim": DIM}
-        if not self.s.tara_encoder_url or not self.s.tara_encoder_token:
-            return {"ok": False, "mode": "disabled", "reason": "TARA_ENCODER_URL/TOKEN missing"}
+        if not self.s.tara_encoder_url:
+            return {"ok": False, "mode": "disabled", "reason": "TARA_ENCODER_URL missing"}
         try:
             response = await self._http.get().get(
                 f"{self._base}/health", headers=self._headers(), timeout=10.0

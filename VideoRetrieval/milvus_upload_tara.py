@@ -101,6 +101,13 @@ def row_count(client, name: str) -> int:
     return int(stats.get("row_count", stats.get("num_entities", -1)))
 
 
+def l_row_count(client, name: str) -> int:
+    """L21–L30 rows only: milvus_upload_tara_batch2.py adds M/N/S01 to the same collection."""
+    rows = client.query(collection_name=name, filter=f"category in {json.dumps(list(CATEGORIES))}",
+                        output_fields=["count(*)"], consistency_level="Strong")
+    return int(rows[0]["count(*)"])
+
+
 def write_state(path: Path, state: dict) -> None:
     state["updated_at"] = datetime.now(timezone.utc).isoformat()
     temp = path.with_suffix(path.suffix + ".partial")
@@ -238,7 +245,7 @@ def main() -> None:
 
     client.flush(collection_name=args.collection, timeout=180)
     for attempt in range(24):
-        count = row_count(client, args.collection)
+        count = l_row_count(client, args.collection)
         if count == EXPECTED_ROWS:
             break
         if count > EXPECTED_ROWS:

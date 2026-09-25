@@ -43,31 +43,77 @@ row indexed, 0 row pending, AUTOINDEX/COSINE ở trạng thái `Finished`**. Sel
 search bằng vector gốc trả đúng `clip_id` đầu bảng cho cả ba scale
 `event`/`sequence`/`scene`.
 
+### Batch 2 (M, N, S01)
+
+Hai artifact batch 2 (`tara-tarsier2-7b-3584-batch2-clip-v1`,
+`tara-tarsier2-7b-3584-batch2-s01-clip-v1`, xem
+`TARA_Tarsier2_7B_Batch2_AIC2026_Retrieval_Handoff.md`) cùng embedding contract
+`611ef1c9…` với L, nên được upsert vào **cùng collection**, cùng schema. Bản local
+nằm trong `VideoRetrieval/` và được `.gitignore` bỏ qua.
+
+```bash
+./backend/.venv/bin/python VideoRetrieval/milvus_upload_tara_batch2.py --dry-run
+./backend/.venv/bin/python VideoRetrieval/milvus_upload_tara_batch2.py --check-remote
+./backend/.venv/bin/python VideoRetrieval/milvus_upload_tara_batch2.py --workers 6
+```
+
+M/N chưa có `_SUCCESS.json` và S01 mới là snapshot một phần, nên script audit theo
+commit: fingerprint, contract, size + SHA-256 từng Parquet, rồi từng dòng. Script
+bỏ 1.591 clip đuôi đen trùng byte của M10_V029 (`start_time ≥ 1112`), không tạo
+hay drop collection, và từ chối chạy nếu collection không còn đúng 168.536 row L.
+Checkpoint ở `.milvus_upload_state_tara_batch2.json`, kết quả kiểm chứng ở
+`VideoRetrieval/milvus_upload_tara_batch2_verification.json`.
+
+| | Row trong collection |
+|---|---:|
+| L21–L30 | 168.536 |
+| M01–M10 (đã bỏ đuôi đen M10_V029) | 127.354 |
+| N001–N100 | 154.509 |
+| S01 (snapshot: thiếu V010, V011 và phần cuối V007) | 45.756 |
+| **Tổng** | **496.155** |
+
+Khi notebook S01 commit thêm shard: tải commit + Parquet mới (handoff §9), tăng
+số S01 trong `ARTIFACTS`/`EXPECTED_BY_SET` của script và `TARA_EXPECTED_ROWS`
+trong `backend/app/adapters/milvus_client.py`, rồi chạy lại. Shard đã upload được
+bỏ qua.
+
 ## Text encoder Colab
 
 Mở `VideoRetrieval/TARA_Text_Encoder_Server_Colab_A100.ipynb` trên Colab A100,
-chạy từ đầu đến cuối. Notebook tự chứa worker FastAPI, pin Python 3.10 / Torch
-2.5.1+cu121 / Transformers 4.45.0 / FlashAttention 2.8.3, xác minh SHA-256
-checkpoint và trả FP32 unit-norm. `/encode-text` dùng Bearer token. Notebook
-kiểm tra local và public endpoint, rồi in các biến cần đưa vào `backend/.env`:
+chạy từ đầu đến cuối. Notebook tự chứa worker FastAPI (bản gốc:
+`VideoRetrieval/tara_text_server.py`), pin Python 3.10 / Torch 2.5.1+cu121 /
+Transformers 4.45.0 / FlashAttention 2.8.3, xác minh SHA-256 checkpoint và trả
+FP32 unit-norm. **Không có bearer token**: `/health` và `/encode-text` public tại
+custom domain cố định, nên backend chỉ cần:
 
 ```dotenv
 TARA_ENABLED=true
-TARA_ENCODER_URL=https://<tunnel-hostname>
-TARA_ENCODER_TOKEN=<token từ notebook>
+TARA_ENCODER_URL=https://tara.baoencoder.site
 MILVUS_TARA_COLLECTION_2=aic26_tara_clips_infoshotpp_v1
 ```
 
-Giữ Colab runtime và tunnel chạy khi truy hồi. Có thể dùng quick tunnel, URL
-sẽ đổi mỗi lần; để giữ URL, cấu hình riêng `CF_TUNNEL_TOKEN_TARA` và
-`TARA_ENCODER_HOSTNAME` trong Colab Secrets, route hostname về
-`http://localhost:8001`. Không dùng chung tunnel token của Qwen vì tunnel sẽ
-load balance request sang worker khác.
+`TARA_ENCODER_TOKEN` để trống; backend chỉ gửi header `Authorization` khi biến
+này có giá trị.
+
+Làm một lần trên Cloudflare: tạo một named tunnel **riêng** cho TARA, thêm Public
+Hostname `tara.baoencoder.site` → HTTP `localhost:8001`, rồi đặt token của
+tunnel vào Colab Secret `CF_TUNNEL_TOKEN_TARA`. Không dùng lại tunnel của PE,
+Qwen hay reranker: hai connector trên cùng tunnel thành replica và Cloudflare
+chia request sang worker khác. Notebook đọc route Cloudflare đẩy xuống và dừng
+nếu token thuộc tunnel của server khác. Không có secret này thì notebook dùng
+quick tunnel, URL đổi mỗi lần.
+
+Giữ Colab runtime chạy khi truy hồi. Không có token nên ai biết hostname cũng
+gọi được `/encode-text`; mỗi request bị giới hạn 16 câu, 4.096 ký tự/câu.
 
 ## Fusion trong backend
 
-- Chỉ profile **InfoShot++ L21–L30** dùng TARA. BTC và canvas V-KIS vẫn theo
-  đường hiện tại. `TARA_ENABLED=false` giữ nguyên retrieval cũ.
+- Chỉ profile **InfoShot++** (L21–L30 và batch 2) dùng TARA. BTC và canvas
+  V-KIS vẫn theo đường hiện tại. `TARA_ENABLED=false` giữ nguyên retrieval cũ.
+- Bộ lọc camera/chặng đua (`FrameFilter`) áp cho TARA ở mức video vì clip không
+  có `keyframe_n`: camera/chặng được chọn giữ nguyên cả video, camera khác bị
+  loại. TRAKE lọc lại theo keyframe sau khi map midpoint về keyframe thật.
+- Cửa sổ của N là 4/8/16 s (tên scale vẫn `event`/`sequence`/`scene`).
 - T-KIS/QA: query đã dịch tiếng Anh được encode một lần; Milvus tìm riêng ba
   scale `event`/`sequence`/`scene`. Mỗi scale chỉ cho một phiếu mỗi video,
   rồi RRF giữa scale. RRF tiếp theo giữa PE, Qwen, OCR/ASR/audio và TARA ở
@@ -77,9 +123,14 @@ load balance request sang worker khác.
   keyframe trong frame retrieval.
 - TRAKE: mỗi event tìm TARA clip scale `event`; Elasticsearch map midpoint về
   keyframe thật, rồi đưa vào temporal DP hiện có cùng các candidate PE/Qwen.
-  TARA không thay luật thứ tự của DP.
+  Pass 2 (bù event còn thiếu trong một video) cũng tìm clip TARA trong đúng video
+  đó, dùng lại vector query của pass 1. TARA không thay luật thứ tự của DP. Frame
+  do TARA tìm ra mang channel `tara` và có tag TARA trên thẻ event.
+- TARA-only: bỏ tick mọi model keyframe khi TARA đang bật sẽ tắt kênh VISUAL. T-KIS/QA
+  khi đó chỉ chạy TARA; TRAKE bỏ PE/Qwen ở cả pass 1 và pass 2. Nếu TARA không khả
+  dụng, TRAKE vẫn giữ PE.
 - Nếu text server lỗi, backend báo warning và trả kết quả từ các kênh cũ.
 
 Xem `/api/health?retrieval_database=infoshotpp`: chỉ khi text worker khớp model,
-revision, fingerprint và Milvus có đúng 168.536 row thì
+revision, fingerprint và Milvus có đúng 496.155 row (L + batch 2) thì
 `capabilities.tara_clip_search` mới thành `true`.

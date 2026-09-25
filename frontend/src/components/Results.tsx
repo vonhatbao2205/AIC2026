@@ -114,7 +114,20 @@ export function Results(props: Props) {
         const topRanks = props.trakeEventCount || g.progressive ? null : topRelevanceRanks(g.frames);
         return (
           <div key={g.video_id} className={`vgroup ${isSel ? "selected" : ""}`} data-testid="video-group">
-            <div className="vgroup-head" onClick={() => { props.onSelectVideo(gi); props.onToggleExpand(g.video_id); }}>
+            <div
+              className="vgroup-head"
+              data-testid="video-group-head"
+              onClick={() => {
+                // A video only TARA found has no keyframes to expand: open the
+                // player on its best clip instead of an empty strip.
+                if (!g.frames.length && g.best_clip && props.onSelectClip) {
+                  props.onSelectClip(gi, g.best_clip.start_time);
+                  return;
+                }
+                props.onSelectVideo(gi);
+                props.onToggleExpand(g.video_id);
+              }}
+            >
               <span className="caret">{isOpen ? "▾" : "▸"}</span>
               <span className="vid">{g.video_id}</span>
               <span className="score mono">▮{g.video_score.toFixed(3)}</span>

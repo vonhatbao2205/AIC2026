@@ -228,6 +228,11 @@ function EventCard(props: {
       <span className="trake-event-head">
         <span className="event-dot" style={{ background: color }} /> E{event.event_index}
         {shown?.via_fill && <span className="trake-event-tag">fill</span>}
+        {shown?.channels?.includes("tara") && (
+          <span className="trake-event-tag tara" data-testid={`trake-event-tara-${event.event_index}`} title="Found by a TARA clip">
+            TARA
+          </span>
+        )}
         {props.overridden && (
           <button
             className="trake-event-undo"

@@ -64,7 +64,7 @@ GROUPS: tuple[ConfigGroup, ...] = (
             ConfigKey("QWEN3_VL_ENCODER_TIMEOUT_SECONDS", "Qwen text encode timeout"),
             ConfigKey("TARA_ENABLED", "Enable TARA clip retrieval (true/false)"),
             ConfigKey("TARA_ENCODER_URL", "TARA text encoder base URL"),
-            ConfigKey("TARA_ENCODER_TOKEN", "TARA encoder bearer token", secret=True),
+            ConfigKey("TARA_ENCODER_TOKEN", "TARA encoder bearer token (optional; the Colab worker has none)", secret=True),
             ConfigKey("TARA_ENCODER_TIMEOUT_SECONDS", "TARA text encode timeout"),
             ConfigKey("GLAP_ENCODER_URL", "GLAP base URL (blank = reuse PE)"),
         ),

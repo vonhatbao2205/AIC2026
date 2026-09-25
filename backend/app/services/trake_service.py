@@ -24,9 +24,10 @@ from typing import Any
 
 from ..config import Settings
 from ..media import MediaUrlBuilder
+from ..scope import FrameFilter
 from ..trake import TrakeVideoResult, build_trake_videos, select_pass2_gaps
 from ..types import Evidence, FusedFrame
-from .search_service import SearchService
+from .search_service import VISUAL_CHANNEL, SearchService
 
 
 class TrakeService:
@@ -69,11 +70,20 @@ class TrakeService:
         traffic = self.search.resolve_traffic(
             req.get("traffic"), query=query, hints=req.get("previous_hints")
         )
+        tara_on = bool(
+            self.s.has_tara_search
+            and (parsed.get("channels") or {}).get("tara", {}).get("enabled", True)
+        )
+        # Unticking every keyframe model in the console switches VISUAL off; with
+        # TARA on that is a TARA-only TRAKE. Without TARA the events keep PE, since
+        # a sequence with no visual model at all could only ever come back empty.
+        disabled = (req.get("manual_overrides") or {}).get("disable_channels") or []
+        keyframes = not (tara_on and "image_pe" in disabled)
         # Run all events' retrieval concurrently.
         results = await asyncio.gather(
             *(
                 self.search.retrieve(
-                    self._event_to_parsed(parsed, ev),
+                    self._event_to_parsed(parsed, ev, keyframes=keyframes),
                     top_k=top_k,
                     categories=scope.categories,
                     image_models=image_models,
@@ -84,9 +94,12 @@ class TrakeService:
         )
         event_frames = [[f for g in groups for f in g.frames] for groups, _ in results]
         tara_warning = None
-        if self.s.has_tara_search and (parsed.get("channels") or {}).get("tara", {}).get("enabled", True):
+        tara_vectors: dict[int, list[float]] = {}
+        if tara_on:
             try:
-                await self._add_tara_event_candidates(events, event_frames, scope.categories, parsed)
+                tara_vectors = await self._add_tara_event_candidates(
+                    events, event_frames, scope.categories, parsed, frames=traffic.frames
+                )
             except Exception as exc:  # noqa: BLE001 - preserve the frame retrieval path
                 tara_warning = f"TARA TRAKE candidates unavailable: {exc}"
         per_event_meta = [
@@ -110,7 +123,9 @@ class TrakeService:
         # No scope needed here: pass 2 searches inside videos pass 1 already
         # returned, which are in scope by construction.
         await self._fill_missing_events(
-            events, event_frames, gaps=gaps, image_models=image_models
+            events, event_frames, gaps=gaps,
+            image_models=image_models if keyframes else (),
+            tara_vectors=tara_vectors,
         )
 
         fallback = (trake_cfg.get("fallback_policy") or "").startswith("allow_partial")
@@ -122,7 +137,8 @@ class TrakeService:
 
         return {
             "retrieval_database": self.s.retrieval_database,
-            "image_models": list(image_models),
+            "image_models": list(image_models) if keyframes else [],
+            "tara_only": not keyframes,
             "query": query,
             "parsed": parsed,
             "scope": scope.to_dict(),
@@ -134,7 +150,7 @@ class TrakeService:
                     for ev in events
                     for query in self._event_to_parsed(parsed, ev)["channels"]["image_pe"]["queries_en"]
                 ],
-                image_models,
+                image_models if keyframes else (),
             ),
             "events": per_event_meta,
             # The video-centric result the console renders. `sequences` is the
@@ -157,22 +173,28 @@ class TrakeService:
         event_frames: list[list[FusedFrame]],
         categories: tuple[str, ...],
         parsed: dict[str, Any],
-    ) -> None:
-        """Add real keyframe-backed TARA event clips to the existing temporal DP."""
+        frames: FrameFilter | None = None,
+    ) -> dict[int, list[float]]:
+        """Add real keyframe-backed TARA event clips to the existing temporal DP.
+
+        `frames` narrows cameras / race stages per video in Milvus, then per
+        keyframe once each clip midpoint has been resolved to a real keyframe.
+        Returns each event's TARA query vector, by event position, for pass 2."""
         if parsed.get("translation_failed"):
-            return
+            return {}
         queries = [
             (ev.get("description_en_visual") or (ev.get("image_pe_queries_en") or [""])[0]).strip()
             for ev in events
         ]
         active = [(i, query) for i, query in enumerate(queries) if query]
         if not active:
-            return
+            return {}
         vectors = await self.search.tara.encode_text([query for _, query in active])
         raw = await asyncio.gather(*(
             asyncio.to_thread(
                 self.search.milvus.search_tara_clips, vector,
                 scale="event", top_k=600, categories=categories,
+                **({"frames": frames} if frames is not None else {}),
             )
             for vector in vectors
         ))
@@ -211,6 +233,8 @@ class TrakeService:
                 key = keyframe.get("submit_keyframe_id")
                 if not key:
                     continue
+                if frames is not None and not frames.allows(clip["video_id"], int(keyframe["keyframe_n"])):
+                    continue
                 contribution = 1.0 / (60 + rank)
                 evidence = Evidence(
                     type="tara", score=float(clip["score"]),
@@ -238,6 +262,36 @@ class TrakeService:
                 )
                 event_frames[event_index].append(frame)
                 existing[key] = frame
+        return {event_index: vector for (event_index, _), vector in zip(active, vectors)}
+
+    async def _tara_keyframe_hits(
+        self, vector: list[float], *, top_k: int, video_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        """TARA `event` clips as keyframe hits for pass 2.
+
+        Without `video_id` this is the event's reference search and only the
+        score is read. Inside a video, each clip midpoint is resolved to the
+        nearest real keyframe; clips landing on the same keyframe keep the best."""
+        clips = await asyncio.to_thread(
+            self.search.milvus.search_tara_clips, vector,
+            scale="event", top_k=top_k, **({"video_id": video_id} if video_id else {}),
+        )
+        if video_id is None:
+            return [{"score": float(clip["score"])} for clip in clips]
+        keyframes = await self.search.elastic.nearest_keyframes_by_time(
+            [(clip["video_id"], clip["center_frame_idx"] / clip["fps"]) for clip in clips]
+        )
+        rows: dict[str, dict[str, Any]] = {}
+        for clip, keyframe in zip(clips, keyframes):
+            key = (keyframe or {}).get("submit_keyframe_id")
+            if not key or keyframe.get("video_id") != clip["video_id"]:
+                continue
+            if key not in rows or clip["score"] > rows[key]["score"]:
+                rows[key] = {
+                    "submit_keyframe_id": key, "video_id": clip["video_id"],
+                    "keyframe_n": int(keyframe["keyframe_n"]), "score": float(clip["score"]),
+                }
+        return sorted(rows.values(), key=lambda row: (-row["score"], row["submit_keyframe_id"]))
 
     async def _fill_missing_events(
         self,
@@ -252,6 +306,7 @@ class TrakeService:
         # keeps the candidate pool from growing.
         max_fills_per_gap: int = 3,
         image_models: tuple[str, ...] = ("pe",),
+        tara_vectors: dict[int, list[float]] | None = None,
     ) -> None:
         """Pass 2: for each `(video, missing event)` in `gaps`, search that video
         for the event and add the in-video best frame that is BOTH above a
@@ -264,7 +319,11 @@ class TrakeService:
         `gaps` comes from `select_pass2_gaps`, i.e. from the preliminary DP:
         the events missing from the ANSWER, not merely the events with no
         candidate. Without it this falls back to the covered-event count, which
-        is what the direct-service callers and older tests pass."""
+        is what the direct-service callers and older tests pass.
+
+        TARA takes part as one more model when `tara_vectors` (pass 1's query
+        vectors) is given: in-video `event` clips mapped to keyframes. With no
+        image model that is a TARA-only fill."""
         n = len(events)
         if n < 2:
             return
@@ -302,7 +361,7 @@ class TrakeService:
             (ev.get("image_pe_queries_en") or [ev.get("description_en_visual") or ev.get("description_vi") or ""])[0]
             for ev in events
         ]
-        image_models = self.search.resolve_image_models(image_models)
+        image_models = self.search.resolve_image_models(image_models) if image_models else ()
 
         async def _encode(model: str):
             encoder = self.search.pe if model == "pe" else self.search.qwen3_vl
@@ -317,16 +376,22 @@ class TrakeService:
             if not isinstance(outcome, BaseException)
             for model, vectors in (outcome,)
         }
+        if tara_vectors:
+            vectors_by_model["tara"] = [tara_vectors.get(i) for i in range(n)]
         if not vectors_by_model:
             return
 
         async def _search(model: str, vec, **kw):
-            searcher = (
-                self.search.milvus.search_image
-                if model == "pe"
-                else self.search.milvus.search_qwen_image
-            )
+            if vec is None:  # an event TARA had no query for
+                return []
             try:
+                if model == "tara":
+                    return await self._tara_keyframe_hits(vec, **kw)
+                searcher = (
+                    self.search.milvus.search_image
+                    if model == "pe"
+                    else self.search.milvus.search_qwen_image
+                )
                 return await asyncio.to_thread(searcher, vec, **kw)
             except Exception:  # noqa: BLE001
                 return []
@@ -389,10 +454,17 @@ class TrakeService:
                     ratio = float(row["score"]) / ref_score if ref_score > 0 else 0.0
                     key = row["submit_keyframe_id"]
                     quality[key] = max(quality.get(key, 0.0), ratio)
+            found_by: dict[str, list[str]] = {}
+            for model, rows in per_model.items():
+                for row in rows:
+                    found_by.setdefault(row["submit_keyframe_id"], []).append(
+                        VISUAL_CHANNEL.get(model, model)
+                    )
             if len(per_model) == 1:
                 rows = next(iter(per_model.values()))
                 ranked_by_gap[gap] = [
-                    {**row, "fill_quality": quality[row["submit_keyframe_id"]]}
+                    {**row, "fill_quality": quality[row["submit_keyframe_id"]],
+                     "channels": found_by[row["submit_keyframe_id"]]}
                     for row in rows
                 ]
                 continue
@@ -408,7 +480,8 @@ class TrakeService:
                 key=lambda item: (-item["rrf"], item["row"]["submit_keyframe_id"]),
             )
             ranked_by_gap[gap] = [
-                {**entry["row"], "fill_quality": quality[entry["row"]["submit_keyframe_id"]]}
+                {**entry["row"], "fill_quality": quality[entry["row"]["submit_keyframe_id"]],
+                 "channels": found_by[entry["row"]["submit_keyframe_id"]]}
                 for entry in ordered
             ]
 
@@ -462,6 +535,7 @@ class TrakeService:
                         frame_idx=rec.get("frame_idx"),
                         fps=rec.get("fps"),
                         via_fill=True,
+                        channels=list(h.get("channels") or []),
                         # The undistorted ratio, for the heatmap: `score` puts the
                         # fill on a small scale that OVERLAPS real evidence, so
                         # the heat row would misreport it.
@@ -472,12 +546,16 @@ class TrakeService:
         for i, fr in new:
             event_frames[i].append(fr)
 
-    def _event_to_parsed(self, parsed: dict[str, Any], ev: dict[str, Any]) -> dict[str, Any]:
-        """Build a per-event channels config reusing the base routing."""
+    def _event_to_parsed(
+        self, parsed: dict[str, Any], ev: dict[str, Any], *, keyframes: bool = True
+    ) -> dict[str, Any]:
+        """Build a per-event channels config reusing the base routing.
+
+        `keyframes=False` is a TARA-only TRAKE: no PE/Qwen search for the event."""
         base_channels = parsed.get("channels", {})
         channels = {
             "image_pe": {
-                "enabled": True,
+                "enabled": keyframes,
                 "weight": 1.0,
                 "queries_en": ev.get("image_pe_queries_en") or [ev.get("description_en_visual") or ev.get("description_vi") or ""],
             },
