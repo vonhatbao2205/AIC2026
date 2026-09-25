@@ -225,6 +225,77 @@ def test_report_candidate_rejects_bad_input():
     assert result["isError"] is True
 
 
+def test_prompt_names_a_manual_filter_as_a_strong_hint():
+    from app.agent.prompt import build_prompt
+
+    run = _run(retrieval_database="infoshotpp", scope={"mode": "manual", "categories": ["N003"]})
+    prompt = build_prompt(run.request, timeout_seconds=240, scope=run.scope)
+    assert "The operator filtered the console by hand to: N003." in prompt
+    assert "Look there FIRST" in prompt and "OUTSIDE the" in prompt
+    assert run.snapshot()["scope"] == {
+        "mode": "manual", "active": True, "categories": ["N003"], "reason": "Manual: 1 folders (N003).",
+    }
+
+
+def test_prompt_names_the_auto_filter_resolved_from_the_query():
+    from app.agent.prompt import build_prompt
+
+    run = AgentRun(AgentRunRequest(
+        query="đầu bếp đang nấu món gỏi cuốn chay", retrieval_database="infoshotpp", scope={"mode": "auto"},
+    ))
+    prompt = build_prompt(run.request, timeout_seconds=240, scope=run.scope)
+    assert "automatic topic filter narrowed this query to: L21, L22, L26, L30" in prompt
+    unfiltered = _run(retrieval_database="infoshotpp")
+    assert "no folder filter is set" in build_prompt(
+        unfiltered.request, timeout_seconds=240, scope=unfiltered.scope,
+    )
+
+
+class _RecordingSearch:
+    """Stands in for SearchService.search and keeps the scope it was asked for."""
+
+    def __init__(self):
+        self.scopes: list[dict] = []
+
+    async def search(self, req):
+        self.scopes.append(req["scope"])
+        categories = req["scope"].get("categories") or []
+        return {"groups": [], "warnings": [], "scope": {"categories": categories}}
+
+
+def test_search_stays_in_the_operator_filter_unless_told_otherwise():
+    service = _RecordingSearch()
+    tools = AgentTools(lambda: {"btc": service})
+    run = _run(scope={"mode": "manual", "categories": ["L21", "L22"]})
+
+    text = asyncio.run(tools.call("search", {"query": "x"}, run, "codex"))["content"][0]["text"]
+    assert service.scopes[-1] == {"mode": "manual", "categories": ["L21", "L22"]}
+    assert "scope: L21, L22 (the operator's filter" in text
+
+    asyncio.run(tools.call("search", {"query": "x", "folders": ["L23"]}, run, "codex"))
+    assert service.scopes[-1] == {"mode": "manual", "categories": ["L23"]}
+    asyncio.run(tools.call("search", {"query": "x", "folders": ["all"]}, run, "codex"))
+    assert service.scopes[-1] == {"mode": "all"}
+    asyncio.run(tools.call("search", {"query": "x"}, _run(), "codex"))
+    assert service.scopes[-1] == {"mode": "all"}
+
+
+def test_a_candidate_outside_the_filter_is_flagged():
+    tools = _tools()
+    outside_run = _run(scope={"mode": "manual", "categories": ["L21"]})
+    result = asyncio.run(tools.call(
+        "report_candidate", {"keyframe_id": "K01/K01_V001/006", "confidence": 0.5, "reason": "r"}, outside_run, "codex",
+    ))
+    assert outside_run.candidates[0]["outside_scope"] is True
+    assert "OUTSIDE the operator's folder filter (K01 is not in L21)" in result["content"][0]["text"]
+
+    inside_run = _run(scope={"mode": "manual", "categories": ["K01"]})
+    asyncio.run(tools.call(
+        "report_candidate", {"keyframe_id": "K01/K01_V001/006", "confidence": 0.5, "reason": "r"}, inside_run, "codex",
+    ))
+    assert inside_run.candidates[0]["outside_scope"] is False
+
+
 def test_search_tool_lists_videos_and_keyframes():
     result = asyncio.run(_tools().call("search", {"query": "thủ tướng nhật bản", "mode": "ocr"}, _run(), "codex"))
     text = result["content"][0]["text"]

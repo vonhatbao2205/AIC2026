@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import type { AgentCandidate, AgentRunSnapshot, AgentState } from "../api/types";
 import { AgentPanel } from "../components/AgentPanel";
-import { findConsensus, readAgentPreference, sortCandidates } from "../lib/agent";
+import { buildSequences, findConsensus, readAgentPreference, sortCandidates } from "../lib/agent";
 
 function candidate(overrides: Partial<AgentCandidate>): AgentCandidate {
   return {
@@ -116,12 +116,26 @@ describe("AgentPanel", () => {
   const base = {
     starting: false,
     error: null,
+    queryType: "T-KIS" as const,
     currentQuery: "người đàn ông áo đỏ",
+    eventCount: 0,
+    trakeSlotCount: 2,
+    activeTrakeSlot: 0,
     resultVideoIds: new Set<string>(["L21_V001"]),
+    pausedFrame: null,
     onStop: noop,
     onDismiss: noop,
     onLocate: noop,
+    onSubmit: noop,
+    onSticky: noop,
+    onUseAnswer: noop,
     onPaused: noop,
+    onSubmitPaused: noop,
+    onStickyPaused: noop,
+    onAssignPaused: noop,
+    onLoadSequence: noop,
+    onSubmitSequence: noop,
+    onStickySequence: noop,
     videoFallback: () => null,
   };
 
@@ -174,6 +188,111 @@ describe("AgentPanel", () => {
     expect(screen.getByTestId("agent-stale")).toHaveTextContent("For an earlier query");
     expect(screen.queryByTestId("agent-stop")).not.toBeInTheDocument();
   });
+
+  it("submits, pins and answers from a frame card, and flags one outside the filter", async () => {
+    const onSubmit = vi.fn();
+    const onSticky = vi.fn();
+    const onUseAnswer = vi.fn();
+    render(
+      <AgentPanel
+        {...base}
+        queryType="QA"
+        onSubmit={onSubmit}
+        onSticky={onSticky}
+        onUseAnswer={onUseAnswer}
+        run={snapshot({
+          scope: { mode: "manual", active: true, categories: ["N003"], reason: "Manual: 1 folders (N003)." },
+          candidates: [candidate({ id: "codex-1", answer: "5", outside_scope: true })],
+        })}
+      />,
+    );
+    expect(screen.getByTestId("agent-scope")).toHaveTextContent("Filter: N003");
+    const card = screen.getByTestId("agent-candidate");
+    expect(within(card).getByTestId("agent-outside")).toHaveTextContent("Outside the folder filter");
+    await userEvent.click(within(card).getByTestId("agent-submit"));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ id: "codex-1" }));
+    await userEvent.click(within(card).getByTestId("agent-sticky"));
+    expect(onSticky).toHaveBeenCalledWith(expect.objectContaining({ id: "codex-1" }));
+    await userEvent.click(within(card).getByRole("button", { name: "Use" }));
+    expect(onUseAnswer).toHaveBeenCalledWith("5");
+  });
+
+  it("captures the paused frame of its own player and submits it there", async () => {
+    const onSubmitPaused = vi.fn();
+    const { rerender } = render(
+      <AgentPanel {...base} onSubmitPaused={onSubmitPaused} run={snapshot({ candidates: [candidate({})] })} />,
+    );
+    await userEvent.click(screen.getByTestId("agent-play"));
+    expect(screen.getByTestId("agent-player")).toBeInTheDocument();
+    expect(screen.getByTestId("agent-paused")).toHaveTextContent("Pause the video");
+    rerender(
+      <AgentPanel
+        {...base}
+        onSubmitPaused={onSubmitPaused}
+        pausedFrame={{ video_id: "L21_V001", frame_idx: 2263, pts_time: 90.52, fps: 25 }}
+        run={snapshot({ candidates: [candidate({})] })}
+      />,
+    );
+    expect(screen.getByTestId("agent-paused")).toHaveTextContent("Paused frame 2263");
+    await userEvent.click(screen.getByTestId("agent-submit-paused"));
+    expect(onSubmitPaused).toHaveBeenCalled();
+  });
+
+  it("shows TRAKE answers as one row of E1..En per agent and video", async () => {
+    const onSubmitSequence = vi.fn();
+    const onLoadSequence = vi.fn();
+    render(
+      <AgentPanel
+        {...base}
+        queryType="TRAKE"
+        eventCount={3}
+        trakeSlotCount={3}
+        onSubmitSequence={onSubmitSequence}
+        onLoadSequence={onLoadSequence}
+        run={snapshot({
+          query_type: "TRAKE",
+          candidates: [
+            candidate({ id: "codex-1", event: 1, frame_idx: 100, time: 4, confidence: 0.8 }),
+            candidate({ id: "codex-2", event: 2, frame_idx: 300, time: 12, confidence: 0.6 }),
+            candidate({ id: "claude-1", agent: "claude", event: 1, frame_idx: 110, time: 4.4 }),
+          ],
+        })}
+      />,
+    );
+    const rows = screen.getAllByTestId("agent-sequence");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("Codex");
+    expect(rows[0]).toHaveTextContent("2/3 events");
+    expect(rows[0]).toHaveTextContent("in order");
+    expect(within(rows[0]).getAllByTestId("agent-tile")).toHaveLength(2);
+    expect(within(rows[0]).getByTestId("agent-tile-empty")).toHaveTextContent("E3");
+    expect(screen.getByTestId("agent-consensus")).toHaveTextContent("both chose L21_V001");
+    await userEvent.click(within(rows[0]).getByTestId("agent-submit-sequence"));
+    const submitted = onSubmitSequence.mock.calls[0][0];
+    expect(submitted.events.map((c: AgentCandidate | null) => c?.id ?? null)).toEqual(["codex-1", "codex-2", null]);
+    await userEvent.click(within(rows[0]).getByTestId("agent-load-sequence"));
+    expect(onLoadSequence).toHaveBeenCalled();
+  });
+});
+
+describe("buildSequences", () => {
+  it("keeps the most confident frame per event and the rest as extras", () => {
+    const [sequence] = buildSequences([
+      candidate({ id: "a", event: 1, frame_idx: 500, confidence: 0.4 }),
+      candidate({ id: "b", event: 1, frame_idx: 520, confidence: 0.9 }),
+      candidate({ id: "c", event: 2, frame_idx: 100, confidence: 0.7 }),
+      candidate({ id: "d", event: null, frame_idx: 900 }),
+    ], 2);
+    expect(sequence.events.map((c) => c?.id)).toEqual(["b", "c"]);
+    expect(sequence.extras.map((c) => c.id).sort()).toEqual(["a", "d"]);
+    expect(sequence.inOrder).toBe(false);
+    expect(sequence.found).toBe(2);
+  });
+
+  it("widens a row to the highest event an agent numbered", () => {
+    const [sequence] = buildSequences([candidate({ event: 4 })], 2);
+    expect(sequence.events).toHaveLength(4);
+  });
 });
 
 // ---- console wiring ------------------------------------------------------------
@@ -193,6 +312,8 @@ const PARSED = {
 
 type Recorded = { path: string; method: string; body: Record<string, unknown> };
 let requests: Recorded[] = [];
+/** What starting a run answers with; a test hands the agents' frames back here. */
+let agentStart: (runId: string) => AgentRunSnapshot = (runId) => snapshot({ run_id: runId });
 
 function mockFetch() {
   return vi.fn(async (url: string, init?: RequestInit) => {
@@ -218,8 +339,14 @@ function mockFetch() {
       return json({ configured: true, mock_mode: true, missing_required: [], env_path: "", env_exists: true, groups: [] });
     if (path.endsWith("/api/dres/status")) return json({ enabled: false, configured: false, connected: false });
     if (path.includes("/api/submit/history")) return json({ history: [] });
-    if (path.endsWith("/api/agent/runs") && method === "POST") return json(snapshot({ run_id: `run${requests.length}` }));
+    if (path.endsWith("/api/agent/runs") && method === "POST") return json(agentStart(`run${requests.length}`));
     if (path.includes("/api/agent/runs/")) return json(snapshot({ finished: true }));
+    if (path.endsWith("/api/search/trake"))
+      return json({
+        retrieval_database: "btc", query: "q",
+        parsed: { ...PARSED, query_type: "TRAKE", trake: { enabled: true, events: [] } },
+        events: [], sequences: [], videos: [], mode: "mock",
+      });
     if (path.endsWith("/api/search"))
       return json({
         query: "q", retrieval_database: "btc", parsed: PARSED,
@@ -232,6 +359,7 @@ function mockFetch() {
 
 beforeEach(() => {
   requests = [];
+  agentStart = (runId) => snapshot({ run_id: runId });
   localStorage.clear();
   vi.stubGlobal("fetch", mockFetch());
 });
@@ -287,5 +415,44 @@ describe("AGENT button", () => {
     const [first, second] = requests.filter((r) => r.path.endsWith("/api/agent/runs"));
     expect(first.body.replaces ?? null).toBeNull();
     expect(second.body.replaces).toMatch(/^run/);
+  });
+
+  it("submits an agent's frame through the same guard as a result keyframe", async () => {
+    agentStart = (runId) => snapshot({ run_id: runId, finished: true, candidates: [candidate({ id: "codex-1" })] });
+    const user = userEvent.setup();
+    render(<App />);
+    await typeAndSearch(user);
+    const card = await screen.findByTestId("agent-candidate");
+    await user.click(within(card).getByTestId("agent-submit"));
+    expect(await screen.findByTestId("guard-target")).toHaveTextContent("Codex keyframe");
+    expect(screen.getByTestId("guard-submit-id")).toHaveTextContent("L21_V001");
+    expect(screen.getByTestId("guard-frame-idx")).toHaveTextContent("2250");
+  });
+
+  it("loads an agent's TRAKE sequence into the event slots and submits it", async () => {
+    agentStart = (runId) => snapshot({
+      run_id: runId,
+      finished: true,
+      query_type: "TRAKE",
+      candidates: [
+        candidate({ id: "codex-1", event: 1, frame_idx: 100, pts_time: 4, time: 4 }),
+        candidate({ id: "codex-2", event: 2, frame_idx: 300, pts_time: 12, time: 12 }),
+      ],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByTestId("query-input");
+    await user.click(screen.getByRole("tab", { name: "TRAKE" }));
+    await user.type(screen.getByTestId("query-input"), "người đàn ông áo đỏ");
+    await user.click(screen.getByTestId("search-btn"));
+    const row = await screen.findByTestId("agent-sequence");
+    expect(row).toHaveTextContent("2/2 events");
+
+    await user.click(within(row).getByTestId("agent-load-sequence"));
+    expect(screen.getByTestId("trake-slot-0")).toHaveTextContent("f100");
+    expect(screen.getByTestId("trake-slot-1")).toHaveTextContent("f300");
+
+    await user.click(within(row).getByTestId("agent-submit-sequence"));
+    expect(await screen.findByTestId("submit-guard")).toBeInTheDocument();
   });
 });

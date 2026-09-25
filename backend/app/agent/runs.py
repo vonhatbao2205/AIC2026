@@ -40,6 +40,7 @@ from .cli import (
     read_claude_event,
     read_codex_event,
 )
+from ..scope import resolve_scope
 from .prompt import build_prompt
 from .tools import AgentTools
 
@@ -129,6 +130,14 @@ class AgentRun:
         self.id = uuid.uuid4().hex[:12]
         self.token = secrets.token_urlsafe(24)
         self.request = request
+        # The folders the operator's filter narrows this query to, resolved ONCE
+        # with the same rules as the main search (a manual pick, or the topic
+        # heuristic on the query in `auto`). The agents look there first; the
+        # prompt, the `search` default and the "outside the filter" flag on a
+        # candidate all read this.
+        self.scope = resolve_scope(
+            request.scope.model_dump(), query=request.query, retrieval_database=request.retrieval_database,
+        )
         self.created_at = time.time()
         self.started = time.monotonic()
         self.agents: dict[str, AgentState] = {}
@@ -173,6 +182,12 @@ class AgentRun:
             "finished": self.finished,
             "agents": {name: state.to_dict() for name, state in self.agents.items()},
             "candidates": list(self.candidates),
+            "scope": {
+                "mode": self.scope.mode,
+                "active": self.scope.active,
+                "categories": list(self.scope.categories),
+                "reason": self.scope.reason_en,
+            },
         }
 
 
@@ -308,7 +323,7 @@ class AgentService:
                     state.finish("cancelled")
                     return
                 workdir = Path(tempfile.mkdtemp(prefix=f"aic26-agent-{state.name}-"))
-                prompt = build_prompt(run.request, timeout_seconds=s.agent_timeout_seconds)
+                prompt = build_prompt(run.request, timeout_seconds=s.agent_timeout_seconds, scope=run.scope)
                 bridge = bridge_env(backend_url, run.token, state.name)
                 if state.name == "codex":
                     argv = codex_argv(s, binary=binary, workdir=workdir, prompt=prompt, bridge=bridge)

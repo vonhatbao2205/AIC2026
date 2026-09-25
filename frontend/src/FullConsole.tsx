@@ -58,7 +58,15 @@ import { TrakePanel, type TrakeSlot } from "./components/TrakePanel";
 import type { TrakePeakDrag } from "./lib/trakeDrag";
 import { VideoViewer, type VideoViewerHandle } from "./components/VideoViewer";
 import { useAgentRun } from "./hooks/useAgentRun";
-import { AGENT_NAMES, candidateTime, readAgentPreference, writeAgentPreference } from "./lib/agent";
+import {
+  AGENT_LABELS,
+  AGENT_NAMES,
+  candidateFrameIdx,
+  candidateTime,
+  readAgentPreference,
+  writeAgentPreference,
+  type AgentSequence,
+} from "./lib/agent";
 import { autoEvaluationId } from "./lib/dres";
 import { sortFramesByTime, swapVideoOrigin } from "./lib/media";
 import { findQaFrame, selectQaCandidateFrames } from "./lib/qa";
@@ -97,7 +105,9 @@ export interface StickyTrakeRestoreRequest {
 }
 
 /** The submit guard acts on exactly one of these; they never shadow each other. */
-type GuardTarget = "result" | "paused";
+/** What the submit guard sends: the selected result keyframe, the captured raw
+ *  frame, or a frame one of the agents reported (`agentFrame`). */
+type GuardTarget = "result" | "paused" | "agent";
 
 /** Keyframes a search retrieves before fusion, and the slider's starting point. */
 const DEFAULT_TOP_K = 100;
@@ -277,6 +287,12 @@ export default function FullConsole({
   // longer re-points the detail panel: the two submit paths stay independent and
   // the target is decided by which button (or shortcut) opened the guard.
   const [guardTarget, setGuardTarget] = useState<GuardTarget>("result");
+  // The agent frame the guard / Sticky is acting on. The ref is what the draft
+  // and dedup helpers read, because they run in the same tick that picks the
+  // frame; the state re-renders the guard with it.
+  const [agentFrame, setAgentFrame] = useState<FrameResult | null>(null);
+  const [agentFrameLabel, setAgentFrameLabel] = useState<string | null>(null);
+  const agentFrameRef = useRef<FrameResult | null>(null);
   const [eventMarkers, setEventMarkers] = useState<{ eventIndex: number; pts_time: number }[]>([]);
 
   const [keymapOpen, setKeymapOpen] = useState(false);
@@ -508,6 +524,13 @@ export default function FullConsole({
   // result keyframe, whether or not a raw frame is currently captured.
   const guardPausedFrame =
     queryType !== "TRAKE" && guardTarget === "paused" ? pausedFrame : null;
+  // The keyframe the guard submits when it is not a raw frame: an agent's
+  // frame when the guard was opened from the Agents strip, else the selection.
+  const guardResultFrame = guardTarget === "agent" ? agentFrame : selectedFrameObj;
+  /** Same, for helpers that run in the tick that sets the target. */
+  function keyframeFor(target: GuardTarget): FrameResult | null {
+    return target === "agent" ? agentFrameRef.current : selectedFrameObj;
+  }
   const qaCandidateFrames = useMemo(
     () => (queryType === "QA" ? selectQaCandidateFrames(displayGroups, selectedFrameObj) : []),
     [queryType, displayGroups, selectedFrameObj],
@@ -1089,6 +1112,123 @@ export default function FullConsole({
     }
   }
 
+  // ---- agent frames: submit, Sticky, TRAKE sequences ----
+  // An agent's frame goes through the SAME guard, DRES preview, dedup check and
+  // Sticky as a result keyframe — only where the frame comes from differs.
+
+  /** An agent's keyframe in the shape of a result frame. */
+  function agentToFrame(candidate: AgentCandidate): FrameResult {
+    return {
+      image_id: `agent:${candidate.id}`,
+      submit_keyframe_id: candidate.submit_keyframe_id,
+      video_id: candidate.video_id,
+      keyframe_n: candidate.keyframe_n,
+      frame_idx: candidate.frame_idx,
+      fps: candidate.fps,
+      pts_time: candidate.pts_time,
+      score: candidate.confidence,
+      channels: [],
+      per_channel_score: {},
+      keyframe_url: candidate.keyframe_url,
+      video_url: candidate.video_url,
+      evidence: [],
+    };
+  }
+
+  function pickAgentFrame(candidate: AgentCandidate) {
+    const frame = agentToFrame(candidate);
+    agentFrameRef.current = frame;
+    setAgentFrame(frame);
+    setAgentFrameLabel(`${AGENT_LABELS[candidate.agent]} keyframe`);
+  }
+
+  /** QA: the agent's answer, unless the operator has already typed one. */
+  function agentAnswerFor(candidate: AgentCandidate): string | undefined {
+    return queryType === "QA" && candidate.answer && !answer.trim() ? candidate.answer : undefined;
+  }
+
+  function submitAgentCandidate(candidate: AgentCandidate) {
+    pickAgentFrame(candidate);
+    const agentAnswer = agentAnswerFor(candidate);
+    if (agentAnswer) setAnswer(agentAnswer);
+    openGuard("agent", agentAnswer);
+  }
+
+  function stickyAgentCandidate(candidate: AgentCandidate) {
+    pickAgentFrame(candidate);
+    addToSticky("agent", agentAnswerFor(candidate));
+  }
+
+  // TRAKE: as wide as the answer has to be.
+  const agentEventCount = question?.eventCount || trakeEventCount || trakeSlots.length;
+
+  function agentSequenceSlots(sequence: AgentSequence): (TrakeSlot | null)[] {
+    return sequence.events.map((candidate) =>
+      candidate
+        ? {
+            video_id: candidate.video_id,
+            frame_idx: candidateFrameIdx(candidate),
+            pts_time: candidate.pts_time ?? candidate.time ?? 0,
+            thumbnail: candidate.keyframe_url,
+            submit_keyframe_id: candidate.submit_keyframe_id,
+          }
+        : null,
+    );
+  }
+
+  /** Put an agent's E1..En into the event slots, where the operator can still
+   *  swap, clear or replace any of them before submitting. */
+  function loadAgentSequence(sequence: AgentSequence) {
+    const slots = agentSequenceSlots(sequence);
+    setTrakeSlots(slots);
+    const firstEmpty = slots.findIndex((slot) => slot === null);
+    setActiveSlot(firstEmpty >= 0 ? firstEmpty : 0);
+    setToast({
+      msg: `Loaded ${AGENT_LABELS[sequence.agent]}'s ${sequence.video_id} into E1..E${slots.length}`
+        + (firstEmpty >= 0 ? ` — E${firstEmpty + 1} is still empty.` : "."),
+      kind: firstEmpty >= 0 ? "bad" : "ok",
+    });
+  }
+
+  /** Load the sequence and open the guard on it, like a TRAKE card's quick submit. */
+  function submitAgentSequence(sequence: AgentSequence) {
+    const slots = agentSequenceSlots(sequence);
+    setTrakeSlots(slots);
+    const filled = slots.filter((slot): slot is TrakeSlot => slot !== null);
+    // Same key as `dedupKeyFor`; the slots state is not updated yet in this tick.
+    const key = `${sequence.video_id}|${filled.map((slot) => slot.frame_idx).join(",")}`;
+    const dup = history.some((h) => h.task_id === taskScope && (h.dedup_keys || []).includes(key));
+    setDuplicateId(dup ? key : null);
+    setGuardTarget("result");
+    setGuardOpen(true);
+  }
+
+  function stickyAgentSequence(sequence: AgentSequence) {
+    if (!question) {
+      setToast({ msg: "Assign a question to this tab before pinning a candidate.", kind: "bad" });
+      return;
+    }
+    const filled = agentSequenceSlots(sequence).filter((slot): slot is TrakeSlot => slot !== null);
+    if (question.kind === "trake" && question.eventCount && filled.length !== question.eventCount) {
+      setToast({ msg: `TRAKE requires all ${question.eventCount} frames before pinning.`, kind: "bad" });
+      return;
+    }
+    const result = onAddStickyRow({
+      questionId: question.id,
+      videoId: sequence.video_id,
+      frames: filled.map((slot) => slot.frame_idx),
+      answer: answer.trim(),
+      keyframeIds: filled.map((slot) => slot.submit_keyframe_id ?? null),
+      ptsTimes: filled.map((slot) => slot.pts_time ?? null),
+      retrievalDatabase,
+    });
+    if (result === "full") {
+      setToast({ msg: `Sticky note already contains ${MAX_ROWS_PER_QUESTION} candidates.`, kind: "bad" });
+      return;
+    }
+    setToast({ msg: `Pinned ${AGENT_LABELS[sequence.agent]}'s sequence to ${question.id}.`, kind: "ok" });
+  }
+
   const agentVideoFallback = useCallback(
     (url: string) => swapVideoOrigin(url, health?.media?.video_base_url, health?.media?.video_fallback_base_url),
     [health?.media?.video_base_url, health?.media?.video_fallback_base_url],
@@ -1406,8 +1546,8 @@ export default function FullConsole({
   // frame_idx the guard will actually submit, for the target it was opened with.
   const guardFrameIdx = guardPausedFrame
     ? guardPausedFrame.frame_idx
-    : selectedFrameObj
-      ? frameIdxOf(selectedFrameObj)
+    : guardResultFrame
+      ? frameIdxOf(guardResultFrame)
       : null;
 
   function autoFillSlotsFromSelected() {
@@ -1614,11 +1754,12 @@ export default function FullConsole({
       const filled = trakeSlots.filter((s): s is TrakeSlot => s !== null);
       return filled.length ? filled.map((slot) => slot.frame_idx) : null;
     }
+    const keyframe = keyframeFor(target);
     const idx =
       target === "paused"
         ? pausedFrame?.frame_idx ?? null
-        : selectedFrameObj
-          ? frameIdxOf(selectedFrameObj)
+        : keyframe
+          ? frameIdxOf(keyframe)
           : null;
     return idx == null ? null : [idx];
   }
@@ -1631,7 +1772,7 @@ export default function FullConsole({
         .map((slot) => slot.submit_keyframe_id ?? null);
     }
     if (target === "paused") return [null];
-    return [selectedFrameObj?.submit_keyframe_id ?? null];
+    return [keyframeFor(target)?.submit_keyframe_id ?? null];
   }
 
   function draftPtsTimes(target: GuardTarget): (number | null)[] {
@@ -1639,17 +1780,17 @@ export default function FullConsole({
       return trakeSlots.filter((s): s is TrakeSlot => s !== null).map((slot) => slot.pts_time ?? null);
     }
     if (target === "paused") return [pausedFrame?.pts_time ?? null];
-    return [selectedFrameObj?.pts_time ?? null];
+    return [keyframeFor(target)?.pts_time ?? null];
   }
 
   function draftVideoId(target: GuardTarget): string | null {
     if (queryType === "TRAKE") {
       return trakeSlots.find((s): s is TrakeSlot => s !== null)?.video_id ?? null;
     }
-    return (target === "paused" ? pausedFrame?.video_id : selectedFrameObj?.video_id) ?? null;
+    return (target === "paused" ? pausedFrame?.video_id : keyframeFor(target)?.video_id) ?? null;
   }
 
-  function buildDraft(target: GuardTarget): SubmissionDraft | null {
+  function buildDraft(target: GuardTarget, answerOverride?: string): SubmissionDraft | null {
     if (!question) return null;
     const frames = draftFrames(target);
     const videoId = draftVideoId(target);
@@ -1658,7 +1799,7 @@ export default function FullConsole({
       questionId: question.id,
       videoId,
       frames,
-      answer: answer.trim(),
+      answer: (answerOverride ?? answer).trim(),
       keyframeIds: draftKeyframeIds(target),
       ptsTimes: draftPtsTimes(target),
       retrievalDatabase,
@@ -1684,37 +1825,39 @@ export default function FullConsole({
   // The target is passed in rather than read from state: openGuard sets it in the
   // same tick, so the dedup pre-check would otherwise run against the old value.
   // The backend re-checks authoritatively and its answer arrives with the preview.
-  function dedupKeyFor(target: GuardTarget): string | null {
+  function dedupKeyFor(target: GuardTarget, answerOverride?: string): string | null {
+    const answerText = answerOverride ?? answer;
     if (queryType === "TRAKE") {
       const filled = trakeSlots.filter((s): s is TrakeSlot => s !== null);
       if (!filled.length) return null;
       return `${filled[0].video_id}|${filled.map((s) => s.frame_idx).join(",")}`;
     }
+    const keyframe = keyframeFor(target);
     // A pure text answer is identified by the text alone.
-    if (answerMode === "text" || (queryType === "QA" && answerMode === "auto" && !selectedFrameObj && !pausedFrame)) {
-      const text = answer.trim().replace(/\s+/g, " ").toLowerCase();
+    if (answerMode === "text" || (queryType === "QA" && answerMode === "auto" && !keyframe && !pausedFrame)) {
+      const text = answerText.trim().replace(/\s+/g, " ").toLowerCase();
       return text ? `text:${text}` : null;
     }
     const frameKey =
       target === "paused"
         ? pausedFrame && `${pausedFrame.video_id}:${pausedFrame.frame_idx}`
-        : selectedFrameObj && `${selectedFrameObj.video_id}:${frameIdxOf(selectedFrameObj)}`;
+        : keyframe && `${keyframe.video_id}:${frameIdxOf(keyframe)}`;
     if (!frameKey) return null;
     // QA answers carry the segment AND the text, so both make up the identity:
     // a new answer on the same frame is a new guess, not a repeat.
     const combined = queryType === "QA" ? answerMode === "auto" : answerMode === "temporal_text";
     if (!combined) return frameKey;
-    return `${frameKey}|text:${answer.trim().replace(/\s+/g, " ").toLowerCase()}`;
+    return `${frameKey}|text:${answerText.trim().replace(/\s+/g, " ").toLowerCase()}`;
   }
-  function computeDuplicate(target: GuardTarget): string | null {
+  function computeDuplicate(target: GuardTarget, answerOverride?: string): string | null {
     if (!dresEnabled) {
       // The submission table is the record now, so it is also the dedup scope.
-      const draft = buildDraft(target);
+      const draft = buildDraft(target, answerOverride);
       if (!draft || !question) return null;
       const hit = findDuplicate(questionRows, draft, question.kind);
       return hit ? rowToCsvLine(hit, question.kind) : null;
     }
-    const key = dedupKeyFor(target);
+    const key = dedupKeyFor(target, answerOverride);
     if (!key) return null;
     for (const h of history) {
       if (h.task_id !== taskScope) continue;
@@ -1723,13 +1866,15 @@ export default function FullConsole({
     return null;
   }
 
-  function openGuard(target: GuardTarget = "result") {
+  function openGuard(target: GuardTarget = "result", answerOverride?: string) {
     if (queryType === "AVS") {
       const frame: FrameResult | null = target === "paused" && pausedFrame ? {
         ...pausedFrame, image_id: `paused:${pausedFrame.video_id}:${pausedFrame.frame_idx}`,
         submit_keyframe_id: "", keyframe_n: 0, score: 0, channels: [], per_channel_score: {}, evidence: [],
-        keyframe_url: pausedFrame.thumbnail ?? "", video_url: groups.find(g => g.video_id === pausedFrame.video_id)?.video_url ?? "",
-      } : selectedFrameObj;
+        keyframe_url: pausedFrame.thumbnail ?? "",
+        video_url: groups.find(g => g.video_id === pausedFrame.video_id)?.video_url
+          ?? agentRun?.candidates.find((c) => c.video_id === pausedFrame.video_id)?.video_url ?? "",
+      } : keyframeFor(target);
       if (frame) setAvsRequested({ frame, id: Date.now(), scope: avsScope });
       return;
     }
@@ -1740,21 +1885,21 @@ export default function FullConsole({
       }
     } else if (target === "paused") {
       if (!pausedFrame) return;
-    } else if (!selectedFrameObj) {
+    } else if (!keyframeFor(target)) {
       return;
     }
     setGuardTarget(target);
-    setDuplicateId(computeDuplicate(target));
+    setDuplicateId(computeDuplicate(target, answerOverride));
     setGuardOpen(true);
   }
 
   /** Add the current result/sequence/raw pause to the per-machine scratchpad. */
-  function addToSticky(target: GuardTarget = "result") {
+  function addToSticky(target: GuardTarget = "result", answerOverride?: string) {
     if (!question) {
       setToast({ msg: "Assign a question to this tab before pinning a candidate.", kind: "bad" });
       return;
     }
-    const draft = buildDraft(target);
+    const draft = buildDraft(target, answerOverride);
     if (!draft) {
       setToast({ msg: "Could not determine video/frame to pin.", kind: "bad" });
       return;
@@ -1786,18 +1931,18 @@ export default function FullConsole({
       payload.events = trakeSlots
         .map((s, i) => (s ? { event_index: i + 1, frame_idx: s.frame_idx, pts_time: s.pts_time, video_id: s.video_id, submit_keyframe_id: s.submit_keyframe_id } : null))
         .filter((e): e is NonNullable<typeof e> => e !== null);
-    } else if (guardPausedFrame || selectedFrameObj) {
+    } else if (guardPausedFrame || guardResultFrame) {
       const fi = guardPausedFrame?.frame_idx
-        ?? (selectedFrameObj ? frameIdxOf(selectedFrameObj) : null);
+        ?? (guardResultFrame ? frameIdxOf(guardResultFrame) : null);
       if (fi == null) return null;
-      payload.video_id = guardPausedFrame?.video_id ?? selectedFrameObj?.video_id;
+      payload.video_id = guardPausedFrame?.video_id ?? guardResultFrame?.video_id;
       payload.frame_idx = fi;
       payload.timestamp = guardPausedFrame?.pts_time
-        ?? selectedFrameObj?.pts_time
+        ?? guardResultFrame?.pts_time
         ?? undefined;
-      payload.fps = guardPausedFrame?.fps ?? selectedFrameObj?.fps ?? timeline?.fps ?? undefined;
-      if (!guardPausedFrame && selectedFrameObj) {
-        payload.submit_keyframe_id = selectedFrameObj.submit_keyframe_id;
+      payload.fps = guardPausedFrame?.fps ?? guardResultFrame?.fps ?? timeline?.fps ?? undefined;
+      if (!guardPausedFrame && guardResultFrame) {
+        payload.submit_keyframe_id = guardResultFrame.submit_keyframe_id;
       }
       if (queryType === "QA") payload.answer = answer;
     } else {
@@ -1850,7 +1995,7 @@ export default function FullConsole({
     return () => { cancelled = true; clearTimeout(id); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dresEnabled, guardOpen, guardTarget, queryType, answer, answerMode, segmentPadMs, taskNameOverride,
-      evaluationId, currentTaskName, selectedFrameObj, pausedFrame, trakeSlots]);
+      evaluationId, currentTaskName, selectedFrameObj, agentFrame, pausedFrame, trakeSlots]);
 
   async function confirmSubmit() {
     if (!dresEnabled) {
@@ -2332,6 +2477,34 @@ export default function FullConsole({
               indexLabel={retrievalDatabase === "infoshotpp" ? "InfoShot++ PE index" : "BTC PE index"}
             />
           )}
+          {/* The agents' answers get the widest column: a TRAKE sequence is a
+              row of frames, and the player needs room to pick an exact one. */}
+          <AgentPanel
+            run={agentRun}
+            starting={agentStarting}
+            error={agentError}
+            queryType={queryType}
+            currentQuery={query}
+            eventCount={agentEventCount}
+            trakeSlotCount={trakeSlots.length}
+            activeTrakeSlot={activeSlot}
+            resultVideoIds={resultVideoIds}
+            pausedFrame={pausedFrame}
+            onStop={() => void stopAgents()}
+            onDismiss={clearAgents}
+            onLocate={locateAgentCandidate}
+            onSubmit={submitAgentCandidate}
+            onSticky={stickyAgentCandidate}
+            onUseAnswer={setAnswer}
+            onPaused={setPausedFrame}
+            onSubmitPaused={() => openGuard("paused")}
+            onStickyPaused={() => addToSticky("paused")}
+            onAssignPaused={assignPausedFrameToSlot}
+            onLoadSequence={loadAgentSequence}
+            onSubmitSequence={submitAgentSequence}
+            onStickySequence={stickyAgentSequence}
+            videoFallback={agentVideoFallback}
+          />
           <div className="results-toolbar">
             <span className="results-count">
               {trakeVideoView ? (
@@ -2448,18 +2621,6 @@ export default function FullConsole({
 
         {/* RIGHT */}
         <div className="col col-right" style={focusZone === "detail" ? { boxShadow: "inset 0 2px 0 var(--accent)" } : undefined}>
-          <AgentPanel
-            run={agentRun}
-            starting={agentStarting}
-            error={agentError}
-            currentQuery={query}
-            resultVideoIds={resultVideoIds}
-            onStop={() => void stopAgents()}
-            onDismiss={clearAgents}
-            onLocate={locateAgentCandidate}
-            onPaused={setPausedFrame}
-            videoFallback={agentVideoFallback}
-          />
           {queryType === "QA" && (
             <QaAssistPanel
               analysis={qaAnalysis}
@@ -2530,7 +2691,8 @@ export default function FullConsole({
       <SubmitGuard
         open={guardOpen}
         queryType={queryType}
-        frame={selectedFrameObj}
+        frame={guardResultFrame}
+        frameLabel={guardTarget === "agent" ? agentFrameLabel : null}
         pausedFrame={guardPausedFrame}
         frameIdx={guardFrameIdx}
         trakeSlots={trakeSlots}

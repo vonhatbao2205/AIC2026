@@ -68,7 +68,10 @@ TOOL_SPECS: list[dict[str, Any]] = [
                 "folders": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Only these dataset folders, e.g. [\"L23\", \"S01\"]. Omit to search the operator's scope.",
+                    "description": (
+                        "Only these dataset folders, e.g. [\"L23\", \"S01\"]; [\"ALL\"] searches every folder. "
+                        "Omit to stay inside the operator's folder filter (see SCOPE)."
+                    ),
                 },
                 "limit": {"type": "integer", "minimum": 1, "maximum": 20, "default": 8, "description": "Videos to return."},
             },
@@ -340,7 +343,18 @@ class AgentTools:
             raise ToolError(f"mode must be one of {', '.join(_MODE_OVERRIDES)}.")
         limit = min(20, max(1, int(args.get("limit") or 8)))
         folders = [str(f).strip().upper() for f in (args.get("folders") or []) if str(f).strip()]
-        scope = {"mode": "manual", "categories": folders} if folders else run.request.scope.model_dump()
+        in_filter = not folders and run.scope.active
+        if any(folder in {"ALL", "*"} for folder in folders):
+            scope: dict[str, Any] = {"mode": "all"}
+        elif folders:
+            scope = {"mode": "manual", "categories": folders}
+        elif in_filter:
+            # The folders the operator's query resolved to, not the request's
+            # `auto`: re-running the topic heuristic on the agent's own search
+            # text (often English) would quietly drop the filter.
+            scope = {"mode": "manual", "categories": list(run.scope.categories)}
+        else:
+            scope = {"mode": "all"}
         service = self._service(run)
         result = await service.search({
             "query": query,
@@ -363,7 +377,10 @@ class AgentTools:
         lines = [f"search mode={mode} query={query!r}: {len(groups)} videos"]
         applied = (result.get("scope") or {}).get("categories") or []
         if applied:
-            lines.append(f"scope: {', '.join(applied[:20])}{' …' if len(applied) > 20 else ''}")
+            lines.append(
+                f"scope: {', '.join(applied[:20])}{' …' if len(applied) > 20 else ''}"
+                + (" (the operator's filter; folders=[\"ALL\"] searches everything)" if in_filter else "")
+            )
         for rank, group in enumerate(groups, start=1):
             lines.append(
                 f"{rank}. {group['video_id']}  score={group['video_score']:.4f}  channels={','.join(group.get('channels') or [])}"
@@ -735,6 +752,8 @@ class AgentTools:
         video_id = str(record.get("video_id") or parse_submit_keyframe_id(record["submit_keyframe_id"]).video_id)
         keyframe_n = int(record.get("keyframe_n") or parse_submit_keyframe_id(record["submit_keyframe_id"]).keyframe_n)
         event = args.get("event")
+        folder = group_from_video_id(video_id)
+        outside = run.scope.active and folder not in run.scope.categories
         candidate = {
             "agent": agent,
             "video_id": video_id,
@@ -750,12 +769,20 @@ class AgentTools:
             "reason": _clip(args.get("reason"), 600),
             "answer": _clip(args.get("answer"), 200) or None,
             "event": int(event) if event is not None else None,
+            "outside_scope": outside,
         }
         stored, updated = run.add_candidate(candidate)
         verb = "Updated" if updated else "Recorded"
+        note = ""
+        if outside:
+            note = (
+                f" It is OUTSIDE the operator's folder filter ({folder} is not in "
+                f"{', '.join(run.scope.categories[:8])}{' …' if len(run.scope.categories) > 8 else ''}); "
+                "say so, and why, in its reason and in your final answer."
+            )
         return [_text(
             f"{verb} candidate {stored['submit_keyframe_id']} at {_fmt_time(stored['time'])} "
-            f"(confidence {stored['confidence']:.2f}). The operator can see it now. Keep verifying; "
+            f"(confidence {stored['confidence']:.2f}). The operator can see it now.{note} Keep verifying; "
             "report it again with a higher confidence once every constraint checks out, then finish."
         )]
 

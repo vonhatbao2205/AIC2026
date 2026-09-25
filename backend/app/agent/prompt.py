@@ -11,6 +11,11 @@ from ..scope import CATEGORY_LABELS_EN, profile_categories
 
 if TYPE_CHECKING:
     from ..models import AgentRunRequest
+    from ..scope import ResolvedScope
+
+#: Folder lists longer than this are cut in the prompt (a manual pick can hold all
+#: 100 traffic cameras); `search` without `folders` still applies all of them.
+_SCOPE_LIST_MAX = 40
 
 SYSTEM_PROMPT = (
     "You are a video-retrieval agent in a live competition. You find moments in a large video "
@@ -100,7 +105,35 @@ def _corpus(retrieval_database: str) -> str:
     return "\n".join(lines)
 
 
-def build_prompt(req: "AgentRunRequest", *, timeout_seconds: float) -> str:
+def _scope_section(scope: "ResolvedScope | None") -> str:
+    """Where the operator's folder filter points, as a strong hint.
+
+    Not a hard limit: a filter left over from the previous question (a traffic
+    camera folder on a news query) would otherwise make both agents miss too.
+    """
+    if scope is None or not scope.active:
+        return "SCOPE: no folder filter is set; the whole corpus is in play.\n"
+    folders = list(scope.categories)
+    shown = ", ".join(folders[:_SCOPE_LIST_MAX])
+    if len(folders) > _SCOPE_LIST_MAX:
+        shown += f", … ({len(folders)} folders in total)"
+    if scope.mode == "manual":
+        origin = f"The operator filtered the console by hand to: {shown}."
+    else:
+        origin = f"The console's automatic topic filter narrowed this query to: {shown}. {scope.reason_en}"
+    return f"""SCOPE — the operator's folder filter (a strong hint, not a hard limit):
+{origin}
+Look there FIRST: `search` without `folders` already stays inside these folders, and browse them before
+anything else. Only when nothing inside fits the query after a real attempt, look elsewhere (`folders`
+with other codes, or ["ALL"] for every folder). A candidate outside the filter is flagged to the
+operator automatically; also say in its `reason`, and in your final sentence, that it lies OUTSIDE the
+filter and why you looked there.
+"""
+
+
+def build_prompt(
+    req: "AgentRunRequest", *, timeout_seconds: float, scope: "ResolvedScope | None" = None,
+) -> str:
     task = _TASKS.get(req.query_type, _TASKS["T-KIS"])
     hints = "\n".join(f"- {hint}" for hint in req.previous_hints if hint.strip())
     minutes = max(1, int(timeout_seconds // 60))
@@ -117,6 +150,7 @@ CORPUS ({req.retrieval_database}); video ids look like L21_V001, N033-V002, S01-
 L21/L21_V001/045. Folders:
 {_corpus(req.retrieval_database)}
 
+{_scope_section(scope)}
 TWO WAYS TO FIND CANDIDATE VIDEOS — use both, they fail on different queries
 A. SEARCH (`search`): the retrieval engine. mode='visual' with short concrete English phrases of what
    is SEEN, mode='ocr' with exact Vietnamese words likely PRINTED on screen, mode='speech' with words
@@ -133,7 +167,8 @@ B. BROWSE like a person reading a TV guide, independent of the search engine:
 HOW TO WORK
 1. Understand the query yourself first: what is seen (people, objects, colours, counts, place), text
    on screen, words spoken, order of events — and which folders can hold it (see CORPUS).
-2. Gather candidate videos with A and B together. Shortlist at most 5 videos.
+2. Gather candidate videos with A and B together, inside SCOPE first when there is one. Shortlist at
+   most 5 videos.
 3. Locate the moment: `video_outline` to find the part of the video, `video_frames` on that window
    (then again on a narrower window), `view_frames` for small details, `video_text` for text/speech.
 4. Check EVERY constraint of the query against the frames before raising confidence. Near-duplicates

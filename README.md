@@ -106,8 +106,20 @@ The repository contains two parts:
   - `video_text`: the speech and OCR text in a time window.
   - `report_candidate`: shows a candidate to the operator.
 
-  Candidates appear in their own **Agents** panel as soon as they are reported,
-  and the panel flags a moment both agents found on their own. The main
+  Candidates appear in their own **Agents** strip at the top of the results
+  column as soon as they are reported, and the strip flags a moment both agents
+  found on their own. Their frames are submitted like any other frame:
+  - **KIS / QA / AVS:** each frame card has Submit, which opens the usual guard
+    with DRES preview and dedup, plus + Sticky and Play. QA can also take the
+    agent's answer.
+  - **TRAKE:** frames are grouped into one E1..En row per agent and video, with
+    Submit sequence, Load into E1..En and + Sticky.
+  - **Paused frames:** the strip's player captures an exact paused frame to
+    submit, or to assign to an event slot for TRAKE.
+
+  The operator's folder filter (manual, or what `auto` resolved from the query)
+  goes into the prompt as a strong hint: the agents look there first. A frame
+  from outside it is labelled "Outside the folder filter". The main
   `/api/search` never waits for the agents and its ranking is never changed by
   them. A new search cancels the tab's previous run, and every agent is killed at
   `AGENT_TIMEOUT_SECONDS`. The CLIs have no shell and receive none of the

@@ -9,6 +9,9 @@ interface Props {
   frame: FrameResult | null;
   pausedFrame: PausedFrame | null;
   frameIdx: number | null; // effective frame_idx that will be submitted
+  /** Where a non-paused frame came from, when it is not the selected result
+   *  ("Codex keyframe" for one an agent reported). */
+  frameLabel?: string | null;
   trakeSlots: (TrakeSlot | null)[];
   answer: string;
   setAnswer: (v: string) => void;
@@ -113,7 +116,7 @@ export function SubmitGuard(props: Props) {
               which frame it holds instead of leaving it to the rows below. */}
           <h2 data-testid="guard-target">
             Confirm submission · {queryType}
-            {!isTrake && ` · ${pausedFrame ? "paused raw frame" : "result keyframe"}`}
+            {!isTrake && ` · ${pausedFrame ? "paused raw frame" : props.frameLabel ?? "result keyframe"}`}
           </h2>
           <button className="btn sm ghost" onClick={props.onCancel}>esc</button>
         </div>

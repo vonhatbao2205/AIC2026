@@ -902,6 +902,8 @@ export interface AgentCandidate {
   answer: string | null;
   /** TRAKE: which event this frame is (1-based). */
   event: number | null;
+  /** The frame's folder is not in the operator's folder filter. */
+  outside_scope?: boolean;
   found_at_s: number;
   updated_at_s?: number;
 }
@@ -916,4 +918,13 @@ export interface AgentRunSnapshot {
   finished: boolean;
   agents: Partial<Record<AgentName, AgentState>>;
   candidates: AgentCandidate[];
+  /** The folder filter the agents were told to search first. */
+  scope?: AgentRunScope;
+}
+
+export interface AgentRunScope {
+  mode: "all" | "auto" | "manual";
+  active: boolean;
+  categories: string[];
+  reason: string;
 }

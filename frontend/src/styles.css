@@ -527,14 +527,31 @@ button { font-family: inherit; }
 .evidence .e-text { font-size: 12.5px; color: var(--fg); line-height: 1.5; }
 .evidence .e-time { font-family: var(--mono); font-size: 10.5px; color: var(--fg-faint); }
 
-/* ---- Agent sidecar search (Codex + Claude) ---- */
-.agent-panel { --agent-codex: var(--ch-speech); --agent-claude: var(--ch-audio); }
-.agent-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.agent-head h3 { margin-bottom: 2px; }
-.agent-note { font-size: 10.5px; color: var(--fg-faint); line-height: 1.45; margin: 4px 0; }
-.agent-stale { margin: 6px 0; padding: 6px 8px; border-radius: var(--radius-sm); font-size: 10.5px; color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); }
-.agent-error { margin-top: 5px; font-size: 10.5px; line-height: 1.45; color: var(--bad); overflow-wrap: anywhere; }
-.agent-row { margin-top: 8px; padding: 7px 8px; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); background: var(--bg-2); }
+/* ---- Agent sidecar search (Codex + Claude) ----
+   A strip across the top of the results column: the right sidebar was too narrow
+   for a TRAKE sequence or a player an exact frame can be picked in. */
+.agent-strip {
+  --agent-codex: var(--ch-speech); --agent-claude: var(--ch-audio);
+  margin: 10px 14px 12px; padding: 10px 12px 12px; border: 1px solid var(--line-soft);
+  border-radius: var(--radius); background: var(--bg-1); box-shadow: var(--shadow-1);
+}
+.agent-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.agent-head h3 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.7px; color: var(--fg-faint); font-weight: 700; }
+.agent-collapse { padding: 0 4px; border: 0; background: none; color: var(--fg-dim); cursor: pointer; font-size: 13px; }
+.agent-count { font-family: var(--mono); font-size: 11px; color: var(--fg-dim); }
+.agent-scope {
+  padding: 1px 7px; border-radius: 5px; font-family: var(--mono); font-size: 10.5px; color: var(--accent);
+  background: var(--accent-weak); max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.agent-head-note { margin-left: auto; font-size: 10.5px; color: var(--fg-faint); }
+.agent-note { font-size: 11px; color: var(--fg-faint); line-height: 1.45; margin: 6px 0; }
+.agent-stale { margin: 8px 0 0; padding: 6px 8px; border-radius: var(--radius-sm); font-size: 11px; color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); }
+.agent-error { margin-top: 5px; font-size: 11px; line-height: 1.45; color: var(--bad); overflow-wrap: anywhere; }
+.agent-strip .badge.bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 16%, transparent); }
+
+/* Codex and Claude side by side. */
+.agent-agents { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 8px; margin-top: 10px; }
+.agent-row { padding: 7px 9px; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); background: var(--bg-2); min-width: 0; }
 .agent-row-head { display: flex; align-items: center; gap: 7px; width: 100%; padding: 0; border: 0; background: none; color: var(--fg); font-size: 12px; cursor: pointer; text-align: left; flex-wrap: wrap; }
 .agent-model { font-family: var(--mono); font-size: 10px; color: var(--fg-faint); }
 .agent-status { font-size: 10.5px; color: var(--fg-dim); }
@@ -546,30 +563,74 @@ button { font-family: inherit; }
 .agent-dot.unavailable, .agent-dot.cancelled { background: var(--line-2); }
 @keyframes agent-pulse { 50% { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) { .agent-dot.live { animation: none; } }
-.agent-last, .agent-summary { margin-top: 4px; font-size: 11px; line-height: 1.45; color: var(--fg-dim); overflow-wrap: anywhere; }
-.agent-last { font-family: var(--mono); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.agent-steps { margin: 6px 0 0; padding: 0 0 0 16px; max-height: 180px; overflow-y: auto; font-size: 10px; line-height: 1.5; color: var(--fg-dim); }
+.agent-last, .agent-summary { margin-top: 4px; font-size: 11.5px; line-height: 1.45; color: var(--fg-dim); overflow-wrap: anywhere; }
+.agent-last { font-family: var(--mono); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agent-steps { margin: 6px 0 0; padding: 0 0 0 16px; max-height: 180px; overflow-y: auto; font-size: 10.5px; line-height: 1.5; color: var(--fg-dim); }
 .agent-steps li.tool { color: var(--fg); }
 .agent-steps li.error { color: var(--bad); }
 .agent-steps .mono { color: var(--fg-faint); }
-.agent-consensus { margin-top: 8px; padding: 7px 9px; border-radius: var(--radius-sm); font-size: 11.5px; color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent); }
-.agent-candidates { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.agent-candidate { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 8px; padding: 6px; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); background: var(--bg-2); }
-.agent-candidate.agreed { border-color: color-mix(in srgb, var(--ok) 55%, transparent); }
-.agent-thumb { padding: 0; border: 0; background: #000; border-radius: 5px; overflow: hidden; cursor: pointer; align-self: start; }
-.agent-thumb img { display: block; width: 112px; height: 63px; object-fit: cover; }
-.agent-candidate-body { min-width: 0; }
-.agent-candidate-title { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11.5px; }
-.agent-tag { font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px; }
+.agent-consensus { margin-top: 8px; padding: 7px 9px; border-radius: var(--radius-sm); font-size: 12px; color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent); }
+.agent-tag { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; }
 .agent-tag.codex { color: var(--agent-codex); background: color-mix(in srgb, var(--agent-codex) 16%, transparent); }
 .agent-tag.claude { color: var(--agent-claude); background: color-mix(in srgb, var(--agent-claude) 16%, transparent); }
-.agent-conf { margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--fg-dim); }
-.agent-answer { margin-top: 3px; font-size: 11.5px; color: var(--fg); }
-.agent-reason { margin-top: 3px; font-size: 10.5px; line-height: 1.45; color: var(--fg-dim); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.agent-actions { display: flex; align-items: center; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
-.agent-kf { font-size: 9.5px; color: var(--fg-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.agent-preview { grid-column: 1 / -1; }
-.agent-preview video { width: 100%; }
+.agent-conf { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--fg-dim); }
+.agent-outside {
+  display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;
+  color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent);
+}
+
+/* KIS / QA / AVS: one card per reported frame, wrapping across the strip. */
+.agent-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(236px, 1fr)); gap: 10px; margin-top: 10px; }
+.agent-card {
+  display: flex; flex-direction: column; gap: 5px; min-width: 0; padding: 7px;
+  border: 1px solid var(--line-soft); border-radius: var(--radius-sm); background: var(--bg-2);
+}
+.agent-card.agreed { border-color: color-mix(in srgb, var(--ok) 60%, transparent); }
+.agent-card.outside { border-style: dashed; }
+.agent-card.previewing { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.agent-card-thumb { position: relative; padding: 0; border: 0; border-radius: 5px; overflow: hidden; background: #000; cursor: pointer; }
+.agent-card-thumb img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.agent-card-time {
+  position: absolute; right: 5px; bottom: 5px; padding: 1px 5px; border-radius: 4px; font-size: 10.5px;
+  color: #fff; background: rgba(0, 0, 0, 0.62);
+}
+.agent-card-title { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; }
+.agent-answer { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; color: var(--fg); }
+.agent-reason { font-size: 11px; line-height: 1.45; color: var(--fg-dim); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.agent-actions { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: auto; }
+.agent-kf { font-size: 9.5px; color: var(--fg-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* TRAKE: one row per (agent, video), E1..En left to right as it would be submitted. */
+.agent-seqs { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.agent-seq { border: 1px solid var(--line-soft); border-radius: var(--radius-sm); background: var(--bg-2); padding: 8px 10px 10px; }
+.agent-seq.agreed { border-color: color-mix(in srgb, var(--ok) 60%, transparent); }
+.agent-seq.outside { border-style: dashed; }
+.agent-seq-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 12px; }
+.agent-seq-head .agent-conf { margin-left: 0; }
+.agent-seq-actions { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto; }
+.agent-seq-strip { display: flex; gap: 8px; overflow-x: auto; padding: 8px 0 2px; }
+.agent-tile {
+  flex: 0 0 auto; width: 150px; padding: 6px; text-align: left; cursor: pointer;
+  border: 1.5px solid var(--line-soft); border-radius: var(--radius-sm); background: var(--bg-1); color: var(--fg);
+}
+.agent-tile:hover { border-color: var(--line-2); }
+.agent-tile.previewing { border-color: var(--accent); }
+.agent-tile.extra { border-style: dashed; opacity: 0.85; }
+.agent-tile.empty { cursor: default; }
+.agent-tile-head { display: flex; align-items: center; gap: 4px; font-size: 10.5px; margin-bottom: 5px; }
+.agent-tile-conf { margin-left: auto; color: var(--fg-dim); font-size: 10px; }
+.agent-tile img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 5px; background: var(--bg-3); }
+.agent-tile-meta { display: block; margin-top: 4px; font-size: 10px; color: var(--fg-dim); }
+.agent-tile-missing { display: block; padding: 26px 0; text-align: center; font-size: 10px; color: var(--fg-faint); }
+
+/* The player: full strip width, with the capture bar right under it. */
+.agent-player { margin-top: 12px; padding: 8px; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); background: var(--bg-2); }
+.agent-player-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 12px; margin-bottom: 6px; }
+.agent-player-head .btn { margin-left: auto; }
+.agent-player video { display: block; width: 100%; max-height: 48vh; background: #000; border-radius: 5px; }
+.agent-paused { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 7px; font-size: 12px; }
+.agent-paused img { width: 96px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; background: #000; }
+.agent-assign { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 
 /* ---- NVILA QA copilot ---- */
 .qa-assist { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
