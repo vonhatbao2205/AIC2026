@@ -10,11 +10,8 @@ from typing import Any, Literal
 # `similar` is the relevance-feedback channel: image-to-image kNN seeded by the
 # frames the operator marked "more like this". It is fused by RRF like any other
 # channel, which keeps feedback on the same scale instead of a hard-coded boost.
-# `object_layout` is the V-KIS canvas channel: object/colour/position matched
-# against the OD index, scored by one-to-one assignment (see canvas.py).
-# `canvas_image` is the rendered drawing encoded by PE image — the escape hatch
-# for things the detector has no label for (a rice field, a sky), deliberately
-# fused at a low weight because a sketch is far outside PE's photo distribution.
+# `canvas_image` is the V-KIS sketch: the operator's drawing encoded by PE's
+# image tower and searched against the keyframe vectors (see canvas_service.py).
 # `image_visual` is the MERGED visual ranking: the PE and Qwen candidate pools
 # unioned and then judged together by the Qwen visual reranker. It replaces the
 # two separate `image_pe` / `image_qwen` channels whenever reranking runs, because
@@ -23,11 +20,11 @@ from typing import Any, Literal
 # two channels and meet in the global RRF (see `SearchService._run_visual`).
 Channel = Literal[
     "image_pe", "image_qwen", "image_visual", "tara", "ocr", "speech", "audio", "similar",
-    "object_layout", "canvas_image",
+    "canvas_image",
 ]
 ALL_CHANNELS: tuple[Channel, ...] = (
     "image_pe", "image_qwen", "image_visual", "tara", "ocr", "speech", "audio", "similar",
-    "object_layout", "canvas_image",
+    "canvas_image",
 )
 
 

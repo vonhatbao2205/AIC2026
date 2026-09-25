@@ -215,36 +215,18 @@ class SnapRequest(BaseModel):
     fps: float | None = None
 
 
-class CanvasObjectSpec(BaseModel):
-    """One object drawn on the V-KIS canvas (normalized bbox, palette colour)."""
-
-    id: str = Field(default="", max_length=32)
-    label: str = Field(min_length=1, max_length=64)
-    # x1, y1, x2, y2 in [0,1]; validated/clamped in app.canvas.parse_canvas.
-    bbox: list[float] = Field(min_length=4, max_length=4)
-    color: str | None = Field(default=None, max_length=24)
-    required: bool = True
-
-
 class CanvasSpec(BaseModel):
-    objects: list[CanvasObjectSpec] = Field(default_factory=list, max_length=12)
-    exclude_labels: list[str] = Field(default_factory=list, max_length=8)
-    action_text: str = Field(default="", max_length=300)
-    mode: Literal["rough", "precise"] = "rough"
-    # Rendered canvas as a base64 PNG data URL for the raster (PE image) channel.
-    # ~4 MB caps a 1024×576 PNG with room to spare; validated in app.canvas.
-    image: str | None = Field(default=None, max_length=4_000_000)
+    # The V-KIS sketch flattened onto its background, as a base64 PNG/JPEG data
+    # URL; validated in app.canvas. ~4 MB caps a 1024×576 PNG with room to spare.
+    image: str = Field(min_length=1, max_length=4_000_000)
 
 
 class CanvasSearchRequest(BaseModel):
     retrieval_database: RetrievalDatabase = "btc"
     canvas: CanvasSpec
     scope: SearchScope = Field(default_factory=SearchScope)
-    top_k: int = Field(default=100, ge=1, le=400)
+    top_k: int = Field(default=100, ge=1, le=1000)
     max_videos: int = Field(default=50, ge=1, le=200)
-    candidate_pool: int = Field(default=400, ge=50, le=1000)
-    # Channel weights for the RRF fusion; only object_layout / image_pe are used.
-    weights: dict[str, float] | None = None
 
 
 class QaCandidate(BaseModel):

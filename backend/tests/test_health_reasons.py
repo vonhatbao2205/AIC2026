@@ -14,7 +14,6 @@ from app.adapters.elastic_client import ElasticClient
 from app.adapters.http_pool import failure_reason
 from app.adapters.milvus_client import MilvusClient
 from app.adapters.nvila_client import NvilaQaClient
-from app.adapters.object_elastic import ObjectElasticClient
 from app.adapters.pe_encoder import GlapEncoderClient, PeEncoderClient
 from app.adapters.qwen3_vl_encoder import Qwen3VlEncoderClient
 from app.adapters.qwen_reranker import QwenRerankerClient
@@ -76,7 +75,6 @@ def _client(factory, settings):
     [
         ElasticClient,
         NvilaQaClient,
-        ObjectElasticClient,
         PeEncoderClient,
         GlapEncoderClient,
         Qwen3VlEncoderClient,

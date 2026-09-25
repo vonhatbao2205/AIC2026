@@ -2,7 +2,7 @@
 
 export type Channel =
   | "image_pe" | "image_qwen" | "image_visual" | "tara" | "ocr" | "speech" | "audio" | "similar"
-  | "object_layout" | "canvas_image";
+  | "canvas_image";
 export type QueryType = "T-KIS" | "QA" | "V-KIS" | "TRAKE" | "AVS";
 export type QueryTypeHint = "auto" | QueryType;
 export type RetrievalDatabase = "btc" | "infoshotpp";
@@ -376,65 +376,21 @@ export interface AnswerGenerateResponse {
   mode: "mock" | "live";
 }
 
-// ---- V-KIS canvas ----------------------------------------------------------
-
-export interface CanvasObjectSpec {
-  id: string;
-  label: string;
-  /** normalized [x1, y1, x2, y2] on the canvas */
-  bbox: [number, number, number, number];
-  color: string | null;
-  required: boolean;
-}
-
-export type CanvasMode = "rough" | "precise";
+// ---- V-KIS sketch canvas --------------------------------------------------
 
 export interface CanvasSpec {
-  objects: CanvasObjectSpec[];
-  exclude_labels?: string[];
-  action_text?: string;
-  mode: CanvasMode;
-  /** Rendered drawing as a PNG data URL, for the low-weight PE image channel. */
-  image?: string | null;
-}
-
-/** One drawn object paired with the detection it matched, for the overlay. */
-export interface CanvasMatch {
-  object_id: string;
-  label: string;
-  score: number;
-  detection_label: string | null;
-  conf: number;
-  bbox_norm: { x1: number; y1: number; x2: number; y2: number };
-  position: string | null;
-  dominant_color: string | null;
-  color_reliable: boolean;
-  color_ok: boolean | null;
-}
-
-/** `object_layout` evidence carried on a frame returned by the canvas search. */
-export interface CanvasLayoutEvidence extends Evidence {
-  type: "object_layout";
-  matches: CanvasMatch[];
-  missing: string[];
-  coverage: number;
-  excluded_hits: string[];
+  /** The drawing flattened onto its background, as a PNG data URL. */
+  image: string;
 }
 
 export interface CanvasSearchResponse {
-  canvas: Omit<CanvasSpec, "image"> & { queries_en: string[]; has_image: boolean };
+  canvas: { has_image: boolean };
+  retrieval_database?: RetrievalDatabase;
   scope?: ResolvedScope;
   groups: VideoGroup[];
   latency_ms: LatencyBreakdown;
   warnings: string[];
   mode: "mock" | "live";
-}
-
-export interface CanvasPalette {
-  colors: { name: string; hex: string }[];
-  labels: { label: string; label_vi: string | null; colorable: boolean }[];
-  modes: CanvasMode[];
-  color_palette_version: string;
 }
 
 export interface QaAnalyzeCandidate {

@@ -4,7 +4,6 @@ import type {
   AnswerGenerateResponse,
   AnswerGenParams,
   AnswerMode,
-  CanvasPalette,
   CanvasSearchResponse,
   CanvasSpec,
   ConfigImportResult,
@@ -248,9 +247,7 @@ export const api = {
       signal,
     }),
 
-  canvasPalette: () => request<CanvasPalette>("/api/canvas/palette"),
-
-  searchCanvas: (body: { retrieval_database: RetrievalDatabase; canvas: CanvasSpec; scope?: SearchScope; top_k?: number; candidate_pool?: number }) =>
+  searchCanvas: (body: { retrieval_database: RetrievalDatabase; canvas: CanvasSpec; scope?: SearchScope; top_k?: number }) =>
     request<CanvasSearchResponse>("/api/search/canvas", {
       method: "POST",
       body: JSON.stringify(body),

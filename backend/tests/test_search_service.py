@@ -70,7 +70,8 @@ async def test_infoshotpp_profile_selects_the_v2_metadata_indices(settings):
     assert profile.idx_ocr == settings.idx_ocr_2
     assert profile.idx_speech == settings.idx_speech_2
     assert profile.idx_audio == settings.idx_audio_2
-    assert profile.unsupported_channels == frozenset({"object_layout", "canvas_image"})
+    # The V-KIS sketch searches InfoShot++'s own PE collection, so nothing is missing.
+    assert profile.unsupported_channels == frozenset()
     # The BTC profile must keep pointing at the untouched v1 indices.
     btc = settings.for_retrieval_database("btc")
     assert (btc.idx_ocr, btc.idx_speech, btc.idx_audio) == (

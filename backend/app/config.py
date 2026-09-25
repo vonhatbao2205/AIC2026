@@ -241,8 +241,6 @@ class Settings:
     idx_audio: str = "aic26_audio_windows_v1"
     idx_audio_1: str = "aic26_audio_windows_v1"
     idx_audio_2: str = "aic26_audio_windows_v2"
-    # OD frame documents (`od-frame-v5`) behind the V-KIS canvas channel.
-    idx_objects: str = "aic26_od_frames_v1"
     # Categories whose OCR is not in the active OCR index. The InfoShot++ OCR
     # artifact has no L26 yet, and an operator has to be able to see that a
     # negative OCR result there means "not indexed", not "not on screen".
@@ -325,12 +323,10 @@ class Settings:
         """Channels this profile has no index for, so retrieval can say so.
 
         Since the v2 metadata upload, InfoShot++ answers OCR, speech and audio
-        from its own `*_v2` indices. Only the V-KIS object/canvas channels remain
-        BTC-only: `aic26_od_frames_v1` is keyed by BTC keyframes and there is no
-        InfoShot++ object detection run yet.
+        from its own `*_v2` indices, and the V-KIS sketch searches whichever PE
+        image collection the profile has, so no channel is missing today. Kept
+        as the one place a future profile declares what it lacks.
         """
-        if self.is_infoshotpp:
-            return frozenset({"object_layout", "canvas_image"})
         return frozenset()
 
     def for_retrieval_database(self, database: str) -> "Settings":
@@ -630,7 +626,6 @@ def get_settings() -> Settings:
         idx_audio=idx_audio_1,
         idx_audio_1=idx_audio_1,
         idx_audio_2=_env("IDX_AUDIO_2") or "aic26_audio_windows_v2",
-        idx_objects=_env("IDX_OBJECTS") or "aic26_od_frames_v1",
         ocr_missing_categories_2=missing_ocr_2,
         milvus_image_collection=image_collection_1,
         milvus_image_collection_1=image_collection_1,

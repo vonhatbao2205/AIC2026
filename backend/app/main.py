@@ -10,6 +10,7 @@ Endpoints:
   GET  /api/search/scope
   POST /api/search
   POST /api/search/trake
+  POST /api/search/canvas
   POST /api/answers/generate
   POST /api/qa/analyze
   GET  /api/keyframes/{submit_keyframe_id:path}
@@ -42,7 +43,6 @@ from .adapters.deepseek_grounding import DeepSeekGroundingClient, WebGroundingUn
 from .adapters.dres_client import DresClient, DresError, DresNotConfigured
 from .adapters.qa_vision import QaVisionUnavailable, build_qa_vision_client
 from . import paths
-from .canvas import palette_manifest
 from .config import Settings, get_settings
 from .identity import canonical_submit_keyframe_id, parse_submit_keyframe_id
 from .media import MediaUrlBuilder
@@ -92,8 +92,8 @@ def build_runtime() -> Settings:
     without a restart. Endpoints resolve these names at call time, so rebinding
     the module globals swaps the whole stack atomically from the caller's view.
     """
-    global settings, search_service, trake_service, canvas_service, timeline_service
-    global search_services, trake_services, timeline_services, media_builders, profile_settings
+    global settings, search_service, trake_service, timeline_service
+    global search_services, trake_services, canvas_services, timeline_services, media_builders, profile_settings
     global answer_services
     global progressive_service
     global dres_client, submit_service, media, qa_vision, web_grounding_client
@@ -109,6 +109,11 @@ def build_runtime() -> Settings:
         name: TrakeService(profile_settings[name], search_services[name]) for name in profile_settings
     }
     timeline_services = {name: TimelineService(cfg) for name, cfg in profile_settings.items()}
+    # One sketch service per profile, each bound to that profile's PE collection:
+    # a single shared instance would answer an InfoShot++ sketch from BTC's index.
+    canvas_services = {
+        name: CanvasService(profile_settings[name], search_services[name]) for name in profile_settings
+    }
     media_builders = {
         name: MediaUrlBuilder(cfg.keyframe_media_base_url, cfg.video_media_base_url)
         for name, cfg in profile_settings.items()
@@ -121,7 +126,6 @@ def build_runtime() -> Settings:
     search_service = search_services["btc"]
     trake_service = trake_services["btc"]
     timeline_service = timeline_services["btc"]
-    canvas_service = CanvasService(profile_settings["btc"], search_service)
     dres_client = DresClient(settings)
     # History is reloaded from disk with the new service; it is not credentials.
     submit_service = SubmitService(settings, dres_client)
@@ -207,11 +211,6 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
         web_grounding_client.health(),
         dres_client.health(),
     )
-    objects = (
-        await canvas_service.objects.health()
-        if retrieval_database == "btc"
-        else {"ok": False, "mode": "disabled", "reason": "not indexed for InfoShot++"}
-    )
     services = {
         "elastic": elastic,
         "milvus": milvus,
@@ -223,7 +222,6 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
         "qa_vision": qa_visual,
         "qwen_reranker": reranker,
         "web_grounding": grounding,
-        "object_index": objects,
         "dres": dres,
     }
     # The QA copilot is optional: a missing key or a stopped NVILA Colab session
@@ -286,10 +284,11 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
             "qa_candidate_answers": has_qa_nvila,
             "qa_visual_verification": has_qa_visual_verification,
             "qa_web_grounding": settings.mock_mode or settings.has_web_grounding,
-            # V-KIS canvas: OD spatial match needs the object index to answer.
-            "canvas_object_search": retrieval_database == "btc" and (
-                settings.mock_mode or bool(objects.get("ok"))
-            ),
+            # V-KIS sketch: the drawing goes through PE's image tower into this
+            # profile's PE collection, so it needs exactly what PE search needs.
+            # (Whether the PE server has the /encode-image route is only known
+            # when a sketch is sent; a missing route comes back as a warning.)
+            "canvas_sketch_search": selected_settings.mock_mode or pe_image_ready,
         },
         "retrieval_database": retrieval_database,
         "indices": {
@@ -450,29 +449,10 @@ async def generate_answers(req: AnswerGenerateRequest):
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
-@app.get("/api/canvas/palette")
-async def canvas_palette():
-    """Labels and colours the V-KIS canvas may use.
-
-    Served from the backend so the picker can only offer what the OD run was
-    actually prompted with — an icon for a class outside that vocabulary would
-    always return zero frames.
-    """
-    return palette_manifest()
-
-
 @app.post("/api/search/canvas")
 async def search_canvas(req: CanvasSearchRequest):
-    """V-KIS canvas search: canvas JSON → OD spatial match + PE text, RRF-fused."""
-    if req.retrieval_database != "btc":
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "InfoShot++ supports PE image + OCR/speech/audio (index v2), but V-KIS "
-                "canvas is unavailable because InfoShot++ keyframes have no object detection."
-            ),
-        )
-    return await canvas_service.search(req.model_dump())
+    """V-KIS sketch search: the drawing → PE image embedding → the profile's PE Milvus."""
+    return await canvas_services[req.retrieval_database].search(req.model_dump())
 
 
 @app.post("/api/qa/analyze")

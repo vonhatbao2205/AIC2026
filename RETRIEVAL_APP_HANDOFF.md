@@ -119,8 +119,7 @@ All endpoints are under `/api`. Responses are JSON.
 | POST | `/api/search/simple` | `{query, top_k, scope?, traffic?, rerank?, image_models?, translate?}` → flat keyframe list, no parser and no group-by-video |
 | POST | `/api/search/trake` | `{query, previous_hints[], manual_overrides, image_models?, translate?, scope?, traffic?}` → `videos[]` (video-centric: per-event heat peaks + representatives + best chain) **and** `sequences[]` (the same assembly as flat chains) |
 | POST | `/api/answers/generate` | `{query, query_type_hint, scope?, traffic?, limit<=100, params?, answer_text?, event_count?, groups?/sequences?}` → the ordered answer list (§10). Pass `groups`/`sequences` to rank a result already on screen instead of searching again; `event_count` is the TRAKE row width taken from the statement |
-| GET | `/api/canvas/palette` | V-KIS canvas vocabulary: 16 OD colours + canonical labels (+ `colorable`) |
-| POST | `/api/search/canvas` | `{canvas{objects[{label,bbox,color,required}], action_text, mode}}` → same group shape, plus `object_layout` evidence |
+| POST | `/api/search/canvas` | `{retrieval_database, canvas{image}, scope, top_k}` → same group shape, `canvas_image` evidence |
 | POST | `/api/qa/analyze` | `{question, candidates[{submit_keyframe_id,...}], max_answers}` → grounded answers + hotspots |
 | GET | `/api/keyframes/{submit_keyframe_id:path}` | normalizes shard/padding; returns ids + media URLs + timing |
 | GET | `/api/videos/{video_id}/timeline` | keyframes + speech + ocr + audio + heatmap |
@@ -240,31 +239,24 @@ when the same frame was already submitted for the task (unless `allow_duplicate`
    dispersion`, and an **ambiguous** flag when top frames split into distant
    time clusters.
 
-**V-KIS canvas** (`/api/search/canvas`) is a separate entry point. The operator
-draws on a real `<canvas>`: object silhouettes with a label/colour/bbox, plus
-freehand strokes for what has no label at all (sky, a rice field). Three channels
-come out of that one drawing:
+**V-KIS sketch** (`/api/search/canvas`) is a separate entry point, on both
+profiles. The operator redraws the clip on a real `<canvas>` (brush tips, eraser,
+line/rectangle/ellipse, freeform and bucket fill, full RGB picker, undo/redo,
+per-question autosave) and the drawing itself is the query — there is no object
+detection behind it:
 
-- `object_layout`: OD candidates from Elastic (`aic26_od_frames_v1`, frame-level
-  `canonical_labels` gate with a ratio `minimum_should_match`), then a per-frame
-  **Hungarian one-to-one assignment** between drawn objects and real detections
-  (`backend/app/canvas.py`). Elastic's nested clauses score independently, so two
-  drawn people would otherwise both match one detected person; the assignment is
-  what forbids that. Label mismatch scores 0; colour is scored (only when OD
-  marked it reliable), never filtered; a missing *required* object and a present
-  *excluded* object are penalties, because the detector's vocabulary is finite.
-  `rough` weights label/centre/relative-relation, `precise` weights IoU/size/colour.
-- `image_pe`: 2–3 short English sentences generated from the same JSON by rule
-  (0 ms, no hallucination) through the existing PE → Milvus path.
-- `canvas_image` (optional, weight 0.2): the rendered PNG through
-  `{PE_ENCODER_URL}/encode-image` → the same Milvus keyframe collection. Editor
-  chrome (thirds guide, handles, label chips) is excluded from that render. The
-  weight stays low on purpose — a sketch is far outside PE's photo distribution,
-  so this channel exists to reach objects with no OD label, not to rank.
+- `canvas_image`: the drawing flattened onto its background as one opaque PNG
+  (the PE server's `convert("RGB")` would turn transparency black) →
+  `{PE_ENCODER_URL}/encode-image` → cosine search in the SELECTED profile's PE
+  collection, then the usual RRF, pts/overlay enrichment and group-by-video.
+  `main.py` builds one `CanvasService` per profile so an InfoShot++ sketch can
+  never be answered from BTC's index. Editor chrome (thirds guides, brush ring)
+  is never part of the export. PE squashes both the sketch and the keyframes to
+  448×448 without a centre crop, which is why the canvas stays 16:9.
   The route is hot-added by §7 of `model-setup-backend.ipynb`; on an older server
-  the backend reports it as a warning and the other two channels still answer.
-  Only inline `data:image/png|jpeg;base64` is accepted — never a URL, which would
-  make the encoder fetch arbitrary hosts.
+  the backend returns a warning instead of a 500. Only inline
+  `data:image/png|jpeg;base64` whose bytes decode to that format is accepted —
+  never a URL, which would make the encoder fetch arbitrary hosts.
 
 All three are fused with the same RRF/group-by-video as the main search, and the
 matched detections travel back as `object_layout` evidence so the UI can draw
@@ -474,8 +466,7 @@ fabricates retrieval results.
 Adapters share one pooled `httpx.AsyncClient` each (`adapters/http_pool.py`).
 Creating a client per request re-ran the TLS handshake every time: measured at
 765 ms vs 249 ms per Elastic call, paid by every channel of every search. After
-pooling, a warm process answers a 2-object canvas search in ~1.7 s (layout 0.94 s,
-PE text 0.73 s, fusion/enrich 0.75 s) and a two-channel T-KIS search in ~0.87 s.
+pooling, a warm process answered a two-channel T-KIS search in ~0.87 s.
 The first request of a process still pays the handshake once.
 
 ## 7. Current limitations (by design)
@@ -524,7 +515,7 @@ backend/app/
   answer_gen.py        the ordered 100-answer list: temporal NMS -> anchors,
                        eps ladder -> coverage probes, pi x E x N rank budget
   trake.py             sequence assembly, order validation, keyframe snapping
-  canvas.py            V-KIS canvas: palette, zones, PE text, Hungarian matching
+  canvas.py            V-KIS sketch: validation of the inline PNG/JPEG drawing
   query_parser.py      LLM (query_llm.py) + heuristic routing, manual overrides
   scope.py             folder scope + FrameFilter (families of videos narrowed to
                        videos / keyframe_n windows), Milvus/Elastic push-down
@@ -534,14 +525,14 @@ backend/app/
   types.py / models.py internal dataclasses / pydantic request models
   adapters/            elastic_client, milvus_client, pe_encoder,
                        qwen3_vl_encoder (4096-d text queries), nvila_client,
-                       object_elastic (OD frames), dres_client (DRES v2 session),
+                       dres_client (DRES v2 session),
                        http_pool (+ mock paths)
   services/            search_service, trake_service, canvas_service,
                        timeline_service, submit_service, answer_service
   main.py              FastAPI routes
 frontend/src/
   api/                 client.ts, types.ts
-  lib/                 media, identity, snap, qa, canvas, dres, constants,
+  lib/                 media, identity, snap, qa, sketch + color (V-KIS canvas), dres, constants,
                        imageModels (PE/Qwen selection rules),
                        submission (CSV pack), answerGen (bulk generation)
   components/          TopBar, DresBar, QueryPanel, ChannelControls, ImageModelSelector,

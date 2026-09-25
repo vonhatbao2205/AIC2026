@@ -1,7 +1,7 @@
 import type { Channel } from "../api/types";
 
 // `image_qwen` is controlled by ImageModelSelector. `similar` is driven by
-// operator feedback and `object_layout` by the V-KIS canvas, so none of those
+// operator feedback and `canvas_image` by the V-KIS sketch, so none of those
 // belongs to the general channel override switches.
 export const CHANNELS: Channel[] = ["image_pe", "tara", "ocr", "speech", "audio"];
 
@@ -21,7 +21,6 @@ export const CHANNEL_LABEL: Record<Channel, string> = {
   speech: "speech",
   audio: "audio",
   similar: "similar",
-  object_layout: "layout",
   canvas_image: "sketch",
 };
 

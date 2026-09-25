@@ -2,7 +2,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { api, ApiError, type ManualOverrides, type SubmitBody } from "./api/client";
 import type {
   AnswerMode,
-  CanvasSpec,
   Channel,
   DresEvaluation,
   DresStatus,
@@ -64,6 +63,7 @@ import { DEFAULT_IMAGE_MODELS, imageModelsForSearch } from "./lib/imageModels";
 import { DEFAULT_SCOPE_MODE, orderCategories, scopeRequest } from "./lib/scope";
 import { VIDEO_COARSE_STEP_S, VIDEO_FINE_STEP_S, seekDeltaForKey } from "./lib/videoSeek";
 import { validateIncreasingOrder } from "./lib/snap";
+import { ownsSketchKey } from "./lib/sketch";
 import { extractVideoThumbnails } from "./lib/videoThumbnail";
 import { MAX_ROWS_PER_QUESTION, findDuplicate, rowToCsvLine, type SubmissionRow } from "./lib/submission";
 import type { NoteCandidate } from "./lib/stickyNotes";
@@ -412,10 +412,6 @@ export default function FullConsole({
   const [submitting, setSubmitting] = useState(false);
   const [duplicateId, setDuplicateId] = useState<string | null>(null);
 
-  // V-KIS canvas: the English sentences the backend generated from the drawing,
-  // shown back to the operator so the PE side of the search is not a black box.
-  const [canvasQueries, setCanvasQueries] = useState<string[]>([]);
-
   const [history, setHistory] = useState<SubmitEntry[]>([]);
   const [penalties, setPenalties] = useState(0);
   const [elapsed, setElapsed] = useState(0);
@@ -606,7 +602,6 @@ export default function FullConsole({
     setVideoVisible(false);
     setFeedback(EMPTY_FEEDBACK);
     setOverrides(EMPTY_OVERRIDES);
-    setCanvasQueries([]);
   }, [retrievalDatabase]);
 
   useEffect(() => {
@@ -909,8 +904,6 @@ export default function FullConsole({
     setQaAnalysis(null);
     setQaAnalysisError(null);
     setAnswer("");
-    // The canvas explanation belongs to the canvas query that produced it.
-    setCanvasQueries([]);
     try {
       if (queryType === "TRAKE") {
         const res = await api.searchTrake({ retrieval_database: retrievalDatabase, image_models: imageModelsForSearch(retrievalDatabase, imageModels), query, scope: scopeRequest(scopeMode, scopeSelection), traffic: trafficMode, previous_hints: hints, manual_overrides: overrides, use_llm: useLLM, expand, translate, top_k: Math.max(topK, TRAKE_MIN_TOP_K) });
@@ -1038,22 +1031,25 @@ export default function FullConsole({
     (videoId: string) => setFrameOrder(videoId, false), [setFrameOrder],
   );
 
-  // ---- V-KIS canvas search ----
-  // A separate entry point from the text query: the canvas is its own query, so
+  // ---- V-KIS sketch search ----
+  // A separate entry point from the text query: the sketch is its own query, so
   // it never silently re-runs when the operator edits the text box (and vice
   // versa). Results land in the same `groups` state, so timeline, detail panel
-  // and submit guard behave exactly as they do for any other search.
-  const runCanvasSearch = useCallback(async (canvas: CanvasSpec) => {
+  // and submit guard behave exactly as they do for any other search. The
+  // retrieval-depth slider applies to it like to any other search.
+  const runCanvasSearch = useCallback(async (image: string) => {
     const owner = ++searchOwner.current;
     setLoading(true);
+    setAppliedTopK(topK);
     setByRelevance(new Set());
     setDuplicateId(null);
     setPausedFrame(null);
     try {
       const res = await api.searchCanvas({
         retrieval_database: retrievalDatabase,
-        canvas,
+        canvas: { image },
         scope: scopeRequest(scopeMode, scopeSelection),
+        top_k: topK,
       });
       if (owner !== searchOwner.current) return;
       setParsed(null);
@@ -1065,21 +1061,20 @@ export default function FullConsole({
       setAppliedScope(res.scope ?? null);
       setAppliedTraffic(null);
       setPeReport(null);
-      setCanvasQueries(res.canvas.queries_en ?? []);
       setSelectedVideo(0);
       setSelectedFrame(0);
       if (res.warnings?.length) setToast({ msg: res.warnings.join(" · "), kind: "bad" });
-      else if (!res.groups.length) setToast({ msg: "No frames match this layout", kind: "bad" });
+      else if (!res.groups.length) setToast({ msg: "No frames returned for this sketch", kind: "bad" });
     } catch (e) {
       if (owner !== searchOwner.current) return;
       const msg = e instanceof ApiError
-        ? (typeof e.detail === "string" ? e.detail : `Canvas search failed (${e.status})`)
-        : "Canvas search failed — check backend / /api/health";
+        ? (typeof e.detail === "string" ? e.detail : `Sketch search failed (${e.status})`)
+        : "Sketch search failed — check backend / /api/health";
       setToast({ msg, kind: "bad" });
     } finally {
       if (owner === searchOwner.current) setLoading(false);
     }
-  }, [retrievalDatabase, scopeMode, scopeSelection]);
+  }, [retrievalDatabase, scopeMode, scopeSelection, topK]);
 
   // Moving the selection to a different video auto-hides the old inline video
   // (it will reload only when the operator presses 'v' on the new video).
@@ -1835,6 +1830,10 @@ export default function FullConsole({
       // delete. Letting this hidden handler run too would move/delete a Search
       // selection behind the window.
       if (stickyOpen) return;
+      // While focus is inside the V-KIS sketch it owns its tool keys, brush
+      // size, undo and Enter (so a stray Enter never opens the submit guard
+      // mid-drawing). Arrows, v, k and t still fall through to the console.
+      if (ownsSketchKey(e)) return;
       if (e.key === "Escape") {
         if (keymapOpen) setKeymapOpen(false);
         else if (guardOpen) setGuardOpen(false);
@@ -2078,7 +2077,6 @@ export default function FullConsole({
           setQaAnalysis(null);
           setQaAnalysisError(null);
           setAnswer("");
-          setCanvasQueries([]);
           // The answer shape belongs to the task type, so it must not survive a
           // switch: a `temporal` override carried into QA silently drops the text.
           setAnswerMode("auto");
@@ -2218,20 +2216,16 @@ export default function FullConsole({
         {/* CENTER */}
         <div className="col col-center" style={focusZone === "results" ? { boxShadow: "inset 0 2px 0 var(--accent)" } : undefined}>
           {/* The canvas lives in the widest column: V-KIS drawing accuracy is
-              limited by how much room the operator has to draw. */}
-          {queryType === "V-KIS" && retrievalDatabase === "btc" && (
+              limited by how much room the operator has to draw. It searches
+              the PE index of whichever profile is selected. */}
+          {queryType === "V-KIS" && (
             <CanvasPanel
               onSearch={runCanvasSearch}
               loading={loading}
-              generatedQueries={canvasQueries}
-              objectSearchAvailable={health ? Boolean(health.capabilities.canvas_object_search) : null}
+              available={health ? Boolean(health.capabilities.canvas_sketch_search) : null}
+              storageKey={question?.id ?? "scratch"}
+              indexLabel={retrievalDatabase === "infoshotpp" ? "InfoShot++ PE index" : "BTC PE index"}
             />
-          )}
-          {queryType === "V-KIS" && retrievalDatabase === "infoshotpp" && (
-            <div className="warn-banner">
-              InfoShot++ supports PE Core / Qwen3-VL image, OCR, speech and audio (index v2). V-KIS canvas
-              is unavailable because InfoShot++ keyframes have no object detection.
-            </div>
           )}
           <div className="results-toolbar">
             <span className="results-count">

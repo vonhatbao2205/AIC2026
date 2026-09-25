@@ -199,48 +199,67 @@ def test_dres_status_reports_disabled_in_mock_mode():
     assert r.json()["configured"] is False
 
 
-def test_canvas_palette_only_offers_what_od_can_answer():
-    r = client.get("/api/canvas/palette")
-    assert r.status_code == 200
-    palette = r.json()
-
-    assert len(palette["colors"]) == 16  # aic16-lab-v1
-    labels = {item["label"]: item for item in palette["labels"]}
-    assert labels["person"]["colorable"] is True
-    # OD extracts no colour for crowd, so the picker must not offer one.
-    assert labels["crowd"]["colorable"] is False
+SKETCH_PNG = (
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+)
 
 
-def test_canvas_search_returns_groups_with_layout_evidence():
+def test_canvas_palette_endpoint_is_gone():
+    # The object palette served the OD vocabulary; the sketch needs none.
+    assert client.get("/api/canvas/palette").status_code == 404
+
+
+@pytest.mark.parametrize("database", ["btc", "infoshotpp"])
+def test_canvas_sketch_searches_the_selected_profile(database):
     r = client.post(
         "/api/search/canvas",
-        json={
-            "canvas": {
-                "objects": [
-                    {"id": "q1", "label": "car", "bbox": [0.05, 0.52, 0.35, 0.86], "color": "red"},
-                    {"id": "q2", "label": "person", "bbox": [0.66, 0.35, 0.82, 0.86], "color": "blue"},
-                ],
-                "mode": "rough",
-            }
-        },
+        json={"retrieval_database": database, "canvas": {"image": SKETCH_PNG}},
     )
     assert r.status_code == 200
     body = r.json()
 
-    assert body["canvas"]["queries_en"], "canvas must produce PE text"
+    assert body["retrieval_database"] == database
+    assert body["canvas"] == {"has_image": True}
+    assert body["groups"], "a sketch must return candidates in mock mode"
     frames = [frame for group in body["groups"] for frame in group["frames"]]
-    target = next(f for f in frames if f["submit_keyframe_id"] == "K01/K01_V001/002")
-    layout = next(e for e in target["evidence"] if e["type"] == "object_layout")
-    assert layout["coverage"] == 1.0
-    assert {m["label"] for m in layout["matches"]} == {"car", "person"}
+    assert all(frame["channels"] == ["canvas_image"] for frame in frames)
 
 
-def test_canvas_search_rejects_an_oversized_canvas():
+def test_canvas_sketch_is_routed_to_its_own_profile_service(monkeypatch):
+    from app import main
+
+    called: list[str] = []
+    for name, service in main.canvas_services.items():
+        async def fake(req, name=name):
+            called.append(name)
+            return {"groups": [], "warnings": [], "canvas": {"has_image": True}}
+        monkeypatch.setattr(service, "search", fake)
+
+    client.post("/api/search/canvas", json={"retrieval_database": "infoshotpp", "canvas": {"image": SKETCH_PNG}})
+
+    assert called == ["infoshotpp"]
+
+
+def test_canvas_search_requires_a_drawing():
+    assert client.post("/api/search/canvas", json={"canvas": {}}).status_code == 422
+    assert client.post("/api/search/canvas", json={"canvas": {"image": ""}}).status_code == 422
+
+
+def test_canvas_search_rejects_an_oversized_drawing():
     r = client.post(
         "/api/search/canvas",
-        json={"canvas": {"objects": [{"label": "person", "bbox": [0, 0, 0.1, 0.1]}] * 13}},
+        json={"canvas": {"image": "data:image/png;base64," + "A" * 4_000_000}},
     )
     assert r.status_code == 422
+
+
+@pytest.mark.parametrize("database", ["btc", "infoshotpp"])
+def test_health_offers_the_sketch_on_both_profiles(database):
+    body = client.get(f"/api/health?retrieval_database={database}").json()
+
+    assert body["capabilities"]["canvas_sketch_search"] is True
+    assert "canvas_object_search" not in body["capabilities"]
+    assert "object_index" not in body["services"]
 
 
 @pytest.mark.skipif(paths.static_dir() is None, reason="frontend not built (npm run build)")

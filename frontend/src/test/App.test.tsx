@@ -337,59 +337,16 @@ const QA_ANALYSIS_RESPONSE = {
   },
 };
 
-const CANVAS_PALETTE = {
-  colors: [
-    { name: "red", hex: "#dc1414" },
-    { name: "blue", hex: "#1e50dc" },
-  ],
-  labels: [
-    { label: "car", label_vi: "ô tô", colorable: true },
-    { label: "person", label_vi: "người", colorable: true },
-    { label: "crowd", label_vi: "đám đông", colorable: false },
-  ],
-  modes: ["rough", "precise"],
-  color_palette_version: "aic16-lab-v1",
-};
-
 const CANVAS_FRAME = {
   ...FRAME1,
-  channels: ["object_layout", "image_pe"],
-  per_channel_score: { object_layout: 0.82, image_pe: 0.6 },
-  evidence: [
-    {
-      type: "object_layout",
-      score: 0.82,
-      text: "car · red @bottom_left",
-      matches: [
-        {
-          object_id: "q1",
-          label: "car",
-          score: 0.86,
-          detection_label: "car",
-          conf: 0.91,
-          bbox_norm: { x1: 0.05, y1: 0.5, x2: 0.35, y2: 0.86 },
-          position: "bottom_left",
-          dominant_color: "red",
-          color_reliable: true,
-          color_ok: true,
-        },
-      ],
-      missing: ["q2"],
-      coverage: 0.5,
-      excluded_hits: [],
-    },
-  ],
+  channels: ["canvas_image"],
+  per_channel_score: { canvas_image: 0.31 },
+  evidence: [{ type: "canvas_image", score: 0.31, text: "sketch match (PE image)" }],
 };
 
 const CANVAS_RESPONSE = {
-  canvas: {
-    mode: "rough",
-    objects: [{ id: "q1", label: "car", bbox: [0.05, 0.52, 0.35, 0.86], color: "red", required: true }],
-    exclude_labels: [],
-    action_text: "",
-    queries_en: ["A video frame showing a red car in the lower left."],
-  },
-  groups: [{ ...SEARCH_RESPONSE.groups[0], channels: ["object_layout"], frames: [CANVAS_FRAME] }],
+  canvas: { has_image: true },
+  groups: [{ ...SEARCH_RESPONSE.groups[0], channels: ["canvas_image"], frames: [CANVAS_FRAME] }],
   latency_ms: { fusion_ms: 0.3, total_ms: 12 },
   warnings: [],
   mode: "mock",
@@ -515,7 +472,7 @@ function mockFetch(historySeed: any[] = []) {
       ({ ok: status < 400, status, json: async () => body } as Response);
 
     if (path.includes("/api/health"))
-      return json({ ok: true, mode: "mock", retrieval_database: path.includes("infoshotpp") ? "infoshotpp" : "btc", services: {}, capabilities: { qa_nvila: true, qa_web_grounding: true, qa_visual_verification: true, canvas_object_search: true }, warnings: [] });
+      return json({ ok: true, mode: "mock", retrieval_database: path.includes("infoshotpp") ? "infoshotpp" : "btc", services: {}, capabilities: { qa_nvila: true, qa_web_grounding: true, qa_visual_verification: true, canvas_sketch_search: true }, warnings: [] });
     if (path.endsWith("/api/config"))
       return json({ configured: true, mock_mode: true, missing_required: [], env_path: "/config/.env", env_exists: true, groups: [] });
     if (path.endsWith("/api/dres/status")) return json({ ...DRES_STATUS, configured: dresConfigured });
@@ -548,7 +505,6 @@ function mockFetch(historySeed: any[] = []) {
           : [],
       });
     }
-    if (path.endsWith("/api/canvas/palette")) return json(CANVAS_PALETTE);
     if (path.endsWith("/api/search/canvas")) {
       canvasRequests.push(JSON.parse((init?.body as string) || "{}"));
       return json(CANVAS_RESPONSE);
@@ -656,86 +612,171 @@ afterEach(() => {
   dresConfigured = false;
 });
 
-describe("V-KIS canvas", () => {
-  async function openCanvas(user: ReturnType<typeof userEvent.setup>) {
+describe("V-KIS sketch canvas", () => {
+  const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+  let restoreCanvas: () => void = () => {};
+
+  // jsdom has no canvas. The panel only needs a 2D context that accepts the
+  // drawing calls and an export that yields a PNG data URL.
+  beforeEach(() => {
+    const noop = () => {};
+    const getContext = vi
+      .spyOn(HTMLCanvasElement.prototype, "getContext")
+      .mockImplementation(function fake(this: HTMLCanvasElement) {
+        const canvas = this;
+        return new Proxy({}, {
+          get: (_target, key) =>
+            key === "canvas" ? canvas
+              : key === "getImageData"
+                ? (_x: number, _y: number, w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h })
+                : noop,
+          set: () => true,
+        }) as unknown as CanvasRenderingContext2D;
+      });
+    const toDataURL = vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockReturnValue(PNG);
+    restoreCanvas = () => {
+      getContext.mockRestore();
+      toDataURL.mockRestore();
+    };
+  });
+  afterEach(() => restoreCanvas());
+
+  async function openCanvas(user: ReturnType<typeof userEvent.setup>, database?: "infoshotpp") {
     render(<App />);
+    if (database) await user.selectOptions(screen.getByTestId("retrieval-database"), database);
     await user.click(screen.getByRole("tab", { name: "V-KIS" }));
     return screen.findByTestId("canvas-panel");
   }
 
-  it("is offered for V-KIS only", async () => {
+  function draw() {
+    const board = screen.getByTestId("canvas-board");
+    fireEvent.pointerDown(board, { clientX: 40, clientY: 40, button: 0 });
+    fireEvent.pointerMove(board, { clientX: 80, clientY: 60 });
+    fireEvent.pointerUp(board, { clientX: 80, clientY: 60 });
+  }
+
+  it("is offered for V-KIS on both profiles, with no object palette", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     expect(screen.queryByTestId("canvas-panel")).not.toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "V-KIS" }));
+    expect(await screen.findByTestId("canvas-route")).toHaveTextContent("BTC PE index");
 
-    expect(await screen.findByTestId("canvas-panel")).toBeInTheDocument();
+    await user.selectOptions(screen.getByTestId("retrieval-database"), "infoshotpp");
+    expect(await screen.findByTestId("canvas-route")).toHaveTextContent("InfoShot++ PE index");
+    expect(screen.queryByText(/canvas is unavailable/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-add-car")).not.toBeInTheDocument();
   });
 
-  it("sends the drawn objects as structured JSON, not only a picture", async () => {
+  it("sends the flattened drawing to the selected profile's sketch search", async () => {
     const user = userEvent.setup();
-    await openCanvas(user);
+    await openCanvas(user, "infoshotpp");
 
-    await user.click(await screen.findByTestId("canvas-add-car"));
+    expect(screen.getByTestId("canvas-search")).toBeDisabled();
+    draw();
+    await waitFor(() => expect(screen.getByTestId("canvas-search")).toBeEnabled());
     await user.click(screen.getByTestId("canvas-search"));
 
     await waitFor(() => expect(canvasRequests).toHaveLength(1));
-    const [object] = canvasRequests[0].canvas.objects;
-    expect(object.label).toBe("car");
-    expect(object.bbox).toHaveLength(4);
-    expect(object.required).toBe(true);
-    expect(canvasRequests[0].canvas.mode).toBe("rough");
+    const [body] = canvasRequests;
+    expect(body.retrieval_database).toBe("infoshotpp");
+    expect(body.canvas).toEqual({ image: PNG });
+    expect(body.top_k).toBeGreaterThan(0);
+    expect(await screen.findByTestId("results")).toBeInTheDocument();
   });
 
-  it("omits the raster entirely when the PE image channel is switched off", async () => {
+  it("undoes and redoes a stroke", async () => {
     const user = userEvent.setup();
     await openCanvas(user);
 
-    await user.click(await screen.findByTestId("canvas-add-car"));
-    await user.click(screen.getByTestId("canvas-use-raster"));
-    await user.click(screen.getByTestId("canvas-search"));
+    draw();
+    await waitFor(() => expect(screen.getByTestId("canvas-undo")).toBeEnabled());
+    await user.click(screen.getByTestId("canvas-undo"));
+    expect(screen.getByTestId("canvas-search")).toBeDisabled();
+    await user.click(screen.getByTestId("canvas-redo"));
+    expect(screen.getByTestId("canvas-search")).toBeEnabled();
 
+    // Ctrl+Z works from the keyboard while the canvas has focus.
+    screen.getByTestId("canvas-board").focus();
+    await user.keyboard("{Control>}z{/Control}");
+    expect(screen.getByTestId("canvas-search")).toBeDisabled();
+  });
+
+  it("switches tools from the keyboard and searches with Ctrl+Enter, never opening the submit guard", async () => {
+    const user = userEvent.setup();
+    await openCanvas(user);
+
+    draw();
+    screen.getByTestId("canvas-board").focus();
+    await user.keyboard("r");
+    expect(screen.getByTestId("canvas-tool-rect")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("canvas-shape-filled")).toBeInTheDocument();
+
+    await user.keyboard("{Enter}");
+    expect(screen.queryByTestId("submit-guard")).not.toBeInTheDocument();
+    expect(canvasRequests).toHaveLength(0);
+
+    await user.keyboard("{Control>}{Enter}{/Control}");
     await waitFor(() => expect(canvasRequests).toHaveLength(1));
-    expect(canvasRequests[0].canvas.image).toBeNull();
-    expect(canvasRequests[0].canvas.objects).toHaveLength(1);
+    expect(screen.queryByTestId("submit-guard")).not.toBeInTheDocument();
   });
 
-  it("switches the matching mode sent to the backend", async () => {
+  it("takes any RGB colour from the full picker and paints with it", async () => {
     const user = userEvent.setup();
     await openCanvas(user);
 
-    await user.click(await screen.findByTestId("canvas-add-person"));
-    await user.click(screen.getByTestId("canvas-mode-precise"));
-    await user.click(screen.getByTestId("canvas-search"));
+    await user.click(screen.getByTestId("canvas-color-current"));
+    const hex = await screen.findByTestId("cp-hex");
+    await user.clear(hex);
+    await user.type(hex, "2489b0");
+    expect(screen.getByTestId("cp-r")).toHaveValue(36);
+    expect(screen.getByTestId("cp-g")).toHaveValue(137);
+    expect(screen.getByTestId("cp-b-blue")).toHaveValue(176);
+    expect(screen.getByTestId("cp-h-deg")).toHaveValue(197);
+    await user.click(screen.getByTestId("cp-ok"));
+    expect(screen.queryByTestId("color-picker")).not.toBeInTheDocument();
+    expect(screen.getByTestId("canvas-color-current")).toHaveAttribute("title", expect.stringContaining("#2489b0"));
 
-    await waitFor(() => expect(canvasRequests).toHaveLength(1));
-    expect(canvasRequests[0].canvas.mode).toBe("precise");
+    draw();
+    // The autosave is the observable record of what was drawn.
+    await waitFor(() => {
+      const saved = JSON.parse(localStorage.getItem("aic26.sketch.v1:scratch") ?? "null");
+      expect(saved?.ops?.[0]).toMatchObject({ kind: "stroke", color: "#2489b0" });
+    });
   });
 
-  it("hides the colour picker for a class OD extracts no colour for", async () => {
+  it("reverts a cancelled background colour and commits an accepted one", async () => {
     const user = userEvent.setup();
     await openCanvas(user);
 
-    await user.click(await screen.findByTestId("canvas-add-crowd"));
-    expect(await screen.findByTestId("canvas-editor")).toBeInTheDocument();
-    expect(screen.queryByTestId("canvas-color-red")).not.toBeInTheDocument();
+    await user.click(screen.getByTestId("canvas-background"));
+    await user.clear(await screen.findByTestId("cp-hex"));
+    await user.type(screen.getByTestId("cp-hex"), "87c3ec");
+    await user.click(screen.getByText("Cancel"));
+    expect(screen.getByTestId("canvas-search")).toBeDisabled();
 
-    await user.click(screen.getByTestId("canvas-add-car"));
-    expect(await screen.findByTestId("canvas-color-red")).toBeInTheDocument();
+    await user.click(screen.getByTestId("canvas-background"));
+    await user.clear(await screen.findByTestId("cp-hex"));
+    await user.type(screen.getByTestId("cp-hex"), "87c3ec");
+    await user.click(screen.getByTestId("cp-ok"));
+    // A coloured background alone is a searchable sketch (e.g. an empty sky).
+    expect(screen.getByTestId("canvas-search")).toBeEnabled();
+    await user.click(screen.getByTestId("canvas-undo"));
+    expect(screen.getByTestId("canvas-search")).toBeDisabled();
   });
 
-  it("shows the generated PE text and draws matched detections over the frame", async () => {
+  it("restores the saved drawing of the question after a reload", async () => {
+    localStorage.setItem(
+      "aic26.sketch.v1:scratch",
+      JSON.stringify({ background: "#ffffff", ops: [{ kind: "lasso", color: "#6aa84f", alpha: 1, points: [0, 300, 1024, 300, 1024, 576] }] }),
+    );
     const user = userEvent.setup();
     await openCanvas(user);
 
-    await user.click(await screen.findByTestId("canvas-add-car"));
-    await user.click(screen.getByTestId("canvas-search"));
-
-    expect(await screen.findByTestId("canvas-queries")).toHaveTextContent("red car in the lower left");
-    await waitFor(() => expect(screen.getByTestId("detail-panel")).toBeInTheDocument());
-    expect(screen.getByTestId("overlay-q1")).toBeInTheDocument();
-    expect(screen.getByTestId("canvas-match-summary")).toHaveTextContent("q1 · car");
+    expect(screen.getByTestId("canvas-search")).toBeEnabled();
+    await user.click(screen.getByTestId("canvas-undo"));
+    expect(screen.getByTestId("canvas-search")).toBeDisabled();
   });
 });
 
@@ -1605,10 +1646,10 @@ describe("AIC26 retrieval console (full)", () => {
     await user.selectOptions(screen.getByTestId("retrieval-database"), "infoshotpp");
 
     // OCR / speech / audio are served from the InfoShot++ v2 indices, so they
-    // must stay toggleable on this profile (only the OD channels are locked).
-    expect(screen.getByTestId("channel-ocr")).toHaveAttribute("aria-disabled", "false");
-    expect(screen.getByTestId("channel-speech")).toHaveAttribute("aria-disabled", "false");
-    expect(screen.getByTestId("channel-audio")).toHaveAttribute("aria-disabled", "false");
+    // must stay toggleable on this profile.
+    for (const channel of ["channel-ocr", "channel-speech", "channel-audio"]) {
+      expect(screen.getByTestId(channel)).not.toHaveClass("disabled");
+    }
 
     await user.type(screen.getByTestId("query-input"), "street scene");
     await user.click(screen.getByTestId("search-btn"));

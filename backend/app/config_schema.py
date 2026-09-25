@@ -162,7 +162,6 @@ GROUPS: tuple[ConfigGroup, ...] = (
             ConfigKey("IDX_SPEECH_2", "InfoShot++ speech index (v2)"),
             ConfigKey("IDX_AUDIO_2", "InfoShot++ audio index (v2)"),
             ConfigKey("OCR_MISSING_CATEGORIES_2", "InfoShot++ categories without OCR (e.g. L26)"),
-            ConfigKey("IDX_OBJECTS", "Object detection index"),
             ConfigKey("MILVUS_IMAGE_COLLECTION_1", "BTC image vector collection"),
             ConfigKey("MILVUS_IMAGE_COLLECTION_2", "InfoShot++ image vector collection"),
             ConfigKey(

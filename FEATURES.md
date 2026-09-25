@@ -72,23 +72,18 @@ Bộ lọc **📂 phạm vi** cạnh nút Search: bấm vào ra **danh sách che
 ## 8. 4 dạng tác vụ
 - **T-KIS**: hỗ trợ **Append hint** (gộp hint tích lũy).
 - **QA**: retrieval lấy tối đa 12 frame; frame user đang xem luôn là **C01** và được tính vào quota của video đó. Từ C02, candidate được xếp theo block ưu tiên `video_score`: lấy đủ tối đa 3 frame đa dạng của video đứng đầu trước rồi mới sang video hạng tiếp theo. Sau đó NVILA-8B chạy **3–5 hotspot hypotheses → 3–5 visual answer options** → DeepSeek web search → **NVILA pass 3**. `contradicted` bị loại; `insufficient/unverified` bị hạ confidence.
-- **V-KIS**: như KIS hình ảnh, **cộng canvas vẽ bố cục** (chi tiết §8b).
+- **V-KIS**: như KIS hình ảnh, **cộng sketch canvas → PE image** (chi tiết §8b).
 - **TRAKE** (chi tiết §9).
 
-## 8b. Canvas V-KIS (vẽ bố cục → tìm frame)
-- **Bảng vẽ 16:9 nằm ở cột giữa** (cột rộng nhất) khi chọn task V-KIS, cao tối đa 46vh, thu gọn được bằng nút ▾. Toàn bộ mặt vẽ là một `<canvas>` thật.
-- **3 công cụ**: `✥` chọn/kéo/resize object · `✎` **vẽ tự do** (bầu trời, cánh đồng, mặt nước…) với 16 màu + độ dày nét + hoàn tác từng nét · `⌫` tẩy nét.
-- **Object vẽ bằng hình cụ thể**, không phải ô chữ: người/đám đông/xe/xe hai bánh/thuyền/máy bay/tòa nhà/màn hình/micro/cờ/biển-giấy tờ/cây/phong cảnh/lửa/bàn ghế/bát đĩa + fallback. Silhouette là thứ làm ảnh render có nghĩa với PE image encoder.
-- Palette object lấy từ `GET /api/canvas/palette` = **đúng vocabulary OD đã prompt**; màu đúng 16 màu `aic16-lab-v1`; class OD không trích màu (vd `crowd`) thì picker tự ẩn.
-- **required/optional** mỗi object; `Rough` (mặc định, ưu tiên nhãn + vị trí tương đối) ⇄ `Precise` (tăng IoU/size/màu).
-- **3 kênh, cùng một canvas**:
-  1. **OD spatial** trên `aic26_od_frames_v1` + **Hungarian one-to-one** giữa object vẽ và detection thật (2 người vẽ không thể cùng khớp 1 detection);
-  2. **PE text** sinh bằng rule từ canvas JSON (0 ms, không hallucinate) → Milvus;
-  3. **PE image** (bật/tắt bằng ô `PE image`): render canvas thành PNG **không có lưới/handle/nhãn**, gửi `{PE_ENCODER_URL}/encode-image` → Milvus cùng collection keyframe. Weight thấp (0.2) — cứu những thứ OD không có nhãn (cánh đồng, bầu trời) chứ không dẫn dắt xếp hạng.
-  Ba kênh fuse RRF như search thường. Không gọi VLM.
-- **Overlay giải thích**: detection khớp được vẽ đè lên keyframe trong Detail đúng màu với box đã vẽ, kèm coverage %, conf, vị trí, cờ lệch màu và danh sách object không tìm thấy.
-- **PE text hiển thị lại** cho operator kiểm chứng câu truy vấn được sinh.
-- PE server cần route `/encode-image` (cell mục 7 trong `model-setup-backend.ipynb`, hot-add không phải restart). Thiếu route → backend chỉ cảnh báo, 2 kênh kia vẫn chạy.
+## 8b. Sketch V-KIS (vẽ lại cảnh → PE image → Milvus)
+- **Cả hai profile (BTC và InfoShot++)**: bảng vẽ 16:9 ở cột giữa khi chọn V-KIS, tìm trong collection PE của **profile đang chọn**. Không còn object detection: không palette object, không Hungarian, không Rough/Precise, không PE text sinh từ canvas.
+- **Luồng**: bản vẽ được **flatten lên nền** thành 1 PNG 1024×576 **đục hoàn toàn** (PE server `convert("RGB")` sẽ biến pixel trong suốt thành đen) → `{PE_ENCODER_URL}/encode-image` → cosine trên collection PE keyframe của profile → RRF/group-by-video/submit như mọi search khác. PE squash cả sketch lẫn keyframe về 448×448 (không center crop), nên canvas giữ đúng tỉ lệ 16:9.
+- **8 công cụ**: `B` brush · `E` eraser (tẩy thật, lộ ra màu nền, không xoá cả nét) · `L` line (Shift = bước 15°) · `R` rectangle / `O` ellipse (Shift = vuông/tròn; Outline ⇄ Filled) · `F` freeform fill (vẽ viền, thả chuột là tô kín) · `G` bucket fill (có tolerance, tự nuốt viền anti-alias 1 px) · `I` eyedropper (Alt+click với mọi công cụ).
+- **Nét bút**: đầu Round / Square / Soft (airbrush), size 1–240 px (slider log + ô số, `[`/`]`), opacity 5–100 % (phím `1`…`9`, `0`=100 %), smoothing chống rung chuột; vòng tròn kích thước bút theo con trỏ. Eraser có size riêng.
+- **Màu RGB đầy đủ kiểu Photoshop**: ô Saturation×Brightness + dải Hue dọc, so sánh new/current (bấm current để quay lại), nhập H/S/B, R/G/B, hex; 24 màu preset cho cảnh (trời, nước, cỏ, đất, đường, gạch, da…), màu gần đây, "Add to swatches"; nút **Screen** (Chrome/Edge EyeDropper API) hút màu ở bất kỳ đâu trên màn hình. Cancel/Esc trả lại màu cũ. Màu nền cũng chọn bằng picker này.
+- **Undo/Redo toàn bộ** (Ctrl+Z, Ctrl+Shift+Z/Ctrl+Y; 200 bước; Clear và đổi nền cũng undo được). `Ctrl+Enter` = search sketch; phím tắt chỉ hoạt động khi focus ở trong canvas, và Enter ở đó **không bao giờ mở submit guard**. Mũi tên/v/k/t vẫn điều khiển kết quả.
+- **Autosave theo câu hỏi** (localStorage, debounce 250 ms, giữ 30 bản vẽ gần nhất): đổi câu hỏi trong tab → bản vẽ của câu đó tự hiện lại; reload trang vẫn còn và vẫn undo được từng thao tác.
+- Health: `capabilities.canvas_sketch_search` = PE encoder + PE Milvus của profile đó sống. PE server cần route `/encode-image` (cell mục 7 trong `model-setup-backend.ipynb`, hot-add không phải restart); thiếu route → search trả cảnh báo rõ ràng, không 500.
 
 ## 9. TRAKE (chuỗi sự kiện)
 - **Tách event**: nhận `E1:/E2:`, `sự kiện 1:`, đánh số, từ nối ("sau đó/rồi/…").
@@ -226,8 +221,7 @@ Vòng sơ tuyển chấm `Final = (R@1 + R@5 + R@20 + R@50 + R@100) / 5`, mỗi 
 | POST | `/api/search/simple` | vector-only flat top-K |
 | POST | `/api/search/trake` | chuỗi event (two-pass + DP) |
 | POST | `/api/answers/generate` | danh sách tối đa 100 đáp án có thứ tự cho 1 truy vấn (§10b); truyền `groups`/`sequences` để xếp lại kết quả đang có trên màn hình thay vì search lại; `event_count` là số frame mỗi dòng TRAKE, lấy từ đề bài |
-| GET | `/api/canvas/palette` | vocabulary + 16 màu cho canvas V-KIS |
-| POST | `/api/search/canvas` | canvas JSON → OD spatial + PE text (RRF) |
+| POST | `/api/search/canvas` | `{retrieval_database, canvas{image}}` → sketch PNG → PE image → Milvus của profile |
 | POST | `/api/qa/analyze` | NVILA visual QA + optional DeepSeek web-search grounding/citations |
 | GET | `/api/keyframes/{submit_keyframe_id:path}` | chuẩn hoá id + URL + timing |
 | GET | `/api/videos/{video_id}/timeline` | keyframes timeline |

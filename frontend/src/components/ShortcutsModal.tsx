@@ -47,6 +47,19 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    title: "V-KIS sketch (while the canvas has focus)",
+    rows: [
+      { keys: ["B", "E"], desc: "Brush / eraser" },
+      { keys: ["L", "R", "O"], desc: "Line / rectangle / ellipse (hold Shift to snap)" },
+      { keys: ["F", "G"], desc: "Freeform fill / bucket fill" },
+      { keys: ["I"], desc: "Eyedropper (Alt+click works with every tool)" },
+      { keys: ["[", "]"], desc: "Smaller / larger brush" },
+      { keys: ["1", "…", "0"], desc: "Opacity 10% … 100%" },
+      { keys: ["Ctrl", "Z"], desc: "Undo (Ctrl+Shift+Z or Ctrl+Y: redo)" },
+      { keys: ["Ctrl", "Enter"], desc: "Search with the sketch" },
+    ],
+  },
+  {
     title: "General",
     rows: [
       { keys: ["`"], desc: "Open / close the local Sticky Note" },

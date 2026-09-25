@@ -34,7 +34,7 @@ export function TopBar({ queryType, onQueryType, elapsed, penalties, latency, he
         title={
           retrievalDatabase === "btc"
             ? "BTC: all channels"
-            : "InfoShot++: choose PE Core, Qwen3-VL Embedding or fuse both with RRF; V-KIS canvas is unavailable"
+            : "InfoShot++: choose PE Core, Qwen3-VL Embedding or fuse both with RRF; the V-KIS sketch searches its PE index"
         }
       >
         <option value="btc">BTC · all channels</option>
