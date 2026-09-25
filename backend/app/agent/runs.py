@@ -63,10 +63,11 @@ class AgentDisabled(Exception):
 
 
 class AgentState:
-    def __init__(self, name: str, model: str, effort: str, run_started: float):
+    def __init__(self, name: str, model: str, effort: str, run_started: float, *, fast: bool = False):
         self.name = name
         self.model = model
         self.effort = effort
+        self.fast = fast
         self.status = "pending"
         self.started_at: float | None = None
         self.finished_at: float | None = None
@@ -112,6 +113,7 @@ class AgentState:
             "status": self.status,
             "model": self.model,
             "effort": self.effort,
+            "fast": self.fast,
             "elapsed_s": elapsed,
             "tool_calls": self.tool_calls,
             "summary": self.summary,
@@ -214,11 +216,13 @@ class AgentService:
                     "available": s.agent_enabled and self._binary("codex") is not None,
                     "model": s.agent_codex_model,
                     "effort": s.agent_codex_reasoning_effort,
+                    "fast": s.agent_codex_fast,
                 },
                 "claude": {
                     "available": s.agent_enabled and self._binary("claude") is not None,
                     "model": s.agent_claude_model,
                     "effort": s.agent_claude_effort,
+                    "fast": s.agent_claude_fast,
                 },
             },
             "running": sum(
@@ -251,7 +255,8 @@ class AgentService:
         for name in dict.fromkeys(request.agents):
             model = s.agent_codex_model if name == "codex" else s.agent_claude_model
             effort = s.agent_codex_reasoning_effort if name == "codex" else s.agent_claude_effort
-            state = AgentState(name, model, effort, run.started)
+            fast = s.agent_codex_fast if name == "codex" else s.agent_claude_fast
+            state = AgentState(name, model, effort, run.started, fast=fast)
             binary = self._binary(name)
             if binary is None:
                 configured = s.agent_codex_bin if name == "codex" else s.agent_claude_bin
@@ -317,7 +322,7 @@ class AgentService:
                     # never slow the main search down.
                     argv = [nice, "-n", "10", *argv]
                 state.begin()
-                state.step("info", f"started {state.model} ({state.effort})")
+                state.step("info", f"started {state.model} ({state.effort}{', fast' if state.fast else ''})")
                 proc = await asyncio.create_subprocess_exec(
                     *argv,
                     stdin=asyncio.subprocess.DEVNULL,

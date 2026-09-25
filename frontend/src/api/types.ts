@@ -870,6 +870,8 @@ export interface AgentState {
   status: AgentStatus;
   model: string;
   effort: string;
+  /** Codex priority tier / Claude Code fast mode. */
+  fast?: boolean;
   elapsed_s: number | null;
   tool_calls: number;
   summary: string;

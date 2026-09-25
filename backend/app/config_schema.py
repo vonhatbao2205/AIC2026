@@ -161,6 +161,8 @@ GROUPS: tuple[ConfigGroup, ...] = (
             ConfigKey("AGENT_CODEX_REASONING_EFFORT", "Codex effort: low | medium | high | xhigh (high)"),
             ConfigKey("AGENT_CLAUDE_MODEL", "Claude model (claude-opus-5-5)"),
             ConfigKey("AGENT_CLAUDE_EFFORT", "Claude effort: low | medium | high | xhigh | max (high)"),
+            ConfigKey("AGENT_CODEX_FAST", "Codex fast mode, priority tier (true/false)"),
+            ConfigKey("AGENT_CLAUDE_FAST", "Claude Code fast mode (true/false)"),
             ConfigKey("AGENT_TIMEOUT_SECONDS", "Hard stop per agent run"),
             ConfigKey("AGENT_MAX_CONCURRENT", "Parallel runs per CLI across tabs"),
             ConfigKey("AGENT_BACKEND_URL", "Backend URL the agents' tool bridge calls (blank = auto)"),

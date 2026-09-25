@@ -59,7 +59,7 @@ function AgentRow({ state }: { state: AgentState }) {
       <button className="agent-row-head" onClick={() => setOpen((v) => !v)} title="Show this agent's steps">
         <span className={`agent-dot ${working ? "live" : state.status}`} />
         <b>{AGENT_LABELS[state.name]}</b>
-        <span className="agent-model">{state.model} · {state.effort}</span>
+        <span className="agent-model">{state.model} · {state.effort}{state.fast ? " · fast" : ""}</span>
         <span className="agent-status">{STATUS_LABEL[state.status]}</span>
         <span className="agent-meta">
           {state.elapsed_s != null && `${Math.round(state.elapsed_s)} s`}

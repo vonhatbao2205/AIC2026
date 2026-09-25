@@ -269,6 +269,11 @@ class Settings:
     agent_codex_reasoning_effort: str = "high"
     agent_claude_model: str = "claude-opus-5-5"
     agent_claude_effort: str = "high"
+    # Fast mode: Codex's priority service tier (~1.5x on gpt-6-sol) and Claude
+    # Code's fastMode. Both spend the account's usage faster; a sidecar racing
+    # the task clock is exactly what they are for.
+    agent_codex_fast: bool = True
+    agent_claude_fast: bool = True
     agent_timeout_seconds: float = 240.0
     # Concurrent runs per CLI across every console tab; later runs queue.
     agent_max_concurrent: int = 2
@@ -682,6 +687,8 @@ def get_settings() -> Settings:
         agent_codex_reasoning_effort=(_env("AGENT_CODEX_REASONING_EFFORT") or "high").lower(),
         agent_claude_model=_env("AGENT_CLAUDE_MODEL") or "claude-opus-5-5",
         agent_claude_effort=(_env("AGENT_CLAUDE_EFFORT") or "high").lower(),
+        agent_codex_fast=(_env("AGENT_CODEX_FAST", "true") or "true").lower() in {"1", "true", "yes", "on"},
+        agent_claude_fast=(_env("AGENT_CLAUDE_FAST", "true") or "true").lower() in {"1", "true", "yes", "on"},
         agent_timeout_seconds=min(1800.0, max(30.0, agent_timeout_seconds)),
         agent_max_concurrent=min(8, max(1, agent_max_concurrent)),
         agent_backend_url=(_env("AGENT_BACKEND_URL") or "").rstrip("/") or None,

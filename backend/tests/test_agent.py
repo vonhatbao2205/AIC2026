@@ -124,6 +124,18 @@ def test_claude_has_no_builtin_tools(settings):
     assert config["mcpServers"]["aic"]["env"] == {"AIC_AGENT_TOKEN": "t"}
 
 
+def test_fast_mode_is_on_by_default_and_can_be_turned_off(settings, tmp_path):
+    codex = codex_argv(settings, binary="codex", workdir=tmp_path, prompt="p", bridge={})
+    claude = claude_argv(settings, binary="claude", prompt="p", bridge={})
+    assert 'service_tier="fast"' in codex
+    assert json.loads(claude[claude.index("--settings") + 1]) == {"fastMode": True}
+
+    settings.agent_codex_fast = False
+    settings.agent_claude_fast = False
+    assert 'service_tier="fast"' not in codex_argv(settings, binary="codex", workdir=tmp_path, prompt="p", bridge={})
+    assert "--settings" not in claude_argv(settings, binary="claude", prompt="p", bridge={})
+
+
 def test_agent_environment_drops_backend_credentials(monkeypatch):
     monkeypatch.setenv("ELASTIC_API_KEY", "secret-elastic")
     monkeypatch.setenv("DRES_PASSWORD", "secret-dres")

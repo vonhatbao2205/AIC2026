@@ -289,6 +289,7 @@ Key variables (full list in [backend/.env.example](backend/.env.example)):
 | `AGENT_ENABLED`, `AGENT_CODEX_BIN`, `AGENT_CLAUDE_BIN` | agent sidecar search; the CLIs must be installed and logged in on the backend host |
 | `AGENT_CODEX_MODEL`, `AGENT_CODEX_REASONING_EFFORT` | default `gpt-6-sol` / `high` |
 | `AGENT_CLAUDE_MODEL`, `AGENT_CLAUDE_EFFORT` | default `claude-opus-5-5` / `high` (needs Claude Code ≥ 2.1.280) |
+| `AGENT_CODEX_FAST`, `AGENT_CLAUDE_FAST` | fast mode, on by default: Codex `service_tier="fast"` (~1.5× on gpt-6-sol), Claude Code `fastMode`; both use quota faster |
 | `AGENT_TIMEOUT_SECONDS`, `AGENT_MAX_CONCURRENT` | hard stop per agent (240 s); parallel runs per CLI across tabs (2) |
 | `AIC26_MOCK_MODE` | `true` ⇒ run with fixtures, no live services |
 

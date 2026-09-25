@@ -108,6 +108,9 @@ def codex_argv(settings: "Settings", *, binary: str, workdir: Path, prompt: str,
         "-c", 'approval_policy="never"',
         "-c", 'web_search="disabled"',
     ]
+    if settings.agent_codex_fast:
+        # What the TUI's /fast turns on: the model's priority speed tier.
+        argv += ["-c", 'service_tier="fast"']
     for feature in _CODEX_DISABLED_FEATURES:
         argv += ["--disable", feature]
     argv += [
@@ -134,7 +137,7 @@ def claude_argv(settings: "Settings", *, binary: str, prompt: str, bridge: dict[
             }
         }
     }
-    return [
+    argv = [
         # The prompt must follow `-p` directly: several options below are
         # variadic and would swallow a trailing positional prompt.
         binary, "-p", prompt,
@@ -152,6 +155,11 @@ def claude_argv(settings: "Settings", *, binary: str, prompt: str, bridge: dict[
         "--model", settings.agent_claude_model,
         "--effort", settings.agent_claude_effort,
     ]
+    if settings.agent_claude_fast:
+        # `--setting-sources ""` keeps the operator's own settings out, so fast
+        # mode is passed as a flag-level setting (what /fast would store).
+        argv += ["--settings", json.dumps({"fastMode": True})]
+    return argv
 
 
 # ---- event streams --------------------------------------------------------

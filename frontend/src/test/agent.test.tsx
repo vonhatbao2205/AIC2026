@@ -63,7 +63,7 @@ function snapshot(overrides: Partial<AgentRunSnapshot> = {}): AgentRunSnapshot {
     elapsed_s: 12,
     finished: false,
     agents: {
-      codex: agentState({}),
+      codex: agentState({ fast: true }),
       claude: agentState({ name: "claude", model: "claude-opus-5-5" }),
     },
     candidates: [],
@@ -144,7 +144,8 @@ describe("AgentPanel", () => {
         })}
       />,
     );
-    expect(screen.getByTestId("agent-row-codex")).toHaveTextContent("gpt-6-sol · high");
+    expect(screen.getByTestId("agent-row-codex")).toHaveTextContent("gpt-6-sol · high · fast");
+    expect(screen.getByTestId("agent-row-claude")).not.toHaveTextContent("fast");
     expect(screen.getByTestId("agent-row-codex")).toHaveTextContent("search [visual] “man in red shirt”");
     expect(screen.getByTestId("agent-row-claude")).toHaveTextContent("claude-opus-5-5");
     expect(screen.getByTestId("agent-consensus")).toHaveTextContent("Codex and Claude agree: L21_V001");
