@@ -18,6 +18,7 @@ from dataclasses import dataclass
 # Matches a shard suffix like "_a", "_b", "_a1" appended to an L-style category.
 _SHARD_SUFFIX = re.compile(r"^(?P<base>[A-Za-z]+\d+)(?:_[A-Za-z0-9]+)+$")
 _VIDEO_ID_SEPARATOR = re.compile(r"[_-]")
+_VIDEO_ID = re.compile(r"^[A-Za-z][A-Za-z0-9]{1,7}[-_]V\d{3}$")
 # Series whose video ids join the group and the video number with "-".
 _HYPHEN_SERIES = frozenset({"N", "S"})
 
@@ -41,7 +42,13 @@ def group_from_video_id(video_id: str) -> str:
 
 
 def video_id_prefix(category: str) -> str:
-    """How the video ids of one folder start: "L21" -> "L21_", "N001" -> "N001-"."""
+    """How the video ids of one folder start: "L21" -> "L21_", "N001" -> "N001-".
+
+    A single video id is its own prefix ("S01-V006" -> "S01-V006"), so a scope
+    that names one video filters through the same prefix match as a folder.
+    """
+    if _VIDEO_ID.match(category):
+        return category
     separator = "-" if category[:1].upper() in _HYPHEN_SERIES else "_"
     return f"{category}{separator}"
 

@@ -10,8 +10,8 @@ import re
 from typing import Any
 
 from ..config import Settings
-from ..identity import group_from_video_id, parse_submit_keyframe_id
-from ..scope import FrameFilter, milvus_filter_expr
+from ..identity import parse_submit_keyframe_id
+from ..scope import FrameFilter, in_scope, milvus_filter_expr
 from .. import mock_data
 from .http_pool import failure_reason
 
@@ -403,4 +403,4 @@ def _in_categories(
     if not categories:
         return items
     wanted = set(categories)
-    return [(vid, frames) for vid, frames in items if vid and group_from_video_id(vid) in wanted]
+    return [(vid, frames) for vid, frames in items if vid and in_scope(vid, wanted)]

@@ -1362,6 +1362,15 @@ button { font-family: inherit; }
 .scope-row:hover { background: var(--bg-3); color: var(--fg); }
 .scope-row input { accent-color: var(--accent); flex: none; }
 .scope-group-head { color: var(--fg); font-weight: 600; }
+.scope-group-head-row { display: flex; align-items: center; gap: 4px; }
+.scope-group-head-row > .scope-row { flex: 1; min-width: 0; }
+.scope-expand {
+  flex: none; padding: 2px 7px; border: 1px solid var(--line-2); border-radius: 5px;
+  background: transparent; color: var(--fg-dim); font-family: var(--mono); font-size: 11px; cursor: pointer;
+}
+.scope-expand:hover, .scope-expand[aria-expanded="true"] { background: var(--bg-3); color: var(--fg); }
+/* A single video under its folder (S01's race stages). */
+.scope-sub { padding-left: 22px; }
 .scope-code { font-family: var(--mono); font-size: 11px; color: var(--fg); flex: none; }
 /* The programme name is the useful half but the longest; clamp it to one line so
    thirty folders still fit in a scrollable list. */

@@ -23,8 +23,10 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
 
-from .identity import video_id_prefix
+from .identity import category_from_video_id, video_id_prefix
 from .text_normalization import fold_vietnamese
 
 #: L-side: the ten InfoShot++ programmes. K-side: the twenty BTC news batches.
@@ -35,6 +37,11 @@ K_CATEGORIES: tuple[str, ...] = tuple(f"K{n:02d}" for n in range(1, 21))
 M_CATEGORIES: tuple[str, ...] = tuple(f"M{n:02d}" for n in range(1, 11))
 N_CATEGORIES: tuple[str, ...] = tuple(f"N{n:03d}" for n in range(1, 101))
 S_CATEGORIES: tuple[str, ...] = ("S01",)
+#: Folders a scope can narrow to single videos. S01 is one folder for the whole
+#: race but each of its videos is one stage (OCR handoff §7.5), and an operator
+#: who knows the stage wants that video, not all twelve.
+FOLDER_VIDEOS: dict[str, tuple[str, ...]] = {"S01": tuple(f"S01-V{n:03d}" for n in range(1, 13))}
+_VIDEO_FOLDER: dict[str, str] = {video: folder for folder, videos in FOLDER_VIDEOS.items() for video in videos}
 BATCH2_CATEGORIES: tuple[str, ...] = (*M_CATEGORIES, *N_CATEGORIES, *S_CATEGORIES)
 ALL_CATEGORIES: tuple[str, ...] = (*L_CATEGORIES, *K_CATEGORIES, *BATCH2_CATEGORIES)
 
@@ -115,10 +122,10 @@ CATEGORY_GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("N", "N001–N100 · Camera giao thông (batch 2)", N_CATEGORIES),
     ("S", "S01 · Đua xe đạp (batch 2)", S_CATEGORIES),
 )
-#: Groups the picker shows as a single checkbox. The hundred N folders are one
-#: street camera each and differ only by their code, so listing them one by one
-#: buries every other folder under a hundred rows that say nothing.
-COLLAPSED_GROUPS: frozenset[str] = frozenset({"N"})
+#: Groups the picker shows as a single checkbox until the operator unfolds them.
+#: The hundred N folders are one street camera each and the twelve S01 stages are
+#: one race; listed open, they bury every other folder.
+COLLAPSED_GROUPS: frozenset[str] = frozenset({"N", "S"})
 
 
 @dataclass(frozen=True)
@@ -313,11 +320,17 @@ def profile_categories(retrieval_database: str) -> tuple[str, ...]:
     return PROFILE_CATEGORIES.get(retrieval_database, ())
 
 
+#: Catalogue order, each folder followed by the single videos a scope may name.
+_SCOPE_ORDER: tuple[str, ...] = tuple(
+    item for cat in ALL_CATEGORIES for item in (cat, *FOLDER_VIDEOS.get(cat, ()))
+)
+
+
 def normalize_categories(values: list[str] | tuple[str, ...] | None) -> tuple[str, ...]:
     """Upper-case, de-duplicate and drop blanks, preserving catalogue order."""
     wanted = {str(value or "").strip().upper() for value in (values or [])}
     wanted.discard("")
-    ordered = [cat for cat in ALL_CATEGORIES if cat in wanted]
+    ordered = [cat for cat in _SCOPE_ORDER if cat in wanted]
     # Anything outside the catalogue is kept at the end rather than silently
     # dropped, so a typo surfaces as an empty result instead of a full search.
     ordered += sorted(wanted - set(ordered))
@@ -423,8 +436,13 @@ def resolve_scope(spec: dict | None, *, query: str, retrieval_database: str) -> 
         mode = "all"
 
     if mode == "manual":
+        picked = normalize_categories(spec.get("categories"))
         categories = tuple(
-            cat for cat in normalize_categories(spec.get("categories")) if cat in universe
+            item
+            for item in picked
+            if item in universe
+            # A single video narrows its folder; next to the whole folder it adds nothing.
+            or (_VIDEO_FOLDER.get(item) in universe and _VIDEO_FOLDER[item] not in picked)
         )
         if not categories:
             return ResolvedScope(
@@ -456,9 +474,14 @@ def resolve_scope(spec: dict | None, *, query: str, retrieval_database: str) -> 
 _SAFE_CATEGORY = re.compile(r"^[A-Za-z0-9]{1,16}$")
 
 
+def in_scope(video_id: str, categories: tuple[str, ...] | set[str] | frozenset[str]) -> bool:
+    """Whether a video passes a scope whose items are folders or single videos."""
+    return video_id in categories or category_from_video_id(video_id) in categories
+
+
 def _safe(category: str) -> bool:
     """Only catalogue-shaped names reach a query string (no quotes, no wildcards)."""
-    return bool(_SAFE_CATEGORY.match(category))
+    return bool(_SAFE_CATEGORY.match(category) or _SAFE_VIDEO_ID.match(category))
 
 
 _SAFE_FAMILY = re.compile(r"^[A-Z][A-Za-z0-9]{0,7}-?$")
@@ -564,17 +587,64 @@ def elastic_filter_clause(categories: tuple[str, ...], frames: FrameFilter | Non
     return clauses[0] if clauses else None
 
 
+@lru_cache(maxsize=1)
+def _camera_junctions() -> dict[str, str]:
+    """N folder -> the junction(s) its camera films, from `traffic_cameras.json`.
+
+    An expanded camera group lists a hundred folders; "N042" alone does not say
+    which one the operator wants, the junction on its banner does. A missing
+    catalogue only costs the names — the picker falls back to the folder code.
+    """
+    from .traffic import load_catalog  # traffic imports this module
+
+    try:
+        catalog = load_catalog()
+    except (OSError, ValueError, KeyError):
+        return {}
+    junctions: dict[str, dict[str, None]] = {}
+    for video in catalog.videos.values():
+        camera = catalog.cameras.get(video.camera)
+        if camera is not None:
+            junctions.setdefault(category_from_video_id(video.video_id), {})[camera.label] = None
+    return {folder: " · ".join(labels) for folder, labels in junctions.items()}
+
+
+@lru_cache(maxsize=1)
+def _video_summaries() -> dict[str, str]:
+    """Video id -> one-line summary (`batch2_video_guide.json`); empty when missing."""
+    try:
+        return json.loads((Path(__file__).with_name("batch2_video_guide.json")).read_text(encoding="utf-8"))["videos"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return {}
+
+
+def _folder_videos(folder: str) -> list[dict]:
+    """The single videos the picker lists under a folder (S01: one per race stage)."""
+    summaries = _video_summaries()
+    return [
+        {
+            "video_id": video,
+            "label_vi": f"Chặng {int(video[-3:])}",
+            "label_en": f"Stage {int(video[-3:])}",
+            "summary": summaries.get(video) or None,
+        }
+        for video in FOLDER_VIDEOS.get(folder, ())
+    ]
+
+
 def catalogue(retrieval_database: str) -> dict:
     """Everything the UI needs to draw the folder picker for one profile."""
     universe = profile_categories(retrieval_database)
+    junctions = _camera_junctions() if any(cat in N_CATEGORIES for cat in universe) else {}
     return {
         "retrieval_database": retrieval_database,
         "categories": [
             {
                 "category": cat,
-                "label_vi": CATEGORY_LABELS.get(cat, cat),
-                "label_en": CATEGORY_LABELS_EN.get(cat, cat),
+                "label_vi": junctions.get(cat) or CATEGORY_LABELS.get(cat, cat),
+                "label_en": junctions.get(cat) or CATEGORY_LABELS_EN.get(cat, cat),
                 "open_subject": cat in OPEN_SUBJECT_CATEGORIES,
+                **({"videos": _folder_videos(cat)} if cat in FOLDER_VIDEOS else {}),
             }
             for cat in universe
         ],

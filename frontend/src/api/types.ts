@@ -114,12 +114,21 @@ export interface ScopeCategory {
   label_en?: string;
   /** True for programmes with no fixed subject (news bulletins, L30 shorts). */
   open_subject: boolean;
+  /** Single videos the scope can narrow this folder to (S01: one per race stage). */
+  videos?: ScopeVideo[];
+}
+
+export interface ScopeVideo {
+  video_id: string;
+  label_vi: string;
+  label_en?: string;
+  summary?: string | null;
 }
 
 export interface ScopeCatalogue {
   retrieval_database: RetrievalDatabase;
   categories: ScopeCategory[];
-  /** `collapsed` groups are picked as a whole: the list shows only their header. */
+  /** `collapsed` groups show only their header until the operator unfolds them. */
   groups: { id: string; label_vi: string; label_en?: string; categories: string[]; collapsed?: boolean }[];
   topics: { topic_id: string; label_vi: string; label_en?: string; categories: string[] }[];
 }

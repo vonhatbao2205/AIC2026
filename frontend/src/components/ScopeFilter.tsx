@@ -1,6 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { ResolvedScope, ScopeCatalogue, ScopeMode } from "../api/types";
-import { groupCategories, orderCategories, scopeButtonLabel, toggleCategory } from "../lib/scope";
+import {
+  folderVideos,
+  groupCategories,
+  orderCategories,
+  scopeButtonLabel,
+  toggleCategory,
+  toggleVideo,
+} from "../lib/scope";
 
 interface Props {
   catalogue: ScopeCatalogue | null;
@@ -25,6 +32,13 @@ const MODES: { id: ScopeMode; label: string; title: string }[] = [
   { id: "manual", label: "Custom", title: "Search only the selected folders" },
 ];
 
+/** Ref that shows a checkbox half-ticked; React has no prop for it. */
+function indeterminate(value: boolean) {
+  return (input: HTMLInputElement | null) => {
+    if (input) input.indeterminate = value;
+  };
+}
+
 /** Folder filter: a button that drops down the checkbox list of dataset folders.
  *
  *  The list is the scope of the NEXT search, exactly like the retrieval-depth
@@ -33,6 +47,9 @@ const MODES: { id: ScopeMode; label: string; title: string }[] = [
 export function ScopeFilter(props: Props) {
   const { catalogue, mode, onMode, selected, onSelected, applied, error } = props;
   const [open, setOpen] = useState(false);
+  // Collapsed groups the operator unfolded to pick single folders from. Kept
+  // while the menu closes, so reopening it does not fold the list back up.
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const rootRef = useRef<HTMLDivElement>(null);
 
   // Close on an outside click or Escape, like any other menu on the page.
@@ -65,6 +82,15 @@ export function ScopeFilter(props: Props) {
   function pick(next: string[]) {
     onSelected(orderCategories(next, catalogue));
     if (mode !== "manual") onMode("manual");
+  }
+
+  function toggleExpanded(groupId: string) {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
   }
 
   return (
@@ -135,37 +161,83 @@ export function ScopeFilter(props: Props) {
           <div className="scope-list">
             {(catalogue?.groups ?? []).map((group) => {
               const groupCats = groupCategories(catalogue, group.id);
-              const allOn = groupCats.length > 0 && groupCats.every((cat) => effectiveSet.has(cat));
+              // What the operator can tick one by one: a folder, or the single
+              // videos of a folder that has them (S01's stages). A video is on
+              // when it is picked or its whole folder is.
+              const leaves = groupCats.flatMap((cat) => {
+                const videos = folderVideos(catalogue, cat);
+                return videos.length ? videos.map((video) => ({ cat, id: video })) : [{ cat, id: cat }];
+              });
+              const onCount = leaves.filter((leaf) => effectiveSet.has(leaf.cat) || effectiveSet.has(leaf.id)).length;
+              const allOn = leaves.length > 0 && onCount === leaves.length;
+              const groupItems = new Set([...groupCats, ...leaves.map((leaf) => leaf.id)]);
+              const unfolded = !group.collapsed || expanded.has(group.id);
               return (
                 <div key={group.id} className="scope-group">
-                  <label className="scope-row scope-group-head">
-                    <input
-                      type="checkbox"
-                      checked={allOn}
-                      data-testid={`scope-group-${group.id}`}
-                      onChange={() =>
-                        pick(
-                          allOn
-                            ? effective.filter((cat) => !groupCats.includes(cat))
-                            : [...effective, ...groupCats],
-                        )
-                      }
-                    />
-                    <span className="scope-code">{group.label_en ?? group.id}</span>
-                  </label>
-                  {!group.collapsed && groupCats.map((cat) => {
+                  <div className="scope-group-head-row">
+                    <label className="scope-row scope-group-head">
+                      <input
+                        type="checkbox"
+                        checked={allOn}
+                        // Half-ticked when only part of it is in: a collapsed
+                        // group would otherwise look empty with N042 picked inside.
+                        ref={indeterminate(onCount > 0 && !allOn)}
+                        data-testid={`scope-group-${group.id}`}
+                        onChange={() => {
+                          const rest = effective.filter((item) => !groupItems.has(item));
+                          pick(allOn ? rest : [...rest, ...groupCats]);
+                        }}
+                      />
+                      <span className="scope-code">{group.label_en ?? group.id}</span>
+                    </label>
+                    {group.collapsed && (
+                      <button
+                        type="button"
+                        className="scope-expand"
+                        data-testid={`scope-expand-${group.id}`}
+                        aria-expanded={unfolded}
+                        title={unfolded ? "Hide the list" : `Pick single items out of these ${leaves.length}`}
+                        onClick={() => toggleExpanded(group.id)}
+                      >
+                        {onCount > 0 && !allOn ? `${onCount}/${leaves.length}` : leaves.length}{" "}
+                        <span aria-hidden>{unfolded ? "▾" : "▸"}</span>
+                      </button>
+                    )}
+                  </div>
+                  {unfolded && groupCats.map((cat) => {
                     const item = categories.find((entry) => entry.category === cat);
+                    const whole = effectiveSet.has(cat);
+                    const someVideos = (item?.videos ?? []).some((video) => effectiveSet.has(video.video_id));
                     return (
-                      <label key={cat} className="scope-row" title={item?.label_en ?? cat}>
-                        <input
-                          type="checkbox"
-                          checked={effectiveSet.has(cat)}
-                          data-testid={`scope-cat-${cat}`}
-                          onChange={() => pick(toggleCategory(effective, cat, catalogue))}
-                        />
-                        <span className="scope-code">{cat}</span>
-                        <span className="scope-label">{item?.label_en ?? cat}</span>
-                      </label>
+                      <Fragment key={cat}>
+                        <label className="scope-row" title={item?.label_en ?? cat}>
+                          <input
+                            type="checkbox"
+                            checked={whole}
+                            ref={indeterminate(!whole && someVideos)}
+                            data-testid={`scope-cat-${cat}`}
+                            onChange={() => pick(toggleCategory(effective, cat, catalogue))}
+                          />
+                          <span className="scope-code">{cat}</span>
+                          <span className="scope-label">{item?.label_en ?? cat}</span>
+                        </label>
+                        {(item?.videos ?? []).map((video) => (
+                          <label
+                            key={video.video_id}
+                            className="scope-row scope-sub"
+                            title={video.summary ?? video.label_en ?? video.video_id}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={whole || effectiveSet.has(video.video_id)}
+                              data-testid={`scope-video-${video.video_id}`}
+                              onChange={() => pick(toggleVideo(effective, cat, video.video_id, catalogue))}
+                            />
+                            <span className="scope-code">{video.video_id}</span>
+                            <span className="scope-label">{video.label_en ?? video.label_vi}</span>
+                          </label>
+                        ))}
+                      </Fragment>
                     );
                   })}
                 </div>

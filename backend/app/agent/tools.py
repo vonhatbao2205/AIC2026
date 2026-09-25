@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from ..adapters.http_pool import PooledHttpClient
 from ..identity import canonical_submit_keyframe_id, group_from_video_id, parse_submit_keyframe_id, video_id_prefix
-from ..scope import CATEGORY_LABELS_EN, profile_categories
+from ..scope import CATEGORY_LABELS_EN, in_scope, profile_categories
 from ..traffic import load_catalog
 
 if TYPE_CHECKING:
@@ -753,7 +753,7 @@ class AgentTools:
         keyframe_n = int(record.get("keyframe_n") or parse_submit_keyframe_id(record["submit_keyframe_id"]).keyframe_n)
         event = args.get("event")
         folder = group_from_video_id(video_id)
-        outside = run.scope.active and folder not in run.scope.categories
+        outside = run.scope.active and not in_scope(video_id, run.scope.categories)
         candidate = {
             "agent": agent,
             "video_id": video_id,

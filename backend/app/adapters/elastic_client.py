@@ -15,8 +15,7 @@ from typing import Any
 
 from .. import mock_data
 from ..config import Settings
-from ..identity import group_from_video_id
-from ..scope import FrameFilter, elastic_filter_clause
+from ..scope import FrameFilter, elastic_filter_clause, in_scope
 from ..scoring import audio_score_multiplier, speech_score_multiplier
 from ..text_normalization import fold_vietnamese
 from .http_pool import PooledHttpClient, failure_reason
@@ -343,7 +342,7 @@ def _keep_categories(
     return [
         hit
         for hit in hits
-        if (not wanted or group_from_video_id(str(hit.get("video_id") or "")) in wanted)
+        if (not wanted or in_scope(str(hit.get("video_id") or ""), wanted))
         and (not frames or frames.allows(str(hit.get("video_id") or ""), int(hit.get("keyframe_n") or 0)))
     ]
 

@@ -1480,7 +1480,7 @@ def _apply_filters(
         category = h.submit_keyframe_id.split("/")[0]
         if categories and category not in categories:
             continue
-        if scope and category not in scope:
+        if scope and category not in scope and h.video_id not in scope:
             continue
         out.append(h)
     return out

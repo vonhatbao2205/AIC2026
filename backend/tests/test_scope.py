@@ -1,8 +1,10 @@
 """Search scope: the folder catalogue, the topic heuristic, and the push-down."""
+from types import SimpleNamespace
+
 import pytest
 
 from app import scope
-from app.services.search_service import SearchService
+from app.services.search_service import SearchService, _apply_filters
 
 
 # ---- catalogue --------------------------------------------------------
@@ -257,7 +259,69 @@ async def test_an_unscoped_search_is_unchanged(settings):
     assert [g["video_id"] for g in scoped["groups"]] == [g["video_id"] for g in plain["groups"]]
 
 
-def test_only_the_camera_group_is_collapsed_in_the_picker():
+def test_the_camera_and_race_groups_start_collapsed_in_the_picker():
     groups = {group["id"]: group for group in scope.catalogue("infoshotpp")["groups"]}
-    assert [gid for gid, group in groups.items() if group["collapsed"]] == ["N"]
+    assert [gid for gid, group in groups.items() if group["collapsed"]] == ["N", "S"]
     assert len(groups["N"]["categories"]) == 100
+
+
+def test_the_race_folder_lists_its_twelve_stages():
+    categories = {item["category"]: item for item in scope.catalogue("infoshotpp")["categories"]}
+
+    stages = categories["S01"]["videos"]
+    assert [stage["video_id"] for stage in stages] == [f"S01-V{n:03d}" for n in range(1, 13)]
+    assert stages[5]["label_en"] == "Stage 6"
+    assert "videos" not in categories["L23"]
+
+
+# ---- single race stages ------------------------------------------------
+def test_manual_mode_can_narrow_the_race_to_single_stages():
+    resolved = scope.resolve_scope(
+        {"mode": "manual", "categories": ["s01-v011", "L23", "S01-V006"]},
+        query="",
+        retrieval_database="infoshotpp",
+    )
+
+    assert resolved.categories == ("L23", "S01-V006", "S01-V011")
+    assert scope.milvus_filter_expr(("S01-V006",)) == '(video_id like "S01-V006%")'
+    assert scope.elastic_filter_clause(("S01-V006",))["bool"]["should"] == [{"prefix": {"video_id": "S01-V006"}}]
+
+
+def test_a_stage_next_to_its_whole_folder_adds_nothing():
+    resolved = scope.resolve_scope(
+        {"mode": "manual", "categories": ["S01", "S01-V006"]}, query="", retrieval_database="infoshotpp"
+    )
+
+    assert resolved.categories == ("S01",)
+
+
+def test_a_stage_the_profile_does_not_hold_is_dropped():
+    resolved = scope.resolve_scope(
+        {"mode": "manual", "categories": ["S01-V006", "N001-V001"]}, query="", retrieval_database="btc"
+    )
+
+    assert resolved.active is False
+
+
+def test_frames_of_a_picked_stage_survive_the_post_filter():
+    """The live post-filter compares the frame's folder; a stage must pass it too."""
+    hit = lambda video_id: SimpleNamespace(  # noqa: E731
+        video_id=video_id, keyframe_n=1, submit_keyframe_id=f"{video_id[:3]}/{video_id}/001"
+    )
+    hits = [hit("S01-V006"), hit("S01-V007"), hit("L23_V001")]
+
+    kept = _apply_filters(hits, {}, ("S01-V006", "L23"))
+
+    assert [h.video_id for h in kept] == ["S01-V006", "L23_V001"]
+    assert scope.in_scope("S01-V006", {"S01-V006"}) and scope.in_scope("S01-V006", {"S01"})
+    assert not scope.in_scope("S01-V007", {"S01-V006"})
+
+
+def test_camera_folders_are_labelled_with_the_junction_they_film():
+    labels = {item["category"]: item["label_en"] for item in scope.catalogue("infoshotpp")["categories"]}
+
+    assert labels["N001"] == "An Dương Vương – Lê Hồng Phong"
+    # N016 mixes several cameras; every junction in it is named.
+    assert "Kỳ Đồng – Bà Huyện Thanh Quan" in labels["N016"]
+    assert all(not labels[f"N{n:03d}"].startswith("Traffic camera") for n in range(1, 101))
+    assert labels["S01"] == "Cycling — 2026 Television Cup (batch 2)"

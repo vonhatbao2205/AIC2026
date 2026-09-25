@@ -10,7 +10,7 @@ import type {
   SimpleResult,
 } from "./api/types";
 import { ScopeFilter } from "./components/ScopeFilter";
-import { DEFAULT_SCOPE_MODE, orderCategories, scopeRequest } from "./lib/scope";
+import { DEFAULT_SCOPE_MODE, orderCategories, scopeItems, scopeRequest } from "./lib/scope";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { ImageModelSelector } from "./components/ImageModelSelector";
 import { PeTokenMeter } from "./components/PeTokenMeter";
@@ -72,7 +72,7 @@ export default function SimpleSearch({
       (body) => {
         if (cancelled) return;
         setScopeCatalogue(body);
-        const held = new Set(body.categories.map((item) => item.category));
+        const held = new Set(scopeItems(body));
         setScopeSelection((current) => {
           const kept = current.filter((category) => held.has(category));
           return kept.length === current.length ? current : kept;
