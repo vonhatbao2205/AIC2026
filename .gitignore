@@ -78,6 +78,8 @@ VideoRetrieval/tara_embeddings/
 elastic_staging/
 elastic_staging_v2/
 elastic_staging_batch2/
+# Batch-2 content index (contact sheets, OCR, camera metadata; ~370 MB).
+/Batch2/batch2_content/
 speech_out/
 results_audio_event/
 map-keyframes-s1-s2/

@@ -86,6 +86,33 @@ The repository contains two parts:
   frames into distinct hypotheses and a data-calibrated `±ε` ladder covering the
   case where the retrieved keyframe sits just outside the accepted window. One
   button in the Submission tab fills the whole question pack.
+- **Agent sidecar search (AGENT button, on by default)** — each Search press also
+  starts **Codex CLI** (`gpt-6-sol`, high) and **Claude Code CLI**
+  (`claude-opus-5-5`, high) on the backend host, in the background. They search
+  the corpus through a narrow MCP tool bridge (`backend/app/agent/`):
+  - `search`: the same retrieval engine, in hybrid, visual, OCR or speech mode.
+  - `list_videos`: the programme guide of a folder or series. Traffic cameras show
+    junction, date and clock range; S01 shows the race stage; every other folder
+    shows sample lines of what is said.
+  - `folder_frames`: one frame per video in one grid (`N` gives one tile per
+    camera).
+  - `video_outline`: a video's table of contents, one line per minute of what is
+    said and shown.
+
+    These three browsing tools let an agent find a video without the search
+    engine.
+  - `video_frames`: labelled contact sheets of keyframes from R2.
+  - `view_frames`: a large view of specific keyframes.
+  - `video_text`: the speech and OCR text in a time window.
+  - `report_candidate`: shows a candidate to the operator.
+
+  Candidates appear in their own **Agents** panel as soon as they are reported,
+  and the panel flags a moment both agents found on their own. The main
+  `/api/search` never waits for the agents and its ranking is never changed by
+  them. A new search cancels the tab's previous run, and every agent is killed at
+  `AGENT_TIMEOUT_SECONDS`. The CLIs have no shell and receive none of the
+  backend's credentials. Each run is a fresh process, so an account switched in
+  the meantime is picked up by the next search.
 - **Submit guard** — duplicate detection, evidence preview, and the exact DRES v2
   `answerSets` body previewed before it is sent (media item + ms window for KIS/TRAKE,
   text for QA); the open task name and evaluation run come live from DRES.
@@ -138,6 +165,7 @@ The broader design/strategy is in **[AIC26_Pipeline.md](AIC26_Pipeline.md)**.
 | `elastic_upload.py` | Index OCR / speech / audio / keyframe-map records into Elastic. |
 | `elastic_upload_batch2_ocr_speech.py` | Append batch-2 OCR (M/N/S01) and speech (M/S01) to the InfoShot++ `*_v2` indices, pinned to the audited sources. |
 | `build_traffic_camera_catalog.py` | Build `backend/app/traffic_cameras.json` (junction, date, per-minute keyframe windows of the 298 N videos) from the batch-2 OCR banner fields. |
+| `build_batch2_video_guide.py` | Build `backend/app/batch2_video_guide.json` (what each S01 race recording shows) from the batch-2 content sheet in `Batch2/batch2_content/`, for the agents' browsing tools. |
 | `milvus_upload.py` | Upload PE-Core-G14 image vectors into Milvus. |
 | `milvus_upload_pe_core.py` | Audit + upload the InfoShot++ PE-Core-G14-448 Parquet dataset (1280-d) into `aic26_image_peg14_infoshotpp_v1`. |
 | `milvus_upload_qwen3_vl_embedding_8b.py` | Audit + upload the InfoShot++ Qwen3-VL-Embedding-8B dataset (native 4096-d, 1.339.055 keyframe, 658 shard) into `aic26_image_qwen3vl8b_infoshotpp_v3`. Shard-atomic resume; joins `frame_id` against the final map CSVs and never treats `frame_idx` as the keyframe ordinal. |
@@ -258,6 +286,10 @@ Key variables (full list in [backend/.env.example](backend/.env.example)):
 | `DEEPSEEK_GROUNDING_MODEL` | web grounding model; `deepseek-v4-pro` (the only DeepSeek model whose web search runs) |
 | `NVILA_BASE_URL`, `NVILA_TOKEN` | optional NVILA-8B QA worker chạy từ Colab notebook (`QA_VISION_BACKEND=nvila`) |
 | `DEEPSEEK_API_KEY` | optional DeepSeek built-in `web_search` grounding for QA; backend only |
+| `AGENT_ENABLED`, `AGENT_CODEX_BIN`, `AGENT_CLAUDE_BIN` | agent sidecar search; the CLIs must be installed and logged in on the backend host |
+| `AGENT_CODEX_MODEL`, `AGENT_CODEX_REASONING_EFFORT` | default `gpt-6-sol` / `high` |
+| `AGENT_CLAUDE_MODEL`, `AGENT_CLAUDE_EFFORT` | default `claude-opus-5-5` / `high` (needs Claude Code ≥ 2.1.280) |
+| `AGENT_TIMEOUT_SECONDS`, `AGENT_MAX_CONCURRENT` | hard stop per agent (240 s); parallel runs per CLI across tabs (2) |
 | `AIC26_MOCK_MODE` | `true` ⇒ run with fixtures, no live services |
 
 TARA artifact verification, Milvus upload, Colab worker setup, and fusion details

@@ -209,6 +209,30 @@ class AnswerGenerateRequest(ImageModelSelection):
     sequences: list[dict[str, Any]] | None = Field(default=None, max_length=500)
 
 
+AgentName = Literal["codex", "claude"]
+
+
+class AgentRunRequest(ImageModelSelection):
+    """Start Codex / Claude searching for this query next to the main search.
+
+    The image models and scope are the operator's current ones, so the agents'
+    `search` tool looks at the same indices and folders the console does.
+    """
+
+    query: str = Field(min_length=1, max_length=4000)
+    query_type: Literal["T-KIS", "QA", "V-KIS", "TRAKE", "AVS"] = "T-KIS"
+    scope: SearchScope = Field(default_factory=SearchScope)
+    previous_hints: list[str] = Field(default_factory=list, max_length=20)
+    agents: list[AgentName] = Field(default_factory=lambda: ["codex", "claude"], min_length=1, max_length=2)
+    #: The run this one supersedes (the tab's previous search); it is cancelled
+    #: first, so a new query never waits in the queue behind the old one.
+    replaces: str | None = Field(default=None, max_length=64)
+
+
+class AgentToolCall(BaseModel):
+    arguments: dict[str, Any] = Field(default_factory=dict)
+
+
 class SnapRequest(BaseModel):
     retrieval_database: RetrievalDatabase = "btc"
     raw_time: float

@@ -836,6 +836,158 @@ class ElasticClient:
         data = await self._search(self.s.idx_ocr, body)
         return [h["_source"] for h in data.get("hits", {}).get("hits", [])]
 
+    async def get_video_speech_window(
+        self, video_id: str, start: float, end: float, *, size: int = 200
+    ) -> list[dict[str, Any]]:
+        """Speech segments of one video overlapping [start, end] seconds, in order."""
+        if self.mock:
+            return [
+                seg for seg in mock_data.MOCK_SPEECH.get(video_id, [])
+                if float(seg.get("end", 0)) >= start and float(seg.get("start", 0)) <= end
+            ][:size]
+        body = {
+            "size": size,
+            "query": {"bool": {"filter": [
+                {"term": {"video_id": video_id}},
+                {"range": {"end": {"gte": start}}},
+                {"range": {"start": {"lte": end}}},
+            ]}},
+            "sort": [{"start": "asc"}],
+        }
+        data = await self._search(self.s.idx_speech, body)
+        return [h["_source"] for h in data.get("hits", {}).get("hits", [])]
+
+    async def get_video_ocr_window(
+        self, video_id: str, start: float, end: float, *, size: int = 200
+    ) -> list[dict[str, Any]]:
+        """OCR records of one video's keyframes inside [start, end] seconds, in order.
+
+        Windowed rather than `get_video_ocr`: an S01 race video has tens of
+        thousands of OCR'd keyframes, and an agent reading one scene needs a page.
+        """
+        if self.mock:
+            out = []
+            for kf_id, rec in mock_data.MOCK_OCR.items():
+                if kf_id.split("/")[1] != video_id:
+                    continue
+                keyframe = mock_data.keyframe_record(kf_id) or {}
+                pts = float(keyframe.get("pts_time") or 0.0)
+                if start <= pts <= end:
+                    out.append({"submit_keyframe_id": kf_id, "pts_time": pts, **rec})
+            return sorted(out, key=lambda r: r["pts_time"])[:size]
+        body = {
+            "size": size,
+            "_source": ["submit_keyframe_id", "pts_time", "text_clean", "text_ticker", "text_banner", "text_hud"],
+            "query": {"bool": {"filter": [
+                {"term": {"video_id": video_id}},
+                {"range": {"pts_time": {"gte": start, "lte": end}}},
+            ]}},
+            "sort": [{"pts_time": "asc"}],
+        }
+        data = await self._search(self.s.idx_ocr, body)
+        return [h["_source"] for h in data.get("hits", {}).get("hits", [])]
+
+    async def list_videos(self, video_id_prefix: str) -> list[dict[str, Any]]:
+        """Every video whose id starts with the prefix, with its length and keyframe count.
+
+        One terms aggregation on the keyframe map; sorted by video id. The prefix
+        is a folder (`L26_`, `N001-`) or a whole series (`N`).
+        """
+        if self.mock:
+            return [
+                {
+                    "video_id": video_id,
+                    "duration": max((float(k["pts_time"]) for k in frames), default=0.0),
+                    "keyframes": len(frames),
+                }
+                for video_id, frames in sorted(mock_data.MOCK_KEYFRAMES.items())
+                if video_id.startswith(video_id_prefix)
+            ]
+        body = {
+            "size": 0,
+            "query": {"prefix": {"video_id": video_id_prefix}},
+            "aggs": {
+                "by_video": {
+                    "terms": {"field": "video_id", "size": 5000, "order": {"_key": "asc"}},
+                    "aggs": {"last_pts": {"max": {"field": "pts_time"}}},
+                }
+            },
+        }
+        data = await self._search(self.s.idx_keyframe_map, body)
+        return [
+            {
+                "video_id": str(bucket["key"]),
+                "duration": float((bucket.get("last_pts") or {}).get("value") or 0.0),
+                "keyframes": int(bucket.get("doc_count") or 0),
+            }
+            for bucket in data.get("aggregations", {}).get("by_video", {}).get("buckets", [])
+        ]
+
+    async def first_texts_in_windows(
+        self, kind: str, windows: list[tuple[str, float, float]], *, per_window: int = 1
+    ) -> list[list[dict[str, Any]]]:
+        """The first speech segments / OCR'd keyframes of each (video, start, end) window.
+
+        One `_msearch` for the whole list, so a video's minute-by-minute outline or
+        a folder's worth of sample lines costs one round trip. `kind` is "speech"
+        (segments starting in the window) or "ocr" (keyframes with text in it).
+        """
+        if not windows:
+            return []
+        if kind == "speech":
+            index, time_field, text_field = self.s.idx_speech, "start", "text"
+            fields = ["submit_keyframe_id", "start", "end", "text"]
+        elif kind == "ocr":
+            index, time_field, text_field = self.s.idx_ocr, "pts_time", "text_clean"
+            fields = ["submit_keyframe_id", "pts_time", "text_clean", "text_banner", "text_hud"]
+        else:
+            raise ValueError(f"Unknown text kind {kind!r}")
+        if self.mock:
+            out: list[list[dict[str, Any]]] = []
+            for video_id, start, end in windows:
+                if kind == "speech":
+                    rows = [s for s in mock_data.MOCK_SPEECH.get(video_id, []) if start <= float(s["start"]) < end]
+                else:
+                    rows = []
+                    for kf_id, rec in mock_data.MOCK_OCR.items():
+                        keyframe = mock_data.keyframe_record(kf_id) or {}
+                        if keyframe.get("pts_time") is None:
+                            continue
+                        pts = float(keyframe["pts_time"])
+                        if kf_id.split("/")[1] == video_id and start <= pts < end:
+                            rows.append({"submit_keyframe_id": kf_id, "pts_time": pts, **rec})
+                out.append(sorted(rows, key=lambda r: float(r[time_field]))[:per_window])
+            return out
+        results: list[list[dict[str, Any]]] = []
+        for offset in range(0, len(windows), 100):
+            batch = windows[offset:offset + 100]
+            lines: list[str] = []
+            for video_id, start, end in batch:
+                lines.append("{}")
+                lines.append(json.dumps({
+                    "size": per_window,
+                    "_source": fields,
+                    "query": {"bool": {"filter": [
+                        {"term": {"video_id": video_id}},
+                        {"range": {time_field: {"gte": start, "lt": end}}},
+                        {"exists": {"field": text_field}},
+                    ]}},
+                    "sort": [{time_field: "asc"}],
+                }))
+            response = await self._http.get().post(
+                f"{self._base}/{index}/_msearch",
+                content=("\n".join(lines) + "\n").encode(),
+                headers={**self._headers(), "Content-Type": "application/x-ndjson"},
+                timeout=45.0,
+            )
+            response.raise_for_status()
+            answers = response.json().get("responses", [])
+            if len(answers) != len(batch):
+                raise RuntimeError("Elastic text-window msearch returned wrong response count")
+            for answer in answers:
+                results.append([hit["_source"] for hit in answer.get("hits", {}).get("hits", [])])
+        return results
+
     async def get_video_audio(self, video_id: str, *, size: int = 5000) -> list[dict[str, Any]]:
         if self.mock:
             return list(mock_data.MOCK_AUDIO.get(video_id, []))

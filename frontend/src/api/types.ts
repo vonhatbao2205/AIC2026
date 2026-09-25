@@ -842,3 +842,76 @@ export interface ConfigImportResult {
   replaced: boolean;
   status: ConfigStatus;
 }
+
+// ---- Agent sidecar search (Codex CLI / Claude Code CLI) ---------------------
+
+export type AgentName = "codex" | "claude";
+
+/** `pending`/`queued` wait for a slot; the last five are final. */
+export type AgentStatus =
+  | "pending"
+  | "queued"
+  | "running"
+  | "done"
+  | "failed"
+  | "timeout"
+  | "cancelled"
+  | "unavailable";
+
+export interface AgentStep {
+  /** Seconds since the run started. */
+  at: number;
+  kind: "tool" | "thought" | "message" | "error" | "info";
+  text: string;
+}
+
+export interface AgentState {
+  name: AgentName;
+  status: AgentStatus;
+  model: string;
+  effort: string;
+  elapsed_s: number | null;
+  tool_calls: number;
+  summary: string;
+  error: string | null;
+  /** `quota` / `auth` when the account, not the search, is the problem;
+   *  `update` when the installed CLI is too old for the configured model. */
+  error_kind: "quota" | "auth" | "update" | "timeout" | "cli" | null;
+  cost_usd: number | null;
+  steps: AgentStep[];
+}
+
+/** A frame an agent reported, resolved to the profile's keyframe map. */
+export interface AgentCandidate {
+  id: string;
+  agent: AgentName;
+  video_id: string;
+  submit_keyframe_id: string;
+  keyframe_n: number;
+  frame_idx: number | null;
+  fps: number | null;
+  pts_time: number | null;
+  /** The instant the agent named (its keyframe's pts when it gave an id). */
+  time: number | null;
+  keyframe_url: string;
+  video_url: string;
+  confidence: number;
+  reason: string;
+  answer: string | null;
+  /** TRAKE: which event this frame is (1-based). */
+  event: number | null;
+  found_at_s: number;
+  updated_at_s?: number;
+}
+
+export interface AgentRunSnapshot {
+  run_id: string;
+  query: string;
+  query_type: QueryType;
+  retrieval_database: RetrievalDatabase;
+  created_at: number;
+  elapsed_s: number;
+  finished: boolean;
+  agents: Partial<Record<AgentName, AgentState>>;
+  candidates: AgentCandidate[];
+}

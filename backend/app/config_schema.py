@@ -150,6 +150,23 @@ GROUPS: tuple[ConfigGroup, ...] = (
         ),
     ),
     ConfigGroup(
+        "Agent search (optional)",
+        "Codex CLI and Claude Code CLI search next to the main pipeline (AGENT button). "
+        "The CLIs run on this machine under their own logins.",
+        (
+            ConfigKey("AGENT_ENABLED", "Allow agent search (true/false)"),
+            ConfigKey("AGENT_CODEX_BIN", "Codex CLI executable (codex)"),
+            ConfigKey("AGENT_CLAUDE_BIN", "Claude Code CLI executable (claude)"),
+            ConfigKey("AGENT_CODEX_MODEL", "Codex model (gpt-6-sol)"),
+            ConfigKey("AGENT_CODEX_REASONING_EFFORT", "Codex effort: low | medium | high | xhigh (high)"),
+            ConfigKey("AGENT_CLAUDE_MODEL", "Claude model (claude-opus-5-5)"),
+            ConfigKey("AGENT_CLAUDE_EFFORT", "Claude effort: low | medium | high | xhigh | max (high)"),
+            ConfigKey("AGENT_TIMEOUT_SECONDS", "Hard stop per agent run"),
+            ConfigKey("AGENT_MAX_CONCURRENT", "Parallel runs per CLI across tabs"),
+            ConfigKey("AGENT_BACKEND_URL", "Backend URL the agents' tool bridge calls (blank = auto)"),
+        ),
+    ),
+    ConfigGroup(
         "Index names",
         "Override only if the corpus was re-uploaded under a new prefix.",
         (

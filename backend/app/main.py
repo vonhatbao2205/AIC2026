@@ -25,6 +25,12 @@ Endpoints:
   POST /api/submit
   GET  /api/submit/history
   DEL  /api/submit/history
+  GET  /api/agent/status
+  POST /api/agent/runs
+  GET  /api/agent/runs/{run_id}
+  DEL  /api/agent/runs/{run_id}
+  GET  /api/agent/tools            (agent bridge only: per-run token)
+  POST /api/agent/tools/{name}     (agent bridge only: per-run token)
 
 Secrets stay server-side; responses never include Elastic/Milvus/NVIDIA creds.
 """
@@ -33,7 +39,7 @@ from __future__ import annotations
 import asyncio
 import re
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
@@ -43,10 +49,13 @@ from .adapters.deepseek_grounding import DeepSeekGroundingClient, WebGroundingUn
 from .adapters.dres_client import DresClient, DresError, DresNotConfigured
 from .adapters.qa_vision import QaVisionUnavailable, build_qa_vision_client
 from . import paths
+from .agent.runs import AgentDisabled, AgentService
 from .config import Settings, get_settings
 from .identity import canonical_submit_keyframe_id, parse_submit_keyframe_id
 from .media import MediaUrlBuilder
 from .models import (
+    AgentRunRequest,
+    AgentToolCall,
     AnswerGenerateRequest,
     CanvasSearchRequest,
     ParseRequest,
@@ -138,6 +147,10 @@ def build_runtime() -> Settings:
 
 build_runtime()
 
+# Built once, NOT in `build_runtime`: runs in flight must survive a config import.
+# It resolves the settings and search services at call time instead.
+agent_service = AgentService(lambda: settings, lambda: search_services)
+
 
 @app.post("/api/progressive/sessions")
 async def progressive_create(req: ProgressiveConfig):
@@ -211,6 +224,7 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
         web_grounding_client.health(),
         dres_client.health(),
     )
+    agent_status = agent_service.status()
     services = {
         "elastic": elastic,
         "milvus": milvus,
@@ -289,6 +303,9 @@ async def health(retrieval_database: RetrievalDatabase = "btc"):
             # (Whether the PE server has the /encode-image route is only known
             # when a sketch is sent; a missing route comes back as a warning.)
             "canvas_sketch_search": selected_settings.mock_mode or pe_image_ready,
+            # Codex / Claude sidecar agents: the CLI is installed on this host.
+            "agent_codex": agent_status["agents"]["codex"]["available"],
+            "agent_claude": agent_status["agents"]["claude"]["available"],
         },
         "retrieval_database": retrieval_database,
         "indices": {
@@ -792,6 +809,81 @@ async def clear_submit_history(task_id: str | None = None, ids: str | None = Non
     """
     id_list = [i for i in (ids or "").split(",") if i.strip()] if ids is not None else None
     return submit_service.clear_history(task_id, id_list)
+
+
+# --- Agent sidecar search (Codex CLI / Claude Code CLI) ----------------------
+
+
+def _agent_backend_url(request: Request) -> str:
+    """Where the agents' MCP bridge reaches this backend.
+
+    The socket this request arrived on is an address that demonstrably serves
+    the API right now, unlike the Host header, which is the public name when the
+    console is opened through a tunnel.
+    """
+    if settings.agent_backend_url:
+        return settings.agent_backend_url
+    server = request.scope.get("server")
+    if server and server[1]:
+        host = str(server[0] or "")
+        if host in {"", "0.0.0.0", "::"}:
+            host = "127.0.0.1"
+        if ":" in host:
+            host = f"[{host}]"
+        return f"http://{host}:{server[1]}"
+    return "http://127.0.0.1:8000"
+
+
+@app.get("/api/agent/status")
+async def agent_status_endpoint():
+    return agent_service.status()
+
+
+@app.post("/api/agent/runs")
+async def agent_start(req: AgentRunRequest, request: Request):
+    """Start Codex / Claude on this query in the background and return at once."""
+    try:
+        return await agent_service.start(req, backend_url=_agent_backend_url(request))
+    except AgentDisabled as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.get("/api/agent/runs/{run_id}")
+async def agent_run(run_id: str):
+    run = agent_service.get(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail=f"Unknown agent run {run_id}")
+    return run.snapshot()
+
+
+@app.delete("/api/agent/runs/{run_id}")
+async def agent_cancel(run_id: str):
+    snapshot = await agent_service.cancel(run_id)
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail=f"Unknown agent run {run_id}")
+    return snapshot
+
+
+@app.get("/api/agent/tools")
+async def agent_tools(x_aic_agent_token: str | None = Header(default=None)):
+    if agent_service.authorize(x_aic_agent_token) is None:
+        raise HTTPException(status_code=403, detail="Agent run is not active")
+    return {"tools": agent_service.tools.specs()}
+
+
+@app.post("/api/agent/tools/{name}")
+async def agent_tool_call(
+    name: str,
+    body: AgentToolCall,
+    x_aic_agent_token: str | None = Header(default=None),
+    x_aic_agent_name: str | None = Header(default=None),
+):
+    """One tool call from an agent's MCP bridge, answered as an MCP tool result."""
+    run = agent_service.authorize(x_aic_agent_token)
+    if run is None:
+        raise HTTPException(status_code=403, detail="Agent run is not active")
+    agent = x_aic_agent_name if x_aic_agent_name in run.agents else "agent"
+    return await agent_service.tools.call(name, body.arguments, run, agent)
 
 
 @app.post("/api/pe/tokens")

@@ -254,6 +254,28 @@ class Settings:
     milvus_tara_collection: str = "aic26_tara_clips_infoshotpp_v1"
     milvus_audio_collection: str = "aic26_audio_glap_v1"
 
+    # --- Agent sidecar search (app.agent) ---
+    # Codex CLI and Claude Code CLI search the corpus next to the main pipeline,
+    # through a narrow tool API on this backend; their candidates land in their
+    # own console panel and never touch the fused ranking. Each run spawns the
+    # CLI afresh, so it picks up whichever account is logged in at that moment.
+    agent_enabled: bool = True
+    agent_codex_bin: str = "codex"
+    agent_claude_bin: str = "claude"
+    # Pinned per agent rather than inherited from the CLIs' own configs: the
+    # interactive Codex default runs at xhigh, far too slow for a sidecar that
+    # has to answer inside a task's time limit.
+    agent_codex_model: str = "gpt-6-sol"
+    agent_codex_reasoning_effort: str = "high"
+    agent_claude_model: str = "claude-opus-5-5"
+    agent_claude_effort: str = "high"
+    agent_timeout_seconds: float = 240.0
+    # Concurrent runs per CLI across every console tab; later runs queue.
+    agent_max_concurrent: int = 2
+    # Where the agents' MCP bridge reaches this backend. Empty = the address
+    # uvicorn is actually listening on.
+    agent_backend_url: str | None = None
+
     # When true, adapters return deterministic fixtures instead of calling services.
     mock_mode: bool = False
 
@@ -505,6 +527,15 @@ def get_settings() -> Settings:
     except ValueError:
         dres_timeout_seconds = 20.0
 
+    try:
+        agent_timeout_seconds = float(_env("AGENT_TIMEOUT_SECONDS", "240") or "240")
+    except ValueError:
+        agent_timeout_seconds = 240.0
+    try:
+        agent_max_concurrent = int(_env("AGENT_MAX_CONCURRENT", "2") or "2")
+    except ValueError:
+        agent_max_concurrent = 2
+
     cors = _env("CORS_ORIGINS")
     cors_origins = [o.strip() for o in cors.split(",")] if cors else ["*"]
 
@@ -644,6 +675,16 @@ def get_settings() -> Settings:
             _env("MILVUS_TARA_COLLECTION_2") or "aic26_tara_clips_infoshotpp_v1"
         ),
         milvus_audio_collection=_env("MILVUS_AUDIO_COLLECTION") or "aic26_audio_glap_v1",
+        agent_enabled=(_env("AGENT_ENABLED", "true") or "true").lower() in {"1", "true", "yes", "on"},
+        agent_codex_bin=_env("AGENT_CODEX_BIN") or "codex",
+        agent_claude_bin=_env("AGENT_CLAUDE_BIN") or "claude",
+        agent_codex_model=_env("AGENT_CODEX_MODEL") or "gpt-6-sol",
+        agent_codex_reasoning_effort=(_env("AGENT_CODEX_REASONING_EFFORT") or "high").lower(),
+        agent_claude_model=_env("AGENT_CLAUDE_MODEL") or "claude-opus-5-5",
+        agent_claude_effort=(_env("AGENT_CLAUDE_EFFORT") or "high").lower(),
+        agent_timeout_seconds=min(1800.0, max(30.0, agent_timeout_seconds)),
+        agent_max_concurrent=min(8, max(1, agent_max_concurrent)),
+        agent_backend_url=(_env("AGENT_BACKEND_URL") or "").rstrip("/") or None,
         mock_mode=mock_mode,
         translate_to_en=translate_to_en,
         cors_origins=cors_origins,

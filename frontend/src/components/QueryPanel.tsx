@@ -47,10 +47,16 @@ interface Props {
   scopeFilter?: React.ReactNode;
   /** PE-Core is among the image indices searched, so its 70-token window applies. */
   peActive?: boolean;
+  /** Codex + Claude search in the background on every Search press (default on).
+   *  Omitted where the console has no agent panel. */
+  agent?: boolean;
+  onToggleAgent?: () => void;
+  /** False when neither CLI is installed on the backend host; null = unknown yet. */
+  agentAvailable?: boolean | null;
 }
 
 export function QueryPanel(props: Props) {
-  const { query, setQuery, hints, onAppendHint, onClearHints, onSearch, loading, parsed, queryType, inputRef, useLLM, onToggleLLM, expand, onToggleExpand, rerank, onToggleRerank, rerankAvailable, rerankReport, translate, onToggleTranslate, imageModelSelector, topK, onTopK, appliedTopK, scopeFilter, peActive = false } = props;
+  const { query, setQuery, hints, onAppendHint, onClearHints, onSearch, loading, parsed, queryType, inputRef, useLLM, onToggleLLM, expand, onToggleExpand, rerank, onToggleRerank, rerankAvailable, rerankReport, translate, onToggleTranslate, imageModelSelector, topK, onTopK, appliedTopK, scopeFilter, peActive = false, agent = false, onToggleAgent, agentAvailable = null } = props;
   const [listening, setListening] = useState(false);
   const [voiceMsg, setVoiceMsg] = useState<string | null>(null);
   const [interim, setInterim] = useState("");
@@ -241,6 +247,24 @@ export function QueryPanel(props: Props) {
         <button className="btn primary" data-testid="search-btn" onClick={onSearch} disabled={loading}>
           {loading ? "Processing…" : "Search"} <span className="kbd">↵</span>
         </button>
+        {onToggleAgent && (
+          <button
+            className={`btn sm ${agent && agentAvailable !== false ? "primary" : "ghost"}`}
+            data-testid="agent-toggle"
+            aria-pressed={agent}
+            onClick={onToggleAgent}
+            disabled={agentAvailable === false}
+            title={
+              agentAvailable === false
+                ? "Neither codex nor claude is installed on the backend machine."
+                : "AGENT: every Search also starts the Codex and Claude CLI agents in the background. "
+                  + "They search with their own strategy and report candidate frames in the Agents panel; "
+                  + "the main results never wait for them and are never changed by them."
+            }
+          >
+            {agentAvailable === false ? "Agent n/a" : agent ? "🤖 Agent on" : "Agent off"}
+          </button>
+        )}
         {queryType === "T-KIS" && (
           <button className="btn sm" onClick={onAppendHint} title="Combine this as an additional hint">
             + Append hint

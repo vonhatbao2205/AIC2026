@@ -1,6 +1,8 @@
 // Thin fetch wrapper around the backend. The frontend only ever talks to the
 // backend — it never holds Elastic/Milvus/NVIDIA credentials.
 import type {
+  AgentName,
+  AgentRunSnapshot,
   AnswerGenerateResponse,
   AnswerGenParams,
   AnswerMode,
@@ -22,6 +24,7 @@ import type {
   ProgressiveSnapshot,
   QaAnalysisResponse,
   QaAnalyzeCandidate,
+  QueryType,
   QueryTypeHint,
   RetrievalDatabase,
   ScopeCatalogue,
@@ -323,6 +326,30 @@ export const api = {
       { method: "DELETE" },
     );
   },
+
+  // ---- Agent sidecar search (Codex / Claude) -------------------------------
+  /** Start the agents on this query; returns at once, the run continues server-side. */
+  startAgentRun: (body: {
+    retrieval_database: RetrievalDatabase;
+    image_models: ImageEmbeddingModel[];
+    query: string;
+    query_type: QueryType;
+    scope?: SearchScope;
+    previous_hints?: string[];
+    agents?: AgentName[];
+    /** The tab's previous run, cancelled before this one starts. */
+    replaces?: string | null;
+  }) =>
+    request<AgentRunSnapshot>("/api/agent/runs", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  agentRun: (runId: string, signal?: AbortSignal) =>
+    request<AgentRunSnapshot>(`/api/agent/runs/${runId}`, { signal }),
+
+  cancelAgentRun: (runId: string) =>
+    request<AgentRunSnapshot>(`/api/agent/runs/${runId}`, { method: "DELETE" }),
 
   translate: (text: string) =>
     request<{ text: string; text_en: string }>("/api/translate", {

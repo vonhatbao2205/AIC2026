@@ -1,0 +1,19 @@
+{
+ "schema_version": 1,
+ "built_at": "2026-09-25T02:07:08+00:00",
+ "source": "Batch2/batch2_content/batch2_ai_index.jsonl",
+ "videos": {
+  "S01-V001": "Cúp Truyền hình HTV 2026: lễ khai màn với phát biểu, biểu diễn trên sân khấu; đoàn xe đạp thi đấu qua đường đô thị và khu ven sông; các cảnh flycam và sân khấu cuối chương trình.",
+  "S01-V002": "Cúp Truyền hình HTV 2026: đoàn đua và nhóm dẫn đầu trên đường qua khu dân cư, đồng ruộng; xen cảnh flycam và phỏng vấn tay đua cuối video.",
+  "S01-V003": "Chương trình trực tiếp chặng 03 Cúp Truyền hình HTV 2026: nghi lễ và biểu diễn, đoàn xe đạp qua phố, cảnh đích và phỏng vấn ở sân khấu.",
+  "S01-V004": "Cúp Truyền hình HTV 2026: đoàn đua trên các tuyến đường qua khu dân cư, cảnh flycam, đồ hoạ tường thuật và chương trình sân khấu sau chặng.",
+  "S01-V005": "Cúp Truyền hình HTV 2026, chủ đề Non sông liền một dải: nhóm đua và đoàn đông qua đường đô thị, quốc lộ, cảnh flycam và khoảnh khắc ăn mừng.",
+  "S01-V006": "Chương trình trực tiếp chặng 06 Cúp Truyền hình HTV 2026: biểu diễn mở màn, đoàn đua qua đường đô thị, nhóm về đích và hoạt động sân khấu.",
+  "S01-V007": "Cúp Truyền hình HTV 2026: đoàn đua qua đô thị, đường ven biển và vùng đồi; nhiều cảnh cận tay đua, flycam và đoạn về đích.",
+  "S01-V008": "Cúp Truyền hình HTV 2026: chặng đường dài với các nhóm tay đua tách đoàn qua phố, cầu, tuyến đường ven sông; có góc camera trên đường và flycam.",
+  "S01-V009": "Cúp Truyền hình HTV 2026: đoàn đua xuất phát gần khu di tích, qua đường có khán giả và cờ Việt Nam; cảnh bám đoàn, sân khấu và phỏng vấn tay đua.",
+  "S01-V010": "Cúp Truyền hình HTV 2026: đoàn đua qua khu dân cư, đường đồi và cầu ven biển; xen các góc flycam, nhóm bứt phá và sân khấu chặng.",
+  "S01-V011": "Chương trình trực tiếp chặng 11 Cúp Truyền hình HTV 2026: đoàn đua qua quốc lộ, cầu, cảnh cận tay đua và khu vực đích ở quảng trường.",
+  "S01-V012": "Cúp Truyền hình HTV 2026: bảng xếp hạng đầu video, các nhóm tay đua qua khu dân cư, quốc lộ và đường ven đồi; flycam theo dõi nhóm dẫn đầu."
+ }
+}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, type ManualOverrides, type SubmitBody } from "./api/client";
 import type {
+  AgentCandidate,
   AnswerMode,
   Channel,
   DresEvaluation,
@@ -29,6 +30,7 @@ import type {
   TrakeVideoResult,
   VideoGroup,
 } from "./api/types";
+import { AgentPanel } from "./components/AgentPanel";
 import { AvsPanel } from "./components/AvsPanel";
 import { CanvasPanel } from "./components/CanvasPanel";
 import { ChannelControls } from "./components/ChannelControls";
@@ -55,6 +57,8 @@ import { TopBar } from "./components/TopBar";
 import { TrakePanel, type TrakeSlot } from "./components/TrakePanel";
 import type { TrakePeakDrag } from "./lib/trakeDrag";
 import { VideoViewer, type VideoViewerHandle } from "./components/VideoViewer";
+import { useAgentRun } from "./hooks/useAgentRun";
+import { AGENT_NAMES, candidateTime, readAgentPreference, writeAgentPreference } from "./lib/agent";
 import { autoEvaluationId } from "./lib/dres";
 import { sortFramesByTime, swapVideoOrigin } from "./lib/media";
 import { findQaFrame, selectQaCandidateFrames } from "./lib/qa";
@@ -194,6 +198,12 @@ export default function FullConsole({
   // English, a proper noun, or a phrase the translator keeps mangling — and it
   // governs voice input too, so dictation stops rewriting what was said.
   const [translate, setTranslate] = useState(true);
+  // Codex + Claude sidecar agents (the AGENT button). ON by default, remembered
+  // per browser. They run next to the main search and report into their own
+  // panel: nothing they return is ever written into `groups`.
+  const [agentOn, setAgentOn] = useState(readAgentPreference);
+  const { run: agentRun, error: agentError, starting: agentStarting,
+    start: startAgents, cancel: stopAgents, clear: clearAgents } = useAgentRun();
   // Kept per console tab: two simultaneous tasks may intentionally search
   // different InfoShot++ indices. BTC is normalized to PE-only at request time.
   const [imageModels, setImageModels] = useState<ImageEmbeddingModel[]>(() => [...DEFAULT_IMAGE_MODELS]);
@@ -992,6 +1002,97 @@ export default function FullConsole({
     }
     // `topK` is read here, not watched: nothing re-runs a search when it moves.
   }, [queryState, hints, overrides, queryType, feedback, useLLM, expand, translate, rerank, imageModels, retrievalDatabase, topK, scopeMode, scopeSelection, trafficMode, progressiveActive]);
+
+  // ---- agent sidecar search ----
+  // Which CLIs the backend host has; null until health has answered, in which
+  // case both are asked for and the backend marks a missing one unavailable.
+  const agentAvailability = useMemo(
+    () => (health ? AGENT_NAMES.filter((name) => health.capabilities[`agent_${name}`]) : null),
+    [health],
+  );
+
+  /** Search pressed by the operator: the main search and, with AGENT on, the agents.
+   *
+   *  Agents start ONLY here, never from `runSearch` itself: that also re-runs on
+   *  every feedback click and on a pack import, and restarting two CLIs there
+   *  would throw away their progress on the same query (or start fifty of them).
+   *  Nothing awaits the agents; the main search goes out in the same tick. */
+  const operatorSearch = useCallback(() => {
+    const text = queryState.trim();
+    const agents = agentAvailability ?? AGENT_NAMES;
+    if (agentOn && !progressiveActive && agents.length && (text || hints.length)) {
+      void startAgents({
+        retrieval_database: retrievalDatabase,
+        image_models: imageModelsForSearch(retrievalDatabase, imageModels),
+        query: text || hints.join(". "),
+        query_type: queryType,
+        scope: scopeRequest(scopeMode, scopeSelection),
+        previous_hints: text ? hints : [],
+        agents,
+      });
+    }
+    void runSearch();
+  }, [agentAvailability, agentOn, hints, imageModels, progressiveActive, queryState, queryType,
+    retrievalDatabase, runSearch, scopeMode, scopeSelection, startAgents]);
+
+  function toggleAgent() {
+    const next = !agentOn;
+    setAgentOn(next);
+    writeAgentPreference(next);
+    // Off means off: agents already searching are stopped too.
+    if (!next) void stopAgents();
+  }
+
+  // A run belongs to one question on one dataset.
+  useEffect(() => {
+    clearAgents();
+  }, [clearAgents, question?.id, retrievalDatabase]);
+
+  const resultVideoIds = useMemo(
+    () => new Set(displayGroups.map((group) => group.video_id)),
+    [displayGroups],
+  );
+
+  /** Select an agent's candidate in the main results and play it there. */
+  function locateAgentCandidate(candidate: AgentCandidate) {
+    const videoIndex = displayGroups.findIndex((group) => group.video_id === candidate.video_id);
+    if (videoIndex < 0) return;
+    const group = displayGroups[videoIndex];
+    const time = candidateTime(candidate);
+    let frameIndex = group.frames.findIndex(
+      (frame) => frame.submit_keyframe_id === candidate.submit_keyframe_id,
+    );
+    if (frameIndex < 0 && time != null) {
+      // Not among this video's result frames: point at the nearest one in time.
+      let bestDelta = Infinity;
+      group.frames.forEach((frame, index) => {
+        if (frame.pts_time == null) return;
+        const delta = Math.abs(frame.pts_time - time);
+        if (delta < bestDelta) {
+          bestDelta = delta;
+          frameIndex = index;
+        }
+      });
+    }
+    setSelectedVideo(videoIndex);
+    setSelectedFrame(Math.max(0, frameIndex));
+    setTrakePeak(null);
+    setPausedFrame(null);
+    setGuardOpen(false);
+    setExpanded((current) => new Set(current).add(group.video_id));
+    setActiveVideoId(group.video_id);
+    setVideoVisible(true);
+    setShowTimeline(true);
+    if (time != null) {
+      setClipSeek({ videoId: group.video_id, time });
+      if (activeVideoId === group.video_id) viewerRef.current?.seek(time);
+    }
+  }
+
+  const agentVideoFallback = useCallback(
+    (url: string) => swapVideoOrigin(url, health?.media?.video_base_url, health?.media?.video_fallback_base_url),
+    [health?.media?.video_base_url, health?.media?.video_fallback_base_url],
+  );
 
   // The tab rail shows a spinner per tab, so the parent has to know which tabs
   // are still running after an import kicked all of them off at once.
@@ -2158,9 +2259,12 @@ export default function FullConsole({
             hints={hints}
             onAppendHint={appendHint}
             onClearHints={() => setHints([])}
-            onSearch={runSearch}
+            onSearch={operatorSearch}
             loading={loading}
             parsed={parsed}
+            agent={agentOn}
+            onToggleAgent={toggleAgent}
+            agentAvailable={agentAvailability ? agentAvailability.length > 0 : null}
             queryType={queryType}
             inputRef={queryRef}
             useLLM={useLLM}
@@ -2344,6 +2448,18 @@ export default function FullConsole({
 
         {/* RIGHT */}
         <div className="col col-right" style={focusZone === "detail" ? { boxShadow: "inset 0 2px 0 var(--accent)" } : undefined}>
+          <AgentPanel
+            run={agentRun}
+            starting={agentStarting}
+            error={agentError}
+            currentQuery={query}
+            resultVideoIds={resultVideoIds}
+            onStop={() => void stopAgents()}
+            onDismiss={clearAgents}
+            onLocate={locateAgentCandidate}
+            onPaused={setPausedFrame}
+            videoFallback={agentVideoFallback}
+          />
           {queryType === "QA" && (
             <QaAssistPanel
               analysis={qaAnalysis}
