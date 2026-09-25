@@ -1,4 +1,4 @@
-"""PE-Core-G14 text encoder client (Kaggle FastAPI server).
+"""PE-Core-G14 encoder client (FastAPI server from model-setup-backend.ipynb, Colab A100).
 
 POST {PE_ENCODER_URL}/encode-text  {"texts": [...]}  ->  {"dim":1280,"vectors":[[...]]}
 Optional bearer auth via PE_ENCODER_TOKEN. In mock mode returns a deterministic
@@ -57,10 +57,10 @@ class PeEncoderClient:
     async def encode_image(self, images: list[str]) -> list[list[float]]:
         """Encode base64 PNG/JPEG images into the same 1280-d PE space as text.
 
-        Used by the V-KIS canvas raster channel. `/encode-image` is a newer route
-        on the Kaggle PE server (see model-setup-backend.ipynb); a server started
-        from an older copy of the notebook answers 404, which is reported as a
-        clear instruction rather than a bare HTTP error.
+        Used by the V-KIS sketch search. The current notebook registers
+        `/encode-image` before the server starts; a server started from an older
+        copy of it answers 404, which is reported as a clear instruction rather
+        than a bare HTTP error.
         """
         if self.mock:
             return [_pseudo_vector(image[:512]) for image in images]
@@ -69,7 +69,7 @@ class PeEncoderClient:
         )
         if resp.status_code == 404:
             raise PeImageEncoderMissing(
-                "PE server has no /encode-image endpoint; rerun the FastAPI cell in "
+                "PE server has no /encode-image endpoint; restart it from the current "
                 "model-setup-backend.ipynb and update PE_ENCODER_URL."
             )
         resp.raise_for_status()

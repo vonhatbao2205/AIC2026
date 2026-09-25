@@ -83,7 +83,7 @@ Bộ lọc **📂 phạm vi** cạnh nút Search: bấm vào ra **danh sách che
 - **Màu RGB đầy đủ kiểu Photoshop**: ô Saturation×Brightness + dải Hue dọc, so sánh new/current (bấm current để quay lại), nhập H/S/B, R/G/B, hex; 24 màu preset cho cảnh (trời, nước, cỏ, đất, đường, gạch, da…), màu gần đây, "Add to swatches"; nút **Screen** (Chrome/Edge EyeDropper API) hút màu ở bất kỳ đâu trên màn hình. Cancel/Esc trả lại màu cũ. Màu nền cũng chọn bằng picker này.
 - **Undo/Redo toàn bộ** (Ctrl+Z, Ctrl+Shift+Z/Ctrl+Y; 200 bước; Clear và đổi nền cũng undo được). `Ctrl+Enter` = search sketch; phím tắt chỉ hoạt động khi focus ở trong canvas, và Enter ở đó **không bao giờ mở submit guard**. Mũi tên/v/k/t vẫn điều khiển kết quả.
 - **Autosave theo câu hỏi** (localStorage, debounce 250 ms, giữ 30 bản vẽ gần nhất): đổi câu hỏi trong tab → bản vẽ của câu đó tự hiện lại; reload trang vẫn còn và vẫn undo được từng thao tác.
-- Health: `capabilities.canvas_sketch_search` = PE encoder + PE Milvus của profile đó sống. PE server cần route `/encode-image` (cell mục 7 trong `model-setup-backend.ipynb`, hot-add không phải restart); thiếu route → search trả cảnh báo rõ ràng, không 500.
+- Health: `capabilities.canvas_sketch_search` = PE encoder + PE Milvus của profile đó sống. PE server cần route `/encode-image` (có sẵn trong server của `model-setup-backend.ipynb` bản Colab A100); server cũ thiếu route → search trả cảnh báo rõ ràng, không 500.
 
 ## 9. TRAKE (chuỗi sự kiện)
 - **Tách event**: nhận `E1:/E2:`, `sự kiện 1:`, đánh số, từ nối ("sau đó/rồi/…").
@@ -242,7 +242,7 @@ Vòng sơ tuyển chấm `Final = (R@1 + R@5 + R@20 + R@50 + R@100) / 5`, mỗi 
 `ELASTIC_ENDPOINT/API_KEY` · `MILVUS_ENDPOINT/TOKEN` · `PE_ENCODER_URL`(+`_TOKEN`) · `GLAP_ENCODER_URL` (mặc định = PE) · `NVILA_BASE_URL/TOKEN` · `NVILA_TIMEOUT_SECONDS/MAX_CANDIDATES` · `DEEPSEEK_API_KEY` · `DEEPSEEK_GROUNDING_*` · `MEDIA_BASE_URL` · `NVIDIA_API_KEY/BASE_URL` · `NVIDIA_MODEL` (parse) · `NVIDIA_FAST_MODEL` (expansion) · `SLIM_PARSE` · `TRANSLATE_TO_EN` · `WHISPER_MODEL` · `DRES_BASE_URL` · `DRES_USERNAME/PASSWORD` · `DRES_SESSION` · `DRES_EVALUATION_ID` · `DRES_SEGMENT_PAD_MS` · `IDX_*` · `MILVUS_IMAGE_COLLECTION` · `MILVUS_AUDIO_COLLECTION` · `AIC26_MOCK_MODE` · `CORS_ORIGINS`.
 
 ## 17. Models & dữ liệu
-- **PE-Core-G14-448** (1280-d) — ảnh + text, Kaggle FastAPI + cloudflared (`model-setup-backend.ipynb`).
+- **PE-Core-G14-448** (1280-d) — ảnh + text, FastAPI trên Colab A100 sau named tunnel riêng `https://pe.baoencoder.site` (giống Qwen encoder), bearer `PE_ENCODER_TOKEN` (`model-setup-backend.ipynb`).
 - **GLAP `mispeech/GLAP`** (1024-d) — audio↔text, text encoder chạy **CPU** (`/encode-audio-text`); cùng notebook PE hoặc `glap-encoder-kaggle.ipynb` riêng.
 - **Qwen3-VL-Embedding-8B** (4096-d native) — text query encoder, Colab A100 40/80 GB BF16 + FA2 (`Qwen3VL-Embedding-8B/Qwen3_VL_Embedding_8B_Text_Encoder_Server_Colab_A100.ipynb`). Ảnh đã encode sẵn offline; instruction query khóa ở `Retrieve images or text relevant to the user's query.`
 - **Milvus**: `aic26_image_peg14_v1` (382,299), `aic26_audio_glap_v1` (466,996), `aic26_image_peg14_infoshotpp_v1` và `aic26_image_qwen3vl8b_infoshotpp_v3` (1,339,055 keyframe InfoShot++).

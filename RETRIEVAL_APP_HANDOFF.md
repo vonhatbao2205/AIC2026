@@ -40,7 +40,7 @@ files already in the repo root). See `backend/.env.example`.
 |---|---|---|
 | `ELASTIC_ENDPOINT`, `ELASTIC_API_KEY` | for live OCR/speech/audio/timeline | Elastic Cloud |
 | `MILVUS_ENDPOINT`, `MILVUS_TOKEN` | for live image vector search | Zilliz/Milvus |
-| `PE_ENCODER_URL` | for live image search | Kaggle PE-Core-G14 `/encode-text` server |
+| `PE_ENCODER_URL` | for live image search | PE-Core-G14 server (`/encode-text`, `/encode-image`, `/encode-audio-text`) from `model-setup-backend.ipynb` on Colab A100, behind its own named tunnel (e.g. `https://pe.baoencoder.site`); pair with `PE_ENCODER_TOKEN` |
 | `PE_ENCODER_TOKEN` | optional | sent as `Authorization: Bearer` if set |
 | `QWEN3_VL_ENCODER_URL`, `QWEN3_VL_ENCODER_TOKEN` | optional, InfoShot++ only | Colab A100 Qwen3-VL-Embedding-8B `/encode-text` worker; both are required to enable it |
 | `QWEN3_VL_ENCODER_TIMEOUT_SECONDS` | optional | text-encode timeout, default 120s (covers the worker's cold first inference) |
@@ -253,7 +253,7 @@ detection behind it:
   never be answered from BTC's index. Editor chrome (thirds guides, brush ring)
   is never part of the export. PE squashes both the sketch and the keyframes to
   448×448 without a centre crop, which is why the canvas stays 16:9.
-  The route is hot-added by §7 of `model-setup-backend.ipynb`; on an older server
+  `model-setup-backend.ipynb` registers the route before its server starts; on an older server
   the backend returns a warning instead of a 500. Only inline
   `data:image/png|jpeg;base64` whose bytes decode to that format is accepted —
   never a URL, which would make the encoder fetch arbitrary hosts.
@@ -473,7 +473,7 @@ The first request of a process still pays the handshake once.
 
 - **Audio vector search** uses GLAP (`mispeech/GLAP`, 1024-d) over Milvus
   `aic26_audio_glap_v1`, FUSED (rank-RRF) with the Elastic tag/caption signal in
-  the audio channel. It needs the `/encode-audio-text` endpoint on the Kaggle PE
+  the audio channel. It needs the `/encode-audio-text` endpoint on the PE
   server (see `model-setup-backend.ipynb`); if that endpoint is down the audio
   channel falls back to Elastic-only automatically.
 - **QA visual assistance is online/candidate-based** — NVILA directly inspects
