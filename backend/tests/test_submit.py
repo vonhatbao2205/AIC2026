@@ -392,3 +392,23 @@ async def test_deleting_one_entry_only_frees_that_answer(submit_service):
 
 def test_deleting_unknown_ids_changes_nothing(submit_service):
     assert submit_service.clear_history(ids=["nope"])["deleted"] == 0
+
+
+@pytest.mark.parametrize("video_id", ["M05_V003", "N001-V002", "S01-V003"])
+def test_batch2_answers_name_the_video_exactly_as_the_organisers_file(video_id):
+    """DRES counts the item as the video file name without its extension. BTC's
+    batch-2 zips hold `M05_V003.mp4` (underscore), `N001-V002.mov` and
+    `S01-V003.mp4` (hyphen, three-digit N), so the id is sent untouched."""
+    from app.services.submit_service import build_answer_sets
+
+    kis = build_answer_sets(task_name="t", query_type="T-KIS",
+                            payload={"video_id": video_id, "timestamp": 12.0, "fps": 25.0})
+    qa = build_answer_sets(task_name="t", query_type="QA",
+                           payload={"video_id": video_id, "timestamp": 12.0, "fps": 25.0, "answer": "5"})
+    trake = build_answer_sets(task_name="t", query_type="TRAKE", payload={
+        "video_id": video_id, "fps": 25.0,
+        "events": [{"pts_time": 10.0, "frame_idx": 250}, {"pts_time": 20.0, "frame_idx": 500}],
+    })
+    assert kis[0]["answers"] == [{"mediaItemName": video_id, "start": 12000, "end": 12000}]
+    assert qa[0]["answers"] == [{"text": f"QA-5-{video_id}-12000"}]
+    assert trake[0]["answers"] == [{"text": f"TR-{video_id}-250,500"}]
