@@ -2875,6 +2875,40 @@ describe("query pack + submission table", () => {
     expect(await screen.findByTestId("csv-query-p1-1-kis")).toHaveTextContent("K01_V001,0");
   });
 
+  it("Shift+Enter sends the paused frame to DRES, ticking Direct DRES back on", async () => {
+    dresConfigured = true;
+    const user = userEvent.setup();
+    render(<App />);
+    const direct = await screen.findByRole("checkbox", { name: /direct dres submission/i });
+    await user.click(direct);
+    expect(direct).not.toBeChecked();
+
+    await user.type(screen.getByTestId("query-input"), "thời sự");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => screen.getByTestId("detail-panel"));
+    (document.activeElement as HTMLElement)?.blur();
+    fireEvent.keyDown(window, { key: "v" });
+    const video = await screen.findByTestId("video-viewer") as HTMLVideoElement;
+    Object.defineProperty(video, "currentTime", { configurable: true, writable: true, value: 5.2 });
+    fireEvent.pause(video);
+    await screen.findByTestId("paused-frame-chip");
+
+    fireEvent.keyDown(window, { key: "Enter", shiftKey: true });
+    await waitFor(() => expect(screen.getByTestId("submit-guard")).toBeInTheDocument());
+    expect(screen.getByRole("checkbox", { name: /direct dres submission/i })).toBeChecked();
+    expect(screen.getByTestId("guard-dres-target")).toBeInTheDocument();
+    expect(screen.queryByTestId("guard-submission-target")).not.toBeInTheDocument();
+    expect(screen.getByTestId("guard-target")).toHaveTextContent("paused raw frame");
+
+    await waitFor(() => expect(screen.getByTestId("confirm-submit")).toBeEnabled());
+    await user.click(screen.getByTestId("confirm-submit"));
+    await waitFor(() => {
+      const submit = vi.mocked(fetch).mock.calls.find(([url]) => String(url).endsWith("/api/submit"));
+      expect(submit).toBeDefined();
+      expect(JSON.parse(String(submit![1]?.body)).payload.frame_idx).toBe(130);
+    });
+  });
+
   it("blocks a submit from a tab with no question bound", async () => {
     const user = userEvent.setup();
     render(<App />);

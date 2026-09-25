@@ -626,11 +626,24 @@ button { font-family: inherit; }
 /* The player: full strip width, with the capture bar right under it. */
 .agent-player { margin-top: 12px; padding: 8px; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); background: var(--bg-2); }
 .agent-player-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 12px; margin-bottom: 6px; }
-.agent-player-head .btn { margin-left: auto; }
+.agent-player-head .slot-editor-keys { margin-left: auto; }
 .agent-player video { display: block; width: 100%; max-height: 48vh; background: #000; border-radius: 5px; }
 .agent-paused { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 7px; font-size: 12px; }
 .agent-paused img { width: 96px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; background: #000; }
 .agent-assign { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+
+/* TRAKE slot editor: `v` on a clicked event slot re-picks that slot's frame. */
+.slot-editor {
+  margin: 10px 14px 12px; padding: 8px 10px 10px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line-soft));
+  border-radius: var(--radius); background: var(--bg-1); box-shadow: var(--shadow-1);
+}
+.slot-editor-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 12px; margin-bottom: 6px; }
+.slot-editor-current { color: var(--fg-dim); font-size: 11px; }
+.slot-editor-keys { margin-left: auto; font-size: 10.5px; color: var(--fg-faint); }
+.slot-editor-keys .kbd { font-size: 10px; }
+.slot-editor video { display: block; width: 100%; max-height: 48vh; background: #000; border-radius: 5px; }
+.slot-editor-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 7px; font-size: 12px; }
+.slot-editor-bar img { width: 96px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; background: #000; }
 
 /* ---- NVILA QA copilot ---- */
 .qa-assist { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }

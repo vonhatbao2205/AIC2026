@@ -55,6 +55,7 @@ import { SubmitGuard } from "./components/SubmitGuard";
 import { Timeline } from "./components/Timeline";
 import { TopBar } from "./components/TopBar";
 import { TrakePanel, type TrakeSlot } from "./components/TrakePanel";
+import { TrakeSlotEditor, type SlotEditorState } from "./components/TrakeSlotEditor";
 import type { TrakePeakDrag } from "./lib/trakeDrag";
 import { VideoViewer, type VideoViewerHandle } from "./components/VideoViewer";
 import { useAgentRun } from "./hooks/useAgentRun";
@@ -68,7 +69,7 @@ import {
   type AgentSequence,
 } from "./lib/agent";
 import { autoEvaluationId } from "./lib/dres";
-import { sortFramesByTime, swapVideoOrigin } from "./lib/media";
+import { sortFramesByTime, swapVideoOrigin, videoUrl } from "./lib/media";
 import { findQaFrame, selectQaCandidateFrames } from "./lib/qa";
 import { kindForQueryType, type ImportedQuestion } from "./lib/questions";
 import { DEFAULT_IMAGE_MODELS, imageModelsForSearch } from "./lib/imageModels";
@@ -449,6 +450,17 @@ export default function FullConsole({
   const queryTouched = useRef(false);
   const viewerRef = useRef<VideoViewerHandle>(null);
   const videoPanelRef = useRef<HTMLDivElement>(null);
+  // Three inline players can be open at once: the main one under a result, the
+  // Agents strip's, and the TRAKE slot editor's. The scrub keys (a/d, arrows,
+  // Space) drive the one the operator last opened or clicked.
+  const [keyPlayer, setKeyPlayer] = useState<"main" | "agent" | "slot">("main");
+  const agentViewerRef = useRef<VideoViewerHandle>(null);
+  const [agentPlayerOpen, setAgentPlayerOpen] = useState(false);
+  const slotViewerRef = useRef<VideoViewerHandle>(null);
+  const [slotEditor, setSlotEditor] = useState<SlotEditorState | null>(null);
+  // The operator's last click was on a TRAKE event slot, so `v` opens that
+  // slot's frame rather than the selected result keyframe.
+  const [slotFocus, setSlotFocus] = useState(false);
   // Set once a video has actually failed on the primary origin. After that every
   // new video starts on the fallback instead of spending a failed request per
   // clip rediscovering that the origin is still down.
@@ -1069,6 +1081,7 @@ export default function FullConsole({
   // A run belongs to one question on one dataset.
   useEffect(() => {
     clearAgents();
+    setSlotEditor(null);
   }, [clearAgents, question?.id, retrievalDatabase]);
 
   const resultVideoIds = useMemo(
@@ -1233,6 +1246,68 @@ export default function FullConsole({
     (url: string) => swapVideoOrigin(url, health?.media?.video_base_url, health?.media?.video_fallback_base_url),
     [health?.media?.video_base_url, health?.media?.video_fallback_base_url],
   );
+
+  // ---- TRAKE slot editor ----
+  /** A video's URL wherever the console already has it, else built from the
+   *  media origin: a slot can hold a frame from a video no list shows any more. */
+  function videoUrlFor(videoId: string): string | null {
+    return groups.find((group) => group.video_id === videoId)?.video_url
+      ?? trakeVideos.find((video) => video.video_id === videoId)?.video_url
+      ?? agentRun?.candidates.find((candidate) => candidate.video_id === videoId)?.video_url
+      ?? (health?.media?.video_base_url ? videoUrl(health.media.video_base_url, videoId) : null);
+  }
+
+  /** `v` on a clicked slot: play that slot's video from its frame. */
+  function toggleSlotEditor(slotIndex: number) {
+    if (slotEditor?.slotIndex === slotIndex) {
+      setSlotEditor(null);
+      return;
+    }
+    const slot = trakeSlots[slotIndex];
+    if (!slot) {
+      setToast({ msg: `E${slotIndex + 1} is empty — fill it before re-picking its frame.`, kind: "bad" });
+      return;
+    }
+    const url = videoUrlFor(slot.video_id);
+    if (!url) {
+      setToast({ msg: `No video URL for ${slot.video_id}.`, kind: "bad" });
+      return;
+    }
+    // The keyframe map's fps via the timeline; until it answers, the slot's own
+    // frame number over its time is within a rounding of it.
+    const cached = timelineCache.current.get(slot.video_id);
+    const derived = slot.pts_time > 0 && slot.frame_idx > 0 ? slot.frame_idx / slot.pts_time : 25;
+    setSlotEditor({
+      slotIndex,
+      video_id: slot.video_id,
+      video_url: url,
+      fallback_url: swapVideoOrigin(url, health?.media?.video_base_url, health?.media?.video_fallback_base_url),
+      start: slot.pts_time,
+      fps: cached?.fps ?? derived,
+    });
+    setKeyPlayer("slot");
+    if (!cached) {
+      api.timeline(slot.video_id, retrievalDatabase).then((tl) => {
+        timelineCache.current.set(slot.video_id, tl);
+        setSlotEditor((editor) => (editor && editor.video_id === tl.video_id ? { ...editor, fps: tl.fps } : editor));
+      }).catch(() => {});
+    }
+  }
+
+  // Picking a result frame (or a TRAKE moment) hands `v` back to the results.
+  useEffect(() => {
+    setSlotFocus(false);
+  }, [selectedVideo, selectedFrame, trakePeak]);
+
+  // Opening the main player gives it the scrub keys.
+  useEffect(() => {
+    if (videoVisible && activeVideoId) setKeyPlayer("main");
+  }, [videoVisible, activeVideoId]);
+
+  const onAgentPlayerChange = useCallback((open: boolean) => {
+    setAgentPlayerOpen(open);
+    if (open) setKeyPlayer("agent");
+  }, []);
 
   // The tab rail shows a spinner per tab, so the parent has to know which tabs
   // are still running after an import kicked all of them off at once.
@@ -1533,6 +1608,28 @@ export default function FullConsole({
       setPausedFrame(null);
     },
     [pausedFrame, trakeSlots],
+  );
+
+  /** The slot editor's Replace: the paused frame becomes that slot's frame. The
+   *  armed slot stays where it is (unlike assigning, which moves on to the next
+   *  event), because re-picking a frame is often several tries at the same one. */
+  const replaceSlotFromPaused = useCallback(
+    (slotIdx: number) => {
+      if (!pausedFrame) return;
+      setTrakeSlots((slots) => {
+        const next = [...slots];
+        next[slotIdx] = {
+          video_id: pausedFrame.video_id,
+          frame_idx: pausedFrame.frame_idx,
+          pts_time: pausedFrame.pts_time,
+          thumbnail: pausedFrame.thumbnail,
+        };
+        return next;
+      });
+      setToast({ msg: `E${slotIdx + 1} ← frame ${pausedFrame.frame_idx}`, kind: "ok" });
+      setPausedFrame(null);
+    },
+    [pausedFrame],
   );
 
   // Effective frame_idx for a result frame: prefer the exact value from the
@@ -1893,6 +1990,20 @@ export default function FullConsole({
     setGuardOpen(true);
   }
 
+  /** Shift+Enter and every "Submit paused frame" button: the exact paused frame
+   *  goes to DRES. The Submission tab is not used in the final round, so when the
+   *  backend has DRES an unticked "Direct DRES submission" is ticked again instead
+   *  of writing a CSV row. Without DRES there is nowhere else to send it, and the
+   *  query-pack flow is kept. AVS keeps its own panel. */
+  function submitPausedFrame() {
+    if (!pausedFrame) return;
+    if (queryType !== "AVS" && dresStatus?.configured && !dresRequested) {
+      setDresRequested(true);
+      setToast({ msg: "Direct DRES submission is back on: the paused frame goes to DRES.", kind: "ok" });
+    }
+    openGuard("paused");
+  }
+
   /** Add the current result/sequence/raw pause to the per-machine scratchpad. */
   function addToSticky(target: GuardTarget = "result", answerOverride?: string) {
     if (!question) {
@@ -2065,6 +2176,12 @@ export default function FullConsole({
     // The video only owns the keys while it is actually on screen for the group
     // the operator has selected — the same condition 'v' toggles on.
     const videoScrubbable = videoVisible && !!activeVideoId && activeVideoId === selectedVideoId;
+    // The slot editor or the Agents strip's player, when it is the one the
+    // operator last opened or clicked; otherwise the keys stay on the main player.
+    const slotOwnsKeys = slotEditor !== null && keyPlayer === "slot";
+    const agentOwnsKeys = agentPlayerOpen && keyPlayer === "agent";
+    const sidePlayer = (): VideoViewerHandle | null =>
+      slotOwnsKeys ? slotViewerRef.current : agentOwnsKeys ? agentViewerRef.current : null;
 
     function onKey(e: KeyboardEvent) {
       // Ctrl/Cmd + / toggles the shortcuts help — works anywhere, even while typing.
@@ -2085,6 +2202,7 @@ export default function FullConsole({
         if (keymapOpen) setKeymapOpen(false);
         else if (guardOpen) setGuardOpen(false);
         else if (pausedFrame) setPausedFrame(null);
+        else if (slotEditor) setSlotEditor(null);
         return;
       }
       if (e.key === "Enter" && guardOpen) {
@@ -2106,18 +2224,35 @@ export default function FullConsole({
       // That handling happens on the way UP to window, so preventDefault() here
       // cannot cancel it. This listener is therefore registered in the CAPTURE
       // phase and stops the event before the element is ever reached.
-      if (videoVisible && seekDeltaForKey(e.key) !== null) e.stopPropagation();
+      if ((videoVisible || sidePlayer()) && seekDeltaForKey(e.key) !== null) e.stopPropagation();
+
+      // The slot editor and the strip's player take the scrub keys with the
+      // same steps as the main player (and ahead of the neighbour strip).
+      const side = sidePlayer();
+      const scrub = seekDeltaForKey(e.key);
+      if (side && scrub !== null) {
+        e.preventDefault();
+        side.seekBy(scrub);
+        return;
+      }
+      if (side && e.key === " ") {
+        e.preventDefault();
+        side.toggle();
+        return;
+      }
 
       switch (e.key) {
         case "Enter":
           e.preventDefault();
           if (queryType === "TRAKE") {
-            if (pausedFrame) assignPausedFrameToSlot(activeSlot);
+            // In the slot editor, Enter re-picks THAT slot's frame.
+            if (pausedFrame && slotOwnsKeys && slotEditor) replaceSlotFromPaused(slotEditor.slotIndex);
+            else if (pausedFrame) assignPausedFrameToSlot(activeSlot);
             else openGuard("result");
           } else if (e.shiftKey) {
             // Submitting the exact raw frame is a deliberate, separate action —
             // plain Enter always stays on the result keyframe shown in Detail.
-            if (pausedFrame) openGuard("paused");
+            if (pausedFrame) submitPausedFrame();
           } else {
             openGuard("result");
           }
@@ -2185,6 +2320,13 @@ export default function FullConsole({
         case "v":
         case "V":
           e.preventDefault();
+          // After clicking a FILLED TRAKE event slot, 'v' opens (or closes) that
+          // slot's frame in the slot editor instead. An empty slot keeps the old
+          // flow: arm it, open the selected result's video, pause, assign.
+          if (queryType === "TRAKE" && slotFocus && trakeSlots[activeSlot]) {
+            toggleSlotEditor(activeSlot);
+            break;
+          }
           // 'v' shows the inline video under the selected keyframe (seeked to it);
           // pressing it again on the same video hides it. It opens PARKED on the
           // selected frame — see VideoViewer — and Space starts playback. A video
@@ -2211,7 +2353,7 @@ export default function FullConsole({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guardOpen, guardTarget, keymapOpen, pausedFrame, queryType, activeSlot, groups.length, selectedGroup, selectedFrameObj, selectedVideoId, videoVisible, activeVideoId, submitting, assignPausedFrameToSlot, neighborsVisible, neighborKeyframes, neighborIndex, neighborAnchorIndex, stickyOpen]);
+  }, [guardOpen, guardTarget, keymapOpen, pausedFrame, queryType, activeSlot, groups.length, selectedGroup, selectedFrameObj, selectedVideoId, videoVisible, activeVideoId, submitting, assignPausedFrameToSlot, neighborsVisible, neighborKeyframes, neighborIndex, neighborAnchorIndex, stickyOpen, replaceSlotFromPaused, slotEditor, keyPlayer, agentPlayerOpen, slotFocus, trakeSlots, dresRequested, dresStatus?.configured]);
 
   /** Scrub the open inline video by `delta` seconds (clamped by the viewer). */
   function nudgeVideo(delta: number) {
@@ -2244,7 +2386,7 @@ export default function FullConsole({
   const videoSlot =
     (videoVisible || neighborsVisible) && activeVideoId && selectedGroup
     && selectedGroup.video_id === activeVideoId ? (
-      <div ref={videoPanelRef}>
+      <div ref={videoPanelRef} onPointerDown={() => setKeyPlayer("main")}>
         {videoVisible && (
           <>
             <VideoViewer
@@ -2326,6 +2468,7 @@ export default function FullConsole({
           setTrakePeak(null);
           setChainOverrides({});
           setPausedFrame(null);
+          setSlotEditor(null);
           setQaAnalysis(null);
           setQaAnalysisError(null);
           setAnswer("");
@@ -2486,6 +2629,18 @@ export default function FullConsole({
               indexLabel={retrievalDatabase === "infoshotpp" ? "InfoShot++ PE index" : "BTC PE index"}
             />
           )}
+          {queryType === "TRAKE" && slotEditor && (
+            <TrakeSlotEditor
+              ref={slotViewerRef}
+              editor={slotEditor}
+              slot={trakeSlots[slotEditor.slotIndex] ?? null}
+              pausedFrame={pausedFrame}
+              onPaused={setPausedFrame}
+              onReplace={() => replaceSlotFromPaused(slotEditor.slotIndex)}
+              onClose={() => setSlotEditor(null)}
+              onFocus={() => setKeyPlayer("slot")}
+            />
+          )}
           {/* The agents' answers get the widest column: a TRAKE sequence is a
               row of frames, and the player needs room to pick an exact one. */}
           <AgentPanel
@@ -2506,13 +2661,16 @@ export default function FullConsole({
             onSticky={stickyAgentCandidate}
             onUseAnswer={setAnswer}
             onPaused={setPausedFrame}
-            onSubmitPaused={() => openGuard("paused")}
+            onSubmitPaused={submitPausedFrame}
             onStickyPaused={() => addToSticky("paused")}
             onAssignPaused={assignPausedFrameToSlot}
             onLoadSequence={loadAgentSequence}
             onSubmitSequence={submitAgentSequence}
             onStickySequence={stickyAgentSequence}
             videoFallback={agentVideoFallback}
+            playerRef={agentViewerRef}
+            onPlayerChange={onAgentPlayerChange}
+            onPlayerFocus={() => setKeyPlayer("agent")}
           />
           <div className="results-toolbar">
             <span className="results-count">
@@ -2654,7 +2812,7 @@ export default function FullConsole({
             frame={pausedFrame}
             queryType={queryType}
             activeTrakeSlot={activeSlot}
-            onSubmitPaused={() => openGuard("paused")}
+            onSubmitPaused={submitPausedFrame}
             onAddToSticky={() => addToSticky("paused")}
             onAssignToTrake={() => assignPausedFrameToSlot(activeSlot)}
             onClear={() => setPausedFrame(null)}
@@ -2671,7 +2829,7 @@ export default function FullConsole({
                 activeSlot={activeSlot}
                 hasPausedFrame={pausedFrame !== null}
                 violations={orderViolations}
-                onSetActive={setActiveSlot}
+                onSetActive={(index) => { setActiveSlot(index); setSlotFocus(true); }}
                 onAssignChip={assignPausedFrameToSlot}
                 onAssignPeak={assignPeakToSlot}
                 onClearSlot={(i) => setTrakeSlots((s) => s.map((x, idx) => (idx === i ? null : x)))}

@@ -6,7 +6,7 @@
  * main `/api/search` request is identical, never waits, and the agents' frames
  * live in their own panel.
  */
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
@@ -454,5 +454,63 @@ describe("AGENT button", () => {
 
     await user.click(within(row).getByTestId("agent-submit-sequence"));
     expect(await screen.findByTestId("submit-guard")).toBeInTheDocument();
+  });
+
+  it("scrubs the Agents strip's player with a/d and the arrows", async () => {
+    agentStart = (runId) => snapshot({ run_id: runId, finished: true, candidates: [candidate({ id: "codex-1" })] });
+    const user = userEvent.setup();
+    render(<App />);
+    await typeAndSearch(user);
+    await user.click(within(await screen.findByTestId("agent-candidate")).getByTestId("agent-play"));
+    const video = within(screen.getByTestId("agent-player")).getByTestId("video-viewer") as HTMLVideoElement;
+    video.currentTime = 30;
+    (document.activeElement as HTMLElement)?.blur();
+
+    fireEvent.keyDown(window, { key: "d" });
+    expect(video.currentTime).toBeCloseTo(31, 3);
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(video.currentTime).toBeCloseTo(36, 3);
+    fireEvent.keyDown(window, { key: "a" });
+    expect(video.currentTime).toBeCloseTo(35, 3);
+  });
+
+  it("re-picks a TRAKE slot's frame: click the slot, v, scrub, Enter", async () => {
+    agentStart = (runId) => snapshot({
+      run_id: runId,
+      finished: true,
+      query_type: "TRAKE",
+      candidates: [
+        candidate({ id: "codex-1", event: 1, frame_idx: 100, pts_time: 4, time: 4 }),
+        candidate({ id: "codex-2", event: 2, frame_idx: 300, pts_time: 12, time: 12 }),
+      ],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByTestId("query-input");
+    await user.click(screen.getByRole("tab", { name: "TRAKE" }));
+    await user.type(screen.getByTestId("query-input"), "người đàn ông áo đỏ");
+    await user.click(screen.getByTestId("search-btn"));
+    await user.click(within(await screen.findByTestId("agent-sequence")).getByTestId("agent-load-sequence"));
+
+    await user.click(screen.getByTestId("trake-slot-1"));
+    (document.activeElement as HTMLElement)?.blur();
+    fireEvent.keyDown(window, { key: "v" });
+    const editor = await screen.findByTestId("trake-slot-editor");
+    expect(editor).toHaveTextContent("Editing E2");
+    expect(editor).toHaveTextContent("current f300");
+
+    const video = within(editor).getByTestId("video-viewer") as HTMLVideoElement;
+    video.currentTime = 20;
+    fireEvent.keyDown(window, { key: "d" });
+    expect(video.currentTime).toBeCloseTo(21, 3);
+    // A seek that lands while the video is paused is the frame pick.
+    fireEvent(video, new Event("seeked"));
+    // 25 fps, from the slot's own frame number over its time.
+    await waitFor(() => expect(screen.getByTestId("slot-editor-bar")).toHaveTextContent("Paused frame 525"));
+
+    fireEvent.keyDown(window, { key: "Enter" });
+    await waitFor(() => expect(screen.getByTestId("trake-slot-1")).toHaveTextContent("f525"));
+    expect(screen.getByTestId("trake-slot-0")).toHaveTextContent("f100");
+    expect(screen.getByTestId("trake-slot-editor")).toHaveTextContent("current f525");
   });
 });

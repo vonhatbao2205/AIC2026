@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type Ref } from "react";
 import type { AgentCandidate, AgentName, AgentRunSnapshot, AgentState, QueryType } from "../api/types";
 import {
   AGENT_LABELS,
@@ -13,7 +13,7 @@ import {
 import { eventColor } from "../lib/constants";
 import { formatTime } from "../lib/media";
 import type { PausedFrame } from "./PausedFramePanel";
-import { VideoViewer } from "./VideoViewer";
+import { VideoViewer, type VideoViewerHandle } from "./VideoViewer";
 
 interface Props {
   run: AgentRunSnapshot | null;
@@ -52,6 +52,12 @@ interface Props {
   onStickySequence: (sequence: AgentSequence) => void;
   /** The same video under the fallback origin, when one is configured. */
   videoFallback: (url: string) => string | null;
+  /** The strip's player, so the console's scrub keys (a/d, arrows, Space) can drive it. */
+  playerRef?: Ref<VideoViewerHandle>;
+  /** Called when the strip's player opens or closes. */
+  onPlayerChange?: (open: boolean) => void;
+  /** A click in the player: it takes the scrub keys back from the main player. */
+  onPlayerFocus?: () => void;
 }
 
 const STATUS_LABEL: Record<AgentState["status"], string> = {
@@ -315,10 +321,16 @@ export function AgentPanel(props: Props) {
     [isTrake, run?.candidates, props.eventCount],
   );
 
+  const preview = candidates.find((c) => c.id === previewId) ?? null;
+  const playerOpen = preview !== null;
+  const { onPlayerChange } = props;
+  useEffect(() => {
+    onPlayerChange?.(playerOpen);
+  }, [playerOpen, onPlayerChange]);
+
   if (!run && !starting && !error) return null;
   const working = Boolean(run && !run.finished);
   const stale = Boolean(run && currentQuery.trim() && run.query.trim() !== currentQuery.trim());
-  const preview = candidates.find((c) => c.id === previewId) ?? null;
   const togglePreview = (candidate: AgentCandidate) =>
     setPreviewId((current) => (current === candidate.id ? null : candidate.id));
   const scope = run ? scopeLabel(run) : null;
@@ -425,15 +437,20 @@ export function AgentPanel(props: Props) {
           )}
 
           {preview && (
-            <div className="agent-player" data-testid="agent-player">
+            <div className="agent-player" data-testid="agent-player" onPointerDown={props.onPlayerFocus}>
               <div className="agent-player-head">
                 <span className={`agent-tag ${preview.agent}`}>{AGENT_LABELS[preview.agent]}</span>
                 <b className="mono">{preview.video_id}</b>
                 <span className="mono">from {formatTime(candidateTime(preview))}</span>
                 {preview.event != null && <span className="badge">E{preview.event}</span>}
+                <span className="slot-editor-keys">
+                  <span className="kbd">a</span>/<span className="kbd">d</span> ±1s · <span className="kbd">←</span>/
+                  <span className="kbd">→</span> ±5s · <span className="kbd">Space</span> play
+                </span>
                 <button className="btn sm ghost" onClick={() => setPreviewId(null)}>Close</button>
               </div>
               <VideoViewer
+                ref={props.playerRef}
                 src={preview.video_url}
                 fallbackSrc={props.videoFallback(preview.video_url)}
                 startTime={candidateTime(preview) ?? 0}

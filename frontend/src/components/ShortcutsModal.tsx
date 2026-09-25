@@ -29,21 +29,24 @@ const GROUPS: Group[] = [
     title: "Video & timeline",
     rows: [
       { keys: ["v"], desc: "Show / hide video at the selected keyframe" },
+      { keys: ["v"], desc: "TRAKE: after clicking an event slot, open its frame in the slot editor" },
       { keys: ["Space"], desc: "Play / pause (the video opens paused on the frame)" },
       { keys: ["T"], desc: "Toggle the timeline" },
       { keys: ["K"], desc: "Browse neighbouring keyframes of the selected frame" },
       { keys: ["←", "→"], desc: "Page the neighbour strip (video follows) when it is open" },
       { keys: ["←", "→"], desc: "Rewind / forward the open video by 5s (strip closed)" },
       { keys: ["a", "d"], desc: "Rewind / forward the open video by 1s" },
+      { keys: ["←", "→", "a", "d", "Space"], desc: "Drive the player last opened or clicked: main, Agents strip or slot editor" },
     ],
   },
   {
     title: "Submit",
     rows: [
       { keys: ["Enter"], desc: "Submit the selected result keyframe (shown in Detail)" },
-      { keys: ["Shift", "Enter"], desc: "Submit the captured paused raw frame" },
+      { keys: ["Shift", "Enter"], desc: "Submit the captured paused raw frame to DRES" },
       { keys: ["Enter"], desc: "Confirm submit (inside the guard)" },
       { keys: ["Enter"], desc: "TRAKE: assign paused frame to active slot" },
+      { keys: ["Enter"], desc: "TRAKE slot editor: replace that slot's frame with the paused frame" },
     ],
   },
   {
