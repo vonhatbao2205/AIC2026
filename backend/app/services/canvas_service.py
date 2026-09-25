@@ -6,6 +6,10 @@ vectors — and searched by cosine in the SELECTED profile's collection (BTC
 `aic26_image_peg14_v1` or the InfoShot++ one), so a sketch works wherever PE
 image search does. No object detection is involved.
 
+Before searching, the query loses the direction PE gives blank (uniform) images,
+unless the request turns `suppress_blank` off: otherwise a mostly-flat sketch —
+which is what sketches are — ranks title cards and fades first (see app.canvas).
+
 The hits still go through the same RRF, pts enrichment and group-by-video as the
 main search, so canvas results behave like any other result set in the console
 (timeline, evidence, submit guard) instead of being a parallel universe.
@@ -17,7 +21,13 @@ import time
 from typing import Any
 
 from ..adapters.pe_encoder import PeImageEncoderMissing
-from ..canvas import parse_canvas_image
+from ..canvas import (
+    BLANK_REFERENCE_IMAGES,
+    BLANK_SUPPRESSION,
+    blank_direction,
+    parse_canvas_image,
+    without_blank_direction,
+)
 from ..config import Settings
 from ..fusion import group_by_video, reciprocal_rank_fusion
 from ..types import ChannelHit, Evidence
@@ -28,6 +38,9 @@ class CanvasService:
     def __init__(self, settings: Settings, search_service: SearchService | None = None):
         self.s = settings
         self.search_service = search_service or SearchService(settings)
+        # Encoded once per service (a config reload builds a new one) and then
+        # reused: the references never change for a given PE server.
+        self._blank_direction: list[float] | None = None
 
     async def search(self, req: dict[str, Any]) -> dict[str, Any]:
         t_total = time.perf_counter()
@@ -43,6 +56,7 @@ class CanvasService:
             }
 
         top_k = int(req.get("top_k") or 100)
+        suppress_blank = bool(req.get("suppress_blank", True))
         # The drawing is the query, so an auto scope has no text to read: only an
         # explicit manual selection can narrow a sketch search.
         scope = self.search_service.resolve_scope(req.get("scope"), query="")
@@ -50,7 +64,9 @@ class CanvasService:
         warnings: list[str] = []
         latency: dict[str, Any] = {"channels": {}}
         try:
-            hits, ms = await self._run_canvas_image(image, top_k, scope.categories)
+            hits, ms = await self._run_canvas_image(
+                image, top_k, scope.categories, suppress_blank=suppress_blank
+            )
         except PeImageEncoderMissing as exc:
             hits, ms = [], 0.0
             warnings.append(str(exc))
@@ -70,7 +86,7 @@ class CanvasService:
         return {
             # The raster is echoed as a flag, never as bytes: it can be megabytes
             # and the browser already has it.
-            "canvas": {"has_image": True},
+            "canvas": {"has_image": True, "suppress_blank": suppress_blank},
             "retrieval_database": self.s.retrieval_database,
             "scope": scope.to_dict(),
             "groups": [
@@ -82,21 +98,35 @@ class CanvasService:
         }
 
     async def _run_canvas_image(
-        self, image: str, top_k: int, categories: tuple[str, ...] = ()
+        self,
+        image: str,
+        top_k: int,
+        categories: tuple[str, ...] = (),
+        *,
+        suppress_blank: bool = True,
     ) -> tuple[list[ChannelHit], float]:
-        """Rendered drawing → PE image embedding → Milvus kNN."""
+        """Rendered drawing → PE image embedding (minus the blank direction) → Milvus kNN."""
         t0 = time.perf_counter()
+        # The references ride in the same request as the sketch (the server takes
+        # up to 8 images), so the first search pays no extra round trip.
+        need_references = suppress_blank and self._blank_direction is None
+        batch = [image, *BLANK_REFERENCE_IMAGES] if need_references else [image]
         try:
-            vectors = await self.search_service.pe.encode_image([image])
+            vectors = await self.search_service.pe.encode_image(batch)
         except PeImageEncoderMissing:
             raise
         except Exception as exc:  # noqa: BLE001 - normalized by the caller's warning
             raise RuntimeError(f"PE image encode failed: {exc}") from exc
         if not vectors:
             return [], (time.perf_counter() - t0) * 1000
+        query = vectors[0]
+        if need_references and len(vectors) == len(batch):
+            self._blank_direction = blank_direction(vectors[1:])
+        if suppress_blank and self._blank_direction is not None:
+            query = without_blank_direction(query, self._blank_direction, BLANK_SUPPRESSION)
         raw = await asyncio.to_thread(
             self.search_service.milvus.search_image,
-            vectors[0],
+            query,
             top_k=top_k,
             categories=categories,
         )

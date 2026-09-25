@@ -1037,7 +1037,7 @@ export default function FullConsole({
   // versa). Results land in the same `groups` state, so timeline, detail panel
   // and submit guard behave exactly as they do for any other search. The
   // retrieval-depth slider applies to it like to any other search.
-  const runCanvasSearch = useCallback(async (image: string) => {
+  const runCanvasSearch = useCallback(async (image: string, { suppressBlank }: { suppressBlank: boolean }) => {
     const owner = ++searchOwner.current;
     setLoading(true);
     setAppliedTopK(topK);
@@ -1050,6 +1050,7 @@ export default function FullConsole({
         canvas: { image },
         scope: scopeRequest(scopeMode, scopeSelection),
         top_k: topK,
+        suppress_blank: suppressBlank,
       });
       if (owner !== searchOwner.current) return;
       setParsed(null);

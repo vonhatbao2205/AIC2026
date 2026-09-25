@@ -384,7 +384,7 @@ export interface CanvasSpec {
 }
 
 export interface CanvasSearchResponse {
-  canvas: { has_image: boolean };
+  canvas: { has_image: boolean; suppress_blank?: boolean };
   retrieval_database?: RetrievalDatabase;
   scope?: ResolvedScope;
   groups: VideoGroup[];

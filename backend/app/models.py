@@ -227,6 +227,9 @@ class CanvasSearchRequest(BaseModel):
     scope: SearchScope = Field(default_factory=SearchScope)
     top_k: int = Field(default=100, ge=1, le=1000)
     max_videos: int = Field(default=50, ge=1, le=200)
+    # Remove the "blank frame" direction from the sketch query (app.canvas).
+    # Off only for a genuinely plain scene, e.g. a white wall behind a speaker.
+    suppress_blank: bool = True
 
 
 class QaCandidate(BaseModel):

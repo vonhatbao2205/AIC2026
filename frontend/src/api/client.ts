@@ -247,7 +247,7 @@ export const api = {
       signal,
     }),
 
-  searchCanvas: (body: { retrieval_database: RetrievalDatabase; canvas: CanvasSpec; scope?: SearchScope; top_k?: number }) =>
+  searchCanvas: (body: { retrieval_database: RetrievalDatabase; canvas: CanvasSpec; scope?: SearchScope; top_k?: number; suppress_blank?: boolean }) =>
     request<CanvasSearchResponse>("/api/search/canvas", {
       method: "POST",
       body: JSON.stringify(body),

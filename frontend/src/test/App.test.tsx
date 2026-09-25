@@ -683,7 +683,21 @@ describe("V-KIS sketch canvas", () => {
     expect(body.retrieval_database).toBe("infoshotpp");
     expect(body.canvas).toEqual({ image: PNG });
     expect(body.top_k).toBeGreaterThan(0);
+    // Blank-frame suppression is on unless the operator turns it off.
+    expect(body.suppress_blank).toBe(true);
     expect(await screen.findByTestId("results")).toBeInTheDocument();
+  });
+
+  it("lets the operator search a genuinely plain scene without blank suppression", async () => {
+    const user = userEvent.setup();
+    await openCanvas(user);
+
+    draw();
+    await user.click(screen.getByTestId("canvas-ignore-blank"));
+    await user.click(screen.getByTestId("canvas-search"));
+
+    await waitFor(() => expect(canvasRequests).toHaveLength(1));
+    expect(canvasRequests[0].suppress_blank).toBe(false);
   });
 
   it("undoes and redoes a stroke", async () => {

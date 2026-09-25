@@ -219,7 +219,7 @@ def test_canvas_sketch_searches_the_selected_profile(database):
     body = r.json()
 
     assert body["retrieval_database"] == database
-    assert body["canvas"] == {"has_image": True}
+    assert body["canvas"] == {"has_image": True, "suppress_blank": True}
     assert body["groups"], "a sketch must return candidates in mock mode"
     frames = [frame for group in body["groups"] for frame in group["frames"]]
     assert all(frame["channels"] == ["canvas_image"] for frame in frames)

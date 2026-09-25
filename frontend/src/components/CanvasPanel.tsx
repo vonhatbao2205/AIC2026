@@ -35,8 +35,11 @@ import {
 import { ColorPicker } from "./ColorPicker";
 
 interface Props {
-  /** Called with the drawing flattened onto its background (PNG data URL). */
-  onSearch: (image: string) => void;
+  /** Called with the drawing flattened onto its background (PNG data URL).
+   *  `suppressBlank` asks the backend to remove the direction PE gives blank
+   *  frames from the query (app.canvas) — without it a mostly-flat sketch
+   *  ranks title cards and fades first. */
+  onSearch: (image: string, options: { suppressBlank: boolean }) => void;
   loading: boolean;
   /** `canvas_sketch_search` from /api/health; null while health is loading. */
   available: boolean | null;
@@ -85,11 +88,12 @@ interface Prefs {
   tolerance: number;
   smoothing: number;
   guides: boolean;
+  ignoreBlank: boolean;
 }
 
 const DEFAULT_PREFS: Prefs = {
   tip: "round", color: "#1e50dc", alpha: 1, size: 18, eraserSize: 40,
-  filled: true, tolerance: 32, smoothing: 0.35, guides: true,
+  filled: true, tolerance: 32, smoothing: 0.35, guides: true, ignoreBlank: true,
 };
 
 function readJson(key: string): unknown {
@@ -122,6 +126,7 @@ function loadPrefs(): Prefs {
     tolerance: num(raw.tolerance, 0, 255, DEFAULT_PREFS.tolerance),
     smoothing: num(raw.smoothing, 0, 0.9, DEFAULT_PREFS.smoothing),
     guides: typeof raw.guides === "boolean" ? raw.guides : DEFAULT_PREFS.guides,
+    ignoreBlank: typeof raw.ignoreBlank === "boolean" ? raw.ignoreBlank : DEFAULT_PREFS.ignoreBlank,
   };
 }
 
@@ -564,7 +569,7 @@ export function CanvasPanel({ onSearch, loading, available, storageKey, indexLab
       return;
     }
     setExportError(null);
-    onSearch(image);
+    onSearch(image, { suppressBlank: prefs.ignoreBlank });
   }
 
   // ---- view ----
@@ -876,7 +881,21 @@ export function CanvasPanel({ onSearch, loading, available, storageKey, indexLab
                 {picker === "background" && pickerFor("background", "above")}
               </span>
             </div>
-            {searchButton}
+            <div className="row" style={{ gap: 6 }}>
+              <label
+                className="check-toggle"
+                title="On: search ignores how 'blank' the sketch looks, so flat colour areas match frames of that colour instead of empty title cards and fades. Off: for a genuinely plain scene (e.g. a speaker in front of a white wall)."
+              >
+                <input
+                  type="checkbox"
+                  checked={prefs.ignoreBlank}
+                  onChange={(event) => patch({ ignoreBlank: event.target.checked })}
+                  data-testid="canvas-ignore-blank"
+                />
+                Ignore blank frames
+              </label>
+              {searchButton}
+            </div>
           </div>
         </>
       )}
