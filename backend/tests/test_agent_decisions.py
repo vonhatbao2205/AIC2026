@@ -140,6 +140,107 @@ def test_calibration_fit_rejects_test_labels_and_reduces_overconfidence(tmp_path
     assert geometric_score([.99, .01], [1, 1]) < .11
 
 
+def test_calibration_bundle_keeps_holistic_and_constraints_separate(tmp_path):
+    path = tmp_path / "bundle.json"
+    profile = {"split": "dev", "query_ids": ["q"], "model": "jev", "temperature": 5,
+               "aggregation": "holistic", "stop_threshold": .5, "stop_margin": .1}
+    path.write_text(json.dumps({"profiles": {"holistic": profile,
+        "constraints": {**profile, "temperature": 6, "aggregation": "constraints", "stop_threshold": .55}}}))
+    e = Calibration.load(str(path), model="jev", aggregation="holistic")
+    f = Calibration.load(str(path), model="jev", aggregation="constraints")
+    assert e.temperature == 5 and e.stop_threshold == .5
+    assert f.temperature == 6 and f.stop_threshold == .55
+    with pytest.raises(ValueError, match="model"):
+        Calibration.load(str(path), model="other", aggregation="holistic")
+    with pytest.raises(ValueError, match="aggregation"):
+        Calibration.load(str(path), aggregation="missing")
+    profile["stop_threshold"] = .4
+    path.write_text(json.dumps(profile))
+    with pytest.raises(ValueError, match="stopping"):
+        Calibration.load(str(path))
+
+
+@pytest.mark.asyncio
+async def test_controller_uses_dev_artifact_stopping_parameters(settings, monkeypatch, tmp_path):
+    path = tmp_path / "calibration.json"
+    path.write_text(json.dumps({"profiles": {"constraints": {"split": "dev", "query_ids": ["q"],
+        "temperature": 5.8, "model": settings.jev_model, "aggregation": "constraints",
+        "stop_threshold": .5, "stop_margin": .1}}}))
+    settings.agent_calibration_path = str(path)
+    run = AgentRun(AgentRunRequest(query="a red bicycle", policy="full"))
+    run.controller_active = True
+    controller = Controller(SimpleNamespace(), run, {"codex": "unused"}, "http://local", settings,
+                            {"groups": [{"frames": [frame()]}]})
+    async def decide(state, questions):
+        return await Judge(.65).decide(state, questions)
+    monkeypatch.setattr(controller.client, "decide", decide)
+    await controller.run_controller()
+    assert run.controller["stop_reason"] == "evidence_sufficient"
+    assert run.controller["stop_threshold"] == .5 and run.controller["stop_margin"] == .1
+    assert run.controller["calibration_temperature"] == 5.8
+    assert run.controller["calibrated"] and run.controller["calibration_query_ids"] == ["q"]
+    assert any(t["kind"] == "stop_check" and t["can_stop"] for t in run.trace)
+
+
+@pytest.mark.asyncio
+async def test_controller_task_stopping_overrides_apply_only_to_matching_task(settings, monkeypatch, tmp_path):
+    path = tmp_path / "calibration.json"
+    profile = {"split": "dev", "query_ids": ["q"], "temperature": 5.8, "model": settings.jev_model,
+               "aggregation": "constraints", "stop_threshold": .9, "stop_margin": .1,
+               "stopping_by_task": {"T-KIS": {"threshold": .5, "margin": .1}}}
+    path.write_text(json.dumps({"profiles": {"constraints": profile}}))
+    settings.agent_calibration_path = str(path)
+    for task in ["T-KIS", "QA"]:
+        run = AgentRun(AgentRunRequest(query="a red bicycle", query_type=task, policy="full"))
+        run.controller_active = True
+        controller = Controller(SimpleNamespace(), run, {}, "http://local", settings, {"groups": []})
+        monkeypatch.setattr(controller, "evaluate", lambda: asyncio.sleep(0, result=False))
+        await controller.run_controller()
+        assert run.controller["stop_threshold"] == (.5 if task == "T-KIS" else .9)
+
+
+@pytest.mark.asyncio
+async def test_quota_in_parallel_agent_cancels_peer_and_interrupts_controller(settings):
+    run = AgentRun(AgentRunRequest(query="q", policy="parallel"))
+    run.controller_active = True
+    for name in ["codex", "claude"]:
+        run.agents[name] = AgentState(name, "m", "high", run.started)
+    cancelled = asyncio.Event()
+    async def agent(run, state, binary, url):
+        state.begin()
+        if state.name == "codex":
+            await asyncio.sleep(.01)
+            state.finish("failed", error="You've hit your usage limit", kind="quota")
+        else:
+            try:
+                await asyncio.sleep(30)
+            except asyncio.CancelledError:
+                state.finish("cancelled")
+                cancelled.set()
+                raise
+    controller = Controller(SimpleNamespace(_run_agent=agent), run, {"codex": "fake", "claude": "fake"},
+                            "http://local", settings, {"groups": []})
+    await asyncio.wait_for(controller.run_controller(), 1)
+    assert cancelled.is_set() and run.finished
+    assert run.controller["status"] == "interrupted" and run.controller["stop_reason"] == "model_quota"
+
+
+@pytest.mark.asyncio
+async def test_decision_quota_does_not_escalate_to_paid_agents(settings, monkeypatch):
+    run = AgentRun(AgentRunRequest(query="q", policy="full"))
+    run.controller_active = True
+    run.agents["codex"] = AgentState("codex", "m", "high", run.started)
+    controller = Controller(SimpleNamespace(), run, {"codex": "unused"}, "http://local", settings,
+                            {"groups": [{"frames": [frame()]}]})
+    async def quota(*a, **kw):
+        raise DecisionError("Jev HTTP 429")
+    monkeypatch.setattr(controller.client, "decide", quota)
+    await controller.run_controller()
+    assert run.controller["stop_reason"] == "model_quota"
+    assert run.controller["quota_error"] == "decision_provider"
+    assert run.agent_invocations["codex"] == 0
+
+
 @pytest.mark.asyncio
 async def test_controller_stops_without_launching_agents_on_evidence(settings, monkeypatch):
     settings.agent_max_steps = 3

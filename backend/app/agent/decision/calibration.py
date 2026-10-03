@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -18,6 +18,9 @@ class Calibration:
     temperature: float = 1.0
     fitted: bool = False
     query_ids: tuple[str, ...] = ()
+    stop_threshold: float | None = None
+    stop_margin: float | None = None
+    stopping_by_task: dict = field(default_factory=dict)
 
     def apply(self, p: float) -> float:
         p = min(1 - 1e-9, max(1e-9, p))
@@ -29,6 +32,12 @@ class Calibration:
         if not path:
             return cls()
         data = json.loads(Path(path).read_text())
+        if "profiles" in data:
+            # E/D use holistic relevance; F uses constraint aggregation. Never
+            # apply one temperature to the other scheme or judge model.
+            if aggregation not in data["profiles"]:
+                raise ValueError("Calibration bundle has no matching aggregation")
+            data = data["profiles"][aggregation]
         t = float(data["temperature"])
         if model and data.get("model") and data["model"] != model:
             raise ValueError("Calibration model does not match this verifier")
@@ -36,7 +45,22 @@ class Calibration:
             raise ValueError("Calibration aggregation does not match this policy")
         if not math.isfinite(t) or not .05 <= t <= 20 or data.get("split") != "dev" or not data.get("query_ids"):
             raise ValueError("Calibration needs a valid temperature and development query IDs")
-        return cls(t, True, tuple(data["query_ids"]))
+        threshold, margin = data.get("stop_threshold"), data.get("stop_margin")
+        for value, minimum in ((threshold, .5), (margin, 0)):
+            if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or
+                                      not math.isfinite(value) or not minimum <= value <= 1):
+                raise ValueError("Invalid development stopping parameter")
+        by_task = data.get("stopping_by_task", {})
+        if not isinstance(by_task, dict) or any(task not in {"T-KIS", "QA", "TRAKE", "AVS"} for task in by_task):
+            raise ValueError("Invalid task-specific stopping parameters")
+        for parameters in by_task.values():
+            if not isinstance(parameters, dict) or set(parameters) != {"threshold", "margin"}:
+                raise ValueError("Invalid task-specific stopping parameters")
+            for key, minimum in (("threshold", .5), ("margin", 0)):
+                value = parameters[key]
+                if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not minimum <= value <= 1:
+                    raise ValueError("Invalid task-specific stopping parameters")
+        return cls(t, True, tuple(data["query_ids"]), threshold, margin, by_task)
 
 
 def fit_temperature(rows: list[dict]) -> dict:

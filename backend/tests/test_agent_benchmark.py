@@ -213,7 +213,7 @@ def test_paired_report_excludes_incomplete_queries_and_shows_agent_failures(tmp_
 
 
 @pytest.mark.asyncio
-async def test_runner_saves_quota_failure_then_stops_before_next_paid_run(tmp_path, monkeypatch):
+async def test_runner_excludes_quota_attempt_then_retries_same_pair_on_resume(tmp_path, monkeypatch):
     from types import SimpleNamespace
     import httpx
     from benchmarks.agent import run_benchmark as module
@@ -225,6 +225,8 @@ async def test_runner_saves_quota_failure_then_stops_before_next_paid_run(tmp_pa
     calls = []
     async def run(*args):
         calls.append(args[2])
+        if len(calls) > 1:
+            return {'controller': {'status': 'done'}, 'ranking': [f()]}, {'trace': []}, 1
         return {'controller': {'status': 'done'}, 'agents': {'codex': {'status': 'failed', 'error_kind': 'quota'}},
                 'metrics': {'agent_calls': {'codex': 1}}}, {'trace': []}, 1
     monkeypatch.setattr(module, 'run_one', run)
@@ -234,5 +236,13 @@ async def test_runner_saves_quota_failure_then_stops_before_next_paid_run(tmp_pa
     with pytest.raises(SystemExit, match='quota exhausted'):
         await module.main_async(args)
     assert len(calls) == 1
-    assert len((output / 'results.jsonl').read_text().splitlines()) == 1
+    assert not (output / 'results.jsonl').exists()
+    assert len((output / 'quota_attempts.jsonl').read_text().splitlines()) == 1
+    assert json.loads((output / 'summary.json').read_text()) == {}
     assert json.loads((output / 'STOPPED.json').read_text())['reason'] == 'agent_quota'
+    await module.main_async(args)
+    assert calls[0] == calls[1] and len(calls) == 3
+    assert len((output / 'results.jsonl').read_text().splitlines()) == 2
+    assert not (output / 'STOPPED.json').exists()
+    await module.main_async(args)
+    assert len(calls) == 3

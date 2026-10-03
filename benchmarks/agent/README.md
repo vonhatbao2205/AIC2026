@@ -158,11 +158,17 @@ Từng run tự retrieval, dùng cùng cấu hình; không dùng ground truth đ
 Output: `results.jsonl` (snapshot + trace + metrics), `manifest.json`,
 `summary.json`, `summary_by_task.json` (tách loại task), `summary_paired.json`
 (chỉ query đã đủ tất cả variants được cấu hình), `REPORT.md`. Chạy lại cùng lệnh để resume các cặp query/variant đã
-hoàn tất; muốn retry failed pairs hãy dùng thư mục mới. Manifest từ chối resume khi
+hoàn tất; lỗi quota sẽ retry tự động khi resume, lỗi khác cần thư mục mới để retry. Manifest từ chối resume khi
 đổi dataset, code agent/benchmark, model, ngưỡng hoặc calibration artifact.
-Gặp lỗi quota CLI: lưu lượt vừa chạy, ghi `STOPPED.json` rồi dừng trước lượt kế
-tiếp để tránh tiếp tục tiêu quota của agent còn lại. Chỉ resume khi quota đã sẵn
-sàng; lượt lỗi đã lưu vẫn giữ trong mẫu số, retry cần thư mục mới.
+Gặp quota Codex/Claude/Jev: controller ngắt run, hủy agent chạy song song và các
+tool còn lại. Runner loại kết quả một phần khỏi `results.jsonl` và báo cáo chấm,
+ghi trace/usage vào `quota_attempts.jsonl`, ghi `STOPPED.json` rồi dừng suite.
+Khôi phục quota rồi chạy lại **cùng lệnh/cùng output**: retry chính
+query/hint-stage/variant bị ngắt bằng fresh state; các lượt đã hoàn thành giữ nguyên.
+Quota là lượt bị gián đoạn do tài khoản, được báo audit riêng, không tính thành
+retrieval failure. Lỗi/timeout không phải quota vẫn nằm trong mẫu số. Khi resume,
+runner cũng chuyển các row quota đã lưu sang audit nếu manifest vẫn tương thích.
+Không xóa kết quả của query khác. Không tự đợi reset hoặc tự retry khi quota chưa hồi.
 
 ## Ablations và calibration
 
@@ -287,7 +293,8 @@ manifest/results riêng; lỗi quota dừng cả suite. Có `--experiment main`,
 `--experiment cumulative` hoặc `--experiment ablations` (ablations dùng dev).
 Tune/calibrate trên dev rồi khóa cấu hình trước test; suite không tự fit calibration.
 Nếu bật artifact sau khi fit, dùng output directory mới vì runtime hash đã đổi.
-Thứ tự code/data/config phải giữ cố định để resume. Failed pairs đã lưu không tự retry.
+Thứ tự code/data/config phải giữ cố định để resume. Quota attempts được retry;
+failed pairs thuộc loại lỗi khác đã lưu không tự retry.
 
 Có thể chạy trực tiếp chỉ cumulative, hoặc thêm E vào comparison:
 
@@ -357,6 +364,54 @@ Không resample candidate như các mẫu độc lập. `--plots` xuất hai fig
 agent calls/tool calls/Jev calls/latency theo mức hint, tách tổng H, dùng cohort đủ lượt.
 Main Table 1, Cumulative Table 2 và dev ablations nằm trong các thư mục experiment
 riêng. Các artifacts này chỉ có giá trị thực nghiệm sau khi chạy backend live.
+
+### Fit và sweep stopping từ raw DEV
+
+```bash
+.venv/bin/python -m benchmarks.agent.tune_stopping \
+  --dataset benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl \
+  --run-dir benchmarks/agent/runs/soict-f54c83c/main-dev \
+  --output benchmarks/agent/runs/soict-dev-tuning-v1
+```
+
+Không gọi model. Sinh `calibration.json` dạng bundle với profile `holistic` cho
+E/D và `constraints` cho F; artifact kiểu temperature đơn cũ vẫn được hỗ trợ.
+Không dùng một temperature cho cả hai aggregation. F vẫn giữ raw majority guard
+cho mọi constraint; calibration không sửa nhãn constraint hoặc thay xác suất raw.
+Profile có threshold/margin chung và `stopping_by_task`; controller ghi giá trị
+hiệu lực/temperature cùng `stop_check` vào snapshot/trace.
+
+Tuner chỉ nhận main DEV raw/live, kiểm tra hash dataset, loại lượt có agent/provider
+failure khỏi fitting nhưng giữ failure audit. Không pool ba câu cumulative DEV
+vào fitting. Sweep dùng temperature leave-target-video-component-out, giữ R@1
+và R@5 trên observed prefixes, không chọn compute-saving STOP sai trên healthy DEV.
+QA/TRAKE giữ threshold/margin gốc vì chỉ có hai câu mỗi loại. Nếu hạ threshold
+không giảm agent calls hợp lệ thì giữ mặc định. `tuning.json` có toàn bộ sweep,
+chẩn đoán probability/margin sau agent1, evidence guard, next action và lỗi quota.
+
+Với DEV `soict-f54c83c`: E temperature≈5.4607, giữ threshold=.9/margin=.1;
+F temperature≈5.7979, **T-KIS threshold=.5/margin=.1**, QA/TRAKE giữ .9/.1.
+Trên 24 câu F không lỗi, prefix replay giữ R@1=.4583 và R@5=.6667, agents/query
+từ 2 xuống≈1.8333. E giữ R@1=.60 nhưng vẫn 2 agents/query. Hạ E tới .5 chỉ tiết
+kiệm agent trên các câu trả sai; không coi đó là evidence-aware stopping thành công.
+
+Đây là **recorded-prefix replay**, chưa phải run live của policy mới. Calibration
+có thể đổi routing Jev nên latency/accuracy sau tuning cần đọc từ TEST thực tế;
+không trình bày replay như chất lượng benchmark mới. Người dùng chọn bỏ lần DEV
+xác nhận do thời gian/quota và khóa artifact trước khi TEST. Sau đó không tune
+theo TEST. Báo cáo này không chứng minh adaptive compute-saving của E.
+
+Trỏ `AGENT_CALIBRATION_PATH` tới absolute path của bundle, **restart backend** để
+nạp cả config và code quota/controller mới. Dùng output mới, ví dụ:
+
+```bash
+.venv/bin/python -m benchmarks.agent.run_soict \
+  --dataset benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl \
+  --output benchmarks/agent/runs/soict-test-tuned-v1 --split test
+```
+
+Chạy lại đúng lệnh này sau khi quota hồi để resume/retry lượt quota. Giữ nguyên
+dataset/code/calibration và cấu hình trong suốt TEST. Raw DEV ban đầu giữ riêng.
 
 Kiểm tra offline cho cả harness và state isolation:
 

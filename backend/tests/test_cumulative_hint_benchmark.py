@@ -240,6 +240,48 @@ async def test_cumulative_http_failure_is_in_stage_denominator(tmp_path, monkeyp
     assert summary["solve"]["summary"]["F"]["strict"]["unsolved_queries"] == 1
 
 
+@pytest.mark.asyncio
+async def test_quota_resume_keeps_completed_hint_levels_and_retries_interrupted_level(tmp_path, monkeypatch):
+    from benchmarks.agent import run_benchmark as module
+    path = tmp_path / "dataset.jsonl"
+    path.write_text(json.dumps(query()))
+    async def get(self, url):
+        return httpx.Response(200, json={"mode": "mock"}, request=httpx.Request("GET", "http://local" + url))
+    monkeypatch.setattr(httpx.AsyncClient, "get", get)
+    calls, interrupted = [], []
+    async def fake(client, stage, variant, timeout, poll):
+        calls.append((stage["hint_stage"], variant))
+        if len(calls) == 2:
+            interrupted.append(calls[-1])
+            return {"agents": {"claude": {"status": "failed", "error_kind": None,
+                         "error": "You've hit your session limit"}}}, {"trace": []}, 1
+        return {"finished": True, "ranking": [frame()], "controller": {"status": "done"}}, {"trace": []}, 1
+    monkeypatch.setattr(module, "run_one", fake)
+    a = args(path, tmp_path / "output")
+    a.variants = "F"
+    with pytest.raises(SystemExit, match="quota exhausted"):
+        await module.main_async(a)
+    rows = [json.loads(line) for line in (a.output / "results.jsonl").read_text().splitlines()]
+    assert len(rows) == 1
+    assert len((a.output / "quota_attempts.jsonl").read_text().splitlines()) == 1
+    await module.main_async(a)
+    assert calls[2] == interrupted[0] and len(calls) == 4
+    rows = [json.loads(line) for line in (a.output / "results.jsonl").read_text().splitlines()]
+    assert len(rows) == len({run_key(r) for r in rows}) == 3
+    # A quota row retained by an older writer is removed from scoring on
+    # compatible resume, and cannot suppress the retry for that stage.
+    rows[1]["snapshot"]["agents"] = {"claude": {"status": "failed", "error_kind": None,
+                                                 "error": "You've hit your session limit"}}
+    (a.output / "results.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    prior_calls = len(calls)
+    expected = rows[1]["hint_stage"], rows[1]["variant"]
+    await module.main_async(a)
+    assert len(calls) == prior_calls + 1 and calls[-1] == expected
+    assert len((a.output / "quota_attempts.jsonl").read_text().splitlines()) == 2
+    rows = [json.loads(line) for line in (a.output / "results.jsonl").read_text().splitlines()]
+    assert len(rows) == len({run_key(r) for r in rows}) == 3
+
+
 def test_paired_bootstrap_and_offline_paper_export(tmp_path):
     rows = []
     for stage in hint_stages(query(), "cumulative"):

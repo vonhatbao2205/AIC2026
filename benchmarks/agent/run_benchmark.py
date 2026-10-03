@@ -21,6 +21,7 @@ import httpx
 from .metrics import measure, summarize
 from .hints import build_plan, run_key, stage_metadata, validate_hints, PROTOCOL
 from backend.app.trake_events import split_marked_events
+from backend.app.agent.cli import classify_error
 
 VARIANTS = {
     "A": {"policy": "retrieval"},
@@ -38,6 +39,24 @@ VARIANTS = {
     "no_verifier": {"policy": "full", "verifier": "none"},
     "claude_verifier": {"policy": "full", "verifier": "llm"},
 }
+
+
+def quota_interrupted(row):
+    snapshot = row.get("snapshot", {})
+    controller = snapshot.get("controller", {})
+    return bool(row.get("quota_interrupted") or controller.get("quota_error") or
+                controller.get("stop_reason") == "model_quota" or any(
+                    state.get("error_kind") == "quota" or classify_error(state.get("error") or "") == "quota"
+                    for state in snapshot.get("agents", {}).values()))
+
+
+def archive_quota_attempt(output, row):
+    # Preserve paid attempt usage/trace for audit; never score or resume its
+    # partial candidate list. The next attempt receives a fresh AgentRun.
+    with (output / "quota_attempts.jsonl").open("a") as file:
+        file.write(json.dumps({**row, "quota_interrupted": True,
+                               "archived_at": datetime.now(timezone.utc).isoformat()}, ensure_ascii=False, allow_nan=False) + "\n")
+        file.flush()
 
 
 def load_queries(path):
@@ -212,6 +231,7 @@ async def main_async(args):
                   "hint_mode": hint_mode, "hint_protocol": PROTOCOL,
                   "run_plan_sha256": hashlib.sha256(json.dumps(plan, sort_keys=True).encode()).hexdigest(),
                   "client_timeout_s": args.timeout, "poll_s": args.poll,
+                  "quota_protocol": "archive interrupted attempt; retry fresh query/level/variant on resume",
                   "variant_parameters": {v: VARIANTS[v] for v in variants}, "tolerance_s": args.tolerance,
                   "seed": args.seed, "status": {k: status.get(k) for k in ("policy", "agents", "jev", "timeout_seconds", "controller_config")},
                   "mode": health.get("mode", "unknown")}
@@ -227,6 +247,14 @@ async def main_async(args):
             git = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
             manifest_path.write_text(json.dumps({"fingerprint": fingerprint, "config": config, "git_head": git,
                                                 "created_at": datetime.now(timezone.utc).isoformat()}, indent=2))
+        interrupted = [r for r in rows if quota_interrupted(r)]
+        if interrupted:
+            for row in interrupted:
+                archive_quota_attempt(output, row)
+            rows = [r for r in rows if not quota_interrupted(r)]
+            replacement = rows_path.with_suffix(".tmp")
+            replacement.write_text("".join(json.dumps(r, ensure_ascii=False, allow_nan=False) + "\n" for r in rows))
+            replacement.replace(rows_path)
         done = {run_key(r) for r in rows}
         expected = {(q["query_id"], q["hint_stage"], v) for q in queries for v in variants}
         if len(done) != len(rows) or not done <= expected:
@@ -259,15 +287,20 @@ async def main_async(args):
                            "variant": variant, "error": type(exc).__name__,
                            "metrics": measure(query, snapshot, [], wall_s=time.monotonic() - started, tolerance_s=args.tolerance)}
                     row["metrics"].update(cost_usd=None, tokens=None)
+                    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429:
+                        row["quota_interrupted"] = True
                 row.update(stage_metadata(query), evaluated_query=query["query"])
+                if quota_interrupted(row):
+                    archive_quota_attempt(output, row)
+                    (output / "STOPPED.json").write_text(json.dumps({"reason": "agent_quota", "query_id": query["query_id"],
+                        "hint_stage": query["hint_stage"], "variant": variant, "retry_on_resume": True}, indent=2))
+                    write_report(output, rows)
+                    raise SystemExit("Model quota exhausted; interrupted result excluded. Restore quota and rerun the same command to retry this query/level/variant.")
                 with rows_path.open("a") as f:
                     f.write(json.dumps(row, ensure_ascii=False, allow_nan=False) + "\n")
                     f.flush()
                 rows.append(row)
                 write_report(output, rows)
-                if any(a.get("error_kind") == "quota" for a in row.get("snapshot", {}).get("agents", {}).values()):
-                    (output / "STOPPED.json").write_text(json.dumps({"reason": "agent_quota", "query_id": query["query_id"], "hint_stage": query["hint_stage"], "variant": variant}, indent=2))
-                    raise SystemExit("Agent quota exhausted; result saved. Restore CLI quota before resuming.")
         (output / "STOPPED.json").unlink(missing_ok=True)
 
 

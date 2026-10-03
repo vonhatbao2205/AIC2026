@@ -165,7 +165,7 @@ GROUPS: tuple[ConfigGroup, ...] = (
             ConfigKey("AGENT_VERIFY_TOP_K", "Candidates verified per decision (5)"),
             ConfigKey("AGENT_STOP_THRESHOLD", "Minimum supported probability to stop (0.9)"),
             ConfigKey("AGENT_STOP_MARGIN", "Required top-candidate probability gap (0.1)"),
-            ConfigKey("AGENT_CALIBRATION_PATH", "Optional calibration artifact fitted on development queries"),
+            ConfigKey("AGENT_CALIBRATION_PATH", "Dev calibration artifact or aggregation profiles bundle with fitted stopping parameters"),
             ConfigKey("AGENT_CODEX_BIN", "Codex CLI executable (codex)"),
             ConfigKey("AGENT_CLAUDE_BIN", "Claude Code CLI executable (claude)"),
             ConfigKey("AGENT_CODEX_MODEL", "Codex model (gpt-6.1-sol)"),

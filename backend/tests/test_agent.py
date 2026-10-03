@@ -180,6 +180,17 @@ def test_outdated_cli_is_labelled_update():
     assert cli.classify_error(message) == "update"
 
 
+@pytest.mark.parametrize("message", [
+    "You've hit your session limit · resets 7pm (Asia/Ho_Chi_Minh)",
+    "You've hit your weekly limit", "You've hit your daily limit",
+])
+def test_subscription_limits_stop_benchmark_as_quota(message):
+    state = _state()
+    read_claude_event({"type": "result", "subtype": "error_during_execution", "is_error": True,
+                       "result": message}, state)
+    assert cli.classify_error(state.fail_reason) == "quota"
+
+
 def test_describe_report_candidate():
     assert describe_call("mcp__aic__report_candidate", {"video_id": "N001-V001", "time": 5, "confidence": 0.5}) == \
         "report_candidate N001-V001 @ 5s (0.5)"

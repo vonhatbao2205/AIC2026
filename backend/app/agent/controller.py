@@ -11,8 +11,13 @@ from .decision.llm_client import LLMDecisionClient
 from .decision.router import fallback_action, route
 from .decision.stopping import can_stop
 from .decision.verifier import verify
+from .cli import classify_error
 
 POLICIES = {"retrieval", "codex", "parallel", "rerank", "adaptive", "full", "rule"}
+
+
+class ModelQuotaError(Exception):
+    """An interrupted attempt must be retried from a fresh query state."""
 
 
 class Controller:
@@ -28,6 +33,8 @@ class Controller:
         self.jev_failed = False
         self._verified_version = -1
         self._stop_supported = False
+        self.stop_threshold = settings.agent_stop_threshold
+        self.stop_margin = settings.agent_stop_margin
 
     def trace(self, kind: str, **fields):
         self.run.trace.append({"at_s": round(time.monotonic() - self.run.started, 3), "kind": kind, **copy.deepcopy(fields)})
@@ -43,7 +50,19 @@ class Controller:
             self.run.tasks[name] = task
             jobs.append(task)
         if jobs:
-            await asyncio.gather(*jobs)
+            try:
+                for completed in asyncio.as_completed(jobs):
+                    await completed
+                    if any(self.run.agents[name].error_kind == "quota" for name in names if name in self.run.agents):
+                        raise ModelQuotaError()
+            except BaseException:
+                # A parallel peer must not keep consuming quota after one CLI
+                # exhausted its allowance. Also preserve deadline cancellation.
+                for task in jobs:
+                    if not task.done():
+                        task.cancel()
+                await asyncio.gather(*jobs, return_exceptions=True)
+                raise
         if self.run.tool_tasks:
             await asyncio.gather(*list(self.run.tool_tasks), return_exceptions=True)
         self.trace("agent_results", agents=list(names), candidates=list(self.run.candidates))
@@ -82,10 +101,15 @@ class Controller:
             self.trace("verification", observations=observations)
             self.run.publish_ranking()
             self._verified_version = self.run.board.version
-            self._stop_supported = can_stop(self.run.board, self.s.agent_stop_threshold, self.s.agent_stop_margin,
+            self._stop_supported = can_stop(self.run.board, self.stop_threshold, self.stop_margin,
                                             require_constraints=self.run.policy == "full")
+            self.trace("stop_check", can_stop=self._stop_supported, threshold=self.stop_threshold,
+                       margin=self.stop_margin, agents_invoked=sorted(self.invoked))
             return self._stop_supported
         except DecisionError as exc:
+            if classify_error(str(exc)) == "quota":
+                self.run.controller["quota_error"] = "decision_provider"
+                raise ModelQuotaError() from None
             self.jev_failed = True
             self.run.controller["fallback"] = str(exc)
             self.trace("provider_error", error=str(exc))
@@ -101,6 +125,15 @@ class Controller:
             run.controller["calibration_warning"] = "Invalid calibration artifact; using raw probabilities"
         run.controller["calibrated"] = self.calibration.fitted
         run.controller["calibration_query_ids"] = list(self.calibration.query_ids)
+        if self.calibration.stop_threshold is not None:
+            self.stop_threshold = self.calibration.stop_threshold
+        if self.calibration.stop_margin is not None:
+            self.stop_margin = self.calibration.stop_margin
+        task_stopping = self.calibration.stopping_by_task.get(run.request.query_type, {})
+        self.stop_threshold = task_stopping.get("threshold", self.stop_threshold)
+        self.stop_margin = task_stopping.get("margin", self.stop_margin)
+        run.controller.update(stop_threshold=self.stop_threshold, stop_margin=self.stop_margin,
+                              calibration_temperature=self.calibration.temperature)
         run.controller["status"] = "retrieving"
         if self.seed is None:
             # No previous_hints or previous query state in the experimental path.
@@ -180,6 +213,9 @@ class Controller:
                         if field in answers:
                             run.controller[field] = answers[field]["choice"]
                 except DecisionError as exc:
+                    if classify_error(str(exc)) == "quota":
+                        run.controller["quota_error"] = "decision_provider"
+                        raise ModelQuotaError() from None
                     self.jev_failed = True
                     run.controller["fallback"] = str(exc)
                     self.trace("provider_error", error=str(exc))
@@ -209,6 +245,9 @@ class Controller:
         try:
             await asyncio.wait_for(self.work(), timeout=self.s.agent_timeout_seconds)
             run.controller["status"] = "done"
+        except ModelQuotaError:
+            run.controller.update(status="interrupted", stop_reason="model_quota")
+            self.trace("quota_interruption")
         except asyncio.TimeoutError:
             run.controller.update(status="timeout", stop_reason="time_budget")
             self.trace("timeout")

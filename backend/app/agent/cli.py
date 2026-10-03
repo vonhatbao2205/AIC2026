@@ -32,7 +32,7 @@ _CODEX_DISABLED_FEATURES = (
 )
 
 _QUOTA = re.compile(
-    r"usage limit|rate.?limit|quota|\b429\b|too many requests|limit reached|credit balance|out of credits",
+    r"usage limit|session limit|weekly limit|daily limit|rate.?limit|quota|\b429\b|too many requests|limit reached|credit balance|out of credits",
     re.IGNORECASE,
 )
 _AUTH = re.compile(
