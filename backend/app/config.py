@@ -77,6 +77,26 @@ def _env(name: str, default: str | None = None) -> str | None:
     return value.strip()
 
 
+def _agent_openrouter_secret() -> str | None:
+    for directory in paths.secret_dirs():
+        value = _read_file_secret(str(directory / "openrouter.txt"))
+        if value:
+            return value
+    return None
+
+
+def _bounded_number(name: str, default: float, low: float, high: float, *, integer: bool = False):
+    import math
+    try:
+        value = float(_env(name) or default)
+        if not math.isfinite(value):
+            value = default
+    except ValueError:
+        value = default
+    value = min(high, max(low, value))
+    return int(value) if integer else value
+
+
 @dataclass
 class Settings:
     """Backend settings. `mock_mode` lets the UI be developed without live services."""
@@ -266,11 +286,11 @@ class Settings:
     # Pinned per agent rather than inherited from the CLIs' own configs: the
     # interactive Codex default runs at xhigh, far too slow for a sidecar that
     # has to answer inside a task's time limit.
-    agent_codex_model: str = "gpt-6-sol"
+    agent_codex_model: str = "gpt-6.1-sol"
     agent_codex_reasoning_effort: str = "high"
     agent_claude_model: str = "claude-opus-5-5"
     agent_claude_effort: str = "high"
-    # Fast mode: Codex's priority service tier (~1.5x on gpt-6-sol) and Claude
+    # Fast mode: Codex's priority service tier and Claude
     # Code's fastMode. Both spend the account's usage faster; a sidecar racing
     # the task clock is exactly what they are for.
     agent_codex_fast: bool = True
@@ -281,6 +301,18 @@ class Settings:
     # Where the agents' MCP bridge reaches this backend. Empty = the address
     # uvicorn is actually listening on.
     agent_backend_url: str | None = None
+    agent_policy: str = "full"
+    agent_max_steps: int = 6
+    agent_max_tool_calls: int = 40
+    agent_verify_top_k: int = 5
+    agent_stop_threshold: float = 0.9
+    agent_stop_margin: float = 0.1
+    agent_calibration_path: str | None = None
+    openrouter_api_key: str | None = field(default=None, repr=False)
+    jev_model: str = "typesafe/jev-1.13"
+    jev_timeout_seconds: float = 12.0
+    agent_llm_judge_model: str = "anthropic/claude-opus-5.5"
+
 
     # When true, adapters return deterministic fixtures instead of calling services.
     mock_mode: bool = False
@@ -684,7 +716,7 @@ def get_settings() -> Settings:
         agent_enabled=(_env("AGENT_ENABLED", "true") or "true").lower() in {"1", "true", "yes", "on"},
         agent_codex_bin=_env("AGENT_CODEX_BIN") or "codex",
         agent_claude_bin=_env("AGENT_CLAUDE_BIN") or "claude",
-        agent_codex_model=_env("AGENT_CODEX_MODEL") or "gpt-6-sol",
+        agent_codex_model=_env("AGENT_CODEX_MODEL") or "gpt-6.1-sol",
         agent_codex_reasoning_effort=(_env("AGENT_CODEX_REASONING_EFFORT") or "high").lower(),
         agent_claude_model=_env("AGENT_CLAUDE_MODEL") or "claude-opus-5-5",
         agent_claude_effort=(_env("AGENT_CLAUDE_EFFORT") or "high").lower(),
@@ -693,6 +725,18 @@ def get_settings() -> Settings:
         agent_timeout_seconds=min(1800.0, max(30.0, agent_timeout_seconds)),
         agent_max_concurrent=min(8, max(1, agent_max_concurrent)),
         agent_backend_url=(_env("AGENT_BACKEND_URL") or "").rstrip("/") or None,
+        agent_policy=_env("AGENT_POLICY") or "full",
+        agent_max_steps=_bounded_number("AGENT_MAX_STEPS", 6, 1, 12, integer=True),
+        agent_max_tool_calls=_bounded_number("AGENT_MAX_TOOL_CALLS", 40, 1, 200, integer=True),
+        agent_verify_top_k=_bounded_number("AGENT_VERIFY_TOP_K", 5, 1, 10, integer=True),
+        agent_stop_threshold=_bounded_number("AGENT_STOP_THRESHOLD", 0.9, 0.5, 1.0),
+        agent_stop_margin=_bounded_number("AGENT_STOP_MARGIN", 0.1, 0.0, 1.0),
+        agent_calibration_path=_env("AGENT_CALIBRATION_PATH"),
+        openrouter_api_key=_env("OPENROUTER_API_KEY") or _agent_openrouter_secret(),
+        jev_model=_env("JEV_MODEL") or "typesafe/jev-1.13",
+        agent_llm_judge_model=_env("AGENT_LLM_JUDGE_MODEL") or "anthropic/claude-opus-5.5",
+        jev_timeout_seconds=_bounded_number("JEV_TIMEOUT_SECONDS", 12.0, 1.0, 60.0),
+
         mock_mode=mock_mode,
         translate_to_en=translate_to_en,
         cors_origins=cors_origins,

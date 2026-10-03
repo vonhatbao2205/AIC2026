@@ -13,6 +13,7 @@ import type {
 const POLL_MS = 1500;
 
 export interface AgentLaunch {
+  retrieval_id?: string | null;
   retrieval_database: RetrievalDatabase;
   image_models: ImageEmbeddingModel[];
   query: string;

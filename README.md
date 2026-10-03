@@ -86,10 +86,13 @@ The repository contains two parts:
   frames into distinct hypotheses and a data-calibrated `±ε` ladder covering the
   case where the retrieved keyframe sits just outside the accepted window. One
   button in the Submission tab fills the whole question pack.
-- **Agent sidecar search (AGENT button, on by default)** — each Search press also
-  starts **Codex CLI** (`gpt-6-sol`, high) and **Claude Code CLI**
-  (`claude-opus-5-5`, high) on the backend host, in the background. They search
-  the corpus through a narrow MCP tool bridge (`backend/app/agent/`):
+- **CAD-VR adaptive agents (AGENT button, on by default)** — retrieval feeds a
+  query-local Evidence Board. **Jev 1.13** on OpenRouter verifies constraints and
+  chooses when to invoke **Codex Scout** (`gpt-6.1-sol`, high, fast), **Claude
+  Investigator** (`claude-opus-5-5`, high, fast), or gather more evidence.
+  Both retain all search capabilities. The default policy is `full`; fixed
+  baselines and ablations are available for [benchmarking](benchmarks/agent/README.md).
+  Agents search through a narrow MCP bridge (`backend/app/agent/`):
   - `search`: the same retrieval engine, in hybrid, visual, OCR or speech mode.
   - `list_videos`: the programme guide of a folder or series. Traffic cameras show
     junction, date and clock range; S01 shows the race stage; every other folder
@@ -101,9 +104,11 @@ The repository contains two parts:
 
     These three browsing tools let an agent find a video without the search
     engine.
-  - `video_frames`: labelled contact sheets of keyframes from R2.
+  - `video_frames`: labelled contact sheets, including `center_time` + `before`/`after` + `density`.
   - `view_frames`: a large view of specific keyframes.
   - `video_text`: the speech and OCR text in a time window.
+  - `compare_candidates`: aligned before/center/after sheets for 2–4 moments.
+  - `constraint_probe`: local frames/text for one missing constraint.
   - `report_candidate`: shows a candidate to the operator.
 
   Candidates appear in their own **Agents** strip at the top of the results
@@ -121,8 +126,9 @@ The repository contains two parts:
   goes into the prompt as a strong hint: the agents look there first. A frame
   from outside it is labelled "Outside the folder filter". The main
   `/api/search` never waits for the agents and its ranking is never changed by
-  them. A new search cancels the tab's previous run, and every agent is killed at
-  `AGENT_TIMEOUT_SECONDS`. The CLIs have no shell and receive none of the
+  them. The run publishes its combined `ranking` and orders agent cards by it.
+  A new search cancels the previous run. `AGENT_TIMEOUT_SECONDS` now bounds the
+  entire controller (retrieval, decisions, queued agents and tool work). The CLIs have no shell and receive none of the
   backend's credentials. Each run is a fresh process, so an account switched in
   the meantime is picked up by the next search.
 - **Submit guard** — duplicate detection, evidence preview, and the exact DRES v2
@@ -299,10 +305,15 @@ Key variables (full list in [backend/.env.example](backend/.env.example)):
 | `NVILA_BASE_URL`, `NVILA_TOKEN` | optional NVILA-8B QA worker chạy từ Colab notebook (`QA_VISION_BACKEND=nvila`) |
 | `DEEPSEEK_API_KEY` | optional DeepSeek built-in `web_search` grounding for QA; backend only |
 | `AGENT_ENABLED`, `AGENT_CODEX_BIN`, `AGENT_CLAUDE_BIN` | agent sidecar search; the CLIs must be installed and logged in on the backend host |
-| `AGENT_CODEX_MODEL`, `AGENT_CODEX_REASONING_EFFORT` | default `gpt-6-sol` / `high` |
+| `AGENT_CODEX_MODEL`, `AGENT_CODEX_REASONING_EFFORT` | default `gpt-6.1-sol` / `high` |
 | `AGENT_CLAUDE_MODEL`, `AGENT_CLAUDE_EFFORT` | default `claude-opus-5-5` / `high` (needs Claude Code ≥ 2.1.280) |
-| `AGENT_CODEX_FAST`, `AGENT_CLAUDE_FAST` | fast mode, on by default: Codex `service_tier="fast"` (~1.5× on gpt-6-sol), Claude Code `fastMode`; both use quota faster |
-| `AGENT_TIMEOUT_SECONDS`, `AGENT_MAX_CONCURRENT` | hard stop per agent (240 s); parallel runs per CLI across tabs (2) |
+| `AGENT_CODEX_FAST`, `AGENT_CLAUDE_FAST` | fast mode, on by default: Codex `service_tier="fast"` (priority processing), Claude Code `fastMode`; both use quota faster |
+| `AGENT_TIMEOUT_SECONDS`, `AGENT_MAX_CONCURRENT` | hard stop per query (240 s); parallel runs per CLI across tabs (2) |
+| `OPENROUTER_API_KEY` | Jev key; also loaded from `API_KEY/openrouter.txt`, never forwarded to CLIs |
+| `AGENT_POLICY` | `full` by default; `retrieval`, `codex`, `parallel`, `rerank`, `adaptive`, `rule` for experiments |
+| `AGENT_MAX_STEPS`, `AGENT_MAX_TOOL_CALLS` | bounded actions (6) and tool requests (40) per query |
+| `AGENT_STOP_THRESHOLD`, `AGENT_STOP_MARGIN` | evidence stopping thresholds, 0.9 / 0.1; tune on dev only |
+| `AGENT_CALIBRATION_PATH` | optional temperature artifact; without it probabilities are explicitly uncalibrated |
 | `AIC26_MOCK_MODE` | `true` ⇒ run with fixtures, no live services |
 
 TARA artifact verification, Milvus upload, Colab worker setup, and fusion details

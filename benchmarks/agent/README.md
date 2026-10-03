@@ -1,0 +1,207 @@
+# CAD-VR: chạy benchmark agent
+
+CAD-VR nằm trong `backend/app/agent/`. Mặc định `AGENT_POLICY=full`.
+Codex dùng `gpt-6.1-sol`, reasoning `high`, fast. Jev gọi
+`https://openrouter.ai/api/alpha/decisions` với `typesafe/jev-1.13`.
+Key lấy từ `OPENROUTER_API_KEY` hoặc `API_KEY/openrouter.txt`; không gửi key cho CLI.
+
+## Luồng hoạt động
+
+1. Main retrieval trả kết quả ngay. Console chuyển `retrieval_id` do server cấp
+   vào run để dùng lại đúng bằng chứng của query/profile/model/scope đó.
+   Khi chạy benchmark hoặc thiếu seed hợp lệ, controller tự chạy retrieval.
+   TRAKE dùng retrieval chuỗi hiện có; không biến thành tìm một frame đơn.
+2. Board chỉ chứa dữ liệu của query hiện tại: constraints, score theo channel,
+   OCR/speech/metadata, frame đã xem, quan sát của agent, lịch sử tool.
+   `previous_hints` không đi vào prompt, compiler hoặc retrieval của run.
+3. Jev đánh giá `supported / refuted / unknown`, code tổng hợp bằng geometric mean.
+   Confidence agent và embedding similarity không được coi là xác suất đúng.
+   Unknown giữ thứ tự RRF; chỉ bằng chứng hỗ trợ/phủ định chiếm ưu thế mới
+   được dùng để nâng/hạ hạng. Việc được chấm không tự làm candidate lên hạng.
+   Jev là text-only: chỉ các quan sát của agent sau khi ảnh thật được tải mới được
+   dùng như mô tả hình ảnh. OCR/transcript vẫn có thể sai hoặc nói về cảnh khác.
+4. Controller chọn STOP, Codex, Claude, BOTH hoặc thêm một bước search/inspect/compare.
+   Codex ưu tiên exploration; Claude ưu tiên inspection. Đây là soft roles,
+   cả hai vẫn được tự search và dùng mọi tool được bật.
+5. STOP sớm yêu cầu xác suất candidate sau calibration vượt threshold và margin.
+   Mỗi constraint còn phải có raw supported > 0.5 và lớn hơn unknown/refuted;
+   đây là guard về bằng chứng, không phải xác suất constraint đã calibration.
+   QA cần có answer; TRAKE cần đủ event cùng video và đúng thứ tự. AVS không dừng
+   sớm chỉ vì tìm được một frame. Disagreement chỉ là tín hiệu, không có stage
+   bắt buộc gọi thêm agent để tạo disagreement.
+6. Kết quả hợp nhất ở `GET /api/agent/runs/{id}` → `ranking`, `baseline_ranking`,
+   `controller`, `metrics`. Agent cards dùng thứ tự ranking này. Main search vẫn
+   hiển thị độc lập, không bị controller âm thầm thay thế. Trace có ở
+   `GET /api/agent/runs/{id}/trace`; không chứa base64 hay credentials.
+
+Compiler hiện tại **deterministic**, giữ toàn bộ query, các mệnh đề/từng câu,
+quoted OCR và các event E1…En. Các mẫu Việt/Anh còn tách chi tiết về trang phục,
+hành động, quan hệ, vị trí và phủ định, có source span và dependency về query gốc.
+Đây là decomposition bảo toàn câu gốc, chưa phải
+semantic parser có khả năng tách chính xác mọi subject/action/relation tiếng Việt.
+
+Hai tool mới: `compare_candidates` (2–4 cột, before/center/after + local text) và
+`constraint_probe` (constraint trong một vùng thời gian của candidate, không global
+search). `video_frames` nhận `center_time`, `before`, `after`, `density`.
+Jev chỉ nhận action classes. Macro COMPARE_TOP2 của controller lấy local text;
+việc so ảnh được giao cho CLI qua `compare_candidates`.
+
+Board giữ tối đa 24 nguồn/candidate; quan sát hình ảnh đã xem được giữ khi OCR
+lấp đầy bộ nhớ. Context chọn tối đa 8 nguồn, ưu tiên visual, cân bằng loại nguồn
+và gộp text lặp; provenance gốc vẫn được lưu.
+
+Cache/single-flight và evidence provenance chỉ dùng trong run. Quan sát trùng nguồn
+không thành phiếu bầu độc lập. Run hoàn tất giữ trace để đọc trong TTL 1 giờ,
+được thu hồi khi có run mới; board không bao giờ truyền sang query khác.
+
+## Cấu hình và giới hạn
+
+`AGENT_TIMEOUT_SECONDS=240` giới hạn toàn run, gồm retrieval, queue, Jev và CLI.
+`AGENT_MAX_STEPS=6`, `AGENT_MAX_TOOL_CALLS=40`, `AGENT_VERIFY_TOP_K=5`.
+Mỗi CLI được gọi tối đa một lần/run; `AGENT_MAX_CONCURRENT=2` giới hạn mỗi CLI trên
+mọi tab. Lỗi Jev, response sai schema, timeout hoặc thiếu key được ghi vào
+`controller.fallback`; controller thử agent còn khả dụng, không gắn nhãn "đã xác minh".
+
+`AGENT_STOP_THRESHOLD=0.9` và `AGENT_STOP_MARGIN=0.1` là giá trị khởi đầu, **chưa
+được fit trên corpus**. Không được gọi số liệu mặc định là calibrated accuracy.
+`AGENT_CALIBRATION_PATH` nạp artifact temperature được fit trên dev; snapshot ghi
+`calibrated=false` nếu chưa có artifact. Tune ngưỡng chỉ trên dev rồi khóa trước test.
+
+## Dataset
+
+Từ repo root, dùng môi trường có backend dependencies và `openpyxl`:
+
+```bash
+.venv/bin/python -m benchmarks.agent.export_dataset \
+  --output benchmarks/agent/runs/workbooks-v2.jsonl
+```
+
+Exporter đọc TKIS/QA/TRAKE workbook hiện có, không đọc PHM/VBS annotations.
+Không tạo nhãn giả; trường hợp thiếu answer/frame/chuỗi đúng bị ghi trong `.audit.json`.
+Câu có marker temporal nhưng nằm trong workbook KIS/QA bị loại và ghi audit vì
+thiếu ánh xạ event→frame. Loader từ chối dataset cũ gắn những câu đó thành KIS.
+Bản export v2 hiện có 81 câu: 20 dev, 61 test; v1 từng có một câu TRAKE gắn sai loại.
+Split dev/test cố định theo hash nội dung query (20/80 xấp xỉ). Nên kiểm tra thêm
+near-duplicate queries và video overlap trước khi dùng số liệu cho paper.
+Không đo được độ chính xác khi chưa có ground truth hợp lệ.
+
+Có thể tự cung cấp JSONL:
+
+```json
+{"query_id":"kis-001","split":"test","query_type":"T-KIS","query":"người sửa xe đạp","retrieval_database":"infoshotpp","image_models":["pe"],"targets":[{"video_id":"L21_V001","frame_idx":1000,"fps":25}]}
+```
+
+Target nhận `submit_keyframe_id`, `frame_idx` hoặc `start_s` + `end_s`.
+QA target cần `answers` (danh sách exact accepted answers, chuẩn hoá case/Unicode/space).
+TRAKE cần `sequences` (danh sách alternatives; mỗi alternative là các target theo E1..En).
+FPS dùng từ nhãn hoặc candidate, không tự giả định 25 nếu thiếu.
+
+## Sáu cấu hình chính
+
+| ID | Policy | Hành vi |
+|---|---|---|
+| A | retrieval | Chỉ main retrieval |
+| B | codex | Retrieval + luôn gọi Codex nếu khả dụng |
+| C | parallel | Retrieval + Codex và Claude song song nếu khả dụng |
+| D | rerank | Jev holistic reranking; không agent |
+| E | adaptive | Jev holistic verification/routing + agent thích ứng |
+| F | full | Constraint verification + adaptive agents + evidence actions |
+
+B/C dùng reciprocal-rank fusion retrieval và đề xuất agent. Mọi cấu hình mặc định
+có cùng soft roles/toolset để so sánh orchestration; `no_roles` / `base_tools` đo
+ảnh hưởng riêng. C là baseline always-two **sau retrieval**; không phải đo nguyên
+bản sidecar trước nâng cấp chạy agent cùng lúc với main retrieval.
+
+```bash
+# Backend đang chạy trên localhost:8000, các CLI đã đăng nhập.
+.venv/bin/python -m benchmarks.agent.run_benchmark \
+  --dataset benchmarks/agent/runs/workbooks-v2.jsonl \
+  --output benchmarks/agent/runs/dev-v1 --split dev --variants A,B,C,D,E,F
+
+.venv/bin/python -m benchmarks.agent.run_benchmark \
+  --dataset benchmarks/agent/runs/workbooks-v2.jsonl \
+  --output benchmarks/agent/runs/test-v1 --split test --variants A,B,C,D,E,F
+```
+
+Có `--limit`, `--url`, `--timeout`, `--poll`, `--tolerance` (giây, mặc định 1), `--seed`.
+Lệnh này gọi model thật nếu backend chạy live. Không gọi endpoint DRES submit.
+Mỗi query random thứ tự variants với seed cố định để giảm thiên lệch cache/độ nóng.
+Từng run tự retrieval, dùng cùng cấu hình; không dùng ground truth để seed controller.
+
+Output: `results.jsonl` (snapshot + trace + metrics), `manifest.json`,
+`summary.json`, `summary_by_task.json` (tách loại task), `summary_paired.json`
+(chỉ query đã đủ tất cả variants được cấu hình), `REPORT.md`. Chạy lại cùng lệnh để resume các cặp query/variant đã
+hoàn tất; muốn retry failed pairs hãy dùng thư mục mới. Manifest từ chối resume khi
+đổi dataset, code agent/benchmark, model, ngưỡng hoặc calibration artifact.
+Gặp lỗi quota CLI: lưu lượt vừa chạy, ghi `STOPPED.json` rồi dừng trước lượt kế
+tiếp để tránh tiếp tục tiêu quota của agent còn lại. Chỉ resume khi quota đã sẵn
+sàng; lượt lỗi đã lưu vẫn giữ trong mẫu số, retry cần thư mục mới.
+
+## Ablations và calibration
+
+```bash
+.venv/bin/python -m benchmarks.agent.run_benchmark \
+  --dataset benchmarks/agent/runs/workbooks-v2.jsonl \
+  --output benchmarks/agent/runs/ablations-dev --split dev \
+  --variants F,rule,rule_router,llm_router,no_verifier,claude_verifier,base_tools,compare_only,no_roles
+
+.venv/bin/python -m benchmarks.agent.calibrate \
+  --results benchmarks/agent/runs/dev-v1/results.jsonl \
+  --variant F --output benchmarks/agent/runs/calibration.json
+```
+
+- `rule`: cascade Codex→Claude, không decision model.
+- `rule_router`: verifier Jev, routing bằng rule.
+- `llm_router`: generative LLM thay Jev router, verifier vẫn Jev.
+- `no_verifier`: Jev router được phép kết thúc bằng quyết định chưa kiểm chứng.
+- `claude_verifier`: generative Claude judge, Jev router.
+- `base_tools`, `compare_only`: lần lượt 8 tool và 9 tool; F là 10 tool.
+- `no_roles`: không strategy bias, giữ common prompt và cùng capabilities.
+
+Generative ablations gọi OpenRouter chat completions với
+`AGENT_LLM_JUDGE_MODEL=anthropic/claude-opus-5.5` (có thể cấu hình), dùng cùng state,
+criteria và validation. Xác suất LLM tự sinh được đo riêng, không giả định tương
+đương decision-head probability của Jev. Chỉ chạy ablation khi muốn đo chi phí này.
+
+Sau fit, cấu hình `AGENT_CALIBRATION_PATH` rồi khởi động lại/reload backend và dùng
+**output directory mới**. Evaluator từ chối test query xuất hiện trong dev fit.
+Artifact không tự sửa threshold và không tự bật trên production. Calibration chỉ
+fit candidate relevance; không áp dụng nó lên từng constraint như thể có nhãn
+constraint. Raw majority-evidence guard vẫn bắt buộc kể cả khi probability cao.
+
+## Metrics và cách đọc
+
+R@1, R@5, MRR dùng moment; QA còn yêu cầu answer; TRAKE dùng rank video có chuỗi
+hoàn chỉnh. `video_r1/video_r5` báo riêng, không thay thế moment recall.
+Agent Rescue@k có mẫu số là query baseline thất bại ở k, trả null nếu không có;
+chỉ tính khi đã gọi agent và kết quả đúng có provenance từ agent.
+`improved_at_1/5` báo riêng cải thiện kể cả chỉ do reranking.
+Time-to-first-correct là thời điểm ranking top-1 đúng đầu tiên (TRAKE: top video
+có chuỗi đúng), báo cả số query quan sát được; query chưa đúng là censored.
+Có p50/p95 wall latency, tool/model calls/query, tỷ lệ đúng không gọi System-2,
+ECE/Brier trên final candidate relevance (không phải constraint-level labels).
+
+Cost/tokens là **agent + decision layer**; không bao gồm chi phí hạ tầng retrieval.
+CLI Codex có thể không báo cost: `cost_usd_mean=null` và `cost_usd_coverage` thể hiện
+thiếu dữ liệu. `known_cost_usd_mean` chỉ là phần đã biết, không phải tổng chi phí.
+Không dùng giá API để giả làm phí subscription CLI. Trace ghi raw usage để audit.
+Lỗi/timeout vẫn ở mẫu số, đồng thời có `failed` và `fallback` rate.
+`retrieval_degraded` ghi nhận channel unavailable; `retrieval_failed` nhận cả
+trường hợp không có candidate do worker mất kết nối. `agent_failed` báo lỗi CLI
+và baseline B/C thiếu CLI bắt buộc. Bảng lỗi hiển thị trực tiếp trong REPORT.
+`no_cli_rate`, `codex_only_rate`, `claude_only_rate`, `both_agents_rate` cho biết
+phân bố invocation; chúng đếm cả lần gọi thất bại và không tương đương solved rate.
+Phải kiểm tra các tỷ lệ này trước khi diễn giải accuracy.
+
+Pilot `dev-20261003-v1` giữ nguyên để audit: có lỗi mất visual evidence, ưu tiên
+unknown trong ranking, một câu temporal sai loại và lỗi quota. Không trộn số liệu
+pilot với phiên bản đã sửa; dùng dataset v2 và output directory mới. Chưa chạy lại
+benchmark live hoặc fit calibration sau các bản sửa này.
+
+Tests offline: `pytest backend/tests/test_agent*.py`. Smoke mock/HTTP không phải
+kết quả chất lượng corpus. Cần chạy các lệnh live ở trên để có kết quả paper.
+
+Nguồn API đã đối chiếu:
+- [OpenRouter Decisions](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request)
+- [GPT-6.1 Sol](https://developers.openai.com/api/docs/models/gpt-6.1-sol)
+- [Codex configuration](https://learn.chatgpt.com/docs/config-file/config-reference)

@@ -109,7 +109,7 @@ def test_codex_is_locked_to_the_bridge(settings, tmp_path):
     # Without it Codex rejects every MCP call under approval_policy=never.
     assert 'mcp_servers.aic.default_tools_approval_mode="approve"' in argv
     assert ["--sandbox", "read-only"] == argv[argv.index("--sandbox"):argv.index("--sandbox") + 2]
-    assert ["--model", "gpt-6-sol"] == argv[argv.index("--model"):argv.index("--model") + 2]
+    assert ["--model", "gpt-6.1-sol"] == argv[argv.index("--model"):argv.index("--model") + 2]
     assert 'model_reasoning_effort="high"' in argv
 
 
@@ -235,6 +235,17 @@ def test_prompt_names_a_manual_filter_as_a_strong_hint():
     assert run.snapshot()["scope"] == {
         "mode": "manual", "active": True, "categories": ["N003"], "reason": "Manual: 1 folders (N003).",
     }
+
+
+def test_a_trake_prompt_lists_the_marked_events_for_the_agents():
+    from app.agent.prompt import build_prompt
+
+    query = "Cảnh múa lân.\nE1: Lân quay trên cột (4), (5).\nE2: Bốn chân chạm đất (2) lần.\nE3: Lân cúi chào."
+    prompt = build_prompt(AgentRunRequest(query=query, query_type="TRAKE"), timeout_seconds=240)
+    assert "there are exactly 3" in prompt
+    assert "E1: Lân quay trên cột (4), (5).\nE2: Bốn chân chạm đất (2) lần.\nE3: Lân cúi chào." in prompt
+    kis = build_prompt(AgentRunRequest(query=query, query_type="T-KIS"), timeout_seconds=240)
+    assert "EVENTS" not in kis
 
 
 def test_prompt_names_the_auto_filter_resolved_from_the_query():
@@ -450,7 +461,7 @@ def test_tool_api_requires_the_live_run_token(fake_clis, monkeypatch):
         tools = client.get("/api/agent/tools", headers=headers).json()["tools"]
         assert {t["name"] for t in tools} == {
             "search", "list_videos", "folder_frames", "video_outline",
-            "video_frames", "view_frames", "video_text", "report_candidate",
+            "video_frames", "view_frames", "video_text", "report_candidate", "compare_candidates", "constraint_probe",
         }
         reported = client.post("/api/agent/tools/report_candidate", headers=headers, json={
             "arguments": {"keyframe_id": "K01/K01_V001/006", "confidence": 0.8, "reason": "anchor"},
@@ -497,6 +508,7 @@ def test_missing_cli_is_unavailable_not_an_error(monkeypatch):
     monkeypatch.setattr(main.settings, "agent_claude_bin", "definitely-not-a-real-cli")
     with TestClient(main.app) as client:
         body = client.post("/api/agent/runs", json={"query": "q"}).json()
+        body = _wait(client, body["run_id"])
         assert body["finished"] is True
         assert body["agents"]["codex"]["status"] == "unavailable"
         health = client.get("/api/health").json()

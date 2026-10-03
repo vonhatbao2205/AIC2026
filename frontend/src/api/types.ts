@@ -310,6 +310,7 @@ export interface LatencyBreakdown {
 }
 
 export interface SearchResponse {
+  retrieval_id?: string | null;
   retrieval_database: RetrievalDatabase;
   query: string;
   parsed: ParsedQuery;
@@ -580,6 +581,7 @@ export interface TrakeVideoResult {
 }
 
 export interface TrakeSearchResponse {
+  retrieval_id?: string | null;
   retrieval_database: RetrievalDatabase;
   query: string;
   parsed: ParsedQuery;
@@ -870,7 +872,8 @@ export type AgentStatus =
   | "failed"
   | "timeout"
   | "cancelled"
-  | "unavailable";
+  | "unavailable"
+  | "skipped";
 
 export interface AgentStep {
   /** Seconds since the run started. */
@@ -923,6 +926,10 @@ export interface AgentCandidate {
 }
 
 export interface AgentRunSnapshot {
+  policy?: string;
+  controller?: { status: string; action?: string; stop_reason?: string; fallback?: string; steps?: number };
+  ranking?: (Partial<AgentCandidate> & { submit_keyframe_id: string; probability?: number | null })[];
+
   run_id: string;
   query: string;
   query_type: QueryType;

@@ -1,9 +1,9 @@
 """Agent runs: Codex and Claude searching next to the main pipeline.
 
 A run is started when the operator presses Search with the AGENT button on. It
-spawns each CLI as a background process and returns at once; `/api/search` never
-waits on it, and nothing here reads or writes the main ranking. The console
-polls the run and shows what the agents report in a panel of its own.
+starts a bounded decision controller and returns at once. The controller reuses
+server-issued retrieval evidence, selectively invokes CLIs, and publishes a
+combined ranking. The console polls it without delaying the main search.
 
 Isolation rules, in order of importance:
 - the main search never awaits an agent, and an agent failure is a status,
@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import atexit
+import copy
 import json
 import os
 import secrets
@@ -43,14 +44,15 @@ from .cli import (
 from ..scope import resolve_scope
 from .prompt import build_prompt
 from .tools import AgentTools
+from .evidence.board import EvidenceBoard
+from .controller import Controller, POLICIES
 
 if TYPE_CHECKING:
     from ..config import Settings
     from ..models import AgentRunRequest
     from ..services.search_service import SearchService
 
-AGENTS = ("codex", "claude")
-TERMINAL = frozenset({"done", "failed", "timeout", "cancelled", "unavailable"})
+TERMINAL = frozenset({"done", "failed", "timeout", "cancelled", "unavailable", "skipped"})
 #: A Codex `item.completed` line for a contact sheet carries the whole base64
 #: image, far past asyncio's 64 KiB default line limit.
 _STREAM_LIMIT = 64 * 1024 * 1024
@@ -78,6 +80,8 @@ class AgentState:
         self.fail_reason: str | None = None
         self.tool_calls = 0
         self.cost_usd: float | None = None
+        self.input_tokens: int | None = None
+        self.output_tokens: int | None = None
         self.steps: deque[dict[str, Any]] = deque(maxlen=60)
         self._run_started = run_started
 
@@ -121,6 +125,8 @@ class AgentState:
             "error": self.error,
             "error_kind": self.error_kind,
             "cost_usd": self.cost_usd,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
             "steps": list(self.steps)[-25:],
         }
 
@@ -143,12 +149,32 @@ class AgentRun:
         self.agents: dict[str, AgentState] = {}
         self.candidates: list[dict[str, Any]] = []
         self.tasks: dict[str, asyncio.Task] = {}
+        self.tool_tasks: set[asyncio.Task] = set()
         self.cancelled = False
         self.updated = time.monotonic()
+        self.finished_at: float | None = None
+        self.policy = request.policy or "full"
+        self.board = EvidenceBoard(request.query, request.query_type)
+        self.baseline: list[dict] = []
+        self.ranking: list[dict] = []
+        self.trace: list[dict] = []
+        self.controller: dict = {"status": "pending", "steps": 0}
+        self.controller_active = False
+        self.tool_count = 0
+        self.max_tool_calls = 40
+        self.cache_hits = 0
+        self.tool_cache: dict = {}
+        self.tool_locks: dict[str, asyncio.Lock] = {}
+        self.agent_invocations = {"codex": 0, "claude": 0}
+
+    def publish_ranking(self):
+        self.ranking = self.board.ranked(verified=self.policy not in {"retrieval", "codex", "parallel", "rule"})
+        self.trace.append({"kind": "ranking", "at_s": round(time.monotonic() - self.started, 3),
+                           "ranking": copy.deepcopy(self.ranking[:100])})
 
     @property
     def finished(self) -> bool:
-        return all(state.status in TERMINAL for state in self.agents.values())
+        return not self.controller_active and all(state.status in TERMINAL for state in self.agents.values())
 
     def add_candidate(self, candidate: dict[str, Any]) -> tuple[dict[str, Any], bool]:
         """Store what an agent reported; a repeat of the same frame updates it."""
@@ -178,10 +204,17 @@ class AgentRun:
             "query_type": self.request.query_type,
             "retrieval_database": self.request.retrieval_database,
             "created_at": self.created_at,
-            "elapsed_s": round(time.monotonic() - self.started, 1),
+            "elapsed_s": round((self.finished_at or time.monotonic()) - self.started, 3),
             "finished": self.finished,
             "agents": {name: state.to_dict() for name, state in self.agents.items()},
             "candidates": list(self.candidates),
+            "policy": self.policy,
+            "controller": self.controller,
+            "ranking": self.ranking,
+            "baseline_ranking": self.baseline,
+            "metrics": {"tool_calls": self.tool_count, "cache_hits": self.cache_hits,
+                        "agent_disagreement": self.board.disagreement(),
+                        "agent_calls": self.agent_invocations},
             "scope": {
                 "mode": self.scope.mode,
                 "active": self.scope.active,
@@ -203,13 +236,16 @@ class AgentService:
         self,
         settings: Callable[[], "Settings"],
         services: Callable[[], dict[str, "SearchService"]],
+        trake_services: Callable | None = None,
     ):
         # Both resolved per call: a config import swaps the whole service stack,
         # and a run that outlives the swap must use the new one.
         self._settings = settings
+        self._trake_services = trake_services
         self.tools = AgentTools(services)
         self._runs: OrderedDict[str, AgentRun] = OrderedDict()
         self._by_token: dict[str, str] = {}
+        self._retrievals: OrderedDict[str, tuple] = OrderedDict()
         self._procs: set[asyncio.subprocess.Process] = set()
         self._gates: dict[tuple[int, str], asyncio.Semaphore] = {}
         atexit.register(self._kill_all)
@@ -220,10 +256,27 @@ class AgentService:
         configured = s.agent_codex_bin if name == "codex" else s.agent_claude_bin
         return shutil.which(configured)
 
+    @staticmethod
+    def _calibration_hash(path):
+        if not path:
+            return None
+        import hashlib
+        try:
+            return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+        except OSError:
+            return "unreadable"
+
     def status(self) -> dict[str, Any]:
         s = self._settings()
         return {
             "enabled": s.agent_enabled,
+            "policy": s.agent_policy,
+            "controller_config": {"max_steps": s.agent_max_steps, "max_tool_calls": s.agent_max_tool_calls,
+                                  "verify_top_k": s.agent_verify_top_k, "stop_threshold": s.agent_stop_threshold,
+                                  "stop_margin": s.agent_stop_margin, "jev_timeout_seconds": s.jev_timeout_seconds,
+                                  "llm_judge_model": s.agent_llm_judge_model,
+                                  "calibration_sha256": self._calibration_hash(s.agent_calibration_path)},
+            "jev": {"model": s.jev_model, "configured": bool(s.openrouter_api_key) and not s.mock_mode},
             "timeout_seconds": s.agent_timeout_seconds,
             "max_concurrent": s.agent_max_concurrent,
             "agents": {
@@ -281,26 +334,60 @@ class AgentService:
             run.agents[name] = state
         self._runs[run.id] = run
         self._by_token[run.token] = run.id
-        for name, binary in binaries.items():
-            run.tasks[name] = asyncio.create_task(
-                self._run_agent(run, run.agents[name], binary, backend_url),
-                name=f"agent-{name}-{run.id}",
-            )
+        run.policy = request.policy or s.agent_policy
+        if run.policy not in POLICIES:
+            run.policy = "full"
+        run.max_tool_calls = s.agent_max_tool_calls
+        run.controller_active = True
+        seed = self.take_retrieval(request)
+        controller = Controller(self, run, binaries, backend_url, s, seed)
+        run.tasks["controller"] = asyncio.create_task(controller.run_controller(), name=f"controller-{run.id}")
         self._collect_garbage()
         return run.snapshot()
+
+    def remember_retrieval(self, payload: dict, result: dict) -> str | None:
+        # Previous hints and feedback are excluded from SOICT evidence.
+        if payload.get("previous_hints") or payload.get("feedback"):
+            return None
+        key = secrets.token_urlsafe(24)
+        self._retrievals[key] = (time.monotonic(), payload, result)
+        while len(self._retrievals) > 40:
+            self._retrievals.popitem(last=False)
+        return key
+
+    def take_retrieval(self, request):
+        if not request.retrieval_id:
+            return None
+        entry = self._retrievals.get(request.retrieval_id)
+        if not entry:
+            return None
+        created, payload, result = entry
+        if time.monotonic() - created > 120:
+            self._retrievals.pop(request.retrieval_id, None)
+            return None
+        if (payload.get("query") != request.query or payload.get("retrieval_database", "btc") != request.retrieval_database
+                or payload.get("image_models", ["pe"]) != request.image_models
+                or payload.get("scope", {"mode": "all", "categories": []}) != request.scope.model_dump()):
+            return None
+        return result
 
     async def cancel(self, run_id: str) -> dict[str, Any] | None:
         run = self._runs.get(run_id)
         if run is None:
             return None
         run.cancelled = True
-        pending = [task for task in run.tasks.values() if not task.done()]
+        run.controller_active = False
+        run.board.closed = True
+        pending = [task for task in {*run.tasks.values(), *run.tool_tasks} if not task.done()]
         for task in pending:
             task.cancel()
         if pending:
             await asyncio.gather(*pending, return_exceptions=True)
         for state in run.agents.values():
             state.finish("cancelled")
+        run.controller.update(status="cancelled", stop_reason="cancelled")
+        run.finished_at = run.finished_at or time.monotonic()
+        run.updated = run.finished_at
         return run.snapshot()
 
     def _gate(self, name: str, limit: int) -> asyncio.Semaphore:
@@ -323,7 +410,9 @@ class AgentService:
                     state.finish("cancelled")
                     return
                 workdir = Path(tempfile.mkdtemp(prefix=f"aic26-agent-{state.name}-"))
-                prompt = build_prompt(run.request, timeout_seconds=s.agent_timeout_seconds, scope=run.scope)
+                prompt = build_prompt(run.request, timeout_seconds=max(1, s.agent_timeout_seconds - (time.monotonic() - run.started)),
+                                      scope=run.scope, agent=state.name if run.request.specialization else None,
+                                      evidence=run.board.state(s.agent_verify_top_k))
                 bridge = bridge_env(backend_url, run.token, state.name)
                 if state.name == "codex":
                     argv = codex_argv(s, binary=binary, workdir=workdir, prompt=prompt, bridge=bridge)

@@ -15,6 +15,7 @@ import asyncio
 import base64
 import io
 import json
+import time
 from collections import OrderedDict, deque
 from functools import lru_cache
 from pathlib import Path
@@ -210,6 +211,29 @@ TOOL_SPECS: list[dict[str, Any]] = [
 ]
 
 
+# Only two orthogonal additions; temporal context stays on video_frames.
+TOOL_SPECS.extend([
+    {"name": "compare_candidates", "description": "Compare 2–4 competing moments in one image: columns are candidates, rows are before/center/after. Includes local OCR and speech.",
+     "inputSchema": {"type": "object", "properties": {
+         "keyframe_ids": {"type": "array", "items": {"type": "string"}, "minItems": 2, "maxItems": 4},
+         "radius": {"type": "number", "minimum": 0, "maximum": 30, "default": 5}},
+         "required": ["keyframe_ids"], "additionalProperties": False}},
+    {"name": "constraint_probe", "description": "Inspect one unresolved constraint locally around a candidate, with nearby frames and OCR/speech. Never performs a global search.",
+     "inputSchema": {"type": "object", "properties": {
+         "keyframe_id": {"type": "string"}, "constraint": {"type": "string", "minLength": 1, "maxLength": 1000},
+         "radius": {"type": "number", "minimum": 0, "maximum": 30, "default": 15}},
+         "required": ["keyframe_id", "constraint"], "additionalProperties": False}},
+])
+for _spec in TOOL_SPECS:
+    if _spec["name"] == "video_frames":
+        _spec["inputSchema"]["properties"].update({
+            "center_time": {"type": "number", "minimum": 0, "description": "Alternative to start/end; seconds."},
+            "before": {"type": "number", "minimum": 0, "maximum": 120, "default": 10},
+            "after": {"type": "number", "minimum": 0, "maximum": 120, "default": 10},
+            "density": {"type": "string", "enum": ["low", "medium", "high"], "default": "medium"},
+        })
+
+
 class ToolError(Exception):
     """A problem the agent caused and can fix (bad id, empty window): shown to it as text."""
 
@@ -306,10 +330,18 @@ class AgentTools:
         self._video_lists: dict[tuple[str, str], list[dict[str, Any]]] = {}
 
     @staticmethod
-    def specs() -> list[dict[str, Any]]:
-        return TOOL_SPECS
+    def specs(toolset: str = "full") -> list[dict[str, Any]]:
+        excluded = {"compare_candidates", "constraint_probe"} if toolset == "base" else ({"constraint_probe"} if toolset == "compare" else set())
+        return [spec for spec in TOOL_SPECS if spec["name"] not in excluded]
 
     async def call(self, name: str, arguments: dict[str, Any], run: "AgentRun", agent: str) -> dict[str, Any]:
+        if name not in {spec["name"] for spec in self.specs(run.request.toolset)}:
+            return {"content": [_text(f"Tool {name!r} is not enabled for this run.")], "isError": True}
+        if run.cancelled or run.finished or run.board.closed:
+            return {"content": [_text("Run is no longer active.")], "isError": True}
+        if run.tool_count >= run.max_tool_calls:
+            return {"content": [_text("Query tool budget exhausted. Finish with existing evidence.")], "isError": True}
+        run.tool_count += 1
         handler = {
             "search": self._search,
             "list_videos": self._list_videos,
@@ -319,16 +351,62 @@ class AgentTools:
             "view_frames": self._view_frames,
             "video_text": self._video_text,
             "report_candidate": self._report_candidate,
+            "compare_candidates": self._compare_candidates,
+            "constraint_probe": self._constraint_probe,
         }.get(name)
         if handler is None:
             return {"content": [_text(f"Unknown tool {name!r}.")], "isError": True}
+        started = time.monotonic()
+        args = arguments or {}
+        task = None
+        record = {"agent": agent, "tool": name, "arguments": args,
+                  "at_s": round(started - run.started, 3), "ok": False, "cache_hit": False}
         try:
-            content = await handler(arguments or {}, run, agent)
+            # Reject NaN/Infinity even when a non-browser MCP client sends them.
+            json.dumps(args, allow_nan=False)
+            cache_key = json.dumps([name, args], sort_keys=True, ensure_ascii=False)
+            cacheable = name in {"search", "video_text", "video_outline", "list_videos"}
+
+            async def invoke():
+                if run.board.closed:
+                    raise ToolError("Run is no longer active.")
+                if cacheable:
+                    async with run.tool_locks.setdefault(cache_key, asyncio.Lock()):
+                        if run.board.closed:
+                            raise ToolError("Run is no longer active.")
+                        if cache_key in run.tool_cache:
+                            run.cache_hits += 1
+                            record["cache_hit"] = True
+                            return run.tool_cache[cache_key]
+                        content = await handler(args, run, agent)
+                        if not run.board.closed:
+                            run.tool_cache[cache_key] = content
+                        return content
+                return await handler(args, run, agent)
+
+            # HTTP tool requests outlive their CLI's stdio thread. Keep these
+            # tasks under the controller's lifecycle too, including on timeout.
+            task = asyncio.create_task(invoke(), name=f"tool-{agent}-{name}-{run.id}")
+            run.tool_tasks.add(task)
+            content = await task
+            record["ok"] = True
+            return {"content": content, "isError": False}
+        except asyncio.CancelledError:
+            if run.board.closed and not asyncio.current_task().cancelling():
+                return {"content": [_text("Run ended while the tool was executing.")], "isError": True}
+            raise
         except ToolError as exc:
+            record["error"] = str(exc)
             return {"content": [_text(str(exc))], "isError": True}
-        except Exception as exc:  # noqa: BLE001 - an upstream outage is reported, not raised
-            return {"content": [_text(f"{name} failed: {type(exc).__name__}: {_clip(exc, 300)}")], "isError": True}
-        return {"content": content, "isError": False}
+        except Exception as exc:  # Upstream exceptions can include credential URLs.
+            record["error"] = type(exc).__name__
+            return {"content": [_text(f"{name} failed: {type(exc).__name__}")], "isError": True}
+        finally:
+            if task is not None:
+                run.tool_tasks.discard(task)
+            record["latency_ms"] = round((time.monotonic() - started) * 1000, 2)
+            run.board.history.append(record)
+            run.board.history[:] = run.board.history[-200:]
 
     def _service(self, run: "AgentRun") -> "SearchService":
         return self._services()[run.request.retrieval_database]
@@ -373,6 +451,7 @@ class AgentTools:
             "top_k": 150,
             "max_videos": limit,
         })
+        run.board.seed(result, source=f"search:{agent}", at=time.monotonic() - run.started)
         groups = result.get("groups") or []
         lines = [f"search mode={mode} query={query!r}: {len(groups)} videos"]
         applied = (result.get("scope") or {}).get("categories") or []
@@ -519,7 +598,8 @@ class AgentTools:
         )
         if offset + len(page) < len(videos):
             header += f" (next page: offset={offset + len(page)})"
-        return await self._sheet(service, frames, header, tile=(256, 144), columns=6, labels=labels, listing=listing)
+        return await self._sheet(service, frames, header, tile=(256, 144), columns=6, labels=labels, listing=listing,
+                                 run=run, agent=agent)
 
     async def _video_outline(self, args: dict[str, Any], run: "AgentRun", agent: str) -> list[dict]:
         video_id = str(args.get("video_id") or "").strip()
@@ -577,6 +657,16 @@ class AgentTools:
         duration = (await service.elastic.video_durations([video_id])).get(video_id)
         if duration is None:
             raise ToolError(f"Unknown video {video_id!r} in {run.request.retrieval_database}; copy ids from search results.")
+        if args.get("center_time") is not None:
+            if args.get("start") is not None or args.get("end") is not None:
+                raise ToolError("Use center_time or start/end, not both.")
+            center = float(args["center_time"])
+            density = args.get("density", "medium")
+            if density not in {"low", "medium", "high"}:
+                raise ToolError("density must be low, medium or high")
+            args = {**args, "start": max(0, center - min(120, max(0, float(args.get("before", 10))))),
+                    "end": center + min(120, max(0, float(args.get("after", 10)))),
+                    "count": args.get("count") or {"low": 6, "medium": 12, "high": 24}[density]}
         start = min(max(0.0, float(args.get("start") or 0.0)), duration)
         end_raw = args.get("end")
         end = duration if end_raw is None else min(max(start, float(end_raw)), duration)
@@ -600,7 +690,7 @@ class AgentTools:
             f"{video_id}: duration {duration:.1f}s; {len(frames)} keyframes between {start:.1f}s and {end:.1f}s "
             "(tile label = #index time):"
         )
-        return await self._sheet(service, frames, header, tile=(256, 144), columns=6)
+        return await self._sheet(service, frames, header, tile=(256, 144), columns=6, run=run, agent=agent)
 
     async def _view_frames(self, args: dict[str, Any], run: "AgentRun", agent: str) -> list[dict]:
         raw_ids = [str(i) for i in (args.get("keyframe_ids") or [])][:_VIEW_MAX]
@@ -625,7 +715,7 @@ class AgentTools:
                 "pts_time": record.get("pts_time"),
             })
         columns = 2 if len(frames) <= 4 else 3
-        return await self._sheet(service, frames, f"{len(frames)} keyframes:", tile=(512, 288), columns=columns)
+        return await self._sheet(service, frames, f"{len(frames)} keyframes:", tile=(512, 288), columns=columns, run=run, agent=agent)
 
     async def _sheet(
         self,
@@ -637,6 +727,7 @@ class AgentTools:
         columns: int,
         labels: list[str] | None = None,
         listing: list[str] | None = None,
+        run=None, agent: str | None = None,
     ) -> list[dict]:
         urls = [service.media.keyframe_url(f["video_id"], int(f["keyframe_n"])) for f in frames]
         fallback = (service.s.keyframe_media_fallback_base_url or "").rstrip("/")
@@ -645,6 +736,11 @@ class AgentTools:
             self._fetch(url, fallback + url[len(primary):] if fallback and url.startswith(primary) else None)
             for url in urls
         ))
+        if run is not None and agent is not None:
+            for frame, image in zip(frames, images):
+                if image:
+                    run.board.add_frame(frame, source=f"inspection:{agent}", at=time.monotonic() - run.started)
+                    run.board.inspected.setdefault(agent, set()).add(frame["submit_keyframe_id"])
         labels = labels or [f"#{i} {_fmt_time(f.get('pts_time'))}" for i, f in enumerate(frames, start=1)]
         listing = [
             line + ("" if image else " (image unavailable)")
@@ -725,8 +821,58 @@ class AgentTools:
                     kept.append(f"  {rec.get('submit_keyframe_id')} t={_fmt_time(rec.get('pts_time'))}: {text}")
             lines.append(f"ON-SCREEN TEXT ({len(kept)} distinct of {len(ocr)} keyframes with text):")
             lines.extend(kept)
+        if not isinstance(speech, BaseException):
+            for seg in speech:
+                run.board.remember_text(video_id, float(seg.get("start") or 0), float(seg.get("end") or 0),
+                                        "speech", str(seg.get("text") or ""), f"{video_id}:{seg.get('start')}:{seg.get('end')}")
+        if not isinstance(ocr, BaseException):
+            for rec in ocr:
+                if rec.get("pts_time") is not None:
+                    run.board.remember_text(video_id, rec["pts_time"], rec["pts_time"], "ocr", _screen_text(rec, 1000),
+                                            str(rec.get("submit_keyframe_id")))
         body = "\n".join(lines)
         return [_text(body[:12000] + ("\n…(truncated; narrow the window)" if len(body) > 12000 else ""))]
+
+    async def _compare_candidates(self, args, run, agent):
+        ids = list(dict.fromkeys(args.get("keyframe_ids") or []))
+        if not 2 <= len(ids) <= 4:
+            raise ToolError("compare_candidates requires 2–4 distinct keyframe_ids")
+        ids = [canonical_submit_keyframe_id(str(k)) for k in ids]
+        service = self._service(run)
+        records = await service.elastic.get_keyframes_by_ids(ids)
+        if any(not records.get(k) or records[k].get("pts_time") is None for k in ids):
+            raise ToolError("Every comparison candidate must exist and have a timestamp")
+        radius = min(30, max(0, float(args.get("radius", 5))))
+        centers = [records[k] for k in ids]
+        for frame in centers:
+            run.board.add_frame(frame, source="comparison", at=time.monotonic() - run.started)
+        pairs = [(f["video_id"], max(0, f["pts_time"] + offset)) for offset in (-radius, 0, radius) for f in centers]
+        neighbors = await service.elastic.nearest_keyframes_by_time(pairs)
+        frames = [r or centers[i % len(centers)] for i, r in enumerate(neighbors)]
+        labels = [f"{chr(65 + i % len(centers))} {('before', 'center', 'after')[i // len(centers)]} {_fmt_time(f.get('pts_time'))}" for i, f in enumerate(frames)]
+        content = await self._sheet(service, frames, "Candidate comparison: columns A/B/C/D; rows before/center/after.",
+                                    tile=(320, 180), columns=len(centers), labels=labels, run=run, agent=agent)
+        for frame in centers:
+            content.extend(await self._video_text({"video_id": frame["video_id"], "start": max(0, frame["pts_time"] - radius),
+                                                   "end": frame["pts_time"] + radius}, run, agent))
+        return content
+
+    async def _constraint_probe(self, args, run, agent):
+        constraint = str(args.get("constraint") or "").strip()
+        if not constraint or len(constraint) > 1000:
+            raise ToolError("constraint must be non-empty and at most 1000 characters")
+        key = canonical_submit_keyframe_id(str(args.get("keyframe_id") or ""))
+        frame = await self._service(run).elastic.get_keyframe(key)
+        if not frame or frame.get("pts_time") is None:
+            raise ToolError("constraint_probe needs an existing candidate with a timestamp")
+        run.board.add_frame(frame, source="probe", at=time.monotonic() - run.started)
+        radius = min(30, max(0, float(args.get("radius", 15))))
+        content = [_text(f"Local evidence for constraint: {constraint}. Missing evidence is unknown, not confirmation.")]
+        content.extend(await self._video_frames({"video_id": frame["video_id"], "center_time": frame["pts_time"],
+                                                 "before": radius, "after": radius, "count": 8}, run, agent))
+        content.extend(await self._video_text({"video_id": frame["video_id"], "start": max(0, frame["pts_time"] - radius),
+                                               "end": frame["pts_time"] + radius}, run, agent))
+        return content
 
     # ---- candidates ----------------------------------------------------
     async def _report_candidate(self, args: dict[str, Any], run: "AgentRun", agent: str) -> list[dict]:
@@ -738,10 +884,9 @@ class AgentTools:
                 kf_id = canonical_submit_keyframe_id(str(args["keyframe_id"]))
             except ValueError as exc:
                 raise ToolError(f"Bad keyframe_id: {exc}") from exc
-            parsed = parse_submit_keyframe_id(kf_id)
-            record = await service.elastic.get_keyframe(kf_id) or {
-                "submit_keyframe_id": kf_id, "video_id": parsed.video_id, "keyframe_n": parsed.keyframe_n,
-            }
+            record = await service.elastic.get_keyframe(kf_id)
+            if record is None:
+                raise ToolError("Candidate does not exist in this retrieval corpus; copy an ID from a tool result.")
         elif args.get("video_id") and requested_time is not None:
             video_id = str(args["video_id"]).strip()
             record = (await service.elastic.nearest_keyframes_by_time([(video_id, float(requested_time))]))[0]
@@ -771,7 +916,11 @@ class AgentTools:
             "event": int(event) if event is not None else None,
             "outside_scope": outside,
         }
+        if run.cancelled or run.finished or run.board.closed:
+            raise ToolError("Run ended before this candidate was resolved")
         stored, updated = run.add_candidate(candidate)
+        run.board.report(stored, time.monotonic() - run.started)
+        run.publish_ranking()
         verb = "Updated" if updated else "Recorded"
         note = ""
         if outside:

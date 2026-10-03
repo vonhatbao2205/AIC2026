@@ -189,6 +189,7 @@ export default function FullConsole({
   const [progressiveHybrid, setProgressiveHybrid] = useState(false);
   const progressiveActive = progressive && queryType === "T-KIS";
   const searchOwner = useRef(0);
+  useEffect(() => () => { searchOwner.current++; }, []);
   const [hints, setHints] = useState<string[]>([]);
   const [parsed, setParsed] = useState<ParsedQuery | null>(null);
   const [overrides, setOverrides] = useState<ManualOverrides>(EMPTY_OVERRIDES);
@@ -213,6 +214,8 @@ export default function FullConsole({
   // per browser. They run next to the main search and report into their own
   // panel: nothing they return is ever written into `groups`.
   const [agentOn, setAgentOn] = useState(readAgentPreference);
+  const agentEnabledRef = useRef(agentOn);
+  agentEnabledRef.current = agentOn;
   const { run: agentRun, error: agentError, starting: agentStarting,
     start: startAgents, cancel: stopAgents, clear: clearAgents } = useAgentRun();
   // Kept per console tab: two simultaneous tasks may intentionally search
@@ -936,6 +939,7 @@ export default function FullConsole({
     const query = typeof overrideQuery === "string" ? overrideQuery : queryState;
     if (!query.trim() && hints.length === 0) return;
     const owner = ++searchOwner.current;
+    let retrievalId: string | null = null;
     setLoading(true);
     setAppliedTopK(topK);
     // A new result set is a new ranking; carrying the old per-video sort into it
@@ -987,6 +991,7 @@ export default function FullConsole({
           })),
         }));
         setGroups(grp);
+        retrievalId = res.retrieval_id ?? null;
         setTrakeVideos(res.videos ?? []);
         setLatency(null);
         const n = Math.max(2, res.parsed.trake?.events?.length || 2);
@@ -1017,6 +1022,7 @@ export default function FullConsole({
         setParsed(res.parsed);
         setGroups(res.groups);
         setLatency(res.latency_ms);
+        retrievalId = res.retrieval_id ?? null;
         setAppliedScope(res.scope ?? null);
         setAppliedTraffic(res.traffic ?? null);
         setPeReport(res.pe_tokens ?? null);
@@ -1026,6 +1032,7 @@ export default function FullConsole({
       }
       setSelectedVideo(0);
       setSelectedFrame(0);
+      return { retrieval_id: retrievalId };
     } catch (e) {
       if (owner !== searchOwner.current) return;
       const msg = e instanceof ApiError
@@ -1055,19 +1062,27 @@ export default function FullConsole({
   const operatorSearch = useCallback(() => {
     const text = queryState.trim();
     const agents = agentAvailability ?? AGENT_NAMES;
-    if (agentOn && !progressiveActive && agents.length && (text || hints.length)) {
-      void startAgents({
-        retrieval_database: retrievalDatabase,
-        image_models: imageModelsForSearch(retrievalDatabase, imageModels),
-        query: text || hints.join(". "),
-        query_type: queryType,
-        scope: scopeRequest(scopeMode, scopeSelection),
-        previous_hints: text ? hints : [],
-        agents,
+    // Cancel immediately; reuse the server's retrieval evidence once it arrives.
+    // runSearch updates the visible results before the controller is launched.
+    void stopAgents();
+    const search = runSearch();
+    const owner = searchOwner.current;
+    if (agentOn && !progressiveActive && agents.length && text) {
+      void search.then((result) => {
+        if (owner !== searchOwner.current || !agentEnabledRef.current) return;
+        void startAgents({
+          retrieval_database: retrievalDatabase,
+          image_models: imageModelsForSearch(retrievalDatabase, imageModels),
+          query: text,
+          query_type: queryType,
+          scope: scopeRequest(scopeMode, scopeSelection),
+          previous_hints: [],
+          retrieval_id: result?.retrieval_id,
+          agents,
+        });
       });
     }
-    void runSearch();
-  }, [agentAvailability, agentOn, hints, imageModels, progressiveActive, queryState, queryType,
+  }, [agentAvailability, agentOn, stopAgents, imageModels, progressiveActive, queryState, queryType,
     retrievalDatabase, runSearch, scopeMode, scopeSelection, startAgents]);
 
   function toggleAgent() {

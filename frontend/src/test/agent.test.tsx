@@ -349,7 +349,7 @@ function mockFetch() {
       });
     if (path.endsWith("/api/search"))
       return json({
-        query: "q", retrieval_database: "btc", parsed: PARSED,
+        query: "q", retrieval_database: "btc", parsed: PARSED, retrieval_id: "server-seed-1",
         scope: { mode: "all", categories: [], strict_categories: [], active: false, reason_vi: "", matched_topics: [] },
         groups: [], latency_ms: { total_ms: 1 }, mode: "mock", warnings: [],
       });
@@ -388,6 +388,8 @@ describe("AGENT button", () => {
       query_type: "T-KIS",
       retrieval_database: "btc",
       agents: ["codex", "claude"],
+      retrieval_id: "server-seed-1",
+      previous_hints: [],
     });
     const main = requests.find((r) => r.path.endsWith("/api/search"))!;
     expect(main.body).not.toHaveProperty("agents");

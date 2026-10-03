@@ -230,6 +230,12 @@ def read_codex_event(event: dict[str, Any], state: "AgentState") -> None:
             state.step("thought", item["text"])
         elif item_type == "error" and item.get("message"):
             state.step("error", item["message"])
+    elif kind == "turn.completed":
+        usage = event.get("usage") or {}
+        if usage.get("input_tokens") is not None:
+            state.input_tokens = int(usage["input_tokens"])
+        if usage.get("output_tokens") is not None:
+            state.output_tokens = int(usage["output_tokens"])
     elif kind == "turn.failed":
         error = event.get("error") or {}
         state.fail_reason = _clip(error.get("message") if isinstance(error, dict) else error, 600)
@@ -254,6 +260,11 @@ def read_claude_event(event: dict[str, Any], state: "AgentState") -> None:
             elif block.get("type") == "thinking" and block.get("thinking", "").strip():
                 state.step("thought", block["thinking"])
     elif kind == "result":
+        usage = event.get("usage") or {}
+        if usage.get("input_tokens") is not None:
+            state.input_tokens = sum(int(usage.get(k) or 0) for k in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
+        if usage.get("output_tokens") is not None:
+            state.output_tokens = int(usage["output_tokens"])
         if event.get("total_cost_usd") is not None:
             state.cost_usd = float(event["total_cost_usd"])
         if event.get("is_error") or event.get("subtype") not in (None, "success"):

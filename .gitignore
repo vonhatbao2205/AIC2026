@@ -157,3 +157,8 @@ cloudflare run.txt
 # Local progressive retrieval traces and frozen parser plans
 /benchmarks/progressive/runs/
 /benchmarks/progressive/locks/
+
+
+# Local model credentials and agent benchmark traces
+/API_KEY/
+/benchmarks/agent/runs/

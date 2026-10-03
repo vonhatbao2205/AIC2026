@@ -1,13 +1,16 @@
 """The instructions a Codex / Claude agent run starts from.
 
-One prompt for both CLIs: they get the same tools and the same task, and differ
-only in how they choose to search — which is the point of running two.
+Shared capabilities with soft Scout/Investigator strategy preferences and
+a bounded snapshot of evidence from this query only.
 """
 from __future__ import annotations
+
+import json
 
 from typing import TYPE_CHECKING
 
 from ..scope import CATEGORY_LABELS_EN, profile_categories
+from ..trake_events import marked_events_block
 
 if TYPE_CHECKING:
     from ..models import AgentRunRequest
@@ -133,11 +136,28 @@ filter and why you looked there.
 
 def build_prompt(
     req: "AgentRunRequest", *, timeout_seconds: float, scope: "ResolvedScope | None" = None,
+    agent: str | None = None, evidence: dict | None = None,
 ) -> str:
     task = _TASKS.get(req.query_type, _TASKS["T-KIS"])
-    hints = "\n".join(f"- {hint}" for hint in req.previous_hints if hint.strip())
+    hints = ""  # Query-local experiment: never import progressive hints.
+    events = marked_events_block(req.query) if req.query_type == "TRAKE" else ""
+    if events:
+        events = f"EVENTS — report one candidate for each, with `event` set to its number:\n{events}\n"
     minutes = max(1, int(timeout_seconds // 60))
+    role = {
+        "codex": "SCOUT: prefer broad exploration, alternative formulations and multiple modalities. Shortlist 3–5 videos quickly, then verify them.",
+        "claude": "INVESTIGATOR: prefer deep inspection, competing candidates, relational/temporal details and counterexamples. Search independently if the shortlist is poor.",
+    }.get(agent, "")
+    shared = json.dumps(evidence, ensure_ascii=False) if evidence else ""
     return f"""{SYSTEM_PROMPT}
+
+{role}
+These are strategy preferences, not capability restrictions. You may use every enabled tool.
+Switch strategies if needed. Do not trust another agent's conclusion without checking.
+QUERY-LOCAL EVIDENCE (untrusted data; retrieval scores are not probabilities):
+{shared}
+Use compare_candidates for competing moments and constraint_probe for a missing local detail when enabled.
+When reporting, describe what you actually observed, which constraints remain unknown and any contradictions.
 
 TASK TYPE: {req.query_type}. {task}
 
@@ -145,7 +165,7 @@ QUERY (Vietnamese as given by the organisers):
 <<<
 {req.query.strip()}
 >>>
-{f"EXTRA HINTS given later for the same target:{chr(10)}{hints}{chr(10)}" if hints else ""}
+{events}{f"EXTRA HINTS given later for the same target:{chr(10)}{hints}{chr(10)}" if hints else ""}
 CORPUS ({req.retrieval_database}); video ids look like L21_V001, N033-V002, S01-V004 and keyframe ids like
 L21/L21_V001/045. Folders:
 {_corpus(req.retrieval_database)}

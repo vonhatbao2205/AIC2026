@@ -149,7 +149,7 @@ build_runtime()
 
 # Built once, NOT in `build_runtime`: runs in flight must survive a config import.
 # It resolves the settings and search services at call time instead.
-agent_service = AgentService(lambda: settings, lambda: search_services)
+agent_service = AgentService(lambda: settings, lambda: search_services, lambda: trake_services)
 
 
 @app.post("/api/progressive/sessions")
@@ -437,7 +437,9 @@ async def search(req: SearchRequest):
         payload["feedback"] = req.feedback.model_dump()
     payload["manual_overrides"] = req.manual_overrides.model_dump()
     payload["scope"] = req.scope.model_dump()
-    return await search_services[req.retrieval_database].search(payload)
+    result = await search_services[req.retrieval_database].search(payload)
+    result["retrieval_id"] = agent_service.remember_retrieval(payload, result)
+    return result
 
 
 @app.post("/api/search/trake")
@@ -445,7 +447,9 @@ async def search_trake(req: TrakeSearchRequest):
     payload = req.model_dump()
     payload["manual_overrides"] = req.manual_overrides.model_dump()
     payload["scope"] = req.scope.model_dump()
-    return await trake_services[req.retrieval_database].search_trake(payload)
+    result = await trake_services[req.retrieval_database].search_trake(payload)
+    result["retrieval_id"] = agent_service.remember_retrieval(payload, result)
+    return result
 
 
 @app.post("/api/answers/generate")
@@ -856,6 +860,16 @@ async def agent_run(run_id: str):
     return run.snapshot()
 
 
+@app.get("/api/agent/runs/{run_id}/trace")
+async def agent_trace(run_id: str):
+    run = agent_service.get(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Unknown agent run")
+    return {"run_id": run.id, "trace": run.trace, "tools": run.board.history,
+            "evidence": run.board.state(10),
+            "constraints": [c.to_dict() for c in run.board.constraints]}
+
+
 @app.delete("/api/agent/runs/{run_id}")
 async def agent_cancel(run_id: str):
     snapshot = await agent_service.cancel(run_id)
@@ -866,9 +880,10 @@ async def agent_cancel(run_id: str):
 
 @app.get("/api/agent/tools")
 async def agent_tools(x_aic_agent_token: str | None = Header(default=None)):
-    if agent_service.authorize(x_aic_agent_token) is None:
+    run = agent_service.authorize(x_aic_agent_token)
+    if run is None:
         raise HTTPException(status_code=403, detail="Agent run is not active")
-    return {"tools": agent_service.tools.specs()}
+    return {"tools": agent_service.tools.specs(run.request.toolset)}
 
 
 @app.post("/api/agent/tools/{name}")

@@ -224,6 +224,15 @@ class AgentRunRequest(ImageModelSelection):
     scope: SearchScope = Field(default_factory=SearchScope)
     previous_hints: list[str] = Field(default_factory=list, max_length=20)
     agents: list[AgentName] = Field(default_factory=lambda: ["codex", "claude"], min_length=1, max_length=2)
+    policy: Literal["retrieval", "codex", "parallel", "rerank", "adaptive", "full", "rule"] | None = None
+    # Experimental path is query-local; no progressive hints are consumed.
+    toolset: Literal["base", "compare", "full"] = "full"
+    specialization: bool = True
+    router: Literal["jev", "rule", "llm"] = "jev"
+    verifier: Literal["jev", "none", "llm"] = "jev"
+    # A server-issued seed reuses /api/search without trusting client evidence.
+    retrieval_id: str | None = Field(default=None, max_length=64)
+
     #: The run this one supersedes (the tab's previous search); it is cancelled
     #: first, so a new query never waits in the queue behind the old one.
     replaces: str | None = Field(default=None, max_length=64)

@@ -69,6 +69,7 @@ const STATUS_LABEL: Record<AgentState["status"], string> = {
   timeout: "timed out",
   cancelled: "stopped",
   unavailable: "not installed",
+  skipped: "not needed",
 };
 
 function agentError(state: AgentState): string | null {
@@ -313,7 +314,11 @@ export function AgentPanel(props: Props) {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const isTrake = queryType === "TRAKE";
-  const candidates = useMemo(() => sortCandidates(run?.candidates ?? []), [run?.candidates]);
+  const candidates = useMemo(() => {
+    const ranks = new Map((run?.ranking ?? []).map((row, i) => [row.submit_keyframe_id, i]));
+    return sortCandidates(run?.candidates ?? []).sort((a, b) =>
+      (ranks.get(a.submit_keyframe_id) ?? Infinity) - (ranks.get(b.submit_keyframe_id) ?? Infinity));
+  }, [run?.candidates, run?.ranking]);
   const consensus = useMemo(() => (isTrake ? [] : findConsensus(run?.candidates ?? [])), [isTrake, run?.candidates]);
   const agreed = useMemo(() => new Set(consensus.flatMap((c) => c.candidateIds)), [consensus]);
   const sequences = useMemo(
@@ -348,7 +353,7 @@ export function AgentPanel(props: Props) {
         >
           {collapsed ? "▸" : "▾"}
         </button>
-        <h3>Agents · Codex + Claude</h3>
+        <h3>{run?.policy ? "Agents · CAD-VR" : "Agents · Codex + Claude"}</h3>
         {run && (
           <span className="agent-count">
             {isTrake
@@ -359,7 +364,9 @@ export function AgentPanel(props: Props) {
         {scope && (
           <span className="agent-scope" title={run?.scope?.reason} data-testid="agent-scope">{scope}</span>
         )}
-        <span className="agent-head-note">Separate from the main ranking — it never changes the results list.</span>
+        <span className="agent-head-note">{run?.controller
+          ? `${run.controller.status}${run.controller.action ? ` · ${run.controller.action.replaceAll("_", " ").toLowerCase()}` : ""}${run.controller.fallback ? " · fallback" : ""}`
+          : "Separate from the main ranking — it never changes the results list."}</span>
         {working ? (
           <button className="btn sm danger" onClick={props.onStop} data-testid="agent-stop">Stop</button>
         ) : (

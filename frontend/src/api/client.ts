@@ -330,6 +330,7 @@ export const api = {
   // ---- Agent sidecar search (Codex / Claude) -------------------------------
   /** Start the agents on this query; returns at once, the run continues server-side. */
   startAgentRun: (body: {
+    retrieval_id?: string | null;
     retrieval_database: RetrievalDatabase;
     image_models: ImageEmbeddingModel[];
     query: string;
