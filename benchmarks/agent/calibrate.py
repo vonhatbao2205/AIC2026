@@ -28,7 +28,7 @@ def main():
         verifier = row.get("snapshot", {}).get("controller", {}).get("verifier", "jev")
         models.update(c["model"] for c in calls if c.get("backend") == verifier)
         aggregations.add("constraints" if row.get("snapshot", {}).get("policy") == "full" else "holistic")
-        samples.extend({"query_id": row["query_id"], "split": "dev", "probability": p, "label": y}
+        samples.extend({"query_id": row.get("base_query_id", row["query_id"]), "split": "dev", "probability": p, "label": y}
                        for p, y in row["metrics"]["calibration"])
     artifact = fit_temperature(samples)
     if len(models) != 1 or len(aggregations) != 1:

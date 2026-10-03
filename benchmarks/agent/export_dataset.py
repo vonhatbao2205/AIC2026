@@ -11,6 +11,7 @@ from pathlib import Path
 from benchmarks.gt_loader import load_qa, load_tkis, load_trake
 from backend.app.trake_events import split_marked_events
 from benchmarks.agent.run_benchmark import load_queries
+from benchmarks.agent.hints import validate_hints
 
 
 def profile(video):
@@ -79,10 +80,16 @@ def merge_additional(rows, additional):
     audit = {"exact_duplicates_merged": [], "split_changes": [], "video_overlap": []}
     for query in additional:
         query = copy.deepcopy(query)
+        validate_hints(query)
         existing = by_text.get(key(query))
         if existing:
             if (existing["query_type"], existing["retrieval_database"]) != (query["query_type"], query["retrieval_database"]):
                 raise ValueError("Identical text has conflicting task type or corpus; resolve it before merging")
+            if query.get("hints_vi"):
+                if existing.get("hints_vi") and existing["hints_vi"] != query["hints_vi"]:
+                    raise ValueError("Repeated query has conflicting reviewed hint boundaries; audit before merging")
+                existing["hints_vi"] = copy.deepcopy(query["hints_vi"])
+                validate_hints(existing)
             for field in ("targets", "sequences"):
                 values = list(existing.get(field, []))
                 for value in query.get(field, []):

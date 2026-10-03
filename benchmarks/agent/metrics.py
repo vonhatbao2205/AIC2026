@@ -87,6 +87,7 @@ def percentile(values, q):
 def measure(query, snapshot, trace, *, wall_s, tolerance_s=1.0):
     ranking, baseline = snapshot.get("ranking", []), snapshot.get("baseline_ranking", [])
     rank = first_rank(ranking, query, tolerance_s)
+    moment_rank = first_rank(ranking, {**query, "query_type": "T-KIS"}, tolerance_s) if query.get("query_type") == "QA" else rank
     base_rank = first_rank(baseline, query, tolerance_s)
     correct_at = [row["at_s"] for row in trace if row.get("kind") == "ranking" and first_rank(row["ranking"], query, tolerance_s) == 1]
     agents = snapshot.get("agents", {})
@@ -114,6 +115,7 @@ def measure(query, snapshot, trace, *, wall_s, tolerance_s=1.0):
     return {
         "rank": rank, "video_rank": video_rank(ranking, query), "baseline_rank": base_rank,
         "r1": int(rank == 1), "r5": int(rank is not None and rank <= 5), "mrr": 1 / rank if rank else 0.0,
+        "moment_r1": int(moment_rank == 1), "moment_r5": int(moment_rank is not None and moment_rank <= 5),
         "rescue1_eligible": base_rank != 1,
         "rescue5_eligible": base_rank is None or base_rank > 5,
         "rescue1": base_rank != 1 and agent_hit(1),
@@ -157,6 +159,8 @@ def summarize(records: list[dict]):
         out["both_agents_rate"] = sum(bool(r["codex_calls"]) and bool(r["claude_calls"]) for r in rows) / n
         for key in ("r1", "r5", "mrr", "tool_calls", "codex_calls", "claude_calls", "jev_calls", "llm_judge_calls", "solved_without_system2", "fallback", "failed", "retrieval_failed", "retrieval_degraded", "agent_failed", "improved_at_1", "improved_at_5"):
             out[key] = statistics.mean(float(r[key]) for r in rows)
+        for k in (1, 5):
+            out[f"moment_r{k}"] = statistics.mean(r.get(f"moment_r{k}", r[f"r{k}"]) for r in rows)
         for k in (1, 5):
             denom = sum(r[f"rescue{k}_eligible"] for r in rows)
             out[f"agent_rescue_at_{k}"] = sum(r[f"rescue{k}"] for r in rows) / denom if denom else None

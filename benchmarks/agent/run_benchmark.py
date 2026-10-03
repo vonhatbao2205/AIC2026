@@ -19,6 +19,7 @@ from pathlib import Path
 import httpx
 
 from .metrics import measure, summarize
+from .hints import build_plan, run_key, stage_metadata, validate_hints, PROTOCOL
 from backend.app.trake_events import split_marked_events
 
 VARIANTS = {
@@ -47,6 +48,7 @@ def load_queries(path):
         if not isinstance(q.get("query_id"), str) or not q["query_id"].strip() or q["query_id"] in seen or not isinstance(q.get("query"), str) or not q["query"].strip():
             raise ValueError("Every query must have nonempty text and a unique query_id")
         seen.add(q["query_id"])
+        validate_hints(q)
         if q.get("split") not in {"dev", "test"} or not q.get("targets"):
             raise ValueError(f"{q['query_id']}: split=dev/test and targets are required")
         text_key = " ".join(unicodedata.normalize("NFC", q["query"]).casefold().split())
@@ -136,22 +138,27 @@ async def run_one(client, query, variant, timeout, poll):
 
 
 def write_report(output, rows):
+    cumulative = any(r.get("hint_stage", "full") != "full" for r in rows)
+    manifest_path = output / "manifest.json"
+    manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
+    cumulative = cumulative or manifest.get("config", {}).get("hint_mode") == "cumulative"
+    all_rows = rows
+    # Never pool different information levels into the main retrieval table.
+    rows = [r for r in rows if r.get("hint_stage", "full") == "full"]
     summary = summarize(rows)
     (output / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2))
     by_task = {task: summarize([r for r in rows if r.get("query_type", "T-KIS") == task])
                for task in sorted({r.get("query_type", "T-KIS") for r in rows})}
     (output / "summary_by_task.json").write_text(json.dumps(by_task, ensure_ascii=False, indent=2))
-    variants = {r["variant"] for r in rows}
-    manifest_path = output / "manifest.json"
-    if manifest_path.exists():
-        variants = set(json.loads(manifest_path.read_text())["config"]["variants"])
+    variants = set(manifest.get("config", {}).get("variants", [r["variant"] for r in all_rows]))
     present = {}
     for row in rows:
         present.setdefault(row["query_id"], set()).add(row["variant"])
     common = {q for q, completed in present.items() if completed >= variants}
     paired = summarize([r for r in rows if r["query_id"] in common])
     (output / "summary_paired.json").write_text(json.dumps({"query_ids": sorted(common), "summary": paired}, ensure_ascii=False, indent=2))
-    lines = ["# CAD-VR benchmark", "", "Moment-level Recall; TRAKE requires a complete ordered sequence; QA requires the accepted answer.",
+    lines = ["# CAD-VR benchmark — Full query", "", "Moment-level Recall; TRAKE requires a complete ordered sequence; QA requires the accepted answer.",
+             f"Runtime mode: {manifest.get('config', {}).get('mode', 'unspecified')}. Mock runs validate the harness only and are not paper accuracy results.",
              "Unknown CLI cost/token usage stays null. ECE/Brier use final candidate relevance, not individual constraint labels.",
              f"Queries complete across all configured variants: {len(common)}. See summary_paired.json for matched-query comparisons. Partial rows below may have different N.", "",
              "| Variant | N | R@1 | R@5 | MRR | Rescue@1 | p50 s | p95 s | Agents/query | $/query |", "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
@@ -166,19 +173,29 @@ def write_report(output, rows):
         values = [s[k] for k in ("failed", "agent_failed", "retrieval_failed", "fallback", "no_cli_rate", "codex_only_rate", "claude_only_rate", "both_agents_rate")]
         lines.append(f"| {name} | " + " | ".join(fmt(v) for v in values) + " |")
     (output / "REPORT.md").write_text("\n".join(lines) + "\n")
+    if cumulative:
+        from .hint_report import write_hint_report
+        write_hint_report(output, all_rows, variants)
 
 
 async def main_async(args):
+    hint_mode = getattr(args, "hint_mode", "full")
     queries = [q for q in load_queries(args.dataset) if q["split"] == args.split]
-    if args.limit:
-        queries = queries[:args.limit]
     if not queries:
         raise ValueError("No queries in selected split")
-    variants = args.variants.split(",")
+    variants = (args.variants or ("A,C,F" if hint_mode == "cumulative" else "A,B,C,D,E,F")).split(",")
     if len(set(variants)) != len(variants) or any(v not in VARIANTS for v in variants):
         raise ValueError(f"Choose distinct variants from {list(VARIANTS)}")
+    queries, plan = build_plan(queries, hint_mode, variants, limit=args.limit)
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
+    plan_path = output / "run_plan.json"
+    if plan_path.exists() and json.loads(plan_path.read_text()) != plan:
+        raise ValueError("Run plan changed; use a new output directory")
+    plan_path.write_text(json.dumps(plan, ensure_ascii=False, indent=2))
+    print(f"{plan['base_queries']} base queries / {plan['stage_queries']} levels / {plan['planned_runs']} runs ({hint_mode})", flush=True)
+    if getattr(args, "dry_run", False):
+        return  # No network, CLI invocation or quota consumption.
     manifest_path = output / "manifest.json"
     rows_path = output / "results.jsonl"
     rows = [json.loads(line) for line in rows_path.read_text().splitlines() if line.strip()] if rows_path.exists() else []
@@ -191,7 +208,10 @@ async def main_async(args):
         health = health_response.json()
         # Freeze only non-secret runtime metadata.
         config = {"dataset_sha256": hashlib.sha256(Path(args.dataset).read_bytes()).hexdigest(),
-                  "split": args.split, "query_ids": [q["query_id"] for q in queries], "variants": variants,
+                  "split": args.split, "query_ids": sorted({q["query_id"] for q in queries}), "variants": variants,
+                  "hint_mode": hint_mode, "hint_protocol": PROTOCOL,
+                  "run_plan_sha256": hashlib.sha256(json.dumps(plan, sort_keys=True).encode()).hexdigest(),
+                  "client_timeout_s": args.timeout, "poll_s": args.poll,
                   "variant_parameters": {v: VARIANTS[v] for v in variants}, "tolerance_s": args.tolerance,
                   "seed": args.seed, "status": {k: status.get(k) for k in ("policy", "agents", "jev", "timeout_seconds", "controller_config")},
                   "mode": health.get("mode", "unknown")}
@@ -207,15 +227,22 @@ async def main_async(args):
             git = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
             manifest_path.write_text(json.dumps({"fingerprint": fingerprint, "config": config, "git_head": git,
                                                 "created_at": datetime.now(timezone.utc).isoformat()}, indent=2))
-        done = {(r["query_id"], r["variant"]) for r in rows}
+        done = {run_key(r) for r in rows}
+        expected = {(q["query_id"], q["hint_stage"], v) for q in queries for v in variants}
+        if len(done) != len(rows) or not done <= expected:
+            raise ValueError("Results contain duplicate or unexpected query/level/variant rows")
+        write_report(output, rows)
         rng = random.Random(args.seed)
+        # Randomize levels as well as systems: H2 never depends on having run H1.
+        if hint_mode == "cumulative":
+            rng.shuffle(queries)
         for query in queries:
             order = list(variants)
             rng.shuffle(order)
             for variant in order:
-                if (query["query_id"], variant) in done:
+                if (query["query_id"], query["hint_stage"], variant) in done:
                     continue
-                print(f"{query['query_id']} {variant}", flush=True)
+                print(f"{query['query_id']} {query['hint_stage']} {variant}", flush=True)
                 started = time.monotonic()
                 try:
                     snapshot, trace, wall = await run_one(client, query, variant, args.timeout, args.poll)
@@ -232,14 +259,16 @@ async def main_async(args):
                            "variant": variant, "error": type(exc).__name__,
                            "metrics": measure(query, snapshot, [], wall_s=time.monotonic() - started, tolerance_s=args.tolerance)}
                     row["metrics"].update(cost_usd=None, tokens=None)
+                row.update(stage_metadata(query), evaluated_query=query["query"])
                 with rows_path.open("a") as f:
                     f.write(json.dumps(row, ensure_ascii=False, allow_nan=False) + "\n")
                     f.flush()
                 rows.append(row)
                 write_report(output, rows)
                 if any(a.get("error_kind") == "quota" for a in row.get("snapshot", {}).get("agents", {}).values()):
-                    (output / "STOPPED.json").write_text(json.dumps({"reason": "agent_quota", "query_id": query["query_id"], "variant": variant}, indent=2))
+                    (output / "STOPPED.json").write_text(json.dumps({"reason": "agent_quota", "query_id": query["query_id"], "hint_stage": query["hint_stage"], "variant": variant}, indent=2))
                     raise SystemExit("Agent quota exhausted; result saved. Restore CLI quota before resuming.")
+        (output / "STOPPED.json").unlink(missing_ok=True)
 
 
 def main():
@@ -248,7 +277,9 @@ def main():
     p.add_argument("--output", required=True)
     p.add_argument("--url", default="http://127.0.0.1:8000")
     p.add_argument("--split", choices=["dev", "test"], default="test")
-    p.add_argument("--variants", default="A,B,C,D,E,F")
+    p.add_argument("--variants", help="Default: A–F for full; A,C,F for cumulative")
+    p.add_argument("--hint-mode", choices=["full", "cumulative"], default="full")
+    p.add_argument("--dry-run", action="store_true", help="Validate dataset and write offline run_plan.json without model calls")
     p.add_argument("--limit", type=int)
     p.add_argument("--seed", type=int, default=2026)
     p.add_argument("--tolerance", type=float, default=1.0)

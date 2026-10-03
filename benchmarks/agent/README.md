@@ -228,6 +228,143 @@ benchmark live hoặc fit calibration sau các bản sửa này.
 Tests offline: `pytest backend/tests/test_agent*.py`. Smoke mock/HTTP không phải
 kết quả chất lượng corpus. Cần chạy các lệnh live ở trên để có kết quả paper.
 
+## SOICT: Full query + Cumulative-Hint Evaluation
+
+Protocol này đo CAD-VR cần bao nhiêu thông tin đầu vào để tìm đúng. Mỗi prefix
+`h1`, `h1+h2`, …, `h1+…+hN` là **một query độc lập**. Đây là evaluation protocol;
+không dùng thuật toán Progressive Hint/Progressive Memory của VBS.
+
+> Each cumulative hint level is evaluated as an independent query from a fresh
+> system state; no cross-hint memory or progressive retrieval mechanism is used.
+
+Mỗi query/level/variant gọi `POST /api/agent/runs` mới. Payload chỉ có query hiện
+tại và cấu hình retrieval/policy; luôn `previous_hints=[]`, không có `retrieval_id`,
+`replaces`, candidate, reasoning, ground truth hay các hint tương lai. Backend tạo
+`AgentRun`, EvidenceBoard, Controller, Jev client, history và tool cache mới.
+Codex dùng process ephemeral, Claude không lưu session. Runner xáo trộn các mức
+và variants bằng seed cố định; H2 không phụ thuộc việc H1 đã chạy.
+Connections, static corpus/model assets và provider infrastructure có thể vẫn
+warm; đây là reset trạng thái retrieval/agent, không phải cold-start latency.
+
+Giữ bảng chính Full A–F trên toàn dataset. Cumulative mặc định A/C/F, chỉ lấy
+T-KIS/QA có ít nhất hai `hints_vi` đã review. Không tự chia câu workbook thành hint;
+TRAKE/AVS chưa có protocol nhãn partial phù hợp nên được loại khỏi cumulative
+và ghi lý do trong `run_plan.json`. Vẫn đánh giá các task đó trong Full.
+Full chỉ chạy một lần tại mức cuối, không thêm HN và Full trùng nhau.
+Loader và exporters từ chối hint rỗng/sai kiểu hoặc join(hints_vi) khác query;
+chỉ chấp nhận khác biệt Unicode NFC/whitespace, giữ nguyên case, dấu câu và facts.
+Merge dataset giữ các hint boundaries, từ chối hai cách chia hint mâu thuẫn.
+
+Dataset v5 có **111 câu: 25 dev / 86 test**. Structured-hint subset có
+**27 câu: 3 dev / 24 test**. Lịch chạy mặc định:
+
+| Split | Full A–F | Cumulative A/C/F | Tổng |
+|---|---:|---:|---:|
+| dev | 150 | 33 | 183 |
+| test | 516 | 270 | 786 |
+
+### Kiểm tra kế hoạch trước khi dùng quota
+
+```bash
+.venv/bin/python -m benchmarks.agent.run_soict \
+  --dataset benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl \
+  --output benchmarks/agent/runs/soict-dev-v1 --split dev --dry-run
+
+.venv/bin/python -m benchmarks.agent.run_soict \
+  --dataset benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl \
+  --output benchmarks/agent/runs/soict-test-v1 --split test --dry-run
+```
+
+`--dry-run` chỉ validate dữ liệu và ghi kế hoạch, không gọi network/model/CLI.
+`--limit 2` giới hạn **base query đủ điều kiện**, sau khi lọc hint subset; vẫn chạy
+mọi mức hint của hai query đó. Có thể smoke live bằng limit trước khi chạy đầy đủ.
+
+### Chạy experiments
+
+Với backend live đã chạy, dùng cùng lệnh phía trên và bỏ `--dry-run`.
+Suite chạy `main-{split}` trước, rồi `cumulative-{split}`, mỗi experiment có
+manifest/results riêng; lỗi quota dừng cả suite. Có `--experiment main`,
+`--experiment cumulative` hoặc `--experiment ablations` (ablations dùng dev).
+Tune/calibrate trên dev rồi khóa cấu hình trước test; suite không tự fit calibration.
+Nếu bật artifact sau khi fit, dùng output directory mới vì runtime hash đã đổi.
+Thứ tự code/data/config phải giữ cố định để resume. Failed pairs đã lưu không tự retry.
+
+Có thể chạy trực tiếp chỉ cumulative, hoặc thêm E vào comparison:
+
+```bash
+.venv/bin/python -m benchmarks.agent.run_benchmark \
+  --dataset benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl \
+  --output benchmarks/agent/runs/cumulative-test-v1 \
+  --split test --hint-mode cumulative --variants A,C,F
+
+.venv/bin/python -m benchmarks.agent.run_soict \
+  --dataset benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl \
+  --output benchmarks/agent/runs/soict-ablations-v1 \
+  --split dev --experiment ablations
+```
+
+Khóa resume là `(base query, hint stage, variant)`. Manifest hash dataset bao gồm
+`hints_vi`, mode, version/construction rule, run plan, code, tolerance, seed,
+timeout/poll và runtime model/controller/calibration. `evaluated_query` lưu đúng
+chuỗi đã gửi; metadata gồm `base_query_id`, `hint_stage`, `hint_level` (1…H),
+`hint_count` (H), `hint_fraction`, `is_full_hint`. Ground truth chỉ ở evaluator.
+
+### Metrics và cohort
+
+Hint đầu chưa chắc chỉ đúng moment được annotate, nên báo cáo ba tiêu chí:
+
+- **Video R@1/R@5** là primary ở partial input, bỏ qua moment/answer.
+- **Moment R@1/R@5** so với full-query moment labels, secondary ở partial input;
+  QA chưa yêu cầu answer ở tiêu chí này.
+- **Strict R@1/R@5/MRR** giữ evaluator chính: QA cần đúng moment + accepted answer,
+  TRAKE cần đầy đủ chuỗi đúng thứ tự. Strict là primary ở Full.
+
+Mỗi tiêu chí có `h* = min{h: Rank-1 correct}` từ các outcome độc lập. Báo mean/median
+**trên các câu solved**, kèm solved N và unsolved N; câu không solved có h*=null.
+Mean penalized gán H+1 cho unsolved. Early solve rate là tỷ lệ câu có h* < H trên
+tất cả câu đủ lượt. Mean hint saving dùng `(H-h*)/(H-1)`, unsolved nhận 0;
+chỉ lấy H≥2. Có regression rate vì thêm hint không đảm bảo success đơn điệu.
+
+Hints-to-solve và bảng paper dùng **cùng cohort đã đủ mọi level và mọi variant**.
+Failure/timeout vẫn ở mẫu số. Câu chưa chạy đủ do interruption được báo coverage,
+không bị giả thành unsolved. JSON giữ thêm available/paired cohort riêng mỗi mức.
+H1/H2/Full có thể so trên cùng cohort; H3 chỉ có các câu H≥4 vì H3 của câu ba hint
+đã mang tên Full. Numeric curves tách theo tổng H để tránh đổi cohort giữa điểm.
+Cost/tokens thiếu telemetry vẫn null; không thay phần phí chưa biết bằng zero.
+
+Output cumulative có thêm `summary_by_hint.json`, `hint_solve.json`,
+`hint_results.csv`, `CUMULATIVE_HINT_REPORT.md`. Summary/REPORT thông thường chỉ
+lấy Full, không gộp các mức input vào một accuracy. Report ghi rõ runtime mock/live.
+
+### Xuất bảng và figures cho paper (offline)
+
+```bash
+uv pip install --python .venv/bin/python -r benchmarks/agent/requirements.txt
+
+.venv/bin/python -m benchmarks.agent.paper_report \
+  --run-dir benchmarks/agent/runs/soict-test-v1/main-test
+
+.venv/bin/python -m benchmarks.agent.paper_report \
+  --run-dir benchmarks/agent/runs/soict-test-v1/cumulative-test --plots
+```
+
+Sinh `paper_tables.csv`, `paper_intervals.json`, `PAPER_REPORT.md`. Percentile
+paired bootstrap 2.000 samples, seed 2026, lấy base query làm sampling unit;
+báo 95% CI và paired differences so với A, tách từng task/hint level.
+Các interval mang tính exploratory, chưa điều chỉnh multiple comparisons.
+Không resample candidate như các mẫu độc lập. `--plots` xuất hai figures
+`hint_recall` và `hint_computation` thành PDF/PNG: video/moment/strict success;
+agent calls/tool calls/Jev calls/latency theo mức hint, tách tổng H, dùng cohort đủ lượt.
+Main Table 1, Cumulative Table 2 và dev ablations nằm trong các thư mục experiment
+riêng. Các artifacts này chỉ có giá trị thực nghiệm sau khi chạy backend live.
+
+Kiểm tra offline cho cả harness và state isolation:
+
+```bash
+.venv/bin/python -m pytest backend/tests/test_agent*.py \
+  backend/tests/test_cumulative_hint_benchmark.py backend/tests/test_submit_dataset.py
+```
+
 Nguồn API đã đối chiếu:
 - [OpenRouter Decisions](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request)
 - [GPT-6.1 Sol](https://developers.openai.com/api/docs/models/gpt-6.1-sol)

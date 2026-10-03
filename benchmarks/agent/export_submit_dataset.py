@@ -9,6 +9,7 @@ from collections import Counter
 from pathlib import Path
 
 from .run_benchmark import load_queries, validate_target
+from .hints import validate_hints
 from backend.app.trake_events import split_marked_events
 
 DEFAULT_REVIEW = Path(__file__).parent / "annotations" / "aic26-20260926"
@@ -70,6 +71,7 @@ def export_review(review_dir: Path):
             skipped.append({"query_id": query["query_id"], "workbook_rows": query["workbook_rows"],
                             "reason": decision["observation"]})
             continue
+        validate_hints(query)
         if decision.get("additional_audit_reference"):
             audit_path = (review_dir / decision["additional_audit_reference"]).resolve()
             if not audit_path.is_relative_to(review_dir.resolve()) or decision.get("additional_audit_sha256") != digest(audit_path):

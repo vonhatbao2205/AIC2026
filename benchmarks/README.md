@@ -1,5 +1,10 @@
 # Benchmark AIC26
 
+Benchmark agent cho paper SOICT: xem [agent/README.md](agent/README.md) để chạy
+Full A–F, **Cumulative-Hint Evaluation** A/C/F với fresh state ở từng mức hint,
+dev ablations, calibration và xuất bảng/figures. Entry point:
+`python -m benchmarks.agent.run_soict --help`.
+
 Bộ script sinh ra toàn bộ số liệu trong Chương 10 của báo cáo kỹ thuật
 (`AIC26_Technical_Report/`). Mục tiêu là mỗi con số trong báo cáo đều truy được
 về một file JSON có ghi cấu hình và thời điểm chạy, thay vì chỉ còn lại bảng tổng
