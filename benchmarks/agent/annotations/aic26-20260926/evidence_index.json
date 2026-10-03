@@ -1,0 +1,3345 @@
+[
+  {
+    "directory": "evidence/row-01",
+    "query_id": "aic26-20260926:tkis-query-01",
+    "probes": {
+      "L22_V015": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "30/1",
+            "avg_frame_rate": "30/1",
+            "time_base": "1/15360",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "1308.212245"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "098073e7-985b-476b-ac02-dcd1a610d546",
+        "video_id": "L22_V015",
+        "event_index": 0,
+        "submitted_time_s": 622.2,
+        "frame_idx": 18666,
+        "fps": 30.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-01/098073e7-e0.mp4",
+        "clip_start_s": 618.2,
+        "clip_sha256": "54239073db89b5d77aa15e3f2d9a056735bc22770f4b14dcd94ac488503a33f8",
+        "samples": [
+          {
+            "time_s": 619.2,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-01/098073e7-e0--3.jpg"
+          },
+          {
+            "time_s": 621.2,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-01/098073e7-e0--1.jpg"
+          },
+          {
+            "time_s": 622.2,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-01/098073e7-e0-+0.jpg"
+          },
+          {
+            "time_s": 623.2,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-01/098073e7-e0-+1.jpg"
+          },
+          {
+            "time_s": 625.2,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-01/098073e7-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "00f04523-0e83-43ce-9099-351aa46d4359",
+        "video_id": "L22_V015",
+        "event_index": 0,
+        "submitted_time_s": 615.3,
+        "frame_idx": 18459,
+        "fps": 30.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-01/00f04523-e0.mp4",
+        "clip_start_s": 611.3,
+        "clip_sha256": "30d3fe4327398a93c72641bcd6d2512b89d49e39a6eb9eb331b0bd35d10770af",
+        "samples": [
+          {
+            "time_s": 612.3,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-01/00f04523-e0--3.jpg"
+          },
+          {
+            "time_s": 614.3,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-01/00f04523-e0--1.jpg"
+          },
+          {
+            "time_s": 615.3,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-01/00f04523-e0-+0.jpg"
+          },
+          {
+            "time_s": 616.3,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-01/00f04523-e0-+1.jpg"
+          },
+          {
+            "time_s": 618.3,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-01/00f04523-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-02",
+    "query_id": "aic26-20260926:tkis-query-08",
+    "probes": {
+      "M06_V008": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/90000",
+            "start_time": "0.040000"
+          }
+        ],
+        "format": {
+          "duration": "1257.267664"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "3bbb7aee-533b-4885-9169-858e3daecf3a",
+        "video_id": "M06_V008",
+        "event_index": 0,
+        "submitted_time_s": 671.16,
+        "frame_idx": 16778,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-02/3bbb7aee-e0.mp4",
+        "clip_start_s": 667.16,
+        "clip_sha256": "a28447033ac9c66a83943b54342b890bfb8e8b3e694a9fb02f0d1b3632d654d5",
+        "samples": [
+          {
+            "time_s": 668.16,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-02/3bbb7aee-e0--3.jpg"
+          },
+          {
+            "time_s": 670.16,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-02/3bbb7aee-e0--1.jpg"
+          },
+          {
+            "time_s": 671.16,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-02/3bbb7aee-e0-+0.jpg"
+          },
+          {
+            "time_s": 672.16,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-02/3bbb7aee-e0-+1.jpg"
+          },
+          {
+            "time_s": 674.16,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-02/3bbb7aee-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-03",
+    "query_id": "aic26-20260926:tkis-query-02",
+    "probes": {
+      "L27_V010": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "584.492698"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "fd055910-25ab-424a-90c7-8642b7535ca4",
+        "video_id": "L27_V010",
+        "event_index": 0,
+        "submitted_time_s": 181.28,
+        "frame_idx": 4532,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-03/fd055910-e0.mp4",
+        "clip_start_s": 177.28,
+        "clip_sha256": "74c113c23e4086435017d5d6b32c023fd036edde7097587aaf82127dec5ef94e",
+        "samples": [
+          {
+            "time_s": 178.28,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-03/fd055910-e0--3.jpg"
+          },
+          {
+            "time_s": 180.28,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-03/fd055910-e0--1.jpg"
+          },
+          {
+            "time_s": 181.28,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-03/fd055910-e0-+0.jpg"
+          },
+          {
+            "time_s": 182.28,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-03/fd055910-e0-+1.jpg"
+          },
+          {
+            "time_s": 184.28,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-03/fd055910-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-04",
+    "query_id": "aic26-20260926:tkis-query-16",
+    "probes": {
+      "M01_V019": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "955.663673"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "93976be2-d171-409b-8914-4727260aa1d0",
+        "video_id": "M01_V019",
+        "event_index": 0,
+        "submitted_time_s": 748.2,
+        "frame_idx": 18705,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-04/93976be2-e0.mp4",
+        "clip_start_s": 744.2,
+        "clip_sha256": "b4a4d67d00c5070b0f33a4b458c64b30ce8881a788450b8dfe121b30ffdaa580",
+        "samples": [
+          {
+            "time_s": 745.2,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-04/93976be2-e0--3.jpg"
+          },
+          {
+            "time_s": 747.2,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-04/93976be2-e0--1.jpg"
+          },
+          {
+            "time_s": 748.2,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-04/93976be2-e0-+0.jpg"
+          },
+          {
+            "time_s": 749.2,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-04/93976be2-e0-+1.jpg"
+          },
+          {
+            "time_s": 751.2,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-04/93976be2-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-05",
+    "query_id": "aic26-20260926:tkis-query-21",
+    "probes": {
+      "M10_V014": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "1248.211882"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "1c016393-c75d-48f5-bd1f-50f29ba51e02",
+        "video_id": "M10_V014",
+        "event_index": 0,
+        "submitted_time_s": 651.12,
+        "frame_idx": 16278,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-05/1c016393-e0.mp4",
+        "clip_start_s": 647.12,
+        "clip_sha256": "c7b776754dc1f2137ac617ee6950f7ca989857c5871b6c675985a62ba3968cf7",
+        "samples": [
+          {
+            "time_s": 648.12,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-05/1c016393-e0--3.jpg"
+          },
+          {
+            "time_s": 650.12,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-05/1c016393-e0--1.jpg"
+          },
+          {
+            "time_s": 651.12,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-05/1c016393-e0-+0.jpg"
+          },
+          {
+            "time_s": 652.12,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-05/1c016393-e0-+1.jpg"
+          },
+          {
+            "time_s": 654.12,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-05/1c016393-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-06",
+    "query_id": "aic26-20260926:tkis-query-07",
+    "probes": {
+      "M03_V013": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "887.907846"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "6a43f93e-1cb9-48f0-aa4d-bc1841c5dcde",
+        "video_id": "M03_V013",
+        "event_index": 0,
+        "submitted_time_s": 340.52,
+        "frame_idx": 8513,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-06/6a43f93e-e0.mp4",
+        "clip_start_s": 336.52,
+        "clip_sha256": "de27ec49338c25d4bf3adc98a5cc9a6d64978f89ef1747212a3e03cc3eb748ed",
+        "samples": [
+          {
+            "time_s": 337.52,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-06/6a43f93e-e0--3.jpg"
+          },
+          {
+            "time_s": 339.52,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-06/6a43f93e-e0--1.jpg"
+          },
+          {
+            "time_s": 340.52,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-06/6a43f93e-e0-+0.jpg"
+          },
+          {
+            "time_s": 341.52,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-06/6a43f93e-e0-+1.jpg"
+          },
+          {
+            "time_s": 343.52,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-06/6a43f93e-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-07",
+    "query_id": "aic26-20260926:tkis-query-10",
+    "probes": {
+      "S01-V009": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "30/1",
+            "avg_frame_rate": "30/1",
+            "time_base": "1/15360",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "13376.272834"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "cfcb46c3-299c-4e40-98d0-cd9c0da7669e",
+        "video_id": "S01-V009",
+        "event_index": 0,
+        "submitted_time_s": 4542.7,
+        "frame_idx": 136281,
+        "fps": 30.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-07/cfcb46c3-e0.mp4",
+        "clip_start_s": 4538.7,
+        "clip_sha256": "2ec8ff31bf34b648ace83f3951e47330f4b2a4065cdaf5b02dc5ed6365f8181e",
+        "samples": [
+          {
+            "time_s": 4539.7,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-07/cfcb46c3-e0--3.jpg"
+          },
+          {
+            "time_s": 4541.7,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-07/cfcb46c3-e0--1.jpg"
+          },
+          {
+            "time_s": 4542.7,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-07/cfcb46c3-e0-+0.jpg"
+          },
+          {
+            "time_s": 4543.7,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-07/cfcb46c3-e0-+1.jpg"
+          },
+          {
+            "time_s": 4545.7,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-07/cfcb46c3-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-08",
+    "query_id": "aic26-20260926:tkis-query-15",
+    "probes": {
+      "L30_V065": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "107.717370"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "a0482d22-057b-4a94-bb0d-0b7f260a90fb",
+        "video_id": "L30_V065",
+        "event_index": 0,
+        "submitted_time_s": 67.72,
+        "frame_idx": 1693,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-08/a0482d22-e0.mp4",
+        "clip_start_s": 63.72,
+        "clip_sha256": "f63c08f97f8417754e5c11c553efa58e94838af04fbe51e5c12a10a3ed8029a2",
+        "samples": [
+          {
+            "time_s": 64.72,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-08/a0482d22-e0--3.jpg"
+          },
+          {
+            "time_s": 66.72,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-08/a0482d22-e0--1.jpg"
+          },
+          {
+            "time_s": 67.72,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-08/a0482d22-e0-+0.jpg"
+          },
+          {
+            "time_s": 68.72,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-08/a0482d22-e0-+1.jpg"
+          },
+          {
+            "time_s": 70.72,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-08/a0482d22-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-09",
+    "query_id": "aic26-20260926:tkis-query-22",
+    "probes": {
+      "L26_V400": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "301.348571"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "1f79ce77-89b3-468f-a188-2175bc1466ef",
+        "video_id": "L26_V400",
+        "event_index": 0,
+        "submitted_time_s": 266.12,
+        "frame_idx": 6653,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-09/1f79ce77-e0.mp4",
+        "clip_start_s": 262.12,
+        "clip_sha256": "41aa60ff4a43664cfa8140dbd7b3204923c36b9d07533832d8d0720bf851a367",
+        "samples": [
+          {
+            "time_s": 263.12,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-09/1f79ce77-e0--3.jpg"
+          },
+          {
+            "time_s": 265.12,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-09/1f79ce77-e0--1.jpg"
+          },
+          {
+            "time_s": 266.12,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-09/1f79ce77-e0-+0.jpg"
+          },
+          {
+            "time_s": 267.12,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-09/1f79ce77-e0-+1.jpg"
+          },
+          {
+            "time_s": 269.12,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-09/1f79ce77-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-10",
+    "query_id": "aic26-20260926:tkis-query-18",
+    "probes": {
+      "L26_V379": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "306.062222"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "698dcb75-4802-414e-95d3-57cf8e107fdf",
+        "video_id": "L26_V379",
+        "event_index": 0,
+        "submitted_time_s": 205.28,
+        "frame_idx": 5132,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-10/698dcb75-e0.mp4",
+        "clip_start_s": 201.28,
+        "clip_sha256": "109aaff3b36fe03488f0e1fad0f97048b9a43bcb208141f50086ad9d4cadefd9",
+        "samples": [
+          {
+            "time_s": 202.28,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-10/698dcb75-e0--3.jpg"
+          },
+          {
+            "time_s": 204.28,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-10/698dcb75-e0--1.jpg"
+          },
+          {
+            "time_s": 205.28,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-10/698dcb75-e0-+0.jpg"
+          },
+          {
+            "time_s": 206.28,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-10/698dcb75-e0-+1.jpg"
+          },
+          {
+            "time_s": 208.28,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-10/698dcb75-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-11",
+    "query_id": "aic26-20260926:tkis-query-17",
+    "probes": {
+      "M07_V001": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/90000",
+            "start_time": "0.040000"
+          }
+        ],
+        "format": {
+          "duration": "1160.486893"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "43e9907e-e399-4bfd-810a-45e1216dc1d4",
+        "video_id": "M07_V001",
+        "event_index": 0,
+        "submitted_time_s": 71.12,
+        "frame_idx": 1777,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-11/43e9907e-e0.mp4",
+        "clip_start_s": 67.12,
+        "clip_sha256": "b90cf41594b231a3ee55a3d34f0b7a2eaa7a0ac2f5a6ea92951c84056fe4fc82",
+        "samples": [
+          {
+            "time_s": 68.12,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-11/43e9907e-e0--3.jpg"
+          },
+          {
+            "time_s": 70.12,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-11/43e9907e-e0--1.jpg"
+          },
+          {
+            "time_s": 71.12,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-11/43e9907e-e0-+0.jpg"
+          },
+          {
+            "time_s": 72.12,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-11/43e9907e-e0-+1.jpg"
+          },
+          {
+            "time_s": 74.12,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-11/43e9907e-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-12",
+    "query_id": "aic26-20260926:tkis-query-03",
+    "probes": {
+      "M03_V009": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "900.748481"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "062c7f75-913d-4b90-a51b-4199953b1338",
+        "video_id": "M03_V009",
+        "event_index": 0,
+        "submitted_time_s": 518.36,
+        "frame_idx": 12959,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-12/062c7f75-e0.mp4",
+        "clip_start_s": 514.36,
+        "clip_sha256": "9fd8de52106eb005d3b2cd6096697d8d39cb708f6e4a3c738121f5c5d6c34aec",
+        "samples": [
+          {
+            "time_s": 515.36,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-12/062c7f75-e0--3.jpg"
+          },
+          {
+            "time_s": 517.36,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-12/062c7f75-e0--1.jpg"
+          },
+          {
+            "time_s": 518.36,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-12/062c7f75-e0-+0.jpg"
+          },
+          {
+            "time_s": 519.36,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-12/062c7f75-e0-+1.jpg"
+          },
+          {
+            "time_s": 521.36,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-12/062c7f75-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "8c49d09f-be81-400c-bb99-9218d4626ad5",
+        "video_id": "M03_V009",
+        "event_index": 0,
+        "submitted_time_s": 513.72,
+        "frame_idx": 12843,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-12/8c49d09f-e0.mp4",
+        "clip_start_s": 509.72,
+        "clip_sha256": "14376b9d85b6eb7120263c18d7fb0c9220f04c96c5858e7a72d61ebfbac59785",
+        "samples": [
+          {
+            "time_s": 510.72,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-12/8c49d09f-e0--3.jpg"
+          },
+          {
+            "time_s": 512.72,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-12/8c49d09f-e0--1.jpg"
+          },
+          {
+            "time_s": 513.72,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-12/8c49d09f-e0-+0.jpg"
+          },
+          {
+            "time_s": 514.72,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-12/8c49d09f-e0-+1.jpg"
+          },
+          {
+            "time_s": 516.72,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-12/8c49d09f-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-13",
+    "query_id": "aic26-20260926:tkis-query-14",
+    "probes": {
+      "S01-V004": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "30/1",
+            "avg_frame_rate": "30/1",
+            "time_base": "1/15360",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "14180.147664"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "e9355570-dbc6-4c1e-bf86-2faca43c6aad",
+        "video_id": "S01-V004",
+        "event_index": 0,
+        "submitted_time_s": 3395.9,
+        "frame_idx": 101877,
+        "fps": 30.0,
+        "verdict": "WRONG",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/e9355570-e0.mp4",
+        "clip_start_s": 3391.9,
+        "clip_sha256": "884a76a5c85fd525bb3876eccc6f11c50d0aa8c4d85ac65fcba51566bd53392d",
+        "samples": [
+          {
+            "time_s": 3392.9,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/e9355570-e0--3.jpg"
+          },
+          {
+            "time_s": 3394.9,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/e9355570-e0--1.jpg"
+          },
+          {
+            "time_s": 3395.9,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/e9355570-e0-+0.jpg"
+          },
+          {
+            "time_s": 3396.9,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/e9355570-e0-+1.jpg"
+          },
+          {
+            "time_s": 3398.9,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/e9355570-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "3bc0050b-a634-4a1b-a89d-956ffa8f5b50",
+        "video_id": "S01-V004",
+        "event_index": 0,
+        "submitted_time_s": 6477.133333,
+        "frame_idx": 194314,
+        "fps": 30.0,
+        "verdict": "WRONG",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/3bc0050b-e0.mp4",
+        "clip_start_s": 6473.133333,
+        "clip_sha256": "7760d390e7658f12b4e41af3c96221081a92da09dd1e67622a4a0b1728ede5ba",
+        "samples": [
+          {
+            "time_s": 6474.133333,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/3bc0050b-e0--3.jpg"
+          },
+          {
+            "time_s": 6476.133333,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/3bc0050b-e0--1.jpg"
+          },
+          {
+            "time_s": 6477.133333,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/3bc0050b-e0-+0.jpg"
+          },
+          {
+            "time_s": 6478.133333,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/3bc0050b-e0-+1.jpg"
+          },
+          {
+            "time_s": 6480.133333,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/3bc0050b-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "70f759bc-019b-4494-b278-d94155aeaeba",
+        "video_id": "S01-V004",
+        "event_index": 0,
+        "submitted_time_s": 3390.7,
+        "frame_idx": 101721,
+        "fps": 30.0,
+        "verdict": "WRONG",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/70f759bc-e0.mp4",
+        "clip_start_s": 3386.7,
+        "clip_sha256": "1f055ca4d13f7f2290f9febd1ad437fafcddf60853a821a10e8792fdce996e05",
+        "samples": [
+          {
+            "time_s": 3387.7,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/70f759bc-e0--3.jpg"
+          },
+          {
+            "time_s": 3389.7,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/70f759bc-e0--1.jpg"
+          },
+          {
+            "time_s": 3390.7,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/70f759bc-e0-+0.jpg"
+          },
+          {
+            "time_s": 3391.7,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/70f759bc-e0-+1.jpg"
+          },
+          {
+            "time_s": 3393.7,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/70f759bc-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "2c425644-1c60-4f41-8480-4728760a7c80",
+        "video_id": "S01-V004",
+        "event_index": 0,
+        "submitted_time_s": 3399.1,
+        "frame_idx": 101973,
+        "fps": 30.0,
+        "verdict": "WRONG",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/2c425644-e0.mp4",
+        "clip_start_s": 3395.1,
+        "clip_sha256": "b17886db765ca36fbd1fdc867627aafac34f7bfeca9018a1915b47e72a0f5af8",
+        "samples": [
+          {
+            "time_s": 3396.1,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/2c425644-e0--3.jpg"
+          },
+          {
+            "time_s": 3398.1,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/2c425644-e0--1.jpg"
+          },
+          {
+            "time_s": 3399.1,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/2c425644-e0-+0.jpg"
+          },
+          {
+            "time_s": 3400.1,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/2c425644-e0-+1.jpg"
+          },
+          {
+            "time_s": 3402.1,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-13/2c425644-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation.",
+    "additional_review": "Four-hint audit: extended context 3376–3420s at 2 FPS and original-resolution frames; local ASR support. See query13_audit.json. Earlier 3390.7s target excluded after audit."
+  },
+  {
+    "directory": "evidence/row-14",
+    "query_id": "aic26-20260926:qa-query-04",
+    "probes": {
+      "M08_V019": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "30/1",
+            "avg_frame_rate": "30/1",
+            "time_base": "1/15360",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "1336.354830"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "f35370a9-eed7-4638-921d-23cb5cbdd081",
+        "video_id": "M08_V019",
+        "event_index": 0,
+        "submitted_time_s": 686.866667,
+        "frame_idx": 20606,
+        "fps": 30.0,
+        "verdict": "CORRECT",
+        "answer": "MAXALEXANDER",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-14/f35370a9-e0.mp4",
+        "clip_start_s": 682.866667,
+        "clip_sha256": "f880b150087cdcf129b7fa80ad4be2292915950634982ce725f674ae1e63a756",
+        "samples": [
+          {
+            "time_s": 683.866667,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-14/f35370a9-e0--3.jpg"
+          },
+          {
+            "time_s": 685.866667,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-14/f35370a9-e0--1.jpg"
+          },
+          {
+            "time_s": 686.866667,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-14/f35370a9-e0-+0.jpg"
+          },
+          {
+            "time_s": 687.866667,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-14/f35370a9-e0-+1.jpg"
+          },
+          {
+            "time_s": 689.866667,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-14/f35370a9-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-15",
+    "query_id": "aic26-20260926:qa-query-05",
+    "probes": {
+      "M08_V016": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "1364.729615"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "c6a9f917-ace1-4ea2-8e04-520a34aa6fd8",
+        "video_id": "M08_V016",
+        "event_index": 0,
+        "submitted_time_s": 207.88,
+        "frame_idx": 5197,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": "ATTAPEU",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/c6a9f917-e0.mp4",
+        "clip_start_s": 203.88,
+        "clip_sha256": "c3d45935405c26a8a8f6aaf089a3fe4c4ca0361a3c6a44602889fcfc05d82b31",
+        "samples": [
+          {
+            "time_s": 204.88,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/c6a9f917-e0--3.jpg"
+          },
+          {
+            "time_s": 206.88,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/c6a9f917-e0--1.jpg"
+          },
+          {
+            "time_s": 207.88,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/c6a9f917-e0-+0.jpg"
+          },
+          {
+            "time_s": 208.88,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/c6a9f917-e0-+1.jpg"
+          },
+          {
+            "time_s": 210.88,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/c6a9f917-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "a35b9fdc-c419-4b35-942e-787b1a3d7ff6",
+        "video_id": "M08_V016",
+        "event_index": 0,
+        "submitted_time_s": 212.68,
+        "frame_idx": 5317,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": "ATTAPEU",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/a35b9fdc-e0.mp4",
+        "clip_start_s": 208.68,
+        "clip_sha256": "9f543cb5c8e88dae5a3eff0707194a417e267bb4d9a48db56b1d311b5364edfe",
+        "samples": [
+          {
+            "time_s": 209.68,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/a35b9fdc-e0--3.jpg"
+          },
+          {
+            "time_s": 211.68,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/a35b9fdc-e0--1.jpg"
+          },
+          {
+            "time_s": 212.68,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/a35b9fdc-e0-+0.jpg"
+          },
+          {
+            "time_s": 213.68,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/a35b9fdc-e0-+1.jpg"
+          },
+          {
+            "time_s": 215.68,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/a35b9fdc-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "8128fa49-5cad-4839-b466-bef2dbf7bbaf",
+        "video_id": "M08_V016",
+        "event_index": 0,
+        "submitted_time_s": 224.36,
+        "frame_idx": 5609,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": "ATTAPEU",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/8128fa49-e0.mp4",
+        "clip_start_s": 220.36,
+        "clip_sha256": "4b458b3b9902a5af3b74c3cc0785880dcb65aab97562c2f8344ffc7a0702a22f",
+        "samples": [
+          {
+            "time_s": 221.36,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/8128fa49-e0--3.jpg"
+          },
+          {
+            "time_s": 223.36,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/8128fa49-e0--1.jpg"
+          },
+          {
+            "time_s": 224.36,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/8128fa49-e0-+0.jpg"
+          },
+          {
+            "time_s": 225.36,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/8128fa49-e0-+1.jpg"
+          },
+          {
+            "time_s": 227.36,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/8128fa49-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "3305a4b8-3b9f-46f1-b86a-efc925624aa5",
+        "video_id": "M08_V016",
+        "event_index": 0,
+        "submitted_time_s": 211.92,
+        "frame_idx": 5298,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": "ATTAPEU",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/3305a4b8-e0.mp4",
+        "clip_start_s": 207.92,
+        "clip_sha256": "61d01484c0b5806de8182e37ba4447b2c9d6ffd1d4626d08e1544b78abc6d96a",
+        "samples": [
+          {
+            "time_s": 208.92,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/3305a4b8-e0--3.jpg"
+          },
+          {
+            "time_s": 210.92,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/3305a4b8-e0--1.jpg"
+          },
+          {
+            "time_s": 211.92,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/3305a4b8-e0-+0.jpg"
+          },
+          {
+            "time_s": 212.92,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/3305a4b8-e0-+1.jpg"
+          },
+          {
+            "time_s": 214.92,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-15/3305a4b8-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-16",
+    "query_id": "aic26-20260926:qa-query-06",
+    "probes": {
+      "M10_V031": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "video",
+            "r_frame_rate": "30/1",
+            "avg_frame_rate": "30/1",
+            "time_base": "1/90000",
+            "start_time": "0.033000"
+          }
+        ],
+        "format": {
+          "duration": "1253.854331"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "d254ec77-1187-4d28-a611-3aa5e9b07dc8",
+        "video_id": "M10_V031",
+        "event_index": 0,
+        "submitted_time_s": 416.733,
+        "frame_idx": 12501,
+        "fps": 30.0,
+        "verdict": "CORRECT",
+        "answer": "UVW",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-16/d254ec77-e0.mp4",
+        "clip_start_s": 412.733,
+        "clip_sha256": "0faf43b97e38d06aef9b291b3366ce8b2f52d1e2770caaa29b8a7b02a3560579",
+        "samples": [
+          {
+            "time_s": 413.733,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-16/d254ec77-e0--3.jpg"
+          },
+          {
+            "time_s": 415.733,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-16/d254ec77-e0--1.jpg"
+          },
+          {
+            "time_s": 416.733,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-16/d254ec77-e0-+0.jpg"
+          },
+          {
+            "time_s": 417.733,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-16/d254ec77-e0-+1.jpg"
+          },
+          {
+            "time_s": 419.733,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-16/d254ec77-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-17",
+    "query_id": "aic26-20260926:trake-cyclists",
+    "probes": {
+      "S01-V011": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "avg_frame_rate": "30/1",
+            "time_base": "1/15360",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "16840.225669"
+        }
+      }
+    },
+    "moments": [
+      {
+        "annotation_id": "pe-visual:S01-V011:cyclists-e1-e4-v1",
+        "video_id": "S01-V011",
+        "event_index": 1,
+        "annotated_time_s": 9355.8,
+        "frame_idx": 280674,
+        "fps": 30,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e1.mp4",
+        "clip_start_s": 9353.8,
+        "clip_sha256": "26aab9b128dd1f747e8765659b058a2a422fb7f6445320c6202dd14e955abb39",
+        "samples": [
+          {
+            "time_s": 9354.8,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e1-0.jpg"
+          },
+          {
+            "time_s": 9355.766666666666,
+            "offset_s": -0.03333333333333333,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e1-1.jpg"
+          },
+          {
+            "time_s": 9355.8,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e1-2.jpg"
+          },
+          {
+            "time_s": 9355.833333333332,
+            "offset_s": 0.03333333333333333,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e1-3.jpg"
+          },
+          {
+            "time_s": 9356.8,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e1-4.jpg"
+          }
+        ]
+      },
+      {
+        "annotation_id": "pe-visual:S01-V011:cyclists-e1-e4-v1",
+        "video_id": "S01-V011",
+        "event_index": 2,
+        "annotated_time_s": 9364.4,
+        "frame_idx": 280932,
+        "fps": 30,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e2.mp4",
+        "clip_start_s": 9362.4,
+        "clip_sha256": "68cde294d427f789a18e4c340bd5d3fdac79333671c55dced987d5ba39fe5cd4",
+        "samples": [
+          {
+            "time_s": 9363.4,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e2-0.jpg"
+          },
+          {
+            "time_s": 9364.366666666667,
+            "offset_s": -0.03333333333333333,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e2-1.jpg"
+          },
+          {
+            "time_s": 9364.4,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e2-2.jpg"
+          },
+          {
+            "time_s": 9364.433333333332,
+            "offset_s": 0.03333333333333333,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e2-3.jpg"
+          },
+          {
+            "time_s": 9365.4,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e2-4.jpg"
+          }
+        ]
+      },
+      {
+        "annotation_id": "pe-visual:S01-V011:cyclists-e1-e4-v1",
+        "video_id": "S01-V011",
+        "event_index": 3,
+        "annotated_time_s": 9375.433333333332,
+        "frame_idx": 281263,
+        "fps": 30,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e3.mp4",
+        "clip_start_s": 9373.433333333332,
+        "clip_sha256": "ff85a4361a149e73eedd65aaa6fbcf5e124aada0ca2e7135b05553f98530fc78",
+        "samples": [
+          {
+            "time_s": 9374.433333333332,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e3-0.jpg"
+          },
+          {
+            "time_s": 9375.4,
+            "offset_s": -0.03333333333333333,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e3-1.jpg"
+          },
+          {
+            "time_s": 9375.433333333332,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e3-2.jpg"
+          },
+          {
+            "time_s": 9375.466666666665,
+            "offset_s": 0.03333333333333333,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e3-3.jpg"
+          },
+          {
+            "time_s": 9376.433333333332,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e3-4.jpg"
+          }
+        ]
+      },
+      {
+        "annotation_id": "pe-visual:S01-V011:cyclists-e1-e4-v1",
+        "video_id": "S01-V011",
+        "event_index": 4,
+        "annotated_time_s": 9398.233333333334,
+        "frame_idx": 281947,
+        "fps": 30,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e4.mp4",
+        "clip_start_s": 9396.233333333334,
+        "clip_sha256": "b7dbec8004848c131e7d9b5ddb323b360b2c010fd46bcb1a124e28be11cc1009",
+        "samples": [
+          {
+            "time_s": 9397.233333333334,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e4-0.jpg"
+          },
+          {
+            "time_s": 9398.2,
+            "offset_s": -0.03333333333333333,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e4-1.jpg"
+          },
+          {
+            "time_s": 9398.233333333334,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e4-2.jpg"
+          },
+          {
+            "time_s": 9398.266666666666,
+            "offset_s": 0.03333333333333333,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e4-3.jpg"
+          },
+          {
+            "time_s": 9399.233333333334,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-17/annotated-e4-4.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "PE-only retrieval restricted to owner-provided S01, original continuous shot reviewed at 1/10 FPS and native 30 FPS around E2/E3/E4; direct original frame for E1. No DRES submission exists for these annotations."
+  },
+  {
+    "directory": "evidence/row-18",
+    "query_id": "aic26-20260926:tkis-query-23",
+    "probes": {
+      "N061-V002": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "193587200/7743641",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "604.971953"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "b1741fcd-305a-4069-9dc8-8070ac6bed1f",
+        "video_id": "N061-V002",
+        "event_index": 0,
+        "submitted_time_s": 289.606953,
+        "frame_idx": 7240,
+        "fps": 24.99950605,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-18/b1741fcd-e0.mp4",
+        "clip_start_s": 285.606953,
+        "clip_sha256": "530c974fa6ae883fe6f041334bc30bb7daf2da61a9e88bc62c81ad1e62842511",
+        "samples": [
+          {
+            "time_s": 286.606953,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-18/b1741fcd-e0--3.jpg"
+          },
+          {
+            "time_s": 288.606953,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-18/b1741fcd-e0--1.jpg"
+          },
+          {
+            "time_s": 289.606953,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-18/b1741fcd-e0-+0.jpg"
+          },
+          {
+            "time_s": 290.606953,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-18/b1741fcd-e0-+1.jpg"
+          },
+          {
+            "time_s": 292.606953,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-18/b1741fcd-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-19",
+    "query_id": "aic26-20260926:tkis-query-24",
+    "probes": {
+      "N025-V002": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "1250000/50001",
+            "time_base": "1/10000",
+            "start_time": "0.200000"
+          }
+        ],
+        "format": {
+          "duration": "600.012000"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "96900bb0-2e07-4f24-8e06-e0137c12458f",
+        "video_id": "N025-V002",
+        "event_index": 0,
+        "submitted_time_s": 513.407,
+        "frame_idx": 12830,
+        "fps": 24.99950001,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-19/96900bb0-e0.mp4",
+        "clip_start_s": 509.40700000000004,
+        "clip_sha256": "cf987609d10117e65f772aa29bb6c3a4f4222a7a1a35291b2b9d5b35e14191f0",
+        "samples": [
+          {
+            "time_s": 510.40700000000004,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-19/96900bb0-e0--3.jpg"
+          },
+          {
+            "time_s": 512.407,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-19/96900bb0-e0--1.jpg"
+          },
+          {
+            "time_s": 513.407,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-19/96900bb0-e0-+0.jpg"
+          },
+          {
+            "time_s": 514.407,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-19/96900bb0-e0-+1.jpg"
+          },
+          {
+            "time_s": 516.407,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-19/96900bb0-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-20",
+    "query_id": "aic26-20260926:qa-query-03",
+    "probes": {
+      "L27_V012": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "600.840000"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "8775e361-50af-4f5f-999b-48217f500442",
+        "video_id": "L27_V012",
+        "event_index": 0,
+        "submitted_time_s": 138.72,
+        "frame_idx": 3468,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": "CANTHO",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-20/8775e361-e0.mp4",
+        "clip_start_s": 134.72,
+        "clip_sha256": "de7aae5dad611f38066975bb5486cdcfb83a00c05672820d30b0013863769881",
+        "samples": [
+          {
+            "time_s": 135.72,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-20/8775e361-e0--3.jpg"
+          },
+          {
+            "time_s": 137.72,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-20/8775e361-e0--1.jpg"
+          },
+          {
+            "time_s": 138.72,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-20/8775e361-e0-+0.jpg"
+          },
+          {
+            "time_s": 139.72,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-20/8775e361-e0-+1.jpg"
+          },
+          {
+            "time_s": 141.72,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-20/8775e361-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-21",
+    "query_id": "aic26-20260926:qa-query-01",
+    "probes": {
+      "M04_V008": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "1152.592109"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "6721f645-3ae6-4d29-9913-90cf4d0d4597",
+        "video_id": "M04_V008",
+        "event_index": 0,
+        "submitted_time_s": 780.12,
+        "frame_idx": 19503,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": "SAGRADAFAMILIA",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-21/6721f645-e0.mp4",
+        "clip_start_s": 776.12,
+        "clip_sha256": "faa670e6040158b13c1ab65a70b6e1dcba535a6a9a98909916cdda1e116907ac",
+        "samples": [
+          {
+            "time_s": 777.12,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-21/6721f645-e0--3.jpg"
+          },
+          {
+            "time_s": 779.12,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-21/6721f645-e0--1.jpg"
+          },
+          {
+            "time_s": 780.12,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-21/6721f645-e0-+0.jpg"
+          },
+          {
+            "time_s": 781.12,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-21/6721f645-e0-+1.jpg"
+          },
+          {
+            "time_s": 783.12,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-21/6721f645-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-24",
+    "query_id": "aic26-20260926:qa-query-07",
+    "probes": {
+      "L23_V004": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "397.293424"
+        }
+      },
+      "L23_V024": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "399.568980"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "2e83943d-bc1c-4bd3-b3fc-ff8f8c749004",
+        "video_id": "L23_V004",
+        "event_index": 0,
+        "submitted_time_s": 102.0,
+        "frame_idx": 2550,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": "46",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/2e83943d-e0.mp4",
+        "clip_start_s": 98.0,
+        "clip_sha256": "6f7bfeedf60311d884af0d597a8ce7234f7d8aab1c05b3c121395957a12ca78e",
+        "samples": [
+          {
+            "time_s": 99.0,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/2e83943d-e0--3.jpg"
+          },
+          {
+            "time_s": 101.0,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/2e83943d-e0--1.jpg"
+          },
+          {
+            "time_s": 102.0,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/2e83943d-e0-+0.jpg"
+          },
+          {
+            "time_s": 103.0,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/2e83943d-e0-+1.jpg"
+          },
+          {
+            "time_s": 105.0,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/2e83943d-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "14bb7664-01b4-4b90-8576-336f7508d7ef",
+        "video_id": "L23_V004",
+        "event_index": 0,
+        "submitted_time_s": 97.6,
+        "frame_idx": 2440,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": "46",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/14bb7664-e0.mp4",
+        "clip_start_s": 93.6,
+        "clip_sha256": "9d6805cc7aa74de36b4fb9bfb1bd3ed2bc30991232f9406b6264a5c33a4e11be",
+        "samples": [
+          {
+            "time_s": 94.6,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/14bb7664-e0--3.jpg"
+          },
+          {
+            "time_s": 96.6,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/14bb7664-e0--1.jpg"
+          },
+          {
+            "time_s": 97.6,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/14bb7664-e0-+0.jpg"
+          },
+          {
+            "time_s": 98.6,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/14bb7664-e0-+1.jpg"
+          },
+          {
+            "time_s": 100.6,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/14bb7664-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "e095e4ce-4338-4e1d-9039-d7fe3807762e",
+        "video_id": "L23_V004",
+        "event_index": 0,
+        "submitted_time_s": 97.6,
+        "frame_idx": 2440,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": "46KM/H",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/e095e4ce-e0.mp4",
+        "clip_start_s": 93.6,
+        "clip_sha256": "9d6805cc7aa74de36b4fb9bfb1bd3ed2bc30991232f9406b6264a5c33a4e11be",
+        "samples": [
+          {
+            "time_s": 94.6,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/e095e4ce-e0--3.jpg"
+          },
+          {
+            "time_s": 96.6,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/e095e4ce-e0--1.jpg"
+          },
+          {
+            "time_s": 97.6,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/e095e4ce-e0-+0.jpg"
+          },
+          {
+            "time_s": 98.6,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/e095e4ce-e0-+1.jpg"
+          },
+          {
+            "time_s": 100.6,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/e095e4ce-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "39ed9e11-1b66-4554-b566-76efb9eadd65",
+        "video_id": "L23_V024",
+        "event_index": 0,
+        "submitted_time_s": 108.2,
+        "frame_idx": 2705,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": "61",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/39ed9e11-e0.mp4",
+        "clip_start_s": 104.2,
+        "clip_sha256": "82b82ed6ff957d5e7d98a6eca4800eb5538ccfabcda922e6964e8501b35e679f",
+        "samples": [
+          {
+            "time_s": 105.2,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/39ed9e11-e0--3.jpg"
+          },
+          {
+            "time_s": 107.2,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/39ed9e11-e0--1.jpg"
+          },
+          {
+            "time_s": 108.2,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/39ed9e11-e0-+0.jpg"
+          },
+          {
+            "time_s": 109.2,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/39ed9e11-e0-+1.jpg"
+          },
+          {
+            "time_s": 111.2,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-24/39ed9e11-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-25",
+    "query_id": "aic26-20260926:qa-query-08",
+    "probes": {
+      "M08_V025": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "1246.609705"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "4e3a554f-4d1f-4114-8a53-91e7abecfb7e",
+        "video_id": "M08_V025",
+        "event_index": 0,
+        "submitted_time_s": 268.4,
+        "frame_idx": 6710,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": "DONGTHAP",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-25/4e3a554f-e0.mp4",
+        "clip_start_s": 264.4,
+        "clip_sha256": "5ba935993ff037371b12559994b37c1456f14a22709b9122265d67e779dd7b3f",
+        "samples": [
+          {
+            "time_s": 265.4,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-25/4e3a554f-e0--3.jpg"
+          },
+          {
+            "time_s": 267.4,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-25/4e3a554f-e0--1.jpg"
+          },
+          {
+            "time_s": 268.4,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-25/4e3a554f-e0-+0.jpg"
+          },
+          {
+            "time_s": 269.4,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-25/4e3a554f-e0-+1.jpg"
+          },
+          {
+            "time_s": 271.4,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-25/4e3a554f-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-26",
+    "query_id": "aic26-20260926:qa-query-09",
+    "probes": {
+      "M05_V018": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "904.533333"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "237b1857-42ac-47b2-8035-bd6c30c0f1f3",
+        "video_id": "M05_V018",
+        "event_index": 0,
+        "submitted_time_s": 507.72,
+        "frame_idx": 12693,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": "KHUNGLONG",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-26/237b1857-e0.mp4",
+        "clip_start_s": 503.72,
+        "clip_sha256": "380c305ededfde137eaa52fab6ee004f700c0f7b141f1f1ace14b12eaabcc0bf",
+        "samples": [
+          {
+            "time_s": 504.72,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-26/237b1857-e0--3.jpg"
+          },
+          {
+            "time_s": 506.72,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-26/237b1857-e0--1.jpg"
+          },
+          {
+            "time_s": 507.72,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-26/237b1857-e0-+0.jpg"
+          },
+          {
+            "time_s": 508.72,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-26/237b1857-e0-+1.jpg"
+          },
+          {
+            "time_s": 510.72,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-26/237b1857-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-27",
+    "query_id": "aic26-20260926:qa-query-10",
+    "probes": {
+      "L26_V331": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "304.367166"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "bf467a38-9a77-4321-88fd-8928af9b2f1f",
+        "video_id": "L26_V331",
+        "event_index": 0,
+        "submitted_time_s": 126.4,
+        "frame_idx": 3160,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": "BANHRAN",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-27/bf467a38-e0.mp4",
+        "clip_start_s": 122.4,
+        "clip_sha256": "12112a84d4c3b5b4a285596b68136d1f6391c8ca81bd0df820e57328ac7338ec",
+        "samples": [
+          {
+            "time_s": 123.4,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-27/bf467a38-e0--3.jpg"
+          },
+          {
+            "time_s": 125.4,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-27/bf467a38-e0--1.jpg"
+          },
+          {
+            "time_s": 126.4,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-27/bf467a38-e0-+0.jpg"
+          },
+          {
+            "time_s": 127.4,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-27/bf467a38-e0-+1.jpg"
+          },
+          {
+            "time_s": 129.4,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-27/bf467a38-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-28",
+    "query_id": "aic26-20260926:qa-query-13",
+    "probes": {
+      "M02_V007": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "905.508571"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "1a8ea8b0-5a18-4736-ba6b-f6fd9b6510d5",
+        "video_id": "M02_V007",
+        "event_index": 0,
+        "submitted_time_s": 455.28,
+        "frame_idx": 11382,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": "SADEC",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/1a8ea8b0-e0.mp4",
+        "clip_start_s": 451.28,
+        "clip_sha256": "f944670f7ac658cdb72ea73c2a87dd16de052bedbe3a06f54006fa705883cb4e",
+        "samples": [
+          {
+            "time_s": 452.28,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/1a8ea8b0-e0--3.jpg"
+          },
+          {
+            "time_s": 454.28,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/1a8ea8b0-e0--1.jpg"
+          },
+          {
+            "time_s": 455.28,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/1a8ea8b0-e0-+0.jpg"
+          },
+          {
+            "time_s": 456.28,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/1a8ea8b0-e0-+1.jpg"
+          },
+          {
+            "time_s": 458.28,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/1a8ea8b0-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "fdf2a887-eaca-4501-b99f-c159dce9ab32",
+        "video_id": "M02_V007",
+        "event_index": 0,
+        "submitted_time_s": 463.16,
+        "frame_idx": 11579,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": "LANGHOASADEC",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/fdf2a887-e0.mp4",
+        "clip_start_s": 459.16,
+        "clip_sha256": "d330e3fffe382d26f9ad706ef986200d11c5c67db0fb722e614d671cc4f829a4",
+        "samples": [
+          {
+            "time_s": 460.16,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/fdf2a887-e0--3.jpg"
+          },
+          {
+            "time_s": 462.16,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/fdf2a887-e0--1.jpg"
+          },
+          {
+            "time_s": 463.16,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/fdf2a887-e0-+0.jpg"
+          },
+          {
+            "time_s": 464.16,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/fdf2a887-e0-+1.jpg"
+          },
+          {
+            "time_s": 466.16,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/fdf2a887-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "5d13f5c6-b721-4e04-9483-0c2ada3b220e",
+        "video_id": "M02_V007",
+        "event_index": 0,
+        "submitted_time_s": 460.8,
+        "frame_idx": 11520,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": "LANGHOASADEC",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/5d13f5c6-e0.mp4",
+        "clip_start_s": 456.8,
+        "clip_sha256": "727f8fa1668825ea985dfefcb82138f6d0476c7ac1a742ef660ef53c8415387a",
+        "samples": [
+          {
+            "time_s": 457.8,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/5d13f5c6-e0--3.jpg"
+          },
+          {
+            "time_s": 459.8,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/5d13f5c6-e0--1.jpg"
+          },
+          {
+            "time_s": 460.8,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/5d13f5c6-e0-+0.jpg"
+          },
+          {
+            "time_s": 461.8,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/5d13f5c6-e0-+1.jpg"
+          },
+          {
+            "time_s": 463.8,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/5d13f5c6-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "e91ad93c-11a4-4400-8805-40d8b79cb418",
+        "video_id": "M02_V007",
+        "event_index": 0,
+        "submitted_time_s": 436.36,
+        "frame_idx": 10909,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": "SADEC",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/e91ad93c-e0.mp4",
+        "clip_start_s": 432.36,
+        "clip_sha256": "e4785afd4d9fb6d170967836daed66fb7f979c6b745cfec61fb3b16a9a2b67cc",
+        "samples": [
+          {
+            "time_s": 433.36,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/e91ad93c-e0--3.jpg"
+          },
+          {
+            "time_s": 435.36,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/e91ad93c-e0--1.jpg"
+          },
+          {
+            "time_s": 436.36,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/e91ad93c-e0-+0.jpg"
+          },
+          {
+            "time_s": 437.36,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/e91ad93c-e0-+1.jpg"
+          },
+          {
+            "time_s": 439.36,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-28/e91ad93c-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-29",
+    "query_id": "aic26-20260926:qa-query-12",
+    "probes": {
+      "L26_V234": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "326.426122"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "7b240dfd-4d24-41b9-9288-e61f8a15ce2b",
+        "video_id": "L26_V234",
+        "event_index": 0,
+        "submitted_time_s": 103.48,
+        "frame_idx": 2587,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": "4",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/7b240dfd-e0.mp4",
+        "clip_start_s": 99.48,
+        "clip_sha256": "054b73a85cf97e93d313c0dae89cb324bfe2d4fb017e576cee5b3eafa9835e1c",
+        "samples": [
+          {
+            "time_s": 100.48,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/7b240dfd-e0--3.jpg"
+          },
+          {
+            "time_s": 102.48,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/7b240dfd-e0--1.jpg"
+          },
+          {
+            "time_s": 103.48,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/7b240dfd-e0-+0.jpg"
+          },
+          {
+            "time_s": 104.48,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/7b240dfd-e0-+1.jpg"
+          },
+          {
+            "time_s": 106.48,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/7b240dfd-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "5c1a1314-5160-4e06-9c38-d31bc883dccc",
+        "video_id": "L26_V234",
+        "event_index": 0,
+        "submitted_time_s": 186.44,
+        "frame_idx": 4661,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": "4",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/5c1a1314-e0.mp4",
+        "clip_start_s": 182.44,
+        "clip_sha256": "45535ee63b57ef7f5924631e34120a3e7cf0a071e0fbefdf79e50116b2c35fc4",
+        "samples": [
+          {
+            "time_s": 183.44,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/5c1a1314-e0--3.jpg"
+          },
+          {
+            "time_s": 185.44,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/5c1a1314-e0--1.jpg"
+          },
+          {
+            "time_s": 186.44,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/5c1a1314-e0-+0.jpg"
+          },
+          {
+            "time_s": 187.44,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/5c1a1314-e0-+1.jpg"
+          },
+          {
+            "time_s": 189.44,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/5c1a1314-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "884bfde7-8084-4592-9800-ae5ec46191c2",
+        "video_id": "L26_V234",
+        "event_index": 0,
+        "submitted_time_s": 79.68,
+        "frame_idx": 1992,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": "8",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/884bfde7-e0.mp4",
+        "clip_start_s": 75.68,
+        "clip_sha256": "ddddab2cb6a1cf65beb018a826aded5a4dd44aebfffd0b09007e9ee01b029d69",
+        "samples": [
+          {
+            "time_s": 76.68,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/884bfde7-e0--3.jpg"
+          },
+          {
+            "time_s": 78.68,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/884bfde7-e0--1.jpg"
+          },
+          {
+            "time_s": 79.68,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/884bfde7-e0-+0.jpg"
+          },
+          {
+            "time_s": 80.68,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/884bfde7-e0-+1.jpg"
+          },
+          {
+            "time_s": 82.68,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-29/884bfde7-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-30",
+    "query_id": "aic26-20260926:qa-query-14",
+    "probes": {
+      "M09_V014": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "30/1",
+            "avg_frame_rate": "30/1",
+            "time_base": "1/15360",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "1269.063401"
+        }
+      },
+      "M09_V003": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "1387.879909"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "0550e541-19f2-4258-89a1-dcee6f38b111",
+        "video_id": "M09_V014",
+        "event_index": 0,
+        "submitted_time_s": 383.166667,
+        "frame_idx": 11495,
+        "fps": 30.0,
+        "verdict": "WRONG",
+        "answer": "LONGTHUY",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/0550e541-e0.mp4",
+        "clip_start_s": 379.166667,
+        "clip_sha256": "23d12f764e3584fbf52ebf6b154a8a2952115f7df7e92e693804bf148ef26c9b",
+        "samples": [
+          {
+            "time_s": 380.166667,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/0550e541-e0--3.jpg"
+          },
+          {
+            "time_s": 382.166667,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/0550e541-e0--1.jpg"
+          },
+          {
+            "time_s": 383.166667,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/0550e541-e0-+0.jpg"
+          },
+          {
+            "time_s": 384.166667,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/0550e541-e0-+1.jpg"
+          },
+          {
+            "time_s": 386.166667,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/0550e541-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "0e59effc-6926-4e57-b313-cbb1ae866fe7",
+        "video_id": "M09_V014",
+        "event_index": 0,
+        "submitted_time_s": 388.566667,
+        "frame_idx": 11657,
+        "fps": 30.0,
+        "verdict": "WRONG",
+        "answer": "LONGTHUY",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/0e59effc-e0.mp4",
+        "clip_start_s": 384.566667,
+        "clip_sha256": "1a7086b8201cea0c41ffb626475ceaf1ddfc6efc7b74914224b2f1b41f0ae845",
+        "samples": [
+          {
+            "time_s": 385.566667,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/0e59effc-e0--3.jpg"
+          },
+          {
+            "time_s": 387.566667,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/0e59effc-e0--1.jpg"
+          },
+          {
+            "time_s": 388.566667,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/0e59effc-e0-+0.jpg"
+          },
+          {
+            "time_s": 389.566667,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/0e59effc-e0-+1.jpg"
+          },
+          {
+            "time_s": 391.566667,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/0e59effc-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "578c5712-6169-42fc-b4ca-9385f6c2df3a",
+        "video_id": "M09_V003",
+        "event_index": 0,
+        "submitted_time_s": 311.8,
+        "frame_idx": 7795,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": "LONGTHUY",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/578c5712-e0.mp4",
+        "clip_start_s": 307.8,
+        "clip_sha256": "9528c4abe99932f4fb71948a57d0c8ddeb49ea406a0e5ac0a25aa9136034fac4",
+        "samples": [
+          {
+            "time_s": 308.8,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/578c5712-e0--3.jpg"
+          },
+          {
+            "time_s": 310.8,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/578c5712-e0--1.jpg"
+          },
+          {
+            "time_s": 311.8,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/578c5712-e0-+0.jpg"
+          },
+          {
+            "time_s": 312.8,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/578c5712-e0-+1.jpg"
+          },
+          {
+            "time_s": 314.8,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/578c5712-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "15ea4a12-e32d-400c-9750-d7c22a448c80",
+        "video_id": "M09_V014",
+        "event_index": 0,
+        "submitted_time_s": 402.266667,
+        "frame_idx": 12068,
+        "fps": 30.0,
+        "verdict": "WRONG",
+        "answer": "LANGCHAILONGTHUY",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/15ea4a12-e0.mp4",
+        "clip_start_s": 398.266667,
+        "clip_sha256": "0677ef228c2c1b499b7217bff483288c48a9e27d74de36748a1fa7184b5ff207",
+        "samples": [
+          {
+            "time_s": 399.266667,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/15ea4a12-e0--3.jpg"
+          },
+          {
+            "time_s": 401.266667,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/15ea4a12-e0--1.jpg"
+          },
+          {
+            "time_s": 402.266667,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/15ea4a12-e0-+0.jpg"
+          },
+          {
+            "time_s": 403.266667,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/15ea4a12-e0-+1.jpg"
+          },
+          {
+            "time_s": 405.266667,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/15ea4a12-e0-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "d3a195d8-3179-43aa-9bd4-3b503afca36e",
+        "video_id": "M09_V003",
+        "event_index": 0,
+        "submitted_time_s": 330.6,
+        "frame_idx": 8265,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": "LONGTHUY",
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/d3a195d8-e0.mp4",
+        "clip_start_s": 326.6,
+        "clip_sha256": "b0d5479461857a48d1e918e7e68defa23bda5cd4aeb4a11869189b0bea9a8527",
+        "samples": [
+          {
+            "time_s": 327.6,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/d3a195d8-e0--3.jpg"
+          },
+          {
+            "time_s": 329.6,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/d3a195d8-e0--1.jpg"
+          },
+          {
+            "time_s": 330.6,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/d3a195d8-e0-+0.jpg"
+          },
+          {
+            "time_s": 331.6,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/d3a195d8-e0-+1.jpg"
+          },
+          {
+            "time_s": 333.6,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-30/d3a195d8-e0-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-31",
+    "query_id": "aic26-20260926:trake-query-02",
+    "probes": {
+      "L26_V104": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "329.537596"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "81cfd1f0-53f0-48a2-aab3-d676ca96135e",
+        "video_id": "L26_V104",
+        "event_index": 1,
+        "submitted_time_s": 74.72,
+        "frame_idx": 1868,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e1.mp4",
+        "clip_start_s": 70.72,
+        "clip_sha256": "9a44d734c76a62e5759e388d2c97e418301348fe711d044f7c6ad10ebea47dd6",
+        "samples": [
+          {
+            "time_s": 71.72,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e1--3.jpg"
+          },
+          {
+            "time_s": 73.72,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e1--1.jpg"
+          },
+          {
+            "time_s": 74.72,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e1-+0.jpg"
+          },
+          {
+            "time_s": 75.72,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e1-+1.jpg"
+          },
+          {
+            "time_s": 77.72,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e1-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "81cfd1f0-53f0-48a2-aab3-d676ca96135e",
+        "video_id": "L26_V104",
+        "event_index": 2,
+        "submitted_time_s": 107.72,
+        "frame_idx": 2693,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e2.mp4",
+        "clip_start_s": 103.72,
+        "clip_sha256": "6ad7ddad4ebb66223d3005ef992917c7b08cc098684981e139975cf0acc9d420",
+        "samples": [
+          {
+            "time_s": 104.72,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e2--3.jpg"
+          },
+          {
+            "time_s": 106.72,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e2--1.jpg"
+          },
+          {
+            "time_s": 107.72,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e2-+0.jpg"
+          },
+          {
+            "time_s": 108.72,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e2-+1.jpg"
+          },
+          {
+            "time_s": 110.72,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e2-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "81cfd1f0-53f0-48a2-aab3-d676ca96135e",
+        "video_id": "L26_V104",
+        "event_index": 3,
+        "submitted_time_s": 119.0,
+        "frame_idx": 2975,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e3.mp4",
+        "clip_start_s": 115.0,
+        "clip_sha256": "28b7cee3572488099241678589c49c3aecd7d99bc1ed1c233d50aa046604aa03",
+        "samples": [
+          {
+            "time_s": 116.0,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e3--3.jpg"
+          },
+          {
+            "time_s": 118.0,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e3--1.jpg"
+          },
+          {
+            "time_s": 119.0,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e3-+0.jpg"
+          },
+          {
+            "time_s": 120.0,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e3-+1.jpg"
+          },
+          {
+            "time_s": 122.0,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e3-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "81cfd1f0-53f0-48a2-aab3-d676ca96135e",
+        "video_id": "L26_V104",
+        "event_index": 4,
+        "submitted_time_s": 134.32,
+        "frame_idx": 3358,
+        "fps": 25.0,
+        "verdict": "WRONG",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e4.mp4",
+        "clip_start_s": 130.32,
+        "clip_sha256": "5207fb16b1e0403945a4fb43f8c80534eee7884d5279395d212628a8cc9b58d2",
+        "samples": [
+          {
+            "time_s": 131.32,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e4--3.jpg"
+          },
+          {
+            "time_s": 133.32,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e4--1.jpg"
+          },
+          {
+            "time_s": 134.32,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e4-+0.jpg"
+          },
+          {
+            "time_s": 135.32,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e4-+1.jpg"
+          },
+          {
+            "time_s": 137.32,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-31/81cfd1f0-e4-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  },
+  {
+    "directory": "evidence/row-32",
+    "query_id": "aic26-20260926:trake-query-04",
+    "probes": {
+      "L26_V402": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_type": "video",
+            "r_frame_rate": "25/1",
+            "avg_frame_rate": "25/1",
+            "time_base": "1/12800",
+            "start_time": "0.000000"
+          },
+          {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/44100",
+            "start_time": "0.000000"
+          }
+        ],
+        "format": {
+          "duration": "301.139592"
+        }
+      }
+    },
+    "moments": [
+      {
+        "submission_id": "34c30d13-69fb-4043-aff2-94aff5c64eeb",
+        "video_id": "L26_V402",
+        "event_index": 1,
+        "submitted_time_s": 91.24,
+        "frame_idx": 2281,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e1.mp4",
+        "clip_start_s": 87.24,
+        "clip_sha256": "a1a47464f8b263f3c2fc68e8427041a23f24dfd28c861d32c0d704aa76d7699e",
+        "samples": [
+          {
+            "time_s": 88.24,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e1--3.jpg"
+          },
+          {
+            "time_s": 90.24,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e1--1.jpg"
+          },
+          {
+            "time_s": 91.24,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e1-+0.jpg"
+          },
+          {
+            "time_s": 92.24,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e1-+1.jpg"
+          },
+          {
+            "time_s": 94.24,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e1-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "34c30d13-69fb-4043-aff2-94aff5c64eeb",
+        "video_id": "L26_V402",
+        "event_index": 2,
+        "submitted_time_s": 140.48,
+        "frame_idx": 3512,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e2.mp4",
+        "clip_start_s": 136.48,
+        "clip_sha256": "d4a2ab81565c30e234193d42a9ecb10cdfd6b68657594d2c0917e76b6735682a",
+        "samples": [
+          {
+            "time_s": 137.48,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e2--3.jpg"
+          },
+          {
+            "time_s": 139.48,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e2--1.jpg"
+          },
+          {
+            "time_s": 140.48,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e2-+0.jpg"
+          },
+          {
+            "time_s": 141.48,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e2-+1.jpg"
+          },
+          {
+            "time_s": 143.48,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e2-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "34c30d13-69fb-4043-aff2-94aff5c64eeb",
+        "video_id": "L26_V402",
+        "event_index": 3,
+        "submitted_time_s": 189.12,
+        "frame_idx": 4728,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e3.mp4",
+        "clip_start_s": 185.12,
+        "clip_sha256": "12779aa99604c33f7b5560c3d3be204f3c0783fc90cf02ddaa5758170209f928",
+        "samples": [
+          {
+            "time_s": 186.12,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e3--3.jpg"
+          },
+          {
+            "time_s": 188.12,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e3--1.jpg"
+          },
+          {
+            "time_s": 189.12,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e3-+0.jpg"
+          },
+          {
+            "time_s": 190.12,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e3-+1.jpg"
+          },
+          {
+            "time_s": 192.12,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e3-+3.jpg"
+          }
+        ]
+      },
+      {
+        "submission_id": "34c30d13-69fb-4043-aff2-94aff5c64eeb",
+        "video_id": "L26_V402",
+        "event_index": 4,
+        "submitted_time_s": 224.24,
+        "frame_idx": 5606,
+        "fps": 25.0,
+        "verdict": "CORRECT",
+        "answer": null,
+        "clip_path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e4.mp4",
+        "clip_start_s": 220.24,
+        "clip_sha256": "1b3495de3928acf306fea126366e3d9158137b701f7fab3cc33f3d28097e305a",
+        "samples": [
+          {
+            "time_s": 221.24,
+            "offset_s": -3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e4--3.jpg"
+          },
+          {
+            "time_s": 223.24,
+            "offset_s": -1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e4--1.jpg"
+          },
+          {
+            "time_s": 224.24,
+            "offset_s": 0,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e4-+0.jpg"
+          },
+          {
+            "time_s": 225.24,
+            "offset_s": 1,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e4-+1.jpg"
+          },
+          {
+            "time_s": 227.24,
+            "offset_s": 3,
+            "path": "benchmarks/agent/annotations/aic26-20260926/evidence/row-32/34c30d13-e4-+3.jpg"
+          }
+        ]
+      }
+    ],
+    "method": "Decoded +/-4 second video clips; sampled at submitted timestamp and +/-1,+/-3 seconds. Brief visual review, not continuous playback or exhaustive boundary annotation."
+  }
+]

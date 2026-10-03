@@ -1,0 +1,83 @@
+{
+  "query_id": "aic26-20260926:tkis-query-14",
+  "workbook_row": 13,
+  "video_id": "S01-V004",
+  "audit_request": "Owner requested checking all four Vietnamese hints, not just an aerial-cycling scene.",
+  "review_method": "Direct inspection of 2 FPS decoded clip samples plus original-resolution timestamped video frames; local ASR used for commentary. No new DRES submission.",
+  "context_clip": "evidence/row-13/extra-four-hints-audit/clip.mp4",
+  "context_clip_start_s": 3376,
+  "context_clip_end_s": 3420,
+  "hint_checks": [
+    {
+      "hint": 1,
+      "status": "supported_at_scene_level_with_framing_caveat",
+      "observation": "Continuous aerial shot begins on the five leaders, zooms out to reveal the chasing pair and peloton. 3390.7s does not yet show peloton. 3395.9/3399.1s show three separated groups, although the back of the large peloton extends beyond the lower/left image edge. Do not claim every rider in every group is fully inside one frame.",
+      "frames": [
+        "evidence/row-13/extra-four-hints-audit/native/3390.700.jpg",
+        "evidence/row-13/extra-four-hints-audit/native/3395.900.jpg",
+        "evidence/row-13/extra-four-hints-audit/native/3399.100.jpg"
+      ]
+    },
+    {
+      "hint": 2,
+      "status": "supported",
+      "observation": "Five individual cyclists visible in closer aerial opening around 3378.25s; a separate pair visible midway on the road in later wide aerial; many riders form the peloton. Local commentary independently describes five leaders, two chasers and the peloton.",
+      "frames": [
+        "evidence/row-13/extra-four-hints-audit/005.jpg",
+        "evidence/row-13/extra-four-hints-audit/native/3395.900.jpg"
+      ]
+    },
+    {
+      "hint": 3,
+      "status": "supported_by_local_speech_transcript",
+      "speech_start_s": 3384.619,
+      "speech_end_s": 3409.581,
+      "observation": "ASR says nhóm năm người dẫn đầu ... hai tay đua phía sau ... không đến mười giây; từ nhóm dẫn đầu ... đoàn đông ... mười lăm giây. Source includes recognition errors in surrounding words. This is time gap behind the leaders, not ahead.",
+      "evidence": "evidence/row-13/extra-four-hints-audit/supporting_speech.json"
+    },
+    {
+      "hint": 4,
+      "status": "supported_by_motion_samples",
+      "observation": "After aerial shot cuts to front camera around 3407s, a rider in red emerges from left/front of peloton, visibly ahead of the pack around 3411–3418s. Separate original chasing pair remains ahead nearer road divider. No rider name inferred.",
+      "frames": [
+        "evidence/row-13/extra-four-hints-audit/native/3407.000.jpg",
+        "evidence/row-13/extra-four-hints-audit/native/3412.000.jpg",
+        "evidence/row-13/extra-four-hints-audit/native/3418.000.jpg"
+      ]
+    }
+  ],
+  "english_translation_issues": [
+    {
+      "hint": 3,
+      "original": "second-place team ... ahead of the first-place team",
+      "correction": "second group is behind the leading group by less than 10 seconds; peloton about 15 seconds behind"
+    },
+    {
+      "hint": 4,
+      "original": "a rider from the top three",
+      "correction": "a rider from the third group / peloton"
+    }
+  ],
+  "accepted_submitted_times_s": [
+    3395.9,
+    3399.1
+  ],
+  "rejected_submissions": [
+    {
+      "id": "70f759bc-019b-4494-b278-d94155aeaeba",
+      "time_s": 3390.7,
+      "reason": "Same continuous shot but too early for all three groups to be visible; removed from benchmark targets after detailed audit."
+    },
+    {
+      "id": "3bc0050b-a634-4a1b-a89d-956ffa8f5b50",
+      "time_s": 6477.133333,
+      "reason": "Different race moment. Local commentary nearby gives gap over one minute, not below 10 / around 15 seconds."
+    },
+    {
+      "id": "699b1c25-a3e9-4cf7-a2c9-4214593833dd",
+      "time_s": 3397.6,
+      "reason": "DRES error; not a labeled submission regardless of nearby scene match."
+    }
+  ],
+  "verdict_policy": "Two retained points originally WRONG; override uses owner-reported organizer error, preserves original verdict. Audit confirms contextual scene, not an official acceptance interval."
+}

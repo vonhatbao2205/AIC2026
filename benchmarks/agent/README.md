@@ -85,6 +85,33 @@ Split dev/test cố định theo hash nội dung query (20/80 xấp xỉ). Nên 
 near-duplicate queries và video overlap trước khi dùng số liệu cho paper.
 Không đo được độ chính xác khi chưa có ground truth hợp lệ.
 
+### Workbook AIC26 và submit ngày 26/9
+
+[Bộ nhãn đã review](annotations/aic26-20260926/README.md) bổ sung **30 câu**:
+15 T-KIS, 12 QA, 3 TRAKE. Workbook có 32 dòng, trong đó 21–23 là cùng một câu.
+22 câu giữ CORRECT của DRES; 7 câu dùng override WRONG-only theo xác nhận chủ dữ liệu,
+sau khi xem frame/clip và loại các lần submit không khớp. Câu TRAKE đua xe thiếu
+submit được tìm bằng PE trong S01 và annotate bốn mốc trên video gốc S01-V011.
+Nhãn tự tạo này ghi riêng nguồn và sai số, không được gán verdict DRES.
+
+```bash
+.venv/bin/python -m benchmarks.agent.export_submit_dataset \
+  --output benchmarks/agent/runs/aic26-20260926-v3-audited.jsonl --verify-media
+
+.venv/bin/python -m benchmarks.agent.export_dataset \
+  --additional-dataset benchmarks/agent/annotations/aic26-20260926/ground_truth.jsonl \
+  --group-video-splits \
+  --output benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl
+```
+
+Trên máy hiện tại đã xuất `workbooks-v5-submit-audited.jsonl`: **111 câu, 25 dev,
+86 test**, không trùng target video giữa dev/test. `--group-video-splits` chuyển
+test sang dev khi cùng video với dev; câu đã dùng trong dev không chuyển sang test.
+Audit vẫn giữ thông tin overlap trước khi nhóm và có `final_split_audit` sau khi nhóm.
+Exporter từ chối ghi đè dataset khác; dùng tên phiên bản mới khi sửa nhãn.
+Các lệnh xuất nhãn không chạy benchmark hay gửi submit. Evidence ảnh/clip là file
+local bị git-ignore; JSON provenance và SHA-256 được giữ trong bộ annotations.
+
 Có thể tự cung cấp JSONL:
 
 ```json
@@ -115,12 +142,12 @@ bản sidecar trước nâng cấp chạy agent cùng lúc với main retrieval.
 ```bash
 # Backend đang chạy trên localhost:8000, các CLI đã đăng nhập.
 .venv/bin/python -m benchmarks.agent.run_benchmark \
-  --dataset benchmarks/agent/runs/workbooks-v2.jsonl \
-  --output benchmarks/agent/runs/dev-v1 --split dev --variants A,B,C,D,E,F
+  --dataset benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl \
+  --output benchmarks/agent/runs/dev-v5 --split dev --variants A,B,C,D,E,F
 
 .venv/bin/python -m benchmarks.agent.run_benchmark \
-  --dataset benchmarks/agent/runs/workbooks-v2.jsonl \
-  --output benchmarks/agent/runs/test-v1 --split test --variants A,B,C,D,E,F
+  --dataset benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl \
+  --output benchmarks/agent/runs/test-v5 --split test --variants A,B,C,D,E,F
 ```
 
 Có `--limit`, `--url`, `--timeout`, `--poll`, `--tolerance` (giây, mặc định 1), `--seed`.
@@ -141,12 +168,12 @@ sàng; lượt lỗi đã lưu vẫn giữ trong mẫu số, retry cần thư m�
 
 ```bash
 .venv/bin/python -m benchmarks.agent.run_benchmark \
-  --dataset benchmarks/agent/runs/workbooks-v2.jsonl \
-  --output benchmarks/agent/runs/ablations-dev --split dev \
+  --dataset benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl \
+  --output benchmarks/agent/runs/ablations-dev-v5 --split dev \
   --variants F,rule,rule_router,llm_router,no_verifier,claude_verifier,base_tools,compare_only,no_roles
 
 .venv/bin/python -m benchmarks.agent.calibrate \
-  --results benchmarks/agent/runs/dev-v1/results.jsonl \
+  --results benchmarks/agent/runs/dev-v5/results.jsonl \
   --variant F --output benchmarks/agent/runs/calibration.json
 ```
 

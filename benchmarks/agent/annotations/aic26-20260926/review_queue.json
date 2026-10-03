@@ -1,0 +1,3048 @@
+[
+  {
+    "query_id": "aic26-20260926:tkis-query-01",
+    "workbook_rows": [
+      1
+    ],
+    "task_name": "tkis-query-01",
+    "query_type": "T-KIS",
+    "query": "Cánh đồng lúa nghệ thuật rộng hơn 120 ha, nơi nông dân dùng các giống lúa nhiều màu để tạo thành những bức tranh khổng lồ nhằm thu hút du khách.\nĐoạn video chứa hình ảnh bức tranh có những đứa trẻ đang chơi đùa. Một trong những đứa trẻ cầm một chiếc chong chóng trên tay.\nPhân cảnh có chính xác 3 đứa trẻ, trong đó 2 đứa trẻ mặc áo vàng, một đứa trẻ mặc áo màu xanh lá cây.",
+    "hints_vi": [
+      "Cánh đồng lúa nghệ thuật rộng hơn 120 ha, nơi nông dân dùng các giống lúa nhiều màu để tạo thành những bức tranh khổng lồ nhằm thu hút du khách.",
+      "Đoạn video chứa hình ảnh bức tranh có những đứa trẻ đang chơi đùa. Một trong những đứa trẻ cầm một chiếc chong chóng trên tay.",
+      "Phân cảnh có chính xác 3 đứa trẻ, trong đó 2 đứa trẻ mặc áo vàng, một đứa trẻ mặc áo màu xanh lá cây."
+    ],
+    "source_text": "Hint 1: The artistic rice paddies span over 120 hectares, where farmers use colorful rice varieties to create giant murals to attract tourists.  \nHint 2: The video contains images of a painting depicting children playing. One of the children is holding a pinwheel in their hand.  \nHint 3: The scene features exactly three children, two of whom are wearing yellow shirts, and one is wearing a green shirt.  \nHint 1: Cánh đồng lúa nghệ thuật rộng hơn 120 ha, nơi nông dân dùng các giống lúa nhiều màu để tạo thành những bức tranh khổng lồ nhằm thu hút du khách.  \nHint 2: Đoạn video chứa hình ảnh bức tranh có những đứa trẻ đang chơi đùa. Một trong những đứa trẻ cầm một chiếc chong chóng trên tay.  \nHint 3: Phân cảnh có chính xác 3 đứa trẻ, trong đó 2 đứa trẻ mặc áo vàng, một đứa trẻ mặc áo màu xanh lá cây.",
+    "submissions": [
+      {
+        "id": "098073e7-985b-476b-ac02-dcd1a610d546",
+        "ts": 1790390668.9958313,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-01",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-01",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "L22_V015",
+          "frame_idx": 18666,
+          "timestamp": 622.2,
+          "fps": 30.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "L22/L22_V015/2209",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "L22_V015",
+                "start": 621700,
+                "end": 622700
+              }
+            ],
+            "taskName": "tkis-query-01"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.1790391691.bak.json"
+      },
+      {
+        "id": "00f04523-0e83-43ce-9099-351aa46d4359",
+        "ts": 1790405651.3976622,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/tkis-query-01",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "tkis-query-01",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "L22_V015",
+          "frame_idx": 18459,
+          "timestamp": 615.3,
+          "fps": 30.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "L22/L22_V015/2184",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "L22_V015",
+                "start": 614800,
+                "end": 615800
+              }
+            ],
+            "taskName": "tkis-query-01"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "098073e7-985b-476b-ac02-dcd1a610d546",
+      "00f04523-0e83-43ce-9099-351aa46d4359"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:tkis-query-08",
+    "workbook_rows": [
+      2
+    ],
+    "task_name": "tkis-query-08",
+    "query_type": "T-KIS",
+    "query": "Đoạn clip giới thiệu nghệ nhân làm bánh cưới độc bản thủ công, không dùng AI để giữ tính nghệ thuật, phục vụ khách hàng Trung Đông và châu Âu với giá trên 10.000 euro.\nNghệ thuật làm bánh cưới cao cấp tại Pháp, nơi những chiếc bánh được chế tác như các tác phẩm điêu khắc thời trang dành cho khách hàng quốc tế.\nCó cảnh hai người đầu bếp đang tỉ mỉ tạo hình những nụ hoa. Góc quay cận cho thấy nụ hoa này được đính trên một cái que màu trắng.\nTiếp đó, người đầu bếp giới thiệu tấm khuôn màu xanh dương để tạo hình chi tiết trang trí. Ta còn có thể thấy nhiều mẫu bánh kem được trưng bày trên tường trong cảnh quay sau đó.",
+    "hints_vi": [
+      "Đoạn clip giới thiệu nghệ nhân làm bánh cưới độc bản thủ công, không dùng AI để giữ tính nghệ thuật, phục vụ khách hàng Trung Đông và châu Âu với giá trên 10.000 euro.",
+      "Nghệ thuật làm bánh cưới cao cấp tại Pháp, nơi những chiếc bánh được chế tác như các tác phẩm điêu khắc thời trang dành cho khách hàng quốc tế.",
+      "Có cảnh hai người đầu bếp đang tỉ mỉ tạo hình những nụ hoa. Góc quay cận cho thấy nụ hoa này được đính trên một cái que màu trắng.",
+      "Tiếp đó, người đầu bếp giới thiệu tấm khuôn màu xanh dương để tạo hình chi tiết trang trí. Ta còn có thể thấy nhiều mẫu bánh kem được trưng bày trên tường trong cảnh quay sau đó."
+    ],
+    "source_text": "Hint 1: The clip shows artisans handcrafting unique wedding cakes decorated with intricate sugar flowers, deliberately avoiding artificial intelligence to preserve the artistry of their work, for clients in the Middle East and Europe, with prices exceeding 10,000 euros.  \nHint 2: The art of haute cuisine for wedding cake making in France, where cakes are crafted like fashion sculptures for international clients.  \nHint 3: There's a scene where two chefs are meticulously shaping flower buds. A close-up shot shows the bud attached to a white stick.  \nHint 4: Next, the chef introduces the blue stencil used for creating decorative details. We can also see many cake designs displayed on the wall in the following scene.  \nHint 1: Đoạn clip giới thiệu nghệ nhân làm bánh cưới độc bản thủ công, không dùng AI để giữ tính nghệ thuật, phục vụ khách hàng Trung Đông và châu Âu với giá trên 10.000 euro.  \nHint 2: Nghệ thuật làm bánh cưới cao cấp tại Pháp, nơi những chiếc bánh được chế tác như các tác phẩm điêu khắc thời trang dành cho khách hàng quốc tế.  \nHint 3: Có cảnh hai người đầu bếp đang tỉ mỉ tạo hình những nụ hoa. Góc quay cận cho thấy nụ hoa này được đính trên một cái que màu trắng.  \nHint 4: Tiếp đó, người đầu bếp giới thiệu tấm khuôn màu xanh dương để tạo hình chi tiết trang trí. Ta còn có thể thấy nhiều mẫu bánh kem được trưng bày trên tường trong cảnh quay sau đó.",
+    "submissions": [
+      {
+        "id": "3bbb7aee-533b-4885-9169-858e3daecf3a",
+        "ts": 1790391085.0988002,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-08",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-08",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "M06_V008",
+          "frame_idx": 16778,
+          "timestamp": 671.16,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "M06/M06_V008/417",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "M06_V008",
+                "start": 670660,
+                "end": 671660
+              }
+            ],
+            "taskName": "tkis-query-08"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.1790391691.bak.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "3bbb7aee-533b-4885-9169-858e3daecf3a"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:tkis-query-02",
+    "workbook_rows": [
+      3
+    ],
+    "task_name": "tkis-query-02",
+    "query_type": "T-KIS",
+    "query": "Phân cảnh này nằm trong một đoạn video giới thiệu về Rạch Giá, cụ thể hơn là giới thiệu về Đình Ông Nguyễn.\nTiếp theo là bức tranh 1 chiếc tàu chiến bị đốt cháy trên sông.\nCuối cùng là cảnh hai câu thơ của nhà thơ Huỳnh Mẫn Đạt ở hai bên tượng đồng, nói lên những chiến công vang dội của ông: “Hỏa hồng nhật tảo oanh thiên địa, kiếm bạt Kiên Giang khấp quỷ thần”.\nÔng là anh hùng dân tộc Nguyễn Trung Trực.",
+    "hints_vi": [
+      "Phân cảnh này nằm trong một đoạn video giới thiệu về Rạch Giá, cụ thể hơn là giới thiệu về Đình Ông Nguyễn.",
+      "Tiếp theo là bức tranh 1 chiếc tàu chiến bị đốt cháy trên sông.",
+      "Cuối cùng là cảnh hai câu thơ của nhà thơ Huỳnh Mẫn Đạt ở hai bên tượng đồng, nói lên những chiến công vang dội của ông: “Hỏa hồng nhật tảo oanh thiên địa, kiếm bạt Kiên Giang khấp quỷ thần”.",
+      "Ông là anh hùng dân tộc Nguyễn Trung Trực."
+    ],
+    "source_text": "Hint 1: This scene is from a video introducing Rach Gia, more specifically, introducing Ong Nguyen Temple.  \nHint 2: Next is a painting of a burning warship on the river.  \nHint 3: Finally, on either side of the bronze statue are two verses by poet Huynh Man Dat, recounting his glorious victories: “The blazing fire of dawn shakes heaven and earth, the sword drawn in Kien Giang makes ghosts and gods weep.”  \nHint 4: He is the national hero Nguyen Trung Truc.  \nHint 1: Phân cảnh này nằm trong một đoạn video giới thiệu về Rạch Giá, cụ thể hơn là giới thiệu về Đình Ông Nguyễn.  \nHint 2: Tiếp theo là bức tranh 1 chiếc tàu chiến bị đốt cháy trên sông.  \nHint 3: Cuối cùng là cảnh hai câu thơ của nhà thơ Huỳnh Mẫn Đạt ở hai bên tượng đồng, nói lên những chiến công vang dội của ông: “Hỏa hồng nhật tảo oanh thiên địa, kiếm bạt Kiên Giang khấp quỷ thần”.  \nHint 4: Ông là anh hùng dân tộc Nguyễn Trung Trực.",
+    "submissions": [
+      {
+        "id": "0f6c57dd-7774-47ca-a42a-7769363aa68a",
+        "ts": 1790391583.5361934,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-02",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-02",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "L28_V020",
+          "frame_idx": 7488,
+          "timestamp": 299.506058,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": null,
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "L28_V020",
+                "start": 299006,
+                "end": 300006
+              }
+            ],
+            "taskName": "tkis-query-02"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.1790391691.bak.json"
+      },
+      {
+        "id": "fd055910-25ab-424a-90c7-8642b7535ca4",
+        "ts": 1790391605.1457212,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-02",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-02",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "L27_V010",
+          "frame_idx": 4532,
+          "timestamp": 181.28,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "L27/L27_V010/673",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "L27_V010",
+                "start": 180780,
+                "end": 181780
+              }
+            ],
+            "taskName": "tkis-query-02"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.1790391691.bak.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "fd055910-25ab-424a-90c7-8642b7535ca4"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:tkis-query-16",
+    "workbook_rows": [
+      4
+    ],
+    "task_name": "tkis-query-16",
+    "query_type": "T-KIS",
+    "query": "Lực lượng công an ứng cứu một phụ nữ trẻ bị cô lập tại nhà do nước lũ dâng cao và dòng chảy xiết.\nNgười được hỗ trợ là một người phụ nữ đang mang thai, ngồi trên một chiếc xuồng hơi chuyên dụng.\nCó tổng cộng 6 cán bộ chiến sĩ công an hỗ trợ chị.\nChị mang một chiếc áo mưa màu hồng, đeo khẩu trang màu đen và cầm chiếc ô màu xanh dương.",
+    "hints_vi": [
+      "Lực lượng công an ứng cứu một phụ nữ trẻ bị cô lập tại nhà do nước lũ dâng cao và dòng chảy xiết.",
+      "Người được hỗ trợ là một người phụ nữ đang mang thai, ngồi trên một chiếc xuồng hơi chuyên dụng.",
+      "Có tổng cộng 6 cán bộ chiến sĩ công an hỗ trợ chị.",
+      "Chị mang một chiếc áo mưa màu hồng, đeo khẩu trang màu đen và cầm chiếc ô màu xanh dương."
+    ],
+    "source_text": "Hint 1: Police officers respond to an emergency involving a young woman whose home has been isolated by rising waters and strong currents.  \nHint 2: The person being assisted was a pregnant woman, sitting in a specialized inflatable boat.  \nHint 3: There were a total of 6 police officers assisting her.  \nHint 4: She was wearing a pink raincoat, a black face mask, and carrying a blue umbrella.  \nHint 1: Lực lượng công an ứng cứu một phụ nữ trẻ bị cô lập tại nhà do nước lũ dâng cao và dòng chảy xiết.  \nHint 2: Người được hỗ trợ là một người phụ nữ đang mang thai, ngồi trên một chiếc xuồng hơi chuyên dụng.  \nHint 3: Có tổng cộng 6 cán bộ chiến sĩ công an hỗ trợ chị.  \nHint 4: Chị mang một chiếc áo mưa màu hồng, đeo khẩu trang màu đen và cầm chiếc ô màu xanh dương.",
+    "submissions": [
+      {
+        "id": "93976be2-d171-409b-8914-4727260aa1d0",
+        "ts": 1790391905.3321633,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-16",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-16",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "M01_V019",
+          "frame_idx": 18705,
+          "timestamp": 748.2,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "M01/M01_V019/417",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "M01_V019",
+                "start": 747700,
+                "end": 748700
+              }
+            ],
+            "taskName": "tkis-query-16"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "93976be2-d171-409b-8914-4727260aa1d0"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:tkis-query-21",
+    "workbook_rows": [
+      5
+    ],
+    "task_name": "tkis-query-21",
+    "query_type": "T-KIS",
+    "query": "Một lễ hội truyền thống thường niên ở một thành phố Châu Âu, nơi các tình nguyện viên cùng chuẩn bị một món ăn khổng lồ bằng chảo lớn và những mái chèo gỗ dài.\nPhần nguyên liệu khác được chiên trên một chảo lớn và đảo đều.\nNguyên liệu màu vàng được đánh đều lúc này được đổ vào chảo.\nPhần thức ăn sau đó được chia cho mọi người xung quanh.",
+    "hints_vi": [
+      "Một lễ hội truyền thống thường niên ở một thành phố Châu Âu, nơi các tình nguyện viên cùng chuẩn bị một món ăn khổng lồ bằng chảo lớn và những mái chèo gỗ dài.",
+      "Phần nguyên liệu khác được chiên trên một chảo lớn và đảo đều.",
+      "Nguyên liệu màu vàng được đánh đều lúc này được đổ vào chảo.",
+      "Phần thức ăn sau đó được chia cho mọi người xung quanh."
+    ],
+    "source_text": "Hint 1: An annual traditional festival in a European town where volunteers prepare a giant dish in a large pan using long wooden paddles.  \nHint 2: The other ingredients are fried in a large pan and stirred constantly.  \nHint 3: The yellow ingredients, now thoroughly mixed, are poured into the pan.  \nHint 4: The food was then distributed to everyone around.  \nHint 1: Một lễ hội truyền thống thường niên ở một thành phố Châu Âu, nơi các tình nguyện viên cùng chuẩn bị một món ăn khổng lồ bằng chảo lớn và những mái chèo gỗ dài.  \nHint 2: Phần nguyên liệu khác được chiên trên một chảo lớn và đảo đều.  \nHint 3: Nguyên liệu màu vàng được đánh đều lúc này được đổ vào chảo.  \nHint 4: Phần thức ăn sau đó được chia cho mọi người xung quanh.",
+    "submissions": [
+      {
+        "id": "1c016393-c75d-48f5-bd1f-50f29ba51e02",
+        "ts": 1790392261.032021,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-21",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-21",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "M10_V014",
+          "frame_idx": 16278,
+          "timestamp": 651.12,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "M10/M10_V014/397",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "M10_V014",
+                "start": 650620,
+                "end": 651620
+              }
+            ],
+            "taskName": "tkis-query-21"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "1c016393-c75d-48f5-bd1f-50f29ba51e02"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:tkis-query-07",
+    "workbook_rows": [
+      6
+    ],
+    "task_name": "tkis-query-07",
+    "query_type": "T-KIS",
+    "query": "Chương trình phục hiện hệ thống khoa cử xưa tại Việt Nam, được diễn ra ở gần hồ nước.\nCó đèn lồng, cờ nghi lễ, ánh sáng và sương mù trong khuôn viên 1 di tích lịch sử ở miền Bắc.\nCó cảnh hai người đàn ông ngồi trong lều chõng, một người đang giơ tờ giấy viết chữ Nghĩa bằng Hán tự.\nSau đó là cảnh một người đàn ông trong bộ lễ phục đó trả lời phỏng vấn, xung quanh ông là hai lá cờ ngũ sắc.",
+    "hints_vi": [
+      "Chương trình phục hiện hệ thống khoa cử xưa tại Việt Nam, được diễn ra ở gần hồ nước.",
+      "Có đèn lồng, cờ nghi lễ, ánh sáng và sương mù trong khuôn viên 1 di tích lịch sử ở miền Bắc.",
+      "Có cảnh hai người đàn ông ngồi trong lều chõng, một người đang giơ tờ giấy viết chữ Nghĩa bằng Hán tự.",
+      "Sau đó là cảnh một người đàn ông trong bộ lễ phục đó trả lời phỏng vấn, xung quanh ông là hai lá cờ ngũ sắc."
+    ],
+    "source_text": "Hint 1: The theatrical reenactment depicting the ancient imperial examination system in Vietnam, took place near a lake.  \nHint 2: Lanterns, colorful ceremonial flags, dramatic lights, and heavy fog adorn the grounds of a historical site in northern Vietnam.  \nHint 3: There is a scene of two men sitting in a makeshift tent, one of them holding up a piece of paper with the Chinese character for \"righteousness\" written on it.  \nHint 4: Then there's a scene of a man in that ceremonial attire giving an interview, surrounded by two five-colored flags.  \nHint 1: Chương trình phục hiện hệ thống khoa cử xưa tại Việt Nam, được diễn ra ở gần hồ nước.  \nHint 2: Có đèn lồng, cờ nghi lễ, ánh sáng và sương mù trong khuôn viên 1 di tích lịch sử ở miền Bắc.  \nHint 3: Có cảnh hai người đàn ông ngồi trong lều chõng, một người đang giơ tờ giấy viết chữ Nghĩa bằng Hán tự.  \nHint 4: Sau đó là cảnh một người đàn ông trong bộ lễ phục đó trả lời phỏng vấn, xung quanh ông là hai lá cờ ngũ sắc.",
+    "submissions": [
+      {
+        "id": "6a43f93e-1cb9-48f0-aa4d-bc1841c5dcde",
+        "ts": 1790392655.5709274,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-07",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-07",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "M03_V013",
+          "frame_idx": 8513,
+          "timestamp": 340.52,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "M03/M03_V013/182",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "M03_V013",
+                "start": 340020,
+                "end": 341020
+              }
+            ],
+            "taskName": "tkis-query-07"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "6a43f93e-1cb9-48f0-aa4d-bc1841c5dcde"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:tkis-query-10",
+    "workbook_rows": [
+      7
+    ],
+    "task_name": "tkis-query-10",
+    "query_type": "T-KIS",
+    "query": "Các tay đua xe đạp rẽ trái vào một cây cầu bắc qua sông. Trên cầu, ở bên trái đường đua, có người đang cầm 4-5 bong bóng trắng và các du khách mặc áo trắng đang chụp hình/quay phim.\nSau đó một cảnh quay trực diện từ phía trước cho thấy sáu tay đua xe đạp đang chạy trên cầu, và trên vỉa hè đang có hai người đang đi bộ.\nPhía xa ta còn thấy được cầu Trường Tiền của thành phố Huế.",
+    "hints_vi": [
+      "Các tay đua xe đạp rẽ trái vào một cây cầu bắc qua sông. Trên cầu, ở bên trái đường đua, có người đang cầm 4-5 bong bóng trắng và các du khách mặc áo trắng đang chụp hình/quay phim.",
+      "Sau đó một cảnh quay trực diện từ phía trước cho thấy sáu tay đua xe đạp đang chạy trên cầu, và trên vỉa hè đang có hai người đang đi bộ.",
+      "Phía xa ta còn thấy được cầu Trường Tiền của thành phố Huế."
+    ],
+    "source_text": "Hint 1: The cyclists turned left onto a bridge over the river. On the bridge, to the left of the race track, someone was holding 4-5 white balloons and tourists in white shirts were taking pictures/videos.  \nHint 2: Then a close-up shot from the front shows six cyclists riding on the bridge, and two people walking on the sidewalk.  \nHint 3: In the distance, we can still see the Truong Tien Bridge of Hue city.  \nHint 1: Các tay đua xe đạp rẽ trái vào một cây cầu bắc qua sông. Trên cầu, ở bên trái đường đua, có người đang cầm 4-5 bong bóng trắng và các du khách mặc áo trắng đang chụp hình/quay phim.  \nHint 2: Sau đó một cảnh quay trực diện từ phía trước cho thấy sáu tay đua xe đạp đang chạy trên cầu, và trên vỉa hè đang có hai người đang đi bộ.  \nHint 3: Phía xa ta còn thấy được cầu Trường Tiền của thành phố Huế.",
+    "submissions": [
+      {
+        "id": "cfcb46c3-299c-4e40-98d0-cd9c0da7669e",
+        "ts": 1790393139.9020975,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-10",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-10",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "S01-V009",
+          "frame_idx": 136281,
+          "timestamp": 4542.7,
+          "fps": 30.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "S01/S01-V009/15386",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "S01-V009",
+                "start": 4542200,
+                "end": 4543200
+              }
+            ],
+            "taskName": "tkis-query-10"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "cfcb46c3-299c-4e40-98d0-cd9c0da7669e"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:tkis-query-15",
+    "workbook_rows": [
+      8
+    ],
+    "task_name": "tkis-query-15",
+    "query_type": "T-KIS",
+    "query": "Đoạn video này cho thấy một cậu bé hướng dẫn cách sử dụng nhạc cụ truyền thống làm từ tre và gỗ trong một hoạt động ngoài trời ở sân trường, nơi kỹ thuật thủ công truyền thống được kết hợp với công nghệ hiện đại.\nTrong đoạn phim này, cậu bé ngồi xổm và giới thiệu 2 loại nhạc cụ khác nhau.\nKế cậu bé này là một cô bé.\nCả 2 người đều là người dân tộc Êđê.",
+    "hints_vi": [
+      "Đoạn video này cho thấy một cậu bé hướng dẫn cách sử dụng nhạc cụ truyền thống làm từ tre và gỗ trong một hoạt động ngoài trời ở sân trường, nơi kỹ thuật thủ công truyền thống được kết hợp với công nghệ hiện đại.",
+      "Trong đoạn phim này, cậu bé ngồi xổm và giới thiệu 2 loại nhạc cụ khác nhau.",
+      "Kế cậu bé này là một cô bé.",
+      "Cả 2 người đều là người dân tộc Êđê."
+    ],
+    "source_text": "Hint 1: The video shows a young boy demonstrating how to use a traditional musical instrument made from bamboo and wood in an outdoor activity on the school grounds, where traditional craftsmanship is combined with modern technology.  \nHint 2: In this video, the boy squats down and introduces two different musical instruments.  \nHint 3: Next to this boy is a little girl.  \nHint 4: Both of them are from the Ede ethnic group.  \nHint 1: Đoạn video này cho thấy một cậu bé hướng dẫn cách sử dụng nhạc cụ truyền thống làm từ tre và gỗ trong một hoạt động ngoài trời ở sân trường, nơi kỹ thuật thủ công truyền thống được kết hợp với công nghệ hiện đại.  \nHint 2: Trong đoạn phim này, cậu bé ngồi xổm và giới thiệu 2 loại nhạc cụ khác nhau.  \nHint 3: Kế cậu bé này là một cô bé.  \nHint 4: Cả 2 người đều là người dân tộc Êđê.",
+    "submissions": [
+      {
+        "id": "2ae11d9f-f232-40e2-af71-042fbe0ed310",
+        "ts": 1790393459.7374957,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-15",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-15",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "L30_V065",
+          "frame_idx": 319,
+          "timestamp": 12.76,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "L30/L30_V065/039",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "L30_V065",
+                "start": 12260,
+                "end": 13260
+              }
+            ],
+            "taskName": "tkis-query-15"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "a0482d22-057b-4a94-bb0d-0b7f260a90fb",
+        "ts": 1790393491.6835933,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-15",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-15",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "L30_V065",
+          "frame_idx": 1693,
+          "timestamp": 67.72,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "L30/L30_V065/242",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "L30_V065",
+                "start": 67220,
+                "end": 68220
+              }
+            ],
+            "taskName": "tkis-query-15"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "a0482d22-057b-4a94-bb0d-0b7f260a90fb"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:tkis-query-22",
+    "workbook_rows": [
+      9
+    ],
+    "task_name": "tkis-query-22",
+    "query_type": "T-KIS",
+    "query": "Bánh được xếp thành nhiều tầng, xen giữa các lớp bánh là phần kem màu vàng, socola, các loại hạt và trái cây.\nSau đó một miếng pancake được nhấc lên bằng nĩa, để lộ rõ cấu trúc xen kẽ giữa lớp bánh socola mềm và phần nhân kem bên trong.\nBên cạnh còn có một ly đồ uống và chén kem dùng kèm.",
+    "hints_vi": [
+      "Bánh được xếp thành nhiều tầng, xen giữa các lớp bánh là phần kem màu vàng, socola, các loại hạt và trái cây.",
+      "Sau đó một miếng pancake được nhấc lên bằng nĩa, để lộ rõ cấu trúc xen kẽ giữa lớp bánh socola mềm và phần nhân kem bên trong.",
+      "Bên cạnh còn có một ly đồ uống và chén kem dùng kèm."
+    ],
+    "source_text": "Hint 1: The cake is layered, with yellow cream, chocolate, nuts, and fruit sandwiched between the layers.  \nHint 2: Then a piece of pancake is lifted with a fork, revealing the alternating structure of soft chocolate layers and creamy filling inside.  \nHint 3: There was also a glass of drink and a small bowl of ice cream to accompany it.  \nHint 1: Bánh được xếp thành nhiều tầng, xen giữa các lớp bánh là phần kem màu vàng, socola, các loại hạt và trái cây.  \nHint 2: Sau đó một miếng pancake được nhấc lên bằng nĩa, để lộ rõ cấu trúc xen kẽ giữa lớp bánh socola mềm và phần nhân kem bên trong.  \nHint 3: Bên cạnh còn có một ly đồ uống và chén kem dùng kèm.",
+    "submissions": [
+      {
+        "id": "b4f2a177-e38a-4701-8d65-74481a9c0081",
+        "ts": 1790393848.6877127,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-22",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-22",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "L26_V102",
+          "frame_idx": 6423,
+          "timestamp": 256.92,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "L26/L26_V102/905",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "L26_V102",
+                "start": 256420,
+                "end": 257420
+              }
+            ],
+            "taskName": "tkis-query-22"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "866cc2f9-4efa-4f90-a13e-87c797ecd95c",
+        "ts": 1790393872.8587599,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-22",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-22",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "L26_V102",
+          "frame_idx": 6400,
+          "timestamp": 256.0,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "L26/L26_V102/901",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "L26_V102",
+                "start": 255500,
+                "end": 256500
+              }
+            ],
+            "taskName": "tkis-query-22"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "e075d6e4-e4c3-4a9b-8629-837b0d08d1e4",
+        "ts": 1790393901.8247612,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-22",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-22",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "L26_V400",
+          "frame_idx": 6178,
+          "timestamp": 247.12,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "L26/L26_V400/949",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "L26_V400",
+                "start": 246620,
+                "end": 247620
+              }
+            ],
+            "taskName": "tkis-query-22"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "1f79ce77-89b3-468f-a188-2175bc1466ef",
+        "ts": 1790393939.3900762,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-22",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-22",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "L26_V400",
+          "frame_idx": 6653,
+          "timestamp": 266.12,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": null,
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "L26_V400",
+                "start": 265620,
+                "end": 266620
+              }
+            ],
+            "taskName": "tkis-query-22"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "1f79ce77-89b3-468f-a188-2175bc1466ef"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:tkis-query-18",
+    "workbook_rows": [
+      10
+    ],
+    "task_name": "tkis-query-18",
+    "query_type": "T-KIS",
+    "query": "Nguyên liệu có kích thước to khoảng gấp 4 lần cọng hành lá được cho vào chảo, sau đó đến hai loại nguyên liệu khác được cắt hạt lựu cũng lần lượt được cho vào.\nSau khi nấu xong, tất cả được cho vào trong những quả đã được hấp từ trước.\nNhững quả này tiếp tục được đưa vào nồi hấp. Có tổng cộng 4 quả.\nMón này có tên là “Đồ hấp hạt sen”.",
+    "hints_vi": [
+      "Nguyên liệu có kích thước to khoảng gấp 4 lần cọng hành lá được cho vào chảo, sau đó đến hai loại nguyên liệu khác được cắt hạt lựu cũng lần lượt được cho vào.",
+      "Sau khi nấu xong, tất cả được cho vào trong những quả đã được hấp từ trước.",
+      "Những quả này tiếp tục được đưa vào nồi hấp. Có tổng cộng 4 quả.",
+      "Món này có tên là “Đồ hấp hạt sen”."
+    ],
+    "source_text": "Hint 1: An ingredient about four times thicker than a scallion is added to the pen, followed by two other diced ingredients.  \nHint 2: Once cooked, the mixture is placed inside four previously steamed vegetables.  \nHint 3: The four filled vegetables are then placed back into the steamer.  \nHint 4: The dish is called “Steamed Pumpkin with Lotus Seeds.”  \nHint 1: Nguyên liệu có kích thước to khoảng gấp 4 lần cọng hành lá được cho vào chảo, sau đó đến hai loại nguyên liệu khác được cắt hạt lựu cũng lần lượt được cho vào.  \nHint 2: Sau khi nấu xong, tất cả được cho vào trong những quả đã được hấp từ trước.  \nHint 3: Những quả này tiếp tục được đưa vào nồi hấp. Có tổng cộng 4 quả.  \nHint 4: Món này có tên là “Đồ hấp hạt sen”.",
+    "submissions": [
+      {
+        "id": "698dcb75-4802-414e-95d3-57cf8e107fdf",
+        "ts": 1790394369.6754184,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-18",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-18",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "L26_V379",
+          "frame_idx": 5132,
+          "timestamp": 205.28,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": null,
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "L26_V379",
+                "start": 204780,
+                "end": 205780
+              }
+            ],
+            "taskName": "tkis-query-18"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "698dcb75-4802-414e-95d3-57cf8e107fdf"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:tkis-query-17",
+    "workbook_rows": [
+      11
+    ],
+    "task_name": "tkis-query-17",
+    "query_type": "T-KIS",
+    "query": "Lễ ra quân chiến dịch tình nguyện hè hỗ trợ người dân nâng cao kỹ năng số và sử dụng các dịch vụ trực tuyến an toàn.\n8 người đứng trước 1 màn hình lớn, trong đó có 4 người đặt tay lên 1 vật hình cầu.\nTrong số 8 người trên sân khấu, có 5 người mặc áo màu xanh dương và 3 người mặc áo màu trắng.\nMột vài bạn áo đỏ ngồi giữa nhóm mặc áo xanh lá và xanh dương. Cuối clip là cảnh người đàn ông trung niên đeo kính trông lúc được người thanh niên hướng dẫn thao tác trên điện thoại.",
+    "hints_vi": [
+      "Lễ ra quân chiến dịch tình nguyện hè hỗ trợ người dân nâng cao kỹ năng số và sử dụng các dịch vụ trực tuyến an toàn.",
+      "8 người đứng trước 1 màn hình lớn, trong đó có 4 người đặt tay lên 1 vật hình cầu.",
+      "Trong số 8 người trên sân khấu, có 5 người mặc áo màu xanh dương và 3 người mặc áo màu trắng.",
+      "Một vài bạn áo đỏ ngồi giữa nhóm mặc áo xanh lá và xanh dương. Cuối clip là cảnh người đàn ông trung niên đeo kính trông lúc được người thanh niên hướng dẫn thao tác trên điện thoại."
+    ],
+    "source_text": "Hint 1: Launching ceremony of the summer volunteer campaign to support people in improving digital skills and using online services safely.  \nHint 2: Eight people stood in front of a large screen, four of whom placed their hands on a spherical object.  \nHint 3: Of the eight people on stage, five were wearing blue shirts and three were wearing white shirts.  \nHint 4: A few people in red shirts are sitting among a group wearing green and blue shirts. At the end of the clip, a middle-aged man wearing glasses is shown being instructed by a young man on how to operate a phone.  \nHint 1: Lễ ra quân chiến dịch tình nguyện hè hỗ trợ người dân nâng cao kỹ năng số và sử dụng các dịch vụ trực tuyến an toàn.  \nHint 2: 8 người đứng trước 1 màn hình lớn, trong đó có 4 người đặt tay lên 1 vật hình cầu.  \nHint 3: Trong số 8 người trên sân khấu, có 5 người mặc áo màu xanh dương và 3 người mặc áo màu trắng.  \nHint 4: Một vài bạn áo đỏ ngồi giữa nhóm mặc áo xanh lá và xanh dương. Cuối clip là cảnh người đàn ông trung niên đeo kính trông lúc được người thanh niên hướng dẫn thao tác trên điện thoại.",
+    "submissions": [
+      {
+        "id": "30c1be08-d144-4320-9a1a-de7b1de515b4",
+        "ts": 1790394629.0132139,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-17",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-17",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "L22_V021",
+          "frame_idx": 2745,
+          "timestamp": 91.5,
+          "fps": 30.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "L22/L22_V021/338",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "L22_V021",
+                "start": 91000,
+                "end": 92000
+              }
+            ],
+            "taskName": "tkis-query-17"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "43e9907e-e399-4bfd-810a-45e1216dc1d4",
+        "ts": 1790394681.5352187,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-17",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-17",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "M07_V001",
+          "frame_idx": 1777,
+          "timestamp": 71.12,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "M07/M07_V001/051",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "M07_V001",
+                "start": 70620,
+                "end": 71620
+              }
+            ],
+            "taskName": "tkis-query-17"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "43e9907e-e399-4bfd-810a-45e1216dc1d4"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:tkis-query-03",
+    "workbook_rows": [
+      12
+    ],
+    "task_name": "tkis-query-03",
+    "query_type": "T-KIS",
+    "query": "Đoạn clip giới thiệu văn hóa ăn sáng đa dạng, từ những bữa ăn cao cấp được chế biến cầu kỳ đến các suất ăn bình dân, giá rẻ dành cho người lao động.\nCó cảnh trải nghiệm bữa sáng đa giác quan ở Luân Đôn với các món được chế biến cầu kỳ như cá hồi hun khói ăn cùng trứng chần.\nCó cảnh bếp ăn có một lò nướng than lớn, nằm trong chuỗi quán pub Wetherspoons, ở Luân Đôn, nước Anh.\nMột trong các phân cảnh có ghi hình một người đàn ông đang xếp các miếng thịt lên trên lò nướng. Trên lò nướng có tổng cộng 5 miếng thịt.",
+    "hints_vi": [
+      "Đoạn clip giới thiệu văn hóa ăn sáng đa dạng, từ những bữa ăn cao cấp được chế biến cầu kỳ đến các suất ăn bình dân, giá rẻ dành cho người lao động.",
+      "Có cảnh trải nghiệm bữa sáng đa giác quan ở Luân Đôn với các món được chế biến cầu kỳ như cá hồi hun khói ăn cùng trứng chần.",
+      "Có cảnh bếp ăn có một lò nướng than lớn, nằm trong chuỗi quán pub Wetherspoons, ở Luân Đôn, nước Anh.",
+      "Một trong các phân cảnh có ghi hình một người đàn ông đang xếp các miếng thịt lên trên lò nướng. Trên lò nướng có tổng cộng 5 miếng thịt."
+    ],
+    "source_text": "Hint 1: The clip showcases diverse breakfast cultures, ranging from elaborate, high-end meals to affordable, budget-friendly options for workers.  \nHint 2: There are scenes of a multi-sensory breakfast experience in London with elaborately prepared dishes such as smoked salmon served with poached eggs.  \nHint 3: There's a scene of a kitchen with a large charcoal grill, located in the Wetherspoons pub chain in London, England.  \nHint 4: One of the scenes shows a man arranging pieces of meat on a grill. There are a total of five pieces of meat on the grill.  \nHint 1: Đoạn clip giới thiệu văn hóa ăn sáng đa dạng, từ những bữa ăn cao cấp được chế biến cầu kỳ đến các suất ăn bình dân, giá rẻ dành cho người lao động.  \nHint 2: Có cảnh trải nghiệm bữa sáng đa giác quan ở Luân Đôn với các món được chế biến cầu kỳ như cá hồi hun khói ăn cùng trứng chần.  \nHint 3: Có cảnh bếp ăn có một lò nướng than lớn, nằm trong chuỗi quán pub Wetherspoons, ở Luân Đôn, nước Anh.  \nHint 4: Một trong các phân cảnh có ghi hình một người đàn ông đang xếp các miếng thịt lên trên lò nướng. Trên lò nướng có tổng cộng 5 miếng thịt.",
+    "submissions": [
+      {
+        "id": "062c7f75-913d-4b90-a51b-4199953b1338",
+        "ts": 1790395119.9048786,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-03",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-03",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "M03_V009",
+          "frame_idx": 12959,
+          "timestamp": 518.36,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": null,
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "M03_V009",
+                "start": 517860,
+                "end": 518860
+              }
+            ],
+            "taskName": "tkis-query-03"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "8c49d09f-be81-400c-bb99-9218d4626ad5",
+        "ts": 1790407172.1851995,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/tkis-query-03",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "tkis-query-03",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "M03_V009",
+          "frame_idx": 12843,
+          "timestamp": 513.72,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "M03/M03_V009/293",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "M03_V009",
+                "start": 513220,
+                "end": 514220
+              }
+            ],
+            "taskName": "tkis-query-03"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "062c7f75-913d-4b90-a51b-4199953b1338",
+      "8c49d09f-be81-400c-bb99-9218d4626ad5"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:tkis-query-14",
+    "workbook_rows": [
+      13
+    ],
+    "task_name": "tkis-query-14",
+    "query_type": "T-KIS",
+    "query": "Đoạn phim bắt đầu bằng cảnh quay trên cao cho thấy đầy đủ 3 tốp đua xe đạp khác nhau.\nBa tốp lần lượt gồm 5 tay đua, 2 tay đua và một đoàn đông tay đua.\nBình luận viên cho biết tốp hai cách tốp đầu dưới 10 giây, tốp ba cách tốp đầu khoảng 15 giây.\nCuối đoạn, một tay đua từ tốp ba nỗ lực vươn lên.",
+    "hints_vi": [
+      "Đoạn phim bắt đầu bằng cảnh quay trên cao cho thấy đầy đủ 3 tốp đua xe đạp khác nhau.",
+      "Ba tốp lần lượt gồm 5 tay đua, 2 tay đua và một đoàn đông tay đua.",
+      "Bình luận viên cho biết tốp hai cách tốp đầu dưới 10 giây, tốp ba cách tốp đầu khoảng 15 giây.",
+      "Cuối đoạn, một tay đua từ tốp ba nỗ lực vươn lên."
+    ],
+    "source_text": "Hint 1: The video begins with an aerial shot showing all three different groups of cyclists in full.  \nHint 2: The three groups consisted of five riders, two riders, and a large group of riders, respectively.  \nHint 3: The commentator noted that the second-place team was less than 10 seconds ahead of the first-place team, and the third-place team was about 15 seconds ahead.  \nHint 4: Towards the end of the section, a rider from the top three attempted to move up.  \nHint 1: Đoạn phim bắt đầu bằng cảnh quay trên cao cho thấy đầy đủ 3 tốp đua xe đạp khác nhau.  \nHint 2: Ba tốp lần lượt gồm 5 tay đua, 2 tay đua và một đoàn đông tay đua.  \nHint 3: Bình luận viên cho biết tốp hai cách tốp đầu dưới 10 giây, tốp ba cách tốp đầu khoảng 15 giây.  \nHint 4: Cuối đoạn, một tay đua từ tốp ba nỗ lực vươn lên.",
+    "submissions": [
+      {
+        "id": "e9355570-dbc6-4c1e-bf86-2faca43c6aad",
+        "ts": 1790395730.6394718,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-14",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-14",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "S01-V004",
+          "frame_idx": 101877,
+          "timestamp": 3395.9,
+          "fps": 30.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "S01/S01-V004/12578",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "S01-V004",
+                "start": 3395400,
+                "end": 3396400
+              }
+            ],
+            "taskName": "tkis-query-14"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "3bc0050b-a634-4a1b-a89d-956ffa8f5b50",
+        "ts": 1790395749.673402,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-14",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-14",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "S01-V004",
+          "frame_idx": 194314,
+          "timestamp": 6477.133333,
+          "fps": 30.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "S01/S01-V004/24683",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "S01-V004",
+                "start": 6476633,
+                "end": 6477633
+              }
+            ],
+            "taskName": "tkis-query-14"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "70f759bc-019b-4494-b278-d94155aeaeba",
+        "ts": 1790395762.3295481,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-14",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-14",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "S01-V004",
+          "frame_idx": 101721,
+          "timestamp": 3390.7,
+          "fps": 30.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "S01/S01-V004/12553",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "S01-V004",
+                "start": 3390200,
+                "end": 3391200
+              }
+            ],
+            "taskName": "tkis-query-14"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "2c425644-1c60-4f41-8480-4728760a7c80",
+        "ts": 1790395765.8929656,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-14",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-14",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "S01-V004",
+          "frame_idx": 101973,
+          "timestamp": 3399.1,
+          "fps": 30.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "S01/S01-V004/12599",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "S01-V004",
+                "start": 3398600,
+                "end": 3399600
+              }
+            ],
+            "taskName": "tkis-query-14"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "699b1c25-a3e9-4cf7-a2c9-4214593833dd",
+        "ts": 1790395774.0998557,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/tkis-query-14",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "tkis-query-14",
+        "query_type": "T-KIS",
+        "status": "dres_error",
+        "verdict": null,
+        "payload": {
+          "video_id": "S01-V004",
+          "frame_idx": 101928,
+          "timestamp": 3397.6,
+          "fps": 30.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "S01/S01-V004/12590",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "S01-V004",
+                "start": 3397100,
+                "end": 3398100
+              }
+            ],
+            "taskName": "tkis-query-14"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "e9355570-dbc6-4c1e-bf86-2faca43c6aad",
+      "3bc0050b-a634-4a1b-a89d-956ffa8f5b50",
+      "70f759bc-019b-4494-b278-d94155aeaeba",
+      "2c425644-1c60-4f41-8480-4728760a7c80"
+    ],
+    "selection_basis": "owner_confirmed_btc_label_error",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:qa-query-04",
+    "workbook_rows": [
+      14
+    ],
+    "task_name": "qa-query-04",
+    "query_type": "QA",
+    "query": "Tên người xuất hiện trong phân cảnh này? Đoạn clip có cảnh một nhà thiết kế thời trang rất trẻ nhắc đến những nguồn cảm hứng khác thường như một loại rau màu xanh và những chiếc thìa, xen kẽ cảnh trình diễn bộ sưu tập thời trang.\nTên người xuất hiện trong phân cảnh này? Đoạn clip có cảnh một nhà thiết kế thời trang rất trẻ nhắc đến những nguồn cảm hứng khác thường như một loại rau màu xanh và những chiếc thìa, xen kẽ cảnh trình diễn bộ sưu tập thời trang.\nTên người xuất hiện trong phân cảnh này? Có hình ảnh một cậu bé tóc xoăn đang cầm một cây thước đo và một tấm vải nhỏ, bên cạnh là các cuộn chỉ được treo đầy màu sắc.\nTên người xuất hiện trong phân cảnh này? Các sản phẩm được cậu bé thiết kế và trình diễn tại tuần lễ thời trang Paris 2026-2027. Theo Kỷ lục Thế giới Guinness, cậu bé là nhà thiết kế thời trang trẻ tuổi nhất.",
+    "hints_vi": [
+      "Tên người xuất hiện trong phân cảnh này? Đoạn clip có cảnh một nhà thiết kế thời trang rất trẻ nhắc đến những nguồn cảm hứng khác thường như một loại rau màu xanh và những chiếc thìa, xen kẽ cảnh trình diễn bộ sưu tập thời trang.",
+      "Tên người xuất hiện trong phân cảnh này? Đoạn clip có cảnh một nhà thiết kế thời trang rất trẻ nhắc đến những nguồn cảm hứng khác thường như một loại rau màu xanh và những chiếc thìa, xen kẽ cảnh trình diễn bộ sưu tập thời trang.",
+      "Tên người xuất hiện trong phân cảnh này? Có hình ảnh một cậu bé tóc xoăn đang cầm một cây thước đo và một tấm vải nhỏ, bên cạnh là các cuộn chỉ được treo đầy màu sắc.",
+      "Tên người xuất hiện trong phân cảnh này? Các sản phẩm được cậu bé thiết kế và trình diễn tại tuần lễ thời trang Paris 2026-2027. Theo Kỷ lục Thế giới Guinness, cậu bé là nhà thiết kế thời trang trẻ tuổi nhất."
+    ],
+    "source_text": "Hint 1: What is the name of the person appearing in this scene? The clip features a very young fashion designer mentioning unusual sources of inspiration such as a green vegetable and spoons, interspersed with scenes of a fashion collection presentation.  \nHint 2: What is the name of the person appearing in this scene? The clip features a very young fashion designer mentioning unusual sources of inspiration such as a green vegetable and spoons, interspersed with scenes of a fashion collection presentation.  \nHint 3: What is the name of the person appearing in this scene? There's an image of a curly-haired boy holding a measuring tape and a small piece of cloth, with colorful spools of thread hanging beside him.  \nHint 4: Who is the person appearing in this scene? The products were designed and showcased by the boy at Paris Fashion Week 2026-2027. According to Guinness World Records, he is the youngest fashion designer ever.  \nHint 1: Tên người xuất hiện trong phân cảnh này? Đoạn clip có cảnh một nhà thiết kế thời trang rất trẻ nhắc đến những nguồn cảm hứng khác thường như một loại rau màu xanh và những chiếc thìa, xen kẽ cảnh trình diễn bộ sưu tập thời trang.  \nHint 2: Tên người xuất hiện trong phân cảnh này? Đoạn clip có cảnh một nhà thiết kế thời trang rất trẻ nhắc đến những nguồn cảm hứng khác thường như một loại rau màu xanh và những chiếc thìa, xen kẽ cảnh trình diễn bộ sưu tập thời trang.  \nHint 3: Tên người xuất hiện trong phân cảnh này? Có hình ảnh một cậu bé tóc xoăn đang cầm một cây thước đo và một tấm vải nhỏ, bên cạnh là các cuộn chỉ được treo đầy màu sắc.  \nHint 4: Tên người xuất hiện trong phân cảnh này? Các sản phẩm được cậu bé thiết kế và trình diễn tại tuần lễ thời trang Paris 2026-2027. Theo Kỷ lục Thế giới Guinness, cậu bé là nhà thiết kế thời trang trẻ tuổi nhất.",
+    "submissions": [
+      {
+        "id": "03cdcb3e-d61b-41bd-bbad-af9636738028",
+        "ts": 1790396671.9761584,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/qa-query-04",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "qa-query-04",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "M08_V019",
+          "frame_idx": 20606,
+          "timestamp": 686.866667,
+          "fps": 30.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "Max Alexander",
+          "submit_keyframe_id": "M08/M08_V019/373",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-Max Alexander-M08_V019-686867"
+              }
+            ],
+            "taskName": "qa-query-04"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "f35370a9-eed7-4638-921d-23cb5cbdd081",
+        "ts": 1790396702.46944,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/qa-query-04",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "qa-query-04",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "M08_V019",
+          "frame_idx": 20606,
+          "timestamp": 686.866667,
+          "fps": 30.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "MAXALEXANDER",
+          "submit_keyframe_id": "M08/M08_V019/373",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-MAXALEXANDER-M08_V019-686867"
+              }
+            ],
+            "taskName": "qa-query-04"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "f35370a9-eed7-4638-921d-23cb5cbdd081"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:qa-query-05",
+    "workbook_rows": [
+      15
+    ],
+    "task_name": "qa-query-05",
+    "query_type": "QA",
+    "query": "Hoạt động trong cảnh quay được tổ chức tại tỉnh nào? Cảnh nhiều người lớn đang hướng dẫn các bạn nhỏ làm tranh kim tuyến trong một phòng học.\nHoạt động trong cảnh quay được tổ chức tại tỉnh nào? Chuyển ra khỏi không gian phòng học, ta tiếp tục thấy các tình nguyện viên chuẩn bị những phần quà để trao tặng cho người dân ở địa phương này.\nHoạt động trong cảnh quay được tổ chức tại tỉnh nào? Đây là cảnh quay về hoạt động tình nguyện của thanh niên Thành phố Hồ Chí Minh tại nước bạn Lào.",
+    "hints_vi": [
+      "Hoạt động trong cảnh quay được tổ chức tại tỉnh nào? Cảnh nhiều người lớn đang hướng dẫn các bạn nhỏ làm tranh kim tuyến trong một phòng học.",
+      "Hoạt động trong cảnh quay được tổ chức tại tỉnh nào? Chuyển ra khỏi không gian phòng học, ta tiếp tục thấy các tình nguyện viên chuẩn bị những phần quà để trao tặng cho người dân ở địa phương này.",
+      "Hoạt động trong cảnh quay được tổ chức tại tỉnh nào? Đây là cảnh quay về hoạt động tình nguyện của thanh niên Thành phố Hồ Chí Minh tại nước bạn Lào."
+    ],
+    "source_text": "Hint 1: In which province was the activity depicted in the scene taken? The scene shows many adults instructing children in making glitter art in a classroom.  \nHint 2: In which province was the activity depicted in the scene taken? Moving away from the classroom setting, we see volunteers preparing gifts to give to the local people.  \nHint 3: In which province was the activity shown in the scene filmed? This scene depicts the volunteer activities of young people from Ho Chi Minh City in Laos.  \nHint 1: Hoạt động trong cảnh quay được tổ chức tại tỉnh nào? Cảnh nhiều người lớn đang hướng dẫn các bạn nhỏ làm tranh kim tuyến trong một phòng học.  \nHint 2: Hoạt động trong cảnh quay được tổ chức tại tỉnh nào? Chuyển ra khỏi không gian phòng học, ta tiếp tục thấy các tình nguyện viên chuẩn bị những phần quà để trao tặng cho người dân ở địa phương này.  \nHint 3: Hoạt động trong cảnh quay được tổ chức tại tỉnh nào? Đây là cảnh quay về hoạt động tình nguyện của thanh niên Thành phố Hồ Chí Minh tại nước bạn Lào.",
+    "submissions": [
+      {
+        "id": "c6a9f917-ace1-4ea2-8e04-520a34aa6fd8",
+        "ts": 1790397071.504008,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/qa-query-05",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "qa-query-05",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "M08_V016",
+          "frame_idx": 5197,
+          "timestamp": 207.88,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "ATTAPEU",
+          "submit_keyframe_id": "M08/M08_V016/135",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-ATTAPEU-M08_V016-207880"
+              }
+            ],
+            "taskName": "qa-query-05"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "a35b9fdc-c419-4b35-942e-787b1a3d7ff6",
+        "ts": 1790397207.1479306,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/qa-query-05",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "qa-query-05",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "M08_V016",
+          "frame_idx": 5317,
+          "timestamp": 212.68,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "ATTAPEU",
+          "submit_keyframe_id": "M08/M08_V016/139",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-ATTAPEU-M08_V016-212680"
+              }
+            ],
+            "taskName": "qa-query-05"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "8128fa49-5cad-4839-b466-bef2dbf7bbaf",
+        "ts": 1790397247.5403547,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/qa-query-05",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "qa-query-05",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "M08_V016",
+          "frame_idx": 5609,
+          "timestamp": 224.36,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "ATTAPEU",
+          "submit_keyframe_id": null,
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-ATTAPEU-M08_V016-224360"
+              }
+            ],
+            "taskName": "qa-query-05"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "3305a4b8-3b9f-46f1-b86a-efc925624aa5",
+        "ts": 1790397280.174009,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/qa-query-05",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "qa-query-05",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "M08_V016",
+          "frame_idx": 5298,
+          "timestamp": 211.92,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "ATTAPEU",
+          "submit_keyframe_id": "M08/M08_V016/138",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-ATTAPEU-M08_V016-211920"
+              }
+            ],
+            "taskName": "qa-query-05"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "c6a9f917-ace1-4ea2-8e04-520a34aa6fd8",
+      "a35b9fdc-c419-4b35-942e-787b1a3d7ff6",
+      "8128fa49-5cad-4839-b466-bef2dbf7bbaf",
+      "3305a4b8-3b9f-46f1-b86a-efc925624aa5"
+    ],
+    "selection_basis": "owner_confirmed_btc_label_error",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:qa-query-06",
+    "workbook_rows": [
+      16
+    ],
+    "task_name": "qa-query-06",
+    "query_type": "QA",
+    "query": "Ba chữ cái nào xuất hiện ở mục \"input\" (viết liền 3 chữ cái)? Đoạn clip giới thiệu một siêu dự án công nghệ sử dụng hoàn toàn năng lượng tái tạo và hệ thống làm mát không cần nước.\n3 chữ cái nào xuất hiện ở phần input (viết 3 chữ cái dính liền)? Sau đó người đàn ông này còn gạt một cái cần gạt xuống.\nBa chữ cái nào xuất hiện ở phần input (viết 3 chữ cái dính liền)? Đây là tin về một trung tâm dữ liệu ở Brazil.",
+    "hints_vi": [
+      "Ba chữ cái nào xuất hiện ở mục \"input\" (viết liền 3 chữ cái)? Đoạn clip giới thiệu một siêu dự án công nghệ sử dụng hoàn toàn năng lượng tái tạo và hệ thống làm mát không cần nước.",
+      "3 chữ cái nào xuất hiện ở phần input (viết 3 chữ cái dính liền)? Sau đó người đàn ông này còn gạt một cái cần gạt xuống.",
+      "Ba chữ cái nào xuất hiện ở phần input (viết 3 chữ cái dính liền)? Đây là tin về một trung tâm dữ liệu ở Brazil."
+    ],
+    "source_text": "Hint 1: What three letters appear in the \"input\" section (written as three letters)? The clip introduces a mega-technology project that uses entirely renewable energy and a waterless cooling system.  \nHint 2: What three letters appear in the input section (write three letters together)? Then this man also flipped a lever down.  \nHint 3: What three letters appear in the input section (write the three together)? This is a news article about a data center in Brazil.  \nHint 1: Ba chữ cái nào xuất hiện ở mục \"input\" (viết liền 3 chữ cái)? Đoạn clip giới thiệu một siêu dự án công nghệ sử dụng hoàn toàn năng lượng tái tạo và hệ thống làm mát không cần nước.  \nHint 2: 3 chữ cái nào xuất hiện ở phần input (viết 3 chữ cái dính liền)? Sau đó người đàn ông này còn gạt một cái cần gạt xuống.  \nHint 3: Ba chữ cái nào xuất hiện ở phần input (viết 3 chữ cái dính liền)? Đây là tin về một trung tâm dữ liệu ở Brazil.",
+    "submissions": [
+      {
+        "id": "863aff54-0c38-4610-92b3-4dd21f12784b",
+        "ts": 1790397510.6577296,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/qa-query-06",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "qa-query-06",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "M10_V031",
+          "frame_idx": 12501,
+          "timestamp": 416.733,
+          "fps": 30.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "UPS",
+          "submit_keyframe_id": "M10/M10_V031/235",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-UPS-M10_V031-416733"
+              }
+            ],
+            "taskName": "qa-query-06"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "d254ec77-1187-4d28-a611-3aa5e9b07dc8",
+        "ts": 1790397580.7704573,
+        "task_id": "8dd7c1af-4f12-4798-b3dd-381477d09315/qa-query-06",
+        "evaluation_id": "8dd7c1af-4f12-4798-b3dd-381477d09315",
+        "task_name": "qa-query-06",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "M10_V031",
+          "frame_idx": 12501,
+          "timestamp": 416.733,
+          "fps": 30.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "UVW",
+          "submit_keyframe_id": "M10/M10_V031/235",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-UVW-M10_V031-416733"
+              }
+            ],
+            "taskName": "qa-query-06"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "d254ec77-1187-4d28-a611-3aa5e9b07dc8"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:trake-cyclists",
+    "workbook_rows": [
+      17
+    ],
+    "task_name": null,
+    "query_type": "TRAKE",
+    "query": "Cảnh quay bắt đầu khi camera đang focus một tay đua xe đạp (1) mặc áo có ba màu chủ đạo là vàng, xanh dương, đỏ, và bắt đầu zoom ra xa. E1: Một tay đua (2) tương tác và chào camera. Chọn khoảnh khắc lòng bàn tay anh này lộ rõ hoàn toàn cũng như toàn bộ năm ngón tay trước ống kính. E2: Tay đua (2) và tay đua (1) cùng nhau tạo hình trái tim bằng tay. Chọn khoảnh khắc hai tay hai người vừa chạm nhau. E3: Một tay đua trong trang phục xanh lá cây (3) vượt qua tay đua (2). Chọn khoảnh khắc đầu tiên khi (3) vượt hoàn toàn tay đua (2). E4: Nhóm tay đua này vượt qua một bảng hiệu tên trường học. Chọn khoảnh khắc bảng hiệu vừa ra khỏi ống kính.",
+    "hints_vi": [],
+    "source_text": "Cảnh quay bắt đầu khi camera đang focus một tay đua xe đạp (1) mặc áo có ba màu chủ đạo là vàng, xanh dương, đỏ, và bắt đầu zoom ra xa. E1: Một tay đua (2) tương tác và chào camera. Chọn khoảnh khắc lòng bàn tay anh này lộ rõ hoàn toàn cũng như toàn bộ năm ngón tay trước ống kính. E2: Tay đua (2) và tay đua (1) cùng nhau tạo hình trái tim bằng tay. Chọn khoảnh khắc hai tay hai người vừa chạm nhau. E3: Một tay đua trong trang phục xanh lá cây (3) vượt qua tay đua (2). Chọn khoảnh khắc đầu tiên khi (3) vượt hoàn toàn tay đua (2). E4: Nhóm tay đua này vượt qua một bảng hiệu tên trường học. Chọn khoảnh khắc bảng hiệu vừa ra khỏi ống kính.\n\nThe scene begins with the camera focusing on a cyclist (1) wearing a jersey with three main colors: yellow, blue, and red, and then zooms out. E1: A cyclist (2) interacts with and greets the camera. Select the moment when his palm is fully visible with all five fingers in front of the lens. E2: That cyclist (2) and cyclist (1) make a heart shape with their hands. Select the moment their hands just touch. E3: A cyclist in a green outfit (3) overtakes cyclist (2). Select the first moment when (3) has completely overtaken (2). E4: The group of cyclists passes a school name sign. Select the moment the sign just comes out of the lens.",
+    "submissions": [],
+    "candidate_submission_ids": [],
+    "selection_basis": "pe_retrieval_visual_annotation",
+    "review_status": "reviewed",
+    "excluded_history_candidate": {
+      "task_name": "vkis-query-01",
+      "video_id": "M01_V006",
+      "reason": "Decoded submitted frame shows a cartoon/animation exhibition, not cyclists. Chronological position alone cannot establish the match."
+    },
+    "visual_annotations": [
+      {
+        "id": "pe-visual:S01-V011:cyclists-e1-e4-v1",
+        "payload": {
+          "video_id": "S01-V011",
+          "fps": 30,
+          "events": [
+            {
+              "event_index": 1,
+              "frame_idx": 280674,
+              "pts_time": 9355.8
+            },
+            {
+              "event_index": 2,
+              "frame_idx": 280932,
+              "pts_time": 9364.4
+            },
+            {
+              "event_index": 3,
+              "frame_idx": 281263,
+              "pts_time": 9375.433333333332
+            },
+            {
+              "event_index": 4,
+              "frame_idx": 281947,
+              "pts_time": 9398.233333333334
+            }
+          ]
+        },
+        "provenance": {
+          "retrieval": "PE image search, image_models=[pe], manual scope S01; no language/decision model used to label",
+          "owner_provided_search_scope": [
+            "S01"
+          ],
+          "search_evidence_directory": "evidence/row-17/pe-search",
+          "search_requests": [
+            "evidence/row-17/pe-search/e1.json",
+            "evidence/row-17/pe-search/e2.json",
+            "evidence/row-17/pe-search/e3.json",
+            "evidence/row-17/pe-search/e4.json"
+          ],
+          "navigation_seed": {
+            "submit_keyframe_id": "S01/S01-V011/34538",
+            "frame_idx": 280960,
+            "pts_time": 9365.333333
+          },
+          "source_video_url": "https://video.baoencoder.site/Videos/Videos_S01/S01-V011.mp4",
+          "fps_source": "ffprobe: avg_frame_rate=30/1; independently matches keyframe metadata",
+          "frame_numbering": "zero-based frame_idx = PTS * 30 in the original CFR video, consistent with keyframe metadata",
+          "continuous_scene_s": [
+            9345,
+            9398.666667
+          ],
+          "replay_excluded_s": 14778.633333,
+          "event_boundaries": [
+            {
+              "event_index": 1,
+              "selected_time_s": 9355.8,
+              "criterion": "Palm of rider #97 faces camera with all five fingers open and visible; event does not require earliest opening frame.",
+              "evidence_frames": [
+                "evidence/row-17/annotated-e1-2.jpg",
+                "evidence/row-17/cycling/dense-e1/overview-0.jpg"
+              ],
+              "uncertainty_note": "Palm is motion-blurred but fingers are spread; chosen open-hand frame, not an official accepted interval."
+            },
+            {
+              "event_index": 2,
+              "selected_time_s": 9364.4,
+              "criterion": "First visually resolved lower/thumb contact between the two heart-shaped hands; do not wait for the complete upper heart contour.",
+              "evidence_frames": [
+                "evidence/row-17/annotated-e2-1.jpg",
+                "evidence/row-17/annotated-e2-2.jpg",
+                "evidence/row-17/cycling/contact-e2/overview-0.jpg"
+              ],
+              "boundary_bracket_s": [
+                9364.366666666667,
+                9364.4
+              ],
+              "uncertainty_note": "Contact inferred from visible contours at native 30 FPS; motion blur allows approximately 1–2 frame uncertainty."
+            },
+            {
+              "event_index": 3,
+              "selected_time_s": 9375.433333333332,
+              "criterion": "Green rider has completely passed purple #97: trailing edge of green bicycle rear wheel clears leading edge of purple bicycle front wheel in the side camera view.",
+              "evidence_frames": [
+                "evidence/row-17/annotated-e3-1.jpg",
+                "evidence/row-17/annotated-e3-2.jpg",
+                "evidence/row-17/cycling/pass-e3/wheels.jpg"
+              ],
+              "boundary_bracket_s": [
+                9375.4,
+                9375.433333333332
+              ],
+              "uncertainty_note": "Whole-bicycle clearance is an explicit annotation convention for fully overtaken; oblique projection and motion blur allow a few-frame ambiguity."
+            },
+            {
+              "event_index": 4,
+              "selected_time_s": 9398.233333333334,
+              "criterion": "First frame after the blue school-name sign has fully left the left image edge. Earlier frames show the sign beginning TRƯỜNG CAO ĐẲNG; full school name is blurred.",
+              "evidence_frames": [
+                "evidence/row-17/cycling/native/9397.900.jpg",
+                "evidence/row-17/annotated-e4-1.jpg",
+                "evidence/row-17/annotated-e4-2.jpg"
+              ],
+              "boundary_bracket_s": [
+                9398.2,
+                9398.233333333334
+              ],
+              "uncertainty_note": "School sign identity supported by visible TRƯỜNG CAO ĐẲNG text and campus flags, without asserting the unreadable proper name. Blue border disappears between adjacent 30 FPS frames."
+            }
+          ],
+          "label_status": "manually inferred visual event points; no original DRES verdict or official tolerance window"
+        }
+      }
+    ]
+  },
+  {
+    "query_id": "aic26-20260926:tkis-query-23",
+    "workbook_rows": [
+      18
+    ],
+    "task_name": "tkis-query-23",
+    "query_type": "T-KIS",
+    "query": "Đoạn video camera giao thông từ trên cao tại một giao lộ, một công nhân vệ sinh chạy xe máy kéo theo một thùng rác vô tình làm một túi màu trắng rớt xuống đường.\nChiếc túi nằm dưới đường cho đến một lúc sau có một phụ nữ mặc áo xanh dương, đội nón lá tới nhặt.\nCó một chiếc xe cứu thương chạy qua giao lộ trong khoảng thời gian này.\nĐây là camera giao thông tại giao lộ NKKN - Trần Quốc Toản.",
+    "hints_vi": [
+      "Đoạn video camera giao thông từ trên cao tại một giao lộ, một công nhân vệ sinh chạy xe máy kéo theo một thùng rác vô tình làm một túi màu trắng rớt xuống đường.",
+      "Chiếc túi nằm dưới đường cho đến một lúc sau có một phụ nữ mặc áo xanh dương, đội nón lá tới nhặt.",
+      "Có một chiếc xe cứu thương chạy qua giao lộ trong khoảng thời gian này.",
+      "Đây là camera giao thông tại giao lộ NKKN - Trần Quốc Toản."
+    ],
+    "source_text": "Hint 1: A video from an overhead traffic camera at an intersection shows a sanitation worker riding a motorbike pulling a trash can, accidentally dropping a white bag onto the road.  \nHint 2: The bag lay on the road until, after a while, a woman wearing a blue shirt and a conical hat came and picked it up.  \nHint 3: An ambulance was passing through the intersection during this time.  \nHint 4: This is a traffic camera at the intersection of NKKN and Tran Quoc Toan streets.  \nHint 1: Đoạn video camera giao thông từ trên cao tại một giao lộ, một công nhân vệ sinh chạy xe máy kéo theo một thùng rác vô tình làm một túi màu trắng rớt xuống đường.  \nHint 2: Chiếc túi nằm dưới đường cho đến một lúc sau có một phụ nữ mặc áo xanh dương, đội nón lá tới nhặt.  \nHint 3: Có một chiếc xe cứu thương chạy qua giao lộ trong khoảng thời gian này.  \nHint 4: Đây là camera giao thông tại giao lộ NKKN - Trần Quốc Toản.",
+    "submissions": [
+      {
+        "id": "b1741fcd-305a-4069-9dc8-8070ac6bed1f",
+        "ts": 1790406050.3432503,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/tkis-query-23",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "tkis-query-23",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "N061-V002",
+          "frame_idx": 7240,
+          "timestamp": 289.606953,
+          "fps": 24.99950605,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": null,
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "N061-V002",
+                "start": 289107,
+                "end": 290107
+              }
+            ],
+            "taskName": "tkis-query-23"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "b1741fcd-305a-4069-9dc8-8070ac6bed1f"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:tkis-query-24",
+    "workbook_rows": [
+      19
+    ],
+    "task_name": "tkis-query-24",
+    "query_type": "T-KIS",
+    "query": "Đoạn video camera giao thông từ trên cao tại một giao lộ, một chiếc xe buýt màu đỏ 2 tầng mui trần đang di chuyển ở nửa bên phải khung hình, tiến tới giao lộ và dừng đèn đỏ.\nTrên tầng 2 hiện đang có 4 hành khách.\nỞ góc giao lộ bên trái khung hình, có một trạm xăng dầu Petrolimex.",
+    "hints_vi": [
+      "Đoạn video camera giao thông từ trên cao tại một giao lộ, một chiếc xe buýt màu đỏ 2 tầng mui trần đang di chuyển ở nửa bên phải khung hình, tiến tới giao lộ và dừng đèn đỏ.",
+      "Trên tầng 2 hiện đang có 4 hành khách.",
+      "Ở góc giao lộ bên trái khung hình, có một trạm xăng dầu Petrolimex."
+    ],
+    "source_text": "Hint 1: The overhead traffic camera footage at an intersection shows a red double-decker open-top bus moving on the right side of the frame, approaching the intersection and stopping at a red light.  \nHint 2: There are currently 4 passengers on the second floor.  \nHint 3: At the corner of the intersection, on the left side of the frame, there is a Petrolimex gas station.  \nHint 1: Đoạn video camera giao thông từ trên cao tại một giao lộ, một chiếc xe buýt màu đỏ 2 tầng mui trần đang di chuyển ở nửa bên phải khung hình, tiến tới giao lộ và dừng đèn đỏ.  \nHint 2: Trên tầng 2 hiện đang có 4 hành khách.  \nHint 3: Ở góc giao lộ bên trái khung hình, có một trạm xăng dầu Petrolimex.",
+    "submissions": [
+      {
+        "id": "96900bb0-2e07-4f24-8e06-e0137c12458f",
+        "ts": 1790407577.6873193,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/tkis-query-24",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "tkis-query-24",
+        "query_type": "T-KIS",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "N025-V002",
+          "frame_idx": 12830,
+          "timestamp": 513.407,
+          "fps": 24.99950001,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": null,
+          "submit_keyframe_id": "N025/N025-V002/101",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "mediaItemName": "N025-V002",
+                "start": 512907,
+                "end": 513907
+              }
+            ],
+            "taskName": "tkis-query-24"
+          }
+        ],
+        "answer_mode": "temporal",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "96900bb0-2e07-4f24-8e06-e0137c12458f"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:qa-query-03",
+    "workbook_rows": [
+      20
+    ],
+    "task_name": "qa-query-03",
+    "query_type": "QA",
+    "query": "Hỏi đây là địa danh thuộc Tỉnh/Thành phố nào (Hiện nay)? (Đáp án viết không dấu và không có khoảng trắng). Trong phân cảnh này là hình ảnh ở một làng quê có truyền thống 1 loại lá có liên quan đến một thức ăn thuộc tập tục văn hóa của người dân chăn xưa.\nHỏi đây là địa danh thuộc Tỉnh/Thành phố nào (hiện nay)? (Đáp án viết không dấu và không có khoảng trắng). Từ Thành phố đi theo hướng Quốc lộ 61 đến ngôi làng này cách 13km.\nHỏi đây là địa danh thuộc Tỉnh/Thành phố nào (hiện nay)? (Đáp án viết không dấu và không có khoảng trắng). Hình ảnh địa danh này có tên là Làng trầu Vị Thủy.",
+    "hints_vi": [
+      "Hỏi đây là địa danh thuộc Tỉnh/Thành phố nào (Hiện nay)? (Đáp án viết không dấu và không có khoảng trắng). Trong phân cảnh này là hình ảnh ở một làng quê có truyền thống 1 loại lá có liên quan đến một thức ăn thuộc tập tục văn hóa của người dân chăn xưa.",
+      "Hỏi đây là địa danh thuộc Tỉnh/Thành phố nào (hiện nay)? (Đáp án viết không dấu và không có khoảng trắng). Từ Thành phố đi theo hướng Quốc lộ 61 đến ngôi làng này cách 13km.",
+      "Hỏi đây là địa danh thuộc Tỉnh/Thành phố nào (hiện nay)? (Đáp án viết không dấu và không có khoảng trắng). Hình ảnh địa danh này có tên là Làng trầu Vị Thủy."
+    ],
+    "source_text": "Hint 1: Which province/city (currently) does this place belong to? (Answer should be written without accents or spaces). This scene depicts a rural village where a type of leaf is traditionally grown, a food item associated with ancient folk customs.  \nHint 2: Which province/city (currently) does this place belong to? (Answer should be written without accents or spaces). From the city, follow National Highway 61 to this village, which is 13km away.  \nHint 3: Which province/city (currently) does this place belong to? (Answer should be written without accents or spaces). The image shows the place called Vi Thuy Betel Village.  \nHint 1: Hỏi đây là địa danh thuộc Tỉnh/Thành phố nào (Hiện nay)? (Đáp án viết không dấu và không có khoảng trắng). Trong phân cảnh này là hình ảnh ở một làng quê có truyền thống 1 loại lá có liên quan đến một thức ăn thuộc tập tục văn hóa của người dân chăn xưa.  \nHint 2: Hỏi đây là địa danh thuộc Tỉnh/Thành phố nào (hiện nay)? (Đáp án viết không dấu và không có khoảng trắng). Từ Thành phố đi theo hướng Quốc lộ 61 đến ngôi làng này cách 13km.  \nHint 3: Hỏi đây là địa danh thuộc Tỉnh/Thành phố nào (hiện nay)? (Đáp án viết không dấu và không có khoảng trắng). Hình ảnh địa danh này có tên là Làng trầu Vị Thủy.",
+    "submissions": [
+      {
+        "id": "8775e361-50af-4f5f-999b-48217f500442",
+        "ts": 1790408072.2785718,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-03",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-03",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "L27_V012",
+          "frame_idx": 3468,
+          "timestamp": 138.72,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "CANTHO",
+          "submit_keyframe_id": null,
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-CANTHO-L27_V012-138720"
+              }
+            ],
+            "taskName": "qa-query-03"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "8775e361-50af-4f5f-999b-48217f500442"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:qa-query-01",
+    "workbook_rows": [
+      21,
+      22,
+      23
+    ],
+    "task_name": "qa-query-01",
+    "query_type": "QA",
+    "query": "Địa danh này có tên là gì (tiếng Anh)? Trong video có cảnh cần cẩu lắp đặt một mô-đun đá cao hơn 15 mét lên công trình tôn giáo có kiến trúc đá chạm khắc tinh xảo, xen kẽ với nghi lễ được tổ chức bên trong.\nĐịa danh này có tên là gì (tiếng Anh)? Trong phân cảnh có một mảnh ghép cao 17m và rộng 13,5m được hạ xuống đỉnh tháp. Phân cảnh này miêu tả hình ảnh một nhà thờ đang được xây dựng.\nĐịa danh này có tên là gì (tiếng Anh)? Đây là công trình kiến trúc được tham quan nhiều nhất tại Tây Ban Nha với 4 triệu vé được bán ra năm 2024.\nĐịa danh này có tên là gì (tiếng Anh)? Sau khi lắp mảnh ghép cuối cùng, địa danh này trở thành nhà thờ cao nhất thế giới với chiều cao tổng cộng 172,5m.",
+    "hints_vi": [
+      "Địa danh này có tên là gì (tiếng Anh)? Trong video có cảnh cần cẩu lắp đặt một mô-đun đá cao hơn 15 mét lên công trình tôn giáo có kiến trúc đá chạm khắc tinh xảo, xen kẽ với nghi lễ được tổ chức bên trong.",
+      "Địa danh này có tên là gì (tiếng Anh)? Trong phân cảnh có một mảnh ghép cao 17m và rộng 13,5m được hạ xuống đỉnh tháp. Phân cảnh này miêu tả hình ảnh một nhà thờ đang được xây dựng.",
+      "Địa danh này có tên là gì (tiếng Anh)? Đây là công trình kiến trúc được tham quan nhiều nhất tại Tây Ban Nha với 4 triệu vé được bán ra năm 2024.",
+      "Địa danh này có tên là gì (tiếng Anh)? Sau khi lắp mảnh ghép cuối cùng, địa danh này trở thành nhà thờ cao nhất thế giới với chiều cao tổng cộng 172,5m."
+    ],
+    "source_text": "\"Hint 1: What is the name of this place (in English)? The video shows a crane installing a stone module over 15 meters high onto a religious structure with intricately carved stone architecture, interspersed with rituals being held inside.  \nHint 2: What is the name of this place (in English)? In the scene, a piece measuring 17 meters high and 13.5 meters wide is lowered to the top of a tower. This scene depicts a church under construction.  \nHint 3: What is the name of this landmark (in English)? This is the most visited architectural landmark in Spain, with 4 million tickets sold in 2024.  \nHint 4: What is the name of this landmark (in English)? After the final piece was assembled, this landmark became the tallest church in the world with a total height of 172.5m.  \nHint 1: Địa danh này có tên là gì (tiếng Anh)? Trong video có cảnh cần cẩu lắp đặt một mô-đun đá cao hơn 15 mét lên công trình tôn giáo có kiến trúc đá chạm khắc tinh xảo, xen kẽ với nghi lễ được tổ chức bên trong.  \nHint 2: Địa danh này có tên là gì (tiếng Anh)? Trong phân cảnh có một mảnh ghép cao 17m và rộng 13,5m được hạ xuống đỉnh tháp. Phân cảnh này miêu tả hình ảnh một nhà thờ đang được xây dựng.  \nHint 3: Địa danh này có tên là gì (tiếng Anh)? Đây là công trình kiến trúc được tham quan nhiều nhất tại Tây Ban Nha với 4 triệu vé được bán ra năm 2024.  \nHint 4: Địa danh này có tên là gì (tiếng Anh)? Sau khi lắp mảnh ghép cuối cùng, địa danh này trở thành nhà thờ cao nhất thế giới với chiều cao tổng cộng 172,5m.\"",
+    "submissions": [
+      {
+        "id": "6721f645-3ae6-4d29-9913-90cf4d0d4597",
+        "ts": 1790408427.4972632,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-01",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-01",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "M04_V008",
+          "frame_idx": 19503,
+          "timestamp": 780.12,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "SAGRADAFAMILIA",
+          "submit_keyframe_id": "M04/M04_V008/525",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-SAGRADAFAMILIA-M04_V008-780120"
+              }
+            ],
+            "taskName": "qa-query-01"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "6721f645-3ae6-4d29-9913-90cf4d0d4597"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:qa-query-07",
+    "workbook_rows": [
+      24
+    ],
+    "task_name": "qa-query-07",
+    "query_type": "QA",
+    "query": "Tốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Cảnh quay liên tục từ trên cao, bắt đầu khi 1 nhóm các tay đua xe đạp đang tiến về 500m cuối cùng của chặng đua. Có thể thấy các tay đua gần như hình 1 đường thẳng, người này nối đuôi người kia.\nTốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Tay đua duy nhất mặc áo xanh lá giữ vững vị trí thứ hai, và trên màn hình có một chú thích đang vẫn bám gắn với người này, cho biết mã số, tốc độ và tên của tay đua.\nTốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Nhóm này có tổng cộng 7 tay đua xe đạp.\nTốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Thông tin trong Chặng 4 Cúp Truyền hình Tp Hồ Chí Minh năm 2024 của tay đua R. Maikin.",
+    "hints_vi": [
+      "Tốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Cảnh quay liên tục từ trên cao, bắt đầu khi 1 nhóm các tay đua xe đạp đang tiến về 500m cuối cùng của chặng đua. Có thể thấy các tay đua gần như hình 1 đường thẳng, người này nối đuôi người kia.",
+      "Tốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Tay đua duy nhất mặc áo xanh lá giữ vững vị trí thứ hai, và trên màn hình có một chú thích đang vẫn bám gắn với người này, cho biết mã số, tốc độ và tên của tay đua.",
+      "Tốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Nhóm này có tổng cộng 7 tay đua xe đạp.",
+      "Tốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Thông tin trong Chặng 4 Cúp Truyền hình Tp Hồ Chí Minh năm 2024 của tay đua R. Maikin."
+    ],
+    "source_text": "Hint 1: What was the maximum speed this person achieved (as shown in the caption) in km/h? The footage is a continuous aerial shot, beginning as a group of cyclists are approaching the final 500 meters of the race. The cyclists appear to be almost in a straight line, following one another closely.  \nHint 2: What was the highest speed this person achieved (shown in the caption) in km/h? The only rider wearing the green jersey maintained second place, and on the screen there was a text caption attached to this person, indicating their number, speed, and name.  \nHint 3: What was the highest speed this person achieved (as shown in the caption) in km/h? This group has a total of 7 cyclists.  \nHint 4: What was the maximum speed this rider achieved (as shown in the caption) in km/h? This information is from Stage 4 of the 2024 Ho Chi Minh City Television Cup, featuring rider R. Maikin.  \nHint 1: Tốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Cảnh quay liên tục từ trên cao, bắt đầu khi 1 nhóm các tay đua xe đạp đang tiến về 500m cuối cùng của chặng đua. Có thể thấy các tay đua gần như hình 1 đường thẳng, người này nối đuôi người kia.  \nHint 2: Tốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Tay đua duy nhất mặc áo xanh lá giữ vững vị trí thứ hai, và trên màn hình có một chú thích đang vẫn bám gắn với người này, cho biết mã số, tốc độ và tên của tay đua.  \nHint 3: Tốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Nhóm này có tổng cộng 7 tay đua xe đạp.  \nHint 4: Tốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Thông tin trong Chặng 4 Cúp Truyền hình Tp Hồ Chí Minh năm 2024 của tay đua R. Maikin.",
+    "submissions": [
+      {
+        "id": "2e83943d-bc1c-4bd3-b3fc-ff8f8c749004",
+        "ts": 1790408887.552047,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-07",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-07",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "L23_V004",
+          "frame_idx": 2550,
+          "timestamp": 102.0,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "46",
+          "submit_keyframe_id": "L23/L23_V004/474",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-46-L23_V004-102000"
+              }
+            ],
+            "taskName": "qa-query-07"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "14bb7664-01b4-4b90-8576-336f7508d7ef",
+        "ts": 1790408969.2902174,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-07",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-07",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "L23_V004",
+          "frame_idx": 2440,
+          "timestamp": 97.6,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "46",
+          "submit_keyframe_id": "L23/L23_V004/454",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-46-L23_V004-97600"
+              }
+            ],
+            "taskName": "qa-query-07"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "e095e4ce-4338-4e1d-9039-d7fe3807762e",
+        "ts": 1790408976.16752,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-07",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-07",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "L23_V004",
+          "frame_idx": 2440,
+          "timestamp": 97.6,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "46KM/H",
+          "submit_keyframe_id": "L23/L23_V004/454",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-46KM/H-L23_V004-97600"
+              }
+            ],
+            "taskName": "qa-query-07"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "39ed9e11-1b66-4554-b566-76efb9eadd65",
+        "ts": 1790408987.4987457,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-07",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-07",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "L23_V024",
+          "frame_idx": 2705,
+          "timestamp": 108.2,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "61",
+          "submit_keyframe_id": "L23/L23_V024/512",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-61-L23_V024-108200"
+              }
+            ],
+            "taskName": "qa-query-07"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "2e83943d-bc1c-4bd3-b3fc-ff8f8c749004",
+      "14bb7664-01b4-4b90-8576-336f7508d7ef",
+      "e095e4ce-4338-4e1d-9039-d7fe3807762e",
+      "39ed9e11-1b66-4554-b566-76efb9eadd65"
+    ],
+    "selection_basis": "owner_confirmed_btc_label_error",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:qa-query-08",
+    "workbook_rows": [
+      25
+    ],
+    "task_name": "qa-query-08",
+    "query_type": "QA",
+    "query": "Đây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Bắt đầu với cảnh các loại trái cây được sắp xếp thành hình bản đồ Việt Nam.\nĐây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Tiếp theo, nhiều người đàn ông mặc áo trắng ngồi phía trước một tháp trái cây lớn.\nĐây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Sau đó xuất hiện một loại trái cây màu đỏ xen kẽ với một số loại trái cây có gai.\nĐây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Cuối cùng, hai cô gái mặc áo dài đang trang trí một tháp trái cây.",
+    "hints_vi": [
+      "Đây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Bắt đầu với cảnh các loại trái cây được sắp xếp thành hình bản đồ Việt Nam.",
+      "Đây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Tiếp theo, nhiều người đàn ông mặc áo trắng ngồi phía trước một tháp trái cây lớn.",
+      "Đây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Sau đó xuất hiện một loại trái cây màu đỏ xen kẽ với một số loại trái cây có gai.",
+      "Đây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Cuối cùng, hai cô gái mặc áo dài đang trang trí một tháp trái cây."
+    ],
+    "source_text": "Hint 1: This festival is located in which province (currently) of Vietnam? (Answer should be written without accents or spaces) It begins with a scene of various fruits arranged to form the shape of a map of Vietnam.  \nHint 2: This festival is located in which (current) province of Vietnam? (Answer written without accents and spaces) Next, many men in white shirts sat in front of a large fruit tower.  \nHint 3: This festival is located in which province (currently) of Vietnam? (Answer written without accents and spaces) Then a type of red fruit appeared, interspersed with some thorny fruits.  \nHint 4: This festival is located in which province (currently) of Vietnam? (Answer should be written without accents or spaces) Finally, two girls in traditional Vietnamese dresses are decorating a fruit tower.  \nHint 1: Đây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Bắt đầu với cảnh các loại trái cây được sắp xếp thành hình bản đồ Việt Nam.  \nHint 2: Đây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Tiếp theo, nhiều người đàn ông mặc áo trắng ngồi phía trước một tháp trái cây lớn.  \nHint 3: Đây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Sau đó xuất hiện một loại trái cây màu đỏ xen kẽ với một số loại trái cây có gai.  \nHint 4: Đây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Cuối cùng, hai cô gái mặc áo dài đang trang trí một tháp trái cây.",
+    "submissions": [
+      {
+        "id": "4e3a554f-4d1f-4114-8a53-91e7abecfb7e",
+        "ts": 1790409069.453804,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-08",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-08",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "M08_V025",
+          "frame_idx": 6710,
+          "timestamp": 268.4,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "DONGTHAP",
+          "submit_keyframe_id": "M08/M08_V025/159",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-DONGTHAP-M08_V025-268400"
+              }
+            ],
+            "taskName": "qa-query-08"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "4e3a554f-4d1f-4114-8a53-91e7abecfb7e"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:qa-query-09",
+    "workbook_rows": [
+      26
+    ],
+    "task_name": "qa-query-09",
+    "query_type": "QA",
+    "query": "Đây là con vật gì? Một nhóm 5 người đang ngồi xung quanh một vật có chiều dài gần bằng chiều dài của một người trưởng thành, vật này dính đất xung quanh.\nĐây là con vật gì? Người đàn ông mặc áo đỏ nằm bên cạnh để so sánh với chiều dài của vật này.\nĐây là con vật gì? Vật này là xương đùi của một loài động vật.\nĐây là con vật gì? Tên khoa học của loài động vật này là Dasosaurus tocantinensis.",
+    "hints_vi": [
+      "Đây là con vật gì? Một nhóm 5 người đang ngồi xung quanh một vật có chiều dài gần bằng chiều dài của một người trưởng thành, vật này dính đất xung quanh.",
+      "Đây là con vật gì? Người đàn ông mặc áo đỏ nằm bên cạnh để so sánh với chiều dài của vật này.",
+      "Đây là con vật gì? Vật này là xương đùi của một loài động vật.",
+      "Đây là con vật gì? Tên khoa học của loài động vật này là Dasosaurus tocantinensis."
+    ],
+    "source_text": "Hint 1: What animal is this (answer in Vietnamese)? A group of five people are sitting around an object that is almost as long as an adult, and it is covered in dirt.  \nHint 2: What animal is this (answer in Vietnamese)? The man in the red shirt lay next to it to compare its length.  \nHint 3: What animal is this (answer in Vietnamese)? This is the femur of an animal.  \nHint 4: What animal is this (answer in Vietnamese)? The scientific name of this animal is Dasosaurus tocantinensis.  \nHint 1: Đây là con vật gì? Một nhóm 5 người đang ngồi xung quanh một vật có chiều dài gần bằng chiều dài của một người trưởng thành, vật này dính đất xung quanh.  \nHint 2: Đây là con vật gì? Người đàn ông mặc áo đỏ nằm bên cạnh để so sánh với chiều dài của vật này.  \nHint 3: Đây là con vật gì? Vật này là xương đùi của một loài động vật.  \nHint 4: Đây là con vật gì? Tên khoa học của loài động vật này là Dasosaurus tocantinensis.",
+    "submissions": [
+      {
+        "id": "237b1857-42ac-47b2-8035-bd6c30c0f1f3",
+        "ts": 1790409406.4189508,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-09",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-09",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "M05_V018",
+          "frame_idx": 12693,
+          "timestamp": 507.72,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "KHUNGLONG",
+          "submit_keyframe_id": "M05/M05_V018/310",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-KHUNGLONG-M05_V018-507720"
+              }
+            ],
+            "taskName": "qa-query-09"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "237b1857-42ac-47b2-8035-bd6c30c0f1f3"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:qa-query-10",
+    "workbook_rows": [
+      27
+    ],
+    "task_name": "qa-query-10",
+    "query_type": "QA",
+    "query": "Đây là bánh gì? Người đàn ông đổ bột để làm bánh, loại bánh này có màu nâu vàng, bột được đổ thành hình tròn, sau đó được rắc một ít nguyên liệu được làm từ thịt lên trên.\nĐây là bánh gì? Phô mai và xúc xích cũng được cho lên trên bánh này.\nĐây là bánh gì? Bánh được cuộn tròn bọc xúc xích lại.\nĐây là bánh gì? Loại bánh này được một nhân vật mèo máy rất thích ăn.",
+    "hints_vi": [
+      "Đây là bánh gì? Người đàn ông đổ bột để làm bánh, loại bánh này có màu nâu vàng, bột được đổ thành hình tròn, sau đó được rắc một ít nguyên liệu được làm từ thịt lên trên.",
+      "Đây là bánh gì? Phô mai và xúc xích cũng được cho lên trên bánh này.",
+      "Đây là bánh gì? Bánh được cuộn tròn bọc xúc xích lại.",
+      "Đây là bánh gì? Loại bánh này được một nhân vật mèo máy rất thích ăn."
+    ],
+    "source_text": "Hint 1: What kind of cake is this? The man poured batter to make a cake, a golden-brown cake, poured into a round shape, then sprinkled with some meat-based topping.  \nHint 2: What kind of cake is this? Cheese and sausage are also put on top of this cake.  \nHint 3: What kind of pastry is this? A pastry rolled up and wrapped around a sausage.  \nHint 4: What kind of cake is this? This type of cake is a favorite of a robotic cat character.  \nHint 1: Đây là bánh gì? Người đàn ông đổ bột để làm bánh, loại bánh này có màu nâu vàng, bột được đổ thành hình tròn, sau đó được rắc một ít nguyên liệu được làm từ thịt lên trên.  \nHint 2: Đây là bánh gì? Phô mai và xúc xích cũng được cho lên trên bánh này.  \nHint 3: Đây là bánh gì? Bánh được cuộn tròn bọc xúc xích lại.  \nHint 4: Đây là bánh gì? Loại bánh này được một nhân vật mèo máy rất thích ăn.",
+    "submissions": [
+      {
+        "id": "5944e9a8-e207-44af-8515-d3bc2f6d38ed",
+        "ts": 1790409766.4760163,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-10",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-10",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "L26_V331",
+          "frame_idx": 3160,
+          "timestamp": 126.4,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "PANCAKE",
+          "submit_keyframe_id": "L26/L26_V331/455",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-PANCAKE-L26_V331-126400"
+              }
+            ],
+            "taskName": "qa-query-10"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "a4523ca7-4f4d-4dd1-b33a-4f9c4313a35b",
+        "ts": 1790409780.776069,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-10",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-10",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "L26_V331",
+          "frame_idx": 3190,
+          "timestamp": 127.6,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "PANCAKESUSHI",
+          "submit_keyframe_id": "L26/L26_V331/458",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-PANCAKESUSHI-L26_V331-127600"
+              }
+            ],
+            "taskName": "qa-query-10"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "bf467a38-9a77-4321-88fd-8928af9b2f1f",
+        "ts": 1790409836.2931473,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-10",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-10",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "L26_V331",
+          "frame_idx": 3160,
+          "timestamp": 126.4,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "BANHRAN",
+          "submit_keyframe_id": "L26/L26_V331/455",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-BANHRAN-L26_V331-126400"
+              }
+            ],
+            "taskName": "qa-query-10"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "bf467a38-9a77-4321-88fd-8928af9b2f1f"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:qa-query-13",
+    "workbook_rows": [
+      28
+    ],
+    "task_name": "qa-query-13",
+    "query_type": "QA",
+    "query": "Đây là làng hoa nào? Những chậu hoa đủ màu sắc được trồng trong chậu trên những chiếc giàn kim loại, bên dưới là mặt nước.\nĐây là làng hoa nào? Có 2 người đang ngồi trên một chiếc ghe di chuyển trong vườn hoa này, 1 người có vẻ đang cầm điện thoại để chụp ảnh/quay phim người còn lại.\nĐây là làng hoa nào? Trước đó ta còn thấy cảnh những khách du lịch khác đang đi bộ tham quan vườn hoa.\nĐây là làng hoa nào? Các chậu hoa được sắp xếp thành hình quốc kỳ Việt Nam và hình trái tim rất lớn.",
+    "hints_vi": [
+      "Đây là làng hoa nào? Những chậu hoa đủ màu sắc được trồng trong chậu trên những chiếc giàn kim loại, bên dưới là mặt nước.",
+      "Đây là làng hoa nào? Có 2 người đang ngồi trên một chiếc ghe di chuyển trong vườn hoa này, 1 người có vẻ đang cầm điện thoại để chụp ảnh/quay phim người còn lại.",
+      "Đây là làng hoa nào? Trước đó ta còn thấy cảnh những khách du lịch khác đang đi bộ tham quan vườn hoa.",
+      "Đây là làng hoa nào? Các chậu hoa được sắp xếp thành hình quốc kỳ Việt Nam và hình trái tim rất lớn."
+    ],
+    "source_text": "Hint 1: What flower village is this? Colorful flower pots are planted on metal frames, with water flowing beneath.  \nHint 2: What flower village is this? There are two people sitting on a boat moving through this flower garden; one seems to be holding a phone to take pictures/videos of the other.  \nHint 3: What flower village is this? Earlier, we saw other tourists walking around and visiting the flower gardens.  \nHint 4: Which flower village is this? The flower pots are arranged in the shape of the Vietnamese flag and a very large heart.  \nHint 1: Đây là làng hoa nào? Những chậu hoa đủ màu sắc được trồng trong chậu trên những chiếc giàn kim loại, bên dưới là mặt nước.  \nHint 2: Đây là làng hoa nào? Có 2 người đang ngồi trên một chiếc ghe di chuyển trong vườn hoa này, 1 người có vẻ đang cầm điện thoại để chụp ảnh/quay phim người còn lại.  \nHint 3: Đây là làng hoa nào? Trước đó ta còn thấy cảnh những khách du lịch khác đang đi bộ tham quan vườn hoa.  \nHint 4: Đây là làng hoa nào? Các chậu hoa được sắp xếp thành hình quốc kỳ Việt Nam và hình trái tim rất lớn.",
+    "submissions": [
+      {
+        "id": "1a8ea8b0-5a18-4736-ba6b-f6fd9b6510d5",
+        "ts": 1790410101.8627863,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-13",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-13",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "M02_V007",
+          "frame_idx": 11382,
+          "timestamp": 455.28,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "SADEC",
+          "submit_keyframe_id": "M02/M02_V007/230",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-SADEC-M02_V007-455280"
+              }
+            ],
+            "taskName": "qa-query-13"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "fdf2a887-eaca-4501-b99f-c159dce9ab32",
+        "ts": 1790410129.1096117,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-13",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-13",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "M02_V007",
+          "frame_idx": 11579,
+          "timestamp": 463.16,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "LANGHOASADEC",
+          "submit_keyframe_id": "M02/M02_V007/234",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-LANGHOASADEC-M02_V007-463160"
+              }
+            ],
+            "taskName": "qa-query-13"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "5d13f5c6-b721-4e04-9483-0c2ada3b220e",
+        "ts": 1790410169.763929,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-13",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-13",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "M02_V007",
+          "frame_idx": 11520,
+          "timestamp": 460.8,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "LANGHOASADEC",
+          "submit_keyframe_id": "M02/M02_V007/233",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-LANGHOASADEC-M02_V007-460800"
+              }
+            ],
+            "taskName": "qa-query-13"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "e91ad93c-11a4-4400-8805-40d8b79cb418",
+        "ts": 1790410208.317214,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-13",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-13",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "M02_V007",
+          "frame_idx": 10909,
+          "timestamp": 436.36,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "SADEC",
+          "submit_keyframe_id": null,
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-SADEC-M02_V007-436360"
+              }
+            ],
+            "taskName": "qa-query-13"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "1a8ea8b0-5a18-4736-ba6b-f6fd9b6510d5",
+      "fdf2a887-eaca-4501-b99f-c159dce9ab32",
+      "5d13f5c6-b721-4e04-9483-0c2ada3b220e",
+      "e91ad93c-11a4-4400-8805-40d8b79cb418"
+    ],
+    "selection_basis": "owner_confirmed_btc_label_error",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:qa-query-12",
+    "workbook_rows": [
+      29
+    ],
+    "task_name": "qa-query-12",
+    "query_type": "QA",
+    "query": "Có bao nhiêu cái cánh gà đã được sử dụng trong quá trình chế biến món ăn này? Đầu tiên, người đầu bếp cắt bỏ phần chóp cánh gà.\nTiếp theo ông ấy cắt mỗi cái cánh gà thành 2 miếng, tạo hình chúng như những chiếc đùi gà.\nKhi trộn xong xốt ướp, người đầu bếp nhúng từng miếng gà vào đó. Nước cốt dừa là một thành phần của hỗn hợp này.\nSau đó, ông ấy còn cho gà vào tô dừa khô bào sợi để nó áo đều miếng gà trước khi chiên gà trong chảo dầu.",
+    "hints_vi": [
+      "Có bao nhiêu cái cánh gà đã được sử dụng trong quá trình chế biến món ăn này? Đầu tiên, người đầu bếp cắt bỏ phần chóp cánh gà.",
+      "Tiếp theo ông ấy cắt mỗi cái cánh gà thành 2 miếng, tạo hình chúng như những chiếc đùi gà.",
+      "Khi trộn xong xốt ướp, người đầu bếp nhúng từng miếng gà vào đó. Nước cốt dừa là một thành phần của hỗn hợp này.",
+      "Sau đó, ông ấy còn cho gà vào tô dừa khô bào sợi để nó áo đều miếng gà trước khi chiên gà trong chảo dầu."
+    ],
+    "source_text": "Hint 1: How many chicken wings were used in the preparation of this dish? First, the chef cut off the tips of the chicken wings.  \nHint 2: Next, he cut each chicken wing into two pieces, shaping them to resemble chicken thighs.  \nHint 3: Once the marinade is mixed, the chef dips each piece of chicken into it. Coconut milk is an ingredient in this mixture.  \nHint 4: Then, he even put the chicken in a bowl of shredded dried coconut to coat it evenly before frying it in the oil.  \nHint 1: Có bao nhiêu cái cánh gà đã được sử dụng trong quá trình chế biến món ăn này? Đầu tiên, người đầu bếp cắt bỏ phần chóp cánh gà.  \nHint 2: Tiếp theo ông ấy cắt mỗi cái cánh gà thành 2 miếng, tạo hình chúng như những chiếc đùi gà.  \nHint 3: Khi trộn xong xốt ướp, người đầu bếp nhúng từng miếng gà vào đó. Nước cốt dừa là một thành phần của hỗn hợp này.  \nHint 4: Sau đó, ông ấy còn cho gà vào tô dừa khô bào sợi để nó áo đều miếng gà trước khi chiên gà trong chảo dầu.",
+    "submissions": [
+      {
+        "id": "7b240dfd-4d24-41b9-9288-e61f8a15ce2b",
+        "ts": 1790410478.4677627,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-12",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-12",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "L26_V234",
+          "frame_idx": 2587,
+          "timestamp": 103.48,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "4",
+          "submit_keyframe_id": "L26/L26_V234/394",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-4-L26_V234-103480"
+              }
+            ],
+            "taskName": "qa-query-12"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "5c1a1314-5160-4e06-9c38-d31bc883dccc",
+        "ts": 1790410561.3234923,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-12",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-12",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "L26_V234",
+          "frame_idx": 4661,
+          "timestamp": 186.44,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "4",
+          "submit_keyframe_id": null,
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-4-L26_V234-186440"
+              }
+            ],
+            "taskName": "qa-query-12"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "884bfde7-8084-4592-9800-ae5ec46191c2",
+        "ts": 1790410572.5345016,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-12",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-12",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "L26_V234",
+          "frame_idx": 1992,
+          "timestamp": 79.68,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "8",
+          "submit_keyframe_id": "L26/L26_V234/300",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-8-L26_V234-79680"
+              }
+            ],
+            "taskName": "qa-query-12"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "7b240dfd-4d24-41b9-9288-e61f8a15ce2b",
+      "5c1a1314-5160-4e06-9c38-d31bc883dccc",
+      "884bfde7-8084-4592-9800-ae5ec46191c2"
+    ],
+    "selection_basis": "owner_confirmed_btc_label_error",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:qa-query-14",
+    "workbook_rows": [
+      30
+    ],
+    "task_name": "qa-query-14",
+    "query_type": "QA",
+    "query": "Đây là làng nào? Hoạt động có sự tham gia của giáo viên và sinh viên vẽ trang trí các mô hình thuyền thúng bằng những hình ảnh văn hóa địa phương cũng như nghề làm nước mắm, để chuẩn bị cho một lễ hội.\nĐây là làng nào? Phân cảnh miêu tả một người giáo viên đang cầm bảng màu và cảnh biển với các loại hải sản.\nĐây là làng nào? Phân cảnh nằm trong hoạt động lễ hội diễn ra vào cuối Tháng 7 tại tỉnh Đắk Lắk. Hoạt động chuẩn bị cho Lễ hội Cầu ngư.\nĐây là làng nào? Cô giáo mặc màu áo xanh có vị là giáo viên Trường Tiểu học Nguyễn Chí Thanh, Phường Bình Kiến.",
+    "hints_vi": [
+      "Đây là làng nào? Hoạt động có sự tham gia của giáo viên và sinh viên vẽ trang trí các mô hình thuyền thúng bằng những hình ảnh văn hóa địa phương cũng như nghề làm nước mắm, để chuẩn bị cho một lễ hội.",
+      "Đây là làng nào? Phân cảnh miêu tả một người giáo viên đang cầm bảng màu và cảnh biển với các loại hải sản.",
+      "Đây là làng nào? Phân cảnh nằm trong hoạt động lễ hội diễn ra vào cuối Tháng 7 tại tỉnh Đắk Lắk. Hoạt động chuẩn bị cho Lễ hội Cầu ngư.",
+      "Đây là làng nào? Cô giáo mặc màu áo xanh có vị là giáo viên Trường Tiểu học Nguyễn Chí Thanh, Phường Bình Kiến."
+    ],
+    "source_text": "Hint 1: What village is this? The activity involves teachers and students painting spherical floats representing traditional fishing vessels with local cultural imagery and fish sauce production, in preparation for a fishermen's festival.  \nHint 2: What village is this? The scene depicts a teacher holding a palette and drawing a seascape with various seafood.  \nHint 3: Which village is this? This scene is part of a festival taking place at the end of July in Daklak province. It depicts preparations for the Fishing Festival.  \nHint 4: Which village is this? The teacher wearing the teal-colored shirt is a teacher at Nguyen Chi Thanh Primary School, Binh Kien Ward.  \nHint 1: Đây là làng nào? Hoạt động có sự tham gia của giáo viên và sinh viên vẽ trang trí các mô hình thuyền thúng bằng những hình ảnh văn hóa địa phương cũng như nghề làm nước mắm, để chuẩn bị cho một lễ hội.  \nHint 2: Đây là làng nào? Phân cảnh miêu tả một người giáo viên đang cầm bảng màu và cảnh biển với các loại hải sản.  \nHint 3: Đây là làng nào? Phân cảnh nằm trong hoạt động lễ hội diễn ra vào cuối Tháng 7 tại tỉnh Đắk Lắk. Hoạt động chuẩn bị cho Lễ hội Cầu ngư.  \nHint 4: Đây là làng nào? Cô giáo mặc màu áo xanh có vị là giáo viên Trường Tiểu học Nguyễn Chí Thanh, Phường Bình Kiến.",
+    "submissions": [
+      {
+        "id": "0550e541-19f2-4258-89a1-dcee6f38b111",
+        "ts": 1790410739.3696885,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-14",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-14",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "M09_V014",
+          "frame_idx": 11495,
+          "timestamp": 383.166667,
+          "fps": 30.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "LONGTHUY",
+          "submit_keyframe_id": "M09/M09_V014/218",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-LONGTHUY-M09_V014-383167"
+              }
+            ],
+            "taskName": "qa-query-14"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "0e59effc-6926-4e57-b313-cbb1ae866fe7",
+        "ts": 1790410765.434268,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-14",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-14",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "M09_V014",
+          "frame_idx": 11657,
+          "timestamp": 388.566667,
+          "fps": 30.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "LONGTHUY",
+          "submit_keyframe_id": null,
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-LONGTHUY-M09_V014-388567"
+              }
+            ],
+            "taskName": "qa-query-14"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "578c5712-6169-42fc-b4ca-9385f6c2df3a",
+        "ts": 1790410869.8347285,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-14",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-14",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "M09_V003",
+          "frame_idx": 7795,
+          "timestamp": 311.8,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "LONGTHUY",
+          "submit_keyframe_id": "M09/M09_V003/161",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-LONGTHUY-M09_V003-311800"
+              }
+            ],
+            "taskName": "qa-query-14"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "15ea4a12-e32d-400c-9750-d7c22a448c80",
+        "ts": 1790410916.0363123,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-14",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-14",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "M09_V014",
+          "frame_idx": 12068,
+          "timestamp": 402.266667,
+          "fps": 30.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "LANGCHAILONGTHUY",
+          "submit_keyframe_id": null,
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-LANGCHAILONGTHUY-M09_V014-402267"
+              }
+            ],
+            "taskName": "qa-query-14"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "d3a195d8-3179-43aa-9bd4-3b503afca36e",
+        "ts": 1790410975.913699,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/qa-query-14",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "qa-query-14",
+        "query_type": "QA",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "M09_V003",
+          "frame_idx": 8265,
+          "timestamp": 330.6,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [],
+          "answer": "LONGTHUY",
+          "submit_keyframe_id": "M09/M09_V003/170",
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "QA-LONGTHUY-M09_V003-330600"
+              }
+            ],
+            "taskName": "qa-query-14"
+          }
+        ],
+        "answer_mode": "qa_text",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "0550e541-19f2-4258-89a1-dcee6f38b111",
+      "0e59effc-6926-4e57-b313-cbb1ae866fe7",
+      "578c5712-6169-42fc-b4ca-9385f6c2df3a",
+      "15ea4a12-e32d-400c-9750-d7c22a448c80",
+      "d3a195d8-3179-43aa-9bd4-3b503afca36e"
+    ],
+    "selection_basis": "owner_confirmed_btc_label_error",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:trake-query-02",
+    "workbook_rows": [
+      31
+    ],
+    "task_name": "trake-query-02",
+    "query_type": "TRAKE",
+    "query": "Hướng dẫn chế biến một món ăn từ một loại trái cây và một loại hải sản. E1: Khoảnh khắc nhân vật nam tách thành công hạt khỏi phần thịt trắng của trái cây. E2: Khoảnh khắc nhân vật nữ đặt phần thịt trái cây cuối cùng đã được tách hạt lên đĩa màu xanh dương. E3: Khoảnh khắc nhân vật nam bắt đầu chuyển nguyên liệu hải sản từ đĩa trắng sang tô trong suốt. E4: Khoảnh khắc gia vị cuối cùng được cho vào tô thủy tinh trước khi bắt đầu trộn các nguyên liệu.",
+    "hints_vi": [],
+    "source_text": "Hướng dẫn chế biến một món ăn từ một loại trái cây và một loại hải sản. E1: Khoảnh khắc nhân vật nam tách thành công hạt khỏi phần thịt trắng của trái cây. E2: Khoảnh khắc nhân vật nữ đặt phần thịt trái cây cuối cùng đã được tách hạt lên đĩa màu xanh dương. E3: Khoảnh khắc nhân vật nam bắt đầu chuyển nguyên liệu hải sản từ đĩa trắng sang tô trong suốt. E4: Khoảnh khắc gia vị cuối cùng được cho vào tô thủy tinh trước khi bắt đầu trộn các nguyên liệu.\nInstructions for preparing a dish using one type of fruit and one type of seafood. E1: The moment the male character successfully separates the seed from the white flesh of the fruit. E2: The moment the female character places the last piece of fruit flesh, now seeded, onto the blue plate. E3: The moment the male character begins transferring the seafood ingredient from the white plate to the transparent bowl. E4: The moment the final seasoning is added to the glass bowl before mixing the ingredients.",
+    "submissions": [
+      {
+        "id": "81cfd1f0-53f0-48a2-aab3-d676ca96135e",
+        "ts": 1790411864.8429751,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/trake-query-02",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "trake-query-02",
+        "query_type": "TRAKE",
+        "status": "dres_ok",
+        "verdict": "WRONG",
+        "payload": {
+          "video_id": "L26_V104",
+          "frame_idx": null,
+          "timestamp": null,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [
+            {
+              "event_index": 1,
+              "frame_idx": 1868,
+              "pts_time": 74.72,
+              "start_ms": null,
+              "end_ms": null,
+              "video_id": "L26_V104",
+              "submit_keyframe_id": null
+            },
+            {
+              "event_index": 2,
+              "frame_idx": 2693,
+              "pts_time": 107.72,
+              "start_ms": null,
+              "end_ms": null,
+              "video_id": "L26_V104",
+              "submit_keyframe_id": "L26/L26_V104/353"
+            },
+            {
+              "event_index": 3,
+              "frame_idx": 2975,
+              "pts_time": 119.0,
+              "start_ms": null,
+              "end_ms": null,
+              "video_id": "L26_V104",
+              "submit_keyframe_id": "L26/L26_V104/393"
+            },
+            {
+              "event_index": 4,
+              "frame_idx": 3358,
+              "pts_time": 134.32,
+              "start_ms": null,
+              "end_ms": null,
+              "video_id": "L26_V104",
+              "submit_keyframe_id": null
+            }
+          ],
+          "answer": null,
+          "submit_keyframe_id": null,
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "TR-L26_V104-1868,2693,2975,3358"
+              }
+            ],
+            "taskName": "trake-query-02"
+          }
+        ],
+        "answer_mode": "trake_text",
+        "history_file": "backend/data/submit_history.json"
+      },
+      {
+        "id": "f0af9729-7648-475d-a316-41a7a635a000",
+        "ts": 1790411874.6377254,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/trake-query-02",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "trake-query-02",
+        "query_type": "TRAKE",
+        "status": "dres_error",
+        "verdict": null,
+        "payload": {
+          "video_id": "L26_V104",
+          "frame_idx": null,
+          "timestamp": null,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [
+            {
+              "event_index": 1,
+              "frame_idx": 1868,
+              "pts_time": 74.72,
+              "start_ms": null,
+              "end_ms": null,
+              "video_id": "L26_V104",
+              "submit_keyframe_id": null
+            },
+            {
+              "event_index": 2,
+              "frame_idx": 2693,
+              "pts_time": 107.72,
+              "start_ms": null,
+              "end_ms": null,
+              "video_id": "L26_V104",
+              "submit_keyframe_id": "L26/L26_V104/353"
+            },
+            {
+              "event_index": 3,
+              "frame_idx": 2975,
+              "pts_time": 119.0,
+              "start_ms": null,
+              "end_ms": null,
+              "video_id": "L26_V104",
+              "submit_keyframe_id": "L26/L26_V104/393"
+            },
+            {
+              "event_index": 4,
+              "frame_idx": 3358,
+              "pts_time": 134.32,
+              "start_ms": null,
+              "end_ms": null,
+              "video_id": "L26_V104",
+              "submit_keyframe_id": null
+            }
+          ],
+          "answer": null,
+          "submit_keyframe_id": null,
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "TR-L26_V104-1868,2693,2975,3358"
+              }
+            ],
+            "taskName": "trake-query-02"
+          }
+        ],
+        "answer_mode": "trake_text",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "81cfd1f0-53f0-48a2-aab3-d676ca96135e"
+    ],
+    "selection_basis": "owner_confirmed_btc_label_error",
+    "review_status": "pending"
+  },
+  {
+    "query_id": "aic26-20260926:trake-query-04",
+    "workbook_rows": [
+      32
+    ],
+    "task_name": "trake-query-04",
+    "query_type": "TRAKE",
+    "query": "Đoạn video hướng dẫn cách nấu một món ăn với cá. E1: Đầu bếp cho gia vị nêm sẵn vào cá. Chọn khoảnh khắc đầu tiên gia vị chạm vào bề mặt cá. E2: Đầu bếp xào cá với sả. Chọn khoảnh khắc đầu tiên đầu bếp dùng đũa để lật mặt cá. E3: Đầu bếp nấu nước lẩu. Chọn khoảnh khắc đầu tiên miếng ớt cuối cùng nằm hoàn toàn trong nồi lẩu. E4: Đầu bếp cho các loại rau vào lẩu. Chọn khoảnh khắc đầu tiên bông so đũa được gắp vào chạm mặt nước.",
+    "hints_vi": [],
+    "source_text": "Đoạn video hướng dẫn cách nấu một món ăn với cá. E1: Đầu bếp cho gia vị nêm sẵn vào cá. Chọn khoảnh khắc đầu tiên gia vị chạm vào bề mặt cá. E2: Đầu bếp xào cá với sả. Chọn khoảnh khắc đầu tiên đầu bếp dùng đũa để lật mặt cá. E3: Đầu bếp nấu nước lẩu. Chọn khoảnh khắc đầu tiên miếng ớt cuối cùng nằm hoàn toàn trong nồi lẩu. E4: Đầu bếp cho các loại rau vào lẩu. Chọn khoảnh khắc đầu tiên bông so đũa được gắp vào chạm mặt nước.\nThis video demonstrates how to cook a dish with fish. E1: The chef adds pre-seasoned spices to the fish. Select the moment the spices first touch the surface of the fish. E2: The chef stir-fries the fish with lemongrass. Select the moment the chef uses chopsticks to flip the fish. E3: The chef cooks the broth. Select the moment the last chili pepper is completely submerged in the broth. E4: The chef adds the vegetables to the broth. Select the moment the sesbania flower is picked up and touches the surface of the broth.",
+    "submissions": [
+      {
+        "id": "34c30d13-69fb-4043-aff2-94aff5c64eeb",
+        "ts": 1790412185.1757026,
+        "task_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44/trake-query-04",
+        "evaluation_id": "ee42784d-7867-4eb9-a5d4-c191d5269c44",
+        "task_name": "trake-query-04",
+        "query_type": "TRAKE",
+        "status": "dres_ok",
+        "verdict": "CORRECT",
+        "payload": {
+          "video_id": "L26_V402",
+          "frame_idx": null,
+          "timestamp": null,
+          "fps": 25.0,
+          "start_ms": null,
+          "end_ms": null,
+          "events": [
+            {
+              "event_index": 1,
+              "frame_idx": 2281,
+              "pts_time": 91.24,
+              "start_ms": null,
+              "end_ms": null,
+              "video_id": "L26_V402",
+              "submit_keyframe_id": null
+            },
+            {
+              "event_index": 2,
+              "frame_idx": 3512,
+              "pts_time": 140.48,
+              "start_ms": null,
+              "end_ms": null,
+              "video_id": "L26_V402",
+              "submit_keyframe_id": null
+            },
+            {
+              "event_index": 3,
+              "frame_idx": 4728,
+              "pts_time": 189.12,
+              "start_ms": null,
+              "end_ms": null,
+              "video_id": "L26_V402",
+              "submit_keyframe_id": null
+            },
+            {
+              "event_index": 4,
+              "frame_idx": 5606,
+              "pts_time": 224.24,
+              "start_ms": null,
+              "end_ms": null,
+              "video_id": "L26_V402",
+              "submit_keyframe_id": null
+            }
+          ],
+          "answer": null,
+          "submit_keyframe_id": null,
+          "submit_keyframe_ids": []
+        },
+        "answer_sets": [
+          {
+            "answers": [
+              {
+                "text": "TR-L26_V402-2281,3512,4728,5606"
+              }
+            ],
+            "taskName": "trake-query-04"
+          }
+        ],
+        "answer_mode": "trake_text",
+        "history_file": "backend/data/submit_history.json"
+      }
+    ],
+    "candidate_submission_ids": [
+      "34c30d13-69fb-4043-aff2-94aff5c64eeb"
+    ],
+    "selection_basis": "dres_correct",
+    "review_status": "pending"
+  }
+]

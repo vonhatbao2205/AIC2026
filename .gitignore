@@ -75,6 +75,8 @@ VideoRetrieval/tara-tarsier2-7b-3584-batch2-s01-clip-v1/
 !/benchmarks/progressive/annotations/source_inventory.jsonl
 !/benchmarks/progressive/annotations/source_frames.jsonl
 !/benchmarks/progressive/annotations/annotation_decisions.jsonl
+!/benchmarks/agent/annotations/aic26-20260926/ground_truth.jsonl
+/benchmarks/agent/annotations/aic26-20260926/evidence/
 # Local video/frame evidence is retained separately with a SHA-256 manifest.
 /benchmarks/progressive/annotations/evidence/
 elastic_staging/

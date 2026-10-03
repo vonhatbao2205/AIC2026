@@ -1,0 +1,27 @@
+{
+  "queries": 30,
+  "by_task": {
+    "T-KIS": 15,
+    "QA": 12,
+    "TRAKE": 3
+  },
+  "by_label_authority": {
+    "dres_correct": 22,
+    "owner_confirmed_btc_label_error": 7,
+    "pe_retrieval_visual_annotation": 1
+  },
+  "by_split": {
+    "test": 27,
+    "dev": 3
+  },
+  "skipped": [],
+  "limitations": [
+    "DRES verdicts and owner-reported organizer corrections are distinct label sources.",
+    "Sampled visual review confirms scene/moment plausibility, not exhaustive clip playback or exact first-frame boundaries.",
+    "Ground truth covers observed submitted points, not the complete official acceptance intervals.",
+    "No new DRES submission, model benchmark or external API judging was performed.",
+    "Cycling TRAKE row 17 is an owner-authorized PE-assisted visual annotation, not an official DRES label. Boundary conventions and frame uncertainty are recorded separately; use the declared benchmark time tolerance, not a claimed official interval."
+  ],
+  "source_manifest_sha256": "4f316ec876dfd19877f7710c480beb03789eb01a6b375e30e6f25511250fef8e",
+  "review_decisions_sha256": "87a8fcc993de59bf84e3c1a8df8f389866be988e24e3e58f0fcc23e3d4ed0e48"
+}

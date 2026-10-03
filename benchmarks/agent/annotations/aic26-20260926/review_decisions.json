@@ -1,0 +1,498 @@
+{
+  "schema_version": 1,
+  "review_queue_sha256": "7f9773e397947ffce8c72bd4594afd9d6144dff2c7d4c7aa6ae0d0a8629c69e6",
+  "source_manifest_sha256": "4f316ec876dfd19877f7710c480beb03789eb01a6b375e30e6f25511250fef8e",
+  "reviewer": "Codex: direct visual inspection of decoded timestamped frames and short context clips; local transcripts used only as supporting evidence",
+  "owner_authorization": "User reports organizer confirmed incorrect official answers for wrong-only questions; visually inspect and select matching submissions rather than accept every WRONG attempt.",
+  "decisions": [
+    {
+      "query_id": "aic26-20260926:tkis-query-01",
+      "workbook_rows": [
+        1
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "098073e7-985b-476b-ac02-dcd1a610d546",
+        "00f04523-0e83-43ce-9099-351aa46d4359"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Ảnh lúa nhiều màu tạo tranh trẻ em; thấy chong chóng và các mảng áo vàng/xanh. Hai phiên submit cùng video.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-01",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-08",
+      "workbook_rows": [
+        2
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "3bbb7aee-533b-4885-9169-858e3daecf3a"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Nghệ nhân áo trắng trang trí bánh cưới nhiều tầng; clip chuyển sang bàn chế tác hoa thủ công.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-02",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-02",
+      "workbook_rows": [
+        3
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "fd055910-25ab-424a-90c7-8642b7535ca4"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Nội thất đền và bức tranh tàu chiến trên sông; đúng bối cảnh Đình Ông Nguyễn.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-03",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-16",
+      "workbook_rows": [
+        4
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "93976be2-d171-409b-8914-4727260aa1d0"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Công an mặc áo phao CAND đẩy xuồng trong nước lũ; phụ nữ áo mưa hồng, khẩu trang tối và ô xanh.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-04",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-21",
+      "workbook_rows": [
+        5
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "1c016393-c75d-48f5-bd1f-50f29ba51e02"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Chảo khổng lồ ngoài trời với mái chèo gỗ; cắt cảnh giữa trứng vàng và nguyên liệu chiên.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-05",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-07",
+      "workbook_rows": [
+        6
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "6a43f93e-1cb9-48f0-aa4d-bc1841c5dcde"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Đêm tái hiện khoa cử ở di tích, lễ phục và cảnh lều chõng; khớp chuỗi cảnh mô tả.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-06",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-10",
+      "workbook_rows": [
+        7
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "cfcb46c3-299c-4e40-98d0-cd9c0da7669e"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Đoàn xe đạp rẽ lên cầu; bóng trắng và khách bên trái, tiếp đến góc quay trực diện.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-07",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-15",
+      "workbook_rows": [
+        8
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "a0482d22-057b-4a94-bb0d-0b7f260a90fb"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Cậu bé ngồi xổm thao tác nhạc cụ tre ngoài sân; mặc trang phục dân tộc.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-08",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-22",
+      "workbook_rows": [
+        9
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "1f79ce77-89b3-468f-a188-2175bc1466ef"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Bánh nhiều tầng, nhân vàng, chocolate/trái cây; nĩa và đồ uống/kem cạnh đĩa.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-09",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-18",
+      "workbook_rows": [
+        10
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "698dcb75-4802-414e-95d3-57cf8e107fdf"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Bốn quả bí xanh rỗng trên đĩa, đầu bếp cho hỗn hợp hạt sen vào.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-10",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-17",
+      "workbook_rows": [
+        11
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "43e9907e-e399-4bfd-810a-45e1216dc1d4"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Sân khấu Mùa hè số: tám người, năm áo xanh và ba áo trắng; chuyển cảnh sang khán giả.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-11",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-03",
+      "workbook_rows": [
+        12
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "062c7f75-913d-4b90-a51b-4199953b1338",
+        "8c49d09f-be81-400c-bb99-9218d4626ad5"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Bếp nướng thịt và bữa sáng kiểu Anh, sau đó thiết bị nấu trứng; hai mốc CORRECT cùng bản tin.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-12",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-14",
+      "workbook_rows": [
+        13
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "e9355570-dbc6-4c1e-bf86-2faca43c6aad",
+        "2c425644-1c60-4f41-8480-4728760a7c80"
+      ],
+      "label_authority": "owner_confirmed_btc_label_error",
+      "observation": "Audit đủ bốn hint tại S01-V004: aerial mở đầu đếm 5 tay đua, sau đó thấy cặp 2 người và đoàn đông; ASR 3384.619–3409.581s nói dưới 10 giây và khoảng 15 giây phía sau tốp đầu; cảnh frontal khoảng 3411–3418s thấy áo đỏ từ đoàn đông vươn lên. Giữ submit 3395.9/3399.1s; bỏ 3390.7s vì chưa thấy đoàn đông, bỏ 6477.133s vì đoạn khác có khoảng cách hơn một phút. Ba tốp thấy trong wide shot nhưng đuôi đoàn đông chạm mép ảnh; không khẳng định toàn bộ mọi tay đua nằm trọn cùng frame. Dùng tiếng Việt vì ahead/top three của bản Anh dịch sai.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-13",
+      "rejected_candidate_ids": [
+        "70f759bc-019b-4494-b278-d94155aeaeba",
+        "3bc0050b-a634-4a1b-a89d-956ffa8f5b50"
+      ],
+      "additional_audit_reference": "query13_audit.json",
+      "additional_audit_sha256": "ed6e7cbfcc060dae3d476dda7e0e92f8ee69b048a1d7faa6de8c1e9f9d96ba4c"
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-04",
+      "workbook_rows": [
+        14
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "f35370a9-eed7-4638-921d-23cb5cbdd081"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Chân dung cậu bé tóc xoăn; lower-third ghi MAX ALEXANDER. Giữ định dạng đáp án CORRECT MAXALEXANDER.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-14",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-05",
+      "workbook_rows": [
+        15
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "c6a9f917-ace1-4ea2-8e04-520a34aa6fd8",
+        "a35b9fdc-c419-4b35-942e-787b1a3d7ff6",
+        "8128fa49-5cad-4839-b466-bef2dbf7bbaf",
+        "3305a4b8-3b9f-46f1-b86a-efc925624aa5"
+      ],
+      "label_authority": "owner_confirmed_btc_label_error",
+      "observation": "Trẻ làm tranh trong lớp rồi tình nguyện viên đóng quà; lower-third ghi huyện Saysettha, tỉnh Attapu. Transcript gần đoạn này gọi tỉnh Attapeu; giữ đáp án submit ATTAPEU theo xác nhận sửa nhãn BTC của chủ dữ liệu.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-15",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-06",
+      "workbook_rows": [
+        16
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "d254ec77-1187-4d28-a611-3aa5e9b07dc8"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Người vận hành chỉ màn hình điều khiển; hình chữ ở input thuộc máy. DRES CORRECT chấp nhận UVW; không nhận lần UPS.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-16",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:trake-cyclists",
+      "workbook_rows": [
+        17
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [],
+      "label_authority": "pe_retrieval_visual_annotation",
+      "observation": "PE tìm cảnh gốc S01-V011: áo vàng/xanh/đỏ số 37; áo tím/quần xanh số 97 chào bằng bàn tay mở năm ngón, hai người ghép tim, áo xanh lá vượt hoàn toàn theo tiêu chí hai bánh xe hết chồng nhau. Bảng xanh chữ TRƯỜNG CAO ĐẲNG qua mép trái ở cuối đoạn, trước cú cắt sang nhóm khác. Chọn mốc trên video gốc 30 FPS, lưu frame trước/sau. Đây là nhãn tự tạo theo yêu cầu chủ dữ liệu; không có submit/verdict DRES; xem uncertainty_note cho cách xác định ranh giới.",
+      "method": "pe_search_and_dense_video_frame_review",
+      "evidence_directory": "evidence/row-17",
+      "rejected_candidate_ids": [],
+      "accepted_annotation_ids": [
+        "pe-visual:S01-V011:cyclists-e1-e4-v1"
+      ]
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-23",
+      "workbook_rows": [
+        18
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "b1741fcd-305a-4069-9dc8-8070ac6bed1f"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Camera NKKN–Trần Quốc Toản, công nhân xe máy kéo thùng và túi trắng rơi dưới đường; xem quanh mốc submit.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-18",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-24",
+      "workbook_rows": [
+        19
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "96900bb0-2e07-4f24-8e06-e0137c12458f"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Camera Hai Bà Trưng–Trần Cao Vân có xe buýt đỏ mui trần và cây xăng Petrolimex góc trái.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-19",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-03",
+      "workbook_rows": [
+        20
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "8775e361-50af-4f5f-999b-48217f500442"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Làng trồng trầu, người đi giữa vườn trầu; đáp án CORRECT CANTHO lấy từ lịch sử, không tự suy ra tỉnh hiện hành chỉ từ ảnh.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-20",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-01",
+      "workbook_rows": [
+        21,
+        22,
+        23
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "6721f645-3ae6-4d29-9913-90cf4d0d4597"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Cần cẩu và module trên tháp nhà thờ; lower-third ghi SAGRADA FAMILIA. Gộp ba dòng workbook trùng.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-21",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-07",
+      "workbook_rows": [
+        24
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "2e83943d-bc1c-4bd3-b3fc-ff8f8c749004",
+        "14bb7664-01b4-4b90-8576-336f7508d7ef"
+      ],
+      "label_authority": "owner_confirmed_btc_label_error",
+      "observation": "L23_V004 có R. Maikin áo xanh giữ vị trí thứ hai, 7 tay đua và overlay tốc độ lên 46 km/h; L23_V024 có đoàn đông khác nên loại đáp án 61. Chỉ chọn đáp án số 46 theo câu hỏi km/h.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-24",
+      "rejected_candidate_ids": [
+        "e095e4ce-4338-4e1d-9039-d7fe3807762e",
+        "39ed9e11-1b66-4554-b566-76efb9eadd65"
+      ]
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-08",
+      "workbook_rows": [
+        25
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "4e3a554f-4d1f-4114-8a53-91e7abecfb7e"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Tháp trái cây, bản đồ/quốc kỳ bằng trái cây và người áo trắng; caption trái cây Đồng Tháp.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-25",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-09",
+      "workbook_rows": [
+        26
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "237b1857-42ac-47b2-8035-bd6c30c0f1f3"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Hố khai quật, xương dài và người áo đỏ nằm cạnh; caption loài khủng long mới.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-26",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-10",
+      "workbook_rows": [
+        27
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "bf467a38-9a77-4321-88fd-8928af9b2f1f"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Bột bánh tròn màu vàng nâu được rắc thịt; CORRECT chấp nhận BANHRAN, không thêm PANCAKE/PANCAKESUSHI.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-27",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-13",
+      "workbook_rows": [
+        28
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "1a8ea8b0-5a18-4736-ba6b-f6fd9b6510d5",
+        "fdf2a887-eaca-4501-b99f-c159dce9ab32",
+        "5d13f5c6-b721-4e04-9483-0c2ada3b220e",
+        "e91ad93c-11a4-4400-8805-40d8b79cb418"
+      ],
+      "label_authority": "owner_confirmed_btc_label_error",
+      "observation": "Làng hoa trên giàn có mặt nước, tim hoa và cờ Việt Nam; transcript ghi làng hoa Sa Đéc. Chấp nhận các tên submit SADEC và LANGHOASADEC như hai cách gọi cùng địa danh.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-28",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-12",
+      "workbook_rows": [
+        29
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "7b240dfd-4d24-41b9-9288-e61f8a15ce2b",
+        "5c1a1314-5160-4e06-9c38-d31bc883dccc"
+      ],
+      "label_authority": "owner_confirmed_btc_label_error",
+      "observation": "Cắt và tẩm ướp cánh gà đúng đoạn mô tả. Clip bổ sung bảng NGUYÊN LIỆU ghi Cánh gà: 4 cái (120g), nên chọn 4, loại 8 (số miếng sau khi cắt).",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-29",
+      "rejected_candidate_ids": [
+        "884bfde7-8084-4592-9800-ae5ec46191c2"
+      ]
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-14",
+      "workbook_rows": [
+        30
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "0550e541-19f2-4258-89a1-dcee6f38b111",
+        "0e59effc-6926-4e57-b313-cbb1ae866fe7",
+        "15ea4a12-e32d-400c-9750-d7c22a448c80"
+      ],
+      "label_authority": "owner_confirmed_btc_label_error",
+      "observation": "M09_V014 đúng cảnh giáo viên áo xanh vẽ thuyền thúng/bảng màu; lower-third tên trường Nguyễn Chí Thanh, phường Bình Kiến. Transcript nhắc làng chài Long Thủy. M09_V003 là trưng bày ngoài bãi biển, thiếu cảnh chuẩn bị/cô giáo cụ thể nên không dùng các mốc đó.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-30",
+      "rejected_candidate_ids": [
+        "578c5712-6169-42fc-b4ca-9385f6c2df3a",
+        "d3a195d8-3179-43aa-9bd4-3b503afca36e"
+      ]
+    },
+    {
+      "query_id": "aic26-20260926:trake-query-02",
+      "workbook_rows": [
+        31
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "81cfd1f0-53f0-48a2-aab3-d676ca96135e"
+      ],
+      "label_authority": "owner_confirmed_btc_label_error",
+      "observation": "Đúng món nhồi trái chôm chôm và tôm: tách thịt trắng, nữ đặt lên đĩa xanh, nam chuyển tôm vào tô, thêm tiêu cuối cùng. Bốn mốc submit theo đúng thứ tự; brief samples chưa xác định chính xác frame đầu/cuối từng động tác.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-31",
+      "rejected_candidate_ids": []
+    },
+    {
+      "query_id": "aic26-20260926:trake-query-04",
+      "workbook_rows": [
+        32
+      ],
+      "review_status": "reviewed",
+      "accepted_submission_ids": [
+        "34c30d13-69fb-4043-aff2-94aff5c64eeb"
+      ],
+      "label_authority": "dres_correct",
+      "observation": "Đúng món lẩu cá: thêm gia vị, xào cá với sả, cho ớt vào lẩu, thêm rau/bông trắng. Bốn mốc CORRECT cùng video và đúng thứ tự; mẫu thưa chưa chứng minh các ranh giới first-frame.",
+      "method": "sampled_frames_from_decoded_video",
+      "evidence_directory": "evidence/row-32",
+      "rejected_candidate_ids": []
+    }
+  ],
+  "limitations": [
+    "DRES verdicts and owner-reported organizer corrections are distinct label sources.",
+    "Sampled visual review confirms scene/moment plausibility, not exhaustive clip playback or exact first-frame boundaries.",
+    "Ground truth covers observed submitted points, not the complete official acceptance intervals.",
+    "No new DRES submission, model benchmark or external API judging was performed.",
+    "Cycling TRAKE row 17 is an owner-authorized PE-assisted visual annotation, not an official DRES label. Boundary conventions and frame uncertainty are recorded separately; use the declared benchmark time tolerance, not a claimed official interval."
+  ],
+  "evidence_index_sha256": "c3d0ae48109e1529d8784e51af3850f3a44fa6c8f578894400ece9e664f7c40e",
+  "evidence_manifest_sha256": "ae3347a9b8c73b46930eef75cc82e66031ca2be1afa5c7b58c282be5c1d31681",
+  "visual_annotation_authorization": "User: câu trake bạn hãy dùng PE search giúp tui và tự tạo đáp án cho câu đó, nó trong list video S01 thôi"
+}

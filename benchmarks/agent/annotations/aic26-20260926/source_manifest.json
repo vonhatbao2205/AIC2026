@@ -1,0 +1,46 @@
+{
+  "workbook": {
+    "path": "AIC26 - Query.xlsx",
+    "sha256": "867034f6e5e4e9f14e496b2dc6a4e4d154e57b10f9777bca0bc09b5753ba100e"
+  },
+  "history_sources": [
+    {
+      "path": "backend/data/submit_history.1790390611.bak.json",
+      "sha256": "39bfcfba1dda8d3c4030edaecaa2f8673f375cf3a3824ef211e6e90f1f13a84e"
+    },
+    {
+      "path": "backend/data/submit_history.1790391691.bak.json",
+      "sha256": "d60f264007c588f844bf64ba009d02abd496822f486b3773d9f65e3a6ac8352e"
+    },
+    {
+      "path": "backend/data/submit_history.json",
+      "sha256": "bb0a6bbb2b668478b7bd5ef6ed281c8a734e6a1e77a54b77e3e5d750fd3d2d66"
+    }
+  ],
+  "date": "2026-09-26",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "wrong_override_authorization": "User reports organizer confirmed incorrect official answers for wrong-only questions; visually inspect and select matching submissions rather than accept every WRONG attempt.",
+  "duplicate_rows": {
+    "21": [
+      22,
+      23
+    ]
+  },
+  "unmatched_tasks": [
+    "kis-1",
+    "vkis-query-01",
+    "vkis-query-02",
+    "vkis-query-04",
+    "vkis-query-05",
+    "vkis-query-07"
+  ],
+  "query_type_corrections": [
+    {
+      "row": 17,
+      "query_type": "TRAKE",
+      "status": "resolved_by_owner_authorized_pe_visual_annotation",
+      "reason": "No matching DRES sequence. Owner requested PE search restricted to S01 and autonomous visual creation of the four-event answer; annotated original scene in S01-V011."
+    }
+  ],
+  "visual_annotation_authorization": "User: câu trake bạn hãy dùng PE search giúp tui và tự tạo đáp án cho câu đó, nó trong list video S01 thôi"
+}
