@@ -71,6 +71,13 @@ The repository contains two parts:
   quality)` into one coverage-dominant number, and each result card shows one
   representative per event over a heat row of every moment that event fires;
   clicking one seeks the player there and arms that event's slot.
+  Before retrieval, `shared_context_vi` / `shared_context_en_visual` retain the
+  statement's common subject, clothing and scene. Every event variant combines
+  that context with its action; PE/Qwen, TARA and pass 2 consume the same composed
+  queries. The context is never searched as a separate MAX-fused alternative.
+  The heuristic keeps the literal preamble; the LLM is instructed to resolve
+  shared references across events. This preserves query conditions in the text,
+  rather than imposing a hard visual filter on embedding results.
 - **QA copilot** — top-video-first candidate blocks read by **DeepSeek V4.1 Flash**
   itself (image input, thinking on): answer-bearing frames and exact-format answer
   alternatives (as printed, bare names, the question's own format rules), then

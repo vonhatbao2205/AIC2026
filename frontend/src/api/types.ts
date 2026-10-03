@@ -265,6 +265,8 @@ export interface ParsedQuery {
   };
   trake: {
     enabled: boolean;
+    shared_context_vi?: string;
+    shared_context_en_visual?: string;
     events: TrakeEventSpec[];
     ordering_rule: string;
     fallback_policy: string;

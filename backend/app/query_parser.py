@@ -26,6 +26,7 @@ from .query_llm import (
     to_routing,
 )
 from .text_normalization import fold_vietnamese
+from .trake_events import compose_event_queries, shared_context, split_marked_events
 
 # ---- Heuristic signal lexicons (Vietnamese) ---------------------------
 # Words that say the operator is describing text ON SCREEN. Matched on word
@@ -224,6 +225,8 @@ def heuristic_parse(
     if query_type == "TRAKE":
         events = _split_trake_events(query)
         trake["enabled"] = True
+        trake["shared_context_vi"] = shared_context(query)
+        trake["shared_context_en_visual"] = ""
         trake["events"] = [
             {
                 "event_index": i + 1,
@@ -238,6 +241,7 @@ def heuristic_parse(
             }
             for i, ev in enumerate(events)
         ]
+        compose_event_queries({"trake": trake})
 
     return {
         "query_type": query_type,
@@ -268,38 +272,12 @@ def heuristic_parse(
     }
 
 
-# An event marker is a label ("E2", "sự kiện 2", "event 2") or a bare list index
-# ("2)"). The label form does NOT require punctuation after the number: a real
-# organiser pack ships `E1 Khoảnh khắc…` with nothing but a space, and demanding
-# a colon there found zero markers, so the splitter fell through to the connector
-# fallback and cut "Khoảnh khắc đầu tiên …" on every "đầu tiên"/"sau khi" — five
-# mid-sentence fragments for a three-event statement.
-#
-# A bare index still requires its punctuation. Without it every quantity in the
-# prose ("hai con rồng", "2 người") would open a new event.
-_EVENT_MARKER = re.compile(
-    r"(?:^|[\s,;(\[])"
-    r"(?:"
-    r"(?:sự\s*kiện|event|e)\s*\d+(?:\s*[:.)\]–—-]|(?=\s))"
-    r"|\d+\s*[:.)]"
-    r")",
-    re.IGNORECASE,
-)
-
-
 def _split_trake_events(query: str) -> list[str]:
-    # 1) Explicit event markers: "E1: ... E2: ...", "sự kiện 1:", "1) ...".
-    marks = list(_EVENT_MARKER.finditer(query))
-    if len(marks) >= 2:
-        parts: list[str] = []
-        for i, m in enumerate(marks):
-            start = m.end()
-            end = marks[i + 1].start() if i + 1 < len(marks) else len(query)
-            txt = query[start:end].strip(" :.)\n\t,;-")
-            if txt:
-                parts.append(txt)
-        if len(parts) >= 2:
-            return parts
+    # 1) The organisers' markers E1, E2, … and nothing else (app.trake_events):
+    #    a number in the prose such as "(4)" is not an event.
+    marked = split_marked_events(query)
+    if marked:
+        return marked
     # 2) Sequence connectors ("sau đó", "rồi", ...).
     pattern = "|".join(re.escape(c) for c in _TRAKE_CONNECTORS)
     parts = [p.strip(" ,.;") for p in re.split(pattern, query, flags=re.IGNORECASE) if p.strip(" ,.;")]
@@ -366,6 +344,9 @@ class QueryParser:
                 # translation" would still search with English the operator
                 # never wrote.
                 _drop_translation(parsed)
+            else:
+                await self._translate_bare_events(parsed)
+            compose_event_queries(parsed)
             if query_type_hint == "AVS":
                 parsed["query_type"] = "AVS"
                 parsed["trake"] = {"enabled": False, "events": []}
@@ -430,7 +411,7 @@ class QueryParser:
     async def _apply_translation(self, parsed: dict[str, Any]) -> None:
         """Translate the Vietnamese query to English for the image_pe channel.
         OCR/speech keep the Vietnamese text; only the visual query is translated."""
-        from .translate import translate_vi_to_en, translate_vi_to_en_status
+        from .translate import translate_vi_to_en_status
 
         q_vi = parsed.get("normalized_vi") or parsed.get("original_query") or ""
         if not q_vi.strip():
@@ -449,11 +430,14 @@ class QueryParser:
         # TRAKE: translate each event's visual query so per-event PE search is English.
         trake = parsed.get("trake") or {}
         if trake.get("enabled"):
+            await self._translate_shared_context(parsed)
             for ev in trake.get("events", []):
                 src = ev.get("description_vi") or (ev.get("image_pe_queries_en") or [""])[0]
                 if not src or not src.strip():
                     continue
-                ev_en = await translate_vi_to_en(src)
+                ev_en, event_ok = await translate_vi_to_en_status(src, settings=self.s)
+                if not event_ok:
+                    parsed["translation_failed"] = True
                 if ev_en and ev_en.strip():
                     ev["description_en_visual"] = ev_en
                     ev["image_pe_queries_en"] = [ev_en]
@@ -472,6 +456,37 @@ class QueryParser:
         if routed is not None:
             routed["_engine"] = f"llm:{self.s.query_llm_model}"
         return routed
+
+    async def _translate_shared_context(self, parsed: dict[str, Any]) -> None:
+        from .translate import translate_vi_to_en_status
+
+        trake = parsed.get("trake") or {}
+        source = trake.get("shared_context_vi")
+        if not source or trake.get("shared_context_en_visual") or not self.s.translate_to_en or self.s.mock_mode:
+            return
+        english, ok = await translate_vi_to_en_status(source, settings=self.s)
+        if ok and english:
+            trake["shared_context_en_visual"] = english
+        else:
+            parsed["translation_failed"] = True
+
+    async def _translate_bare_events(self, parsed: dict[str, Any]) -> None:
+        """TRAKE events the LLM left without English (rebuilt from the E-markers
+        when its count disagreed): each is translated on its own."""
+        from .translate import translate_vi_to_en_status
+
+        await self._translate_shared_context(parsed)
+        for event in (parsed.get("trake") or {}).get("events", []) or []:
+            if event.get("image_pe_queries_en") or not (event.get("description_vi") or "").strip():
+                continue
+            source = event["description_vi"]
+            english, ok = (await translate_vi_to_en_status(source, settings=self.s)
+                           if self.s.translate_to_en and not self.s.mock_mode else (source, True))
+            if not ok:
+                parsed["translation_failed"] = True
+            text = english.strip() if english and english.strip() else source
+            event["description_en_visual"] = text
+            event["image_pe_queries_en"] = [text]
 
 
 def _populate_channel_queries(parsed: dict[str, Any], name: str, channel: dict[str, Any]) -> None:
@@ -521,6 +536,8 @@ def _drop_translation(parsed: dict[str, Any]) -> dict[str, Any]:
     q_vi = parsed.get("normalized_vi") or parsed.get("original_query") or ""
     parsed["translated_en_visual"] = ""
     parsed.pop("translation_failed", None)
+    if parsed.get("trake"):
+        parsed["trake"]["shared_context_en_visual"] = ""
     if not q_vi.strip():
         return parsed
     img = (parsed.get("channels") or {}).get("image_pe")

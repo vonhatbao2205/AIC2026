@@ -56,3 +56,43 @@ def marked_events_block(text: str) -> str:
         "A number inside an event's text, such as (1) or (4), is part of that event, not another one.\n"
         f"{listed}"
     )
+
+
+def shared_context(text: str) -> str:
+    """Keep the literal preamble; remove only a trailing event-list instruction."""
+    if not split_marked_events(text):
+        return ""
+    first = next(m for m in _MARKER.finditer(text) if _is_marker(text, m))
+    prefix = text[:first.start()].strip()
+    prefix = re.sub(
+        r"(?:[\s,;:]*)(?:(?:hãy\s+)?tìm\s+(?:các\s+)?(?:khoảnh khắc|hành động|sự kiện)"
+        r"|các\s+(?:khoảnh khắc|hành động|sự kiện)|(?:find|locate)\s+(?:the\s+)?(?:following\s+)?(?:events|moments))"
+        r"\s*(?:sau(?:\s+đây)?)?\s*[:：.]*\s*$", "", prefix, flags=re.IGNORECASE,
+    )
+    return prefix.strip(" \t\n,;:")
+
+
+def contextual_event_queries(parsed: dict, event: dict) -> list[str]:
+    """Context AND event in every variant; never a separate MAX-fused query."""
+    trake = parsed.get("trake") or {}
+    context = (trake.get("shared_context_en_visual") or trake.get("shared_context_vi")
+               or shared_context(parsed.get("original_query") or ""))
+    context = " ".join(context.split()).strip(" .;")
+    variants = event.get("image_pe_queries_en") or [event.get("description_en_visual") or event.get("description_vi") or ""]
+    result = []
+    for variant in variants:
+        text = " ".join(str(variant).split())
+        if not text:
+            continue
+        if context and context.casefold() not in text.casefold():
+            text = f"{context}. {text}".strip()
+        if text and text not in result:
+            result.append(text)
+    return result
+
+
+def compose_event_queries(parsed: dict) -> None:
+    for event in (parsed.get("trake") or {}).get("events", []):
+        queries = contextual_event_queries(parsed, event)
+        event["image_pe_queries_en"] = queries
+        event["description_en_visual"] = queries[0] if queries else ""

@@ -20,12 +20,14 @@ from overstating coverage when the event is absent.
 from __future__ import annotations
 
 import asyncio
+import copy
 from typing import Any
 
 from ..config import Settings
 from ..media import MediaUrlBuilder
 from ..scope import FrameFilter
 from ..trake import TrakeVideoResult, build_trake_videos, select_pass2_gaps
+from ..trake_events import compose_event_queries, contextual_event_queries
 from ..types import Evidence, FusedFrame
 from .search_service import VISUAL_CHANNEL, SearchService
 
@@ -49,8 +51,14 @@ class TrakeService:
                 use_llm=req.get("use_llm", False),
                 translate=bool(req.get("translate", True)),
             )
+        # Work on a private copy: caller/cached parsed input must not accumulate
+        # prefixes across searches. All paths, including TARA and pass 2, read
+        # these same context-complete events.
+        parsed = copy.deepcopy(parsed)
+        compose_event_queries(parsed)
         if req.get("expand"):
             await self.search.expand_image_queries(parsed)
+            compose_event_queries(parsed)
         trake_cfg = parsed.get("trake", {})
         events = trake_cfg.get("events") or []
         if not events:
@@ -183,7 +191,7 @@ class TrakeService:
         if parsed.get("translation_failed"):
             return {}
         queries = [
-            (ev.get("description_en_visual") or (ev.get("image_pe_queries_en") or [""])[0]).strip()
+            (contextual_event_queries(parsed, ev) or [""])[0]
             for ev in events
         ]
         active = [(i, query) for i, query in enumerate(queries) if query]
@@ -557,7 +565,7 @@ class TrakeService:
             "image_pe": {
                 "enabled": keyframes,
                 "weight": 1.0,
-                "queries_en": ev.get("image_pe_queries_en") or [ev.get("description_en_visual") or ev.get("description_vi") or ""],
+                "queries_en": contextual_event_queries(parsed, ev),
             },
             "ocr": {
                 "enabled": bool(ev.get("ocr_queries_vi")),

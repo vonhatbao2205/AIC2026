@@ -24,6 +24,7 @@ from typing import Any
 from .adapters.http_pool import PooledHttpClient, failure_reason
 from .config import Settings
 from .text_normalization import fold_vietnamese
+from .trake_events import marked_events_block, shared_context, split_marked_events
 
 QUERY_TYPES = ("T-KIS", "QA", "V-KIS", "TRAKE", "AVS")
 
@@ -43,6 +44,7 @@ PARSER_SYSTEM_PROMPT = """You turn one Vietnamese video-retrieval query into sea
 - V-KIS: the operator describes a clip of at most 20 seconds that they watched, in their own shorthand. If it lists several shots in turn, give one visual phrase per shot: any frame of the clip is a correct answer.
 - QA: an event description plus a question to answer from the video. Search for the EVENT. Put the question in question_vi. Whatever the question reveals is on screen (a fire truck, a sign) may go into the search, but never the unknown being asked (its colour, a count, a name).
 - TRAKE: several events in time order inside ONE video. Return them in order in trake_events, one entry per event, each with its own short visual phrases. Do not merge or drop events; do not invent events.
+- TRAKE shared context: return trake_context={"description_vi":"...","visual_en":["..."]}. Include only conditions shared across EVERY event: subject identity, clothing/colour, objects, location and scene. Preserve the preamble and resolve pronouns using the whole query. Do not turn a transient action in one event into a global condition. Every event visual phrase must combine this context AND its own action; never emit a context-only or action-only alternative. If no shared conditions are stated, return an empty context.
 - AVS: many different shots of the same kind of scene; describe the shared visual concept.
 
 # Channels
@@ -65,14 +67,19 @@ audio — non-speech sounds only (music, applause, car horn, siren, drum, gong, 
 - labels_en: AudioSet labels such as "Music", "Applause", "Vehicle horn, car horn, honking", "Siren", "Drum", "Explosion", "Rain", "Dog".
 
 # Output
-{"query_type": "T-KIS", "confidence": 0.8, "event_vi": "...", "question_vi": "", "visual_en": ["...", "...", "..."], "ocr": {"enabled": false, "texts": [], "exact_phrases": [], "numbers": [], "clock": null}, "speech": {"enabled": false, "queries_vi": [], "queries_en": []}, "audio": {"enabled": false, "labels_en": []}, "negations": [], "trake_events": [], "note": ""}
+{"query_type": "T-KIS", "confidence": 0.8, "event_vi": "...", "question_vi": "", "visual_en": ["...", "...", "..."], "ocr": {"enabled": false, "texts": [], "exact_phrases": [], "numbers": [], "clock": null}, "speech": {"enabled": false, "queries_vi": [], "queries_en": []}, "audio": {"enabled": false, "labels_en": []}, "negations": [], "trake_context": {}, "trake_events": [], "note": ""}
 - event_vi: the description to search, in Vietnamese, without the QA question and without request words ("Tìm đoạn video...", "Hãy tìm...").
 - negations: what the query says is NOT in the scene, in short English.
+- trake_context: {} unless TRAKE; description_vi is the shared context without event-list instructions; visual_en contains one compact English description of the same constraints, not a summary of the event sequence.
 - trake_events: [] unless query_type is TRAKE; each item is {"description_vi": "...", "visual_en": ["...", "..."], "ocr_texts": [], "speech_vi": []}.
 - note: one short English sentence telling the operator which evidence is decisive.
 - confidence: 0 to 1, how sure you are of the task type and routing.
 
 # Examples
+Task type hint: TRAKE
+Description: Một con lân màu đỏ đang biểu diễn. Tìm các khoảnh khắc: E1: con lân nhảy lên. E2: nó quay đầu. E3: nó cúi xuống.
+{"query_type":"TRAKE","confidence":0.9,"event_vi":"Một con lân màu đỏ biểu diễn các động tác.","visual_en":["a red lion dance costume performing"],"trake_context":{"description_vi":"Một con lân màu đỏ đang biểu diễn.","visual_en":["a red lion dance costume performing"]},"trake_events":[{"description_vi":"con lân nhảy lên","visual_en":["a red lion dance costume performing, jumping upward"]},{"description_vi":"nó quay đầu","visual_en":["a red lion dance costume performing, turning its head"]},{"description_vi":"nó cúi xuống","visual_en":["a red lion dance costume performing, bowing down"]}]}
+
 Task type hint: T-KIS
 Description: Camera giao thông tại ngã tư Nguyễn Trãi – Cống Quỳnh lúc khoảng 19 giờ. Một người đàn ông mặc áo mưa màu xanh dương chạy xe máy qua giao lộ, phía sau là quán có biển hiệu Highlands Coffee.
 {"query_type": "T-KIS", "confidence": 0.9, "event_vi": "Một người đàn ông mặc áo mưa màu xanh dương chạy xe máy qua giao lộ, phía sau là quán có biển hiệu Highlands Coffee.", "question_vi": "", "visual_en": ["high-angle CCTV view of a city intersection at night, a man in a blue raincoat riding a motorbike", "night street camera: motorbike rider in a blue rain poncho crossing the junction in front of a coffee shop", "traffic camera footage of a crossroads after dark, a man on a scooter wearing a blue raincoat"], "ocr": {"enabled": true, "texts": ["HIGHLANDS COFFEE"], "exact_phrases": [], "numbers": [], "clock": null}, "speech": {"enabled": false, "queries_vi": [], "queries_en": []}, "audio": {"enabled": false, "labels_en": []}, "negations": [], "trake_events": [], "note": "The junction and time go to the camera filter; the rider and the Highlands Coffee sign are the evidence."}
@@ -262,7 +269,13 @@ def to_routing(
     audio_on = _flag(audio) and bool(labels)
 
     events: list[dict[str, Any]] = []
+    context_vi, context_en = "", ""
     if query_type == "TRAKE":
+        context = data.get("trake_context") if isinstance(data.get("trake_context"), dict) else {}
+        context_text = _strings(context.get("description_vi"), limit=1)
+        context_vi = shared_context(query) or (context_text[0] if context_text else "")
+        context_visual = english_phrases(context.get("visual_en"), limit=1)
+        context_en = context_visual[0] if context_visual else ""
         raw_events = data.get("trake_events") if isinstance(data.get("trake_events"), list) else []
         for raw in raw_events[:MAX_TRAKE_EVENTS]:
             if not isinstance(raw, dict):
@@ -282,6 +295,19 @@ def to_routing(
                 "expected_order_hint": "before" if not events else "after",
                 "required": True,
             })
+        marked = split_marked_events(query)
+        if marked and len(events) != len(marked):
+            # The model merged or split the organisers' E1, E2, … events: the
+            # markers win. Each event keeps its own text, left without English
+            # for the parser to translate.
+            events = [{
+                "event_index": index, "description_vi": text, "description_en_visual": "",
+                "image_pe_queries_en": [], "ocr_queries_vi": [], "speech_queries_vi": [], "audio_queries_en": [],
+                "expected_order_hint": "before" if index == 1 else "after", "required": True,
+            } for index, text in enumerate(marked, start=1)]
+        elif marked:
+            for event, text in zip(events, marked):
+                event["description_vi"] = text
         if not events:
             # A TRAKE statement the model could not split still has to be searched.
             events.append({
@@ -327,6 +353,8 @@ def to_routing(
         },
         "trake": {
             "enabled": query_type == "TRAKE",
+            "shared_context_vi": context_vi,
+            "shared_context_en_visual": context_en,
             "events": events,
             "ordering_rule": "strict_increasing_time",
             "fallback_policy": "allow_partial_confident_events_with_warning",
@@ -361,6 +389,9 @@ def parser_user_message(query: str, hint: str, previous_hints: list[str], retrie
     else:
         numbered = "\n".join(f"{index}. {part.strip()}" for index, part in enumerate(parts, start=1))
         description = f"Description (parts in the order they were revealed):\n{numbered}"
+    events = marked_events_block(query) if hint in {"TRAKE", "auto"} else ""
+    if events:
+        description += f"\nTRAKE events — return exactly these in trake_events, one entry each, in order:\n{events}"
     return f"Task type hint: {hint}\nProfile: {profile}\n{description}\nReturn the json object."
 
 

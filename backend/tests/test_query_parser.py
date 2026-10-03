@@ -143,15 +143,20 @@ def test_trake_marker_needs_no_punctuation_after_the_number():
     assert not any("lá cờ trắng viền đỏ" in event for event in events)
 
 
-def test_trake_bare_number_still_requires_its_punctuation():
-    # Dropping the punctuation requirement for labelled markers must not drop it
-    # for bare indices too: every quantity in the prose would open an event.
+def test_trake_is_split_on_its_e_markers_only():
+    # A number in an event's prose, "(1)" "(4)", used to open an event of its
+    # own; so did a bare numbered list. Only E1, E2, … mark events now.
     events = _split_trake_events(
-        "Có 2 con rồng vàng và 3 người múa lân, cảnh quay 1 góc rộng"
+        "Cảnh múa lân (1).\nE1: Lân quay vòng trên cột số 4, có (4), (5), (6) người xem.\n"
+        "E2: Bốn chân chạm đất (2) lần.\nE3: Lân cúi chào."
     )
-    assert events == ["Có 2 con rồng vàng và 3 người múa lân, cảnh quay 1 góc rộng"]
-    # A real numbered list is still split.
-    assert len(_split_trake_events("1) chạy đà. 2) giậm nhảy. 3) tiếp đất.")) == 3
+    assert events == ["Lân quay vòng trên cột số 4, có (4), (5), (6) người xem.", "Bốn chân chạm đất (2) lần.", "Lân cúi chào."]
+    plain = "Có 2 con rồng vàng và 3 người múa lân, cảnh quay 1 góc rộng"
+    assert _split_trake_events(plain) == [plain]
+    numbered = "1) chạy đà. 2) giậm nhảy. 3) tiếp đất."
+    assert _split_trake_events(numbered) == [numbered]
+    parsed = heuristic_parse("E1: Xe (1) dừng (2) lại. E2: Người (3) bước xuống.", "TRAKE")
+    assert [e["description_vi"] for e in parsed["trake"]["events"]] == ["Xe (1) dừng (2) lại.", "Người (3) bước xuống."]
 
 
 def test_heuristic_qa_detection():

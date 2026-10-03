@@ -141,6 +141,52 @@ def test_trake_events_in_order_with_a_fallback():
     assert len(single) == 1 and single[0]["image_pe_queries_en"] == ROUTED["visual_en"]
 
 
+MARKED = "Cảnh múa lân.\nE1: Lân quay trên cột (4).\nE2: Bốn chân chạm đất (2) lần.\nE3: Lân cúi chào (1)."
+
+
+def test_the_llm_is_told_the_marked_events_and_its_count_is_held_to_them():
+    message = parser_user_message(MARKED, "TRAKE", [], "infoshotpp")
+    assert "exactly 3" in message and "E2: Bốn chân chạm đất (2) lần." in message
+
+    def event(text):
+        return {"description_vi": text, "visual_en": [f"scene {len(text)}"]}
+
+    # The same count: the model's English stays, the organisers' text replaces its paraphrase.
+    same = {**ROUTED, "query_type": "TRAKE", "trake_events": [event("a"), event("bb"), event("ccc")]}
+    events = to_routing(same, query=MARKED, hint="TRAKE", previous_hints=[])["trake"]["events"]
+    assert [e["description_vi"] for e in events] == ["Lân quay trên cột (4).", "Bốn chân chạm đất (2) lần.", "Lân cúi chào (1)."]
+    assert events[1]["image_pe_queries_en"] == ["scene 2"]
+
+    # Another count (the model split on "(4)"): the markers win, left for the parser to translate.
+    split = {**ROUTED, "query_type": "TRAKE", "trake_events": [event(x) for x in "abcde"]}
+    events = to_routing(split, query=MARKED, hint="TRAKE", previous_hints=[])["trake"]["events"]
+    assert [e["event_index"] for e in events] == [1, 2, 3]
+    assert events[2]["description_vi"] == "Lân cúi chào (1)." and events[2]["image_pe_queries_en"] == []
+
+
+@pytest.mark.asyncio
+async def test_events_rebuilt_from_the_markers_are_translated_one_by_one(settings, monkeypatch):
+    import app.translate
+
+    async def translate(text, **_):
+        return f"EN<{text}>"
+
+    monkeypatch.setattr(app.translate, "translate_vi_to_en", translate)
+    async def status(text, **_):
+        return await translate(text), True
+    monkeypatch.setattr(app.translate, "translate_vi_to_en_status", status)
+    live_settings = live(settings)
+    live_settings.translate_to_en = True
+    parser = QueryParser(live_settings)
+    wrong = {**ROUTED, "query_type": "TRAKE", "trake_events": [{"description_vi": x, "visual_en": ["a scene"]} for x in "ab"]}
+    wire(parser.llm, [json.dumps(wrong)])
+    parsed = await parser.parse(MARKED, "TRAKE", use_llm=True)
+    queries = [e["image_pe_queries_en"] for e in parsed["trake"]["events"]]
+    context = parsed["trake"]["shared_context_en_visual"].rstrip(" .;")
+    assert context
+    assert queries == [[f"{context}. EN<Lân quay trên cột (4).>"], [f"{context}. EN<Bốn chân chạm đất (2) lần.>"], [f"{context}. EN<Lân cúi chào (1).>"]]
+
+
 def test_progressive_parts_are_numbered_in_order():
     message = parser_user_message("phần hai", "T-KIS", ["phần một"], "infoshotpp")
     assert "1. phần một\n2. phần hai" in message
