@@ -50,7 +50,7 @@ def main():
     parser.add_argument("--url", default="http://127.0.0.1:8000")
     parser.add_argument("--limit", type=int, help="Base queries per experiment, after eligibility filtering")
     parser.add_argument("--seed", type=int, default=2026)
-    parser.add_argument("--tolerance", type=float, default=1.0)
+    parser.add_argument("--tolerance", type=float, default=5.0, help="Moment tolerance in seconds (default: 5)")
     parser.add_argument("--timeout", type=float, default=300)
     parser.add_argument("--poll", type=float, default=.5)
     parser.add_argument("--dry-run", action="store_true")

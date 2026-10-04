@@ -1,0 +1,225 @@
+{
+  "config": {
+    "dataset_sha256": "75dbd03b811c048d3f6584cca70cbf7606355088e043e53a2b07a3b290d34a1e",
+    "split": "dev",
+    "query_ids": [
+      "aic26-20260926:tkis-query-02",
+      "aic26-20260926:tkis-query-21",
+      "aic26-20260926:tkis-query-22"
+    ],
+    "variants": [
+      "A",
+      "C",
+      "F"
+    ],
+    "hint_mode": "cumulative",
+    "hint_protocol": {
+      "name": "Cumulative-Hint Evaluation",
+      "version": 1,
+      "construction": "NFC/whitespace-equivalent reviewed hints_vi; newline-joined prefixes; full once",
+      "state": "fresh POST per query/level/variant; previous_hints=[]; no retrieval_id or replaces",
+      "partial_primary": "video recall",
+      "partial_secondary": "moment recall and strict task success against full-query labels",
+      "full_primary": "strict task success: moment + accepted QA answer / complete ordered TRAKE sequence",
+      "eligible_tasks": [
+        "T-KIS",
+        "QA"
+      ],
+      "minimum_hints": 2
+    },
+    "run_plan_sha256": "cbc15725c5651b89c218397cca54dcc6bd9a090a9cf1d9cf054176d3e6c641dd",
+    "client_timeout_s": 300,
+    "poll_s": 0.5,
+    "quota_protocol": "archive interrupted attempt; retry fresh query/level/variant on resume",
+    "variant_parameters": {
+      "A": {
+        "policy": "retrieval"
+      },
+      "C": {
+        "policy": "parallel"
+      },
+      "F": {
+        "policy": "full"
+      }
+    },
+    "tolerance_s": 1.0,
+    "seed": 2026,
+    "status": {
+      "policy": "full",
+      "agents": {
+        "codex": {
+          "available": true,
+          "model": "gpt-6.1-sol",
+          "effort": "high",
+          "fast": true
+        },
+        "claude": {
+          "available": true,
+          "model": "claude-opus-5-5",
+          "effort": "high",
+          "fast": true
+        }
+      },
+      "jev": {
+        "model": "typesafe/jev-1.13",
+        "configured": true
+      },
+      "timeout_seconds": 240.0,
+      "controller_config": {
+        "max_steps": 6,
+        "max_tool_calls": 40,
+        "verify_top_k": 5,
+        "stop_threshold": 0.9,
+        "stop_margin": 0.1,
+        "jev_timeout_seconds": 12.0,
+        "llm_judge_model": "anthropic/claude-opus-5.5",
+        "calibration_sha256": null
+      }
+    },
+    "mode": "live"
+  },
+  "created_at": "2026-10-04T16:12:18.567803+00:00",
+  "report_only": true,
+  "evaluation_note": "Final DEV evaluation, original reviewed split membership. Completed successful retries replace interrupted attempts. Raw policy, STOP 0.9/margin 0.1, calibration disabled, tolerance 1s. Pooled combines DEV+TEST; split-specific results are reported separately. All planned query/level/variant results are present; no base query exclusions remain. This directory is an offline report export, not an agent runner resume directory.",
+  "fingerprint": "75234621758b716f3451e0902ba93d5d64cb1a7315609aca04e95823c8fe5bde",
+  "dataset_path": "/home/bao/Projects/AIC2026/benchmarks/agent/runs/soict-final-dev-test-pooled-tol1-v1/dev/cumulative/evaluation-dataset.jsonl",
+  "source": {
+    "directory": "/home/bao/Projects/AIC2026/benchmarks/agent/runs/soict-test-all111-tol1-retry-v1/cumulative-all27-test",
+    "rows": 303,
+    "snapshot_bytes": 273128206,
+    "results_sha256": "a10df18538eb5e276200542345c2d09c4e519515d5b69ca8e453820a161159ae",
+    "fingerprint": "b0028bc7128fb4f17035dd96a6a7525cdd2d708cd10d7c6ed7c43f0f016cef9c"
+  },
+  "source_original_manifest": {
+    "fingerprint": "b0028bc7128fb4f17035dd96a6a7525cdd2d708cd10d7c6ed7c43f0f016cef9c",
+    "config": {
+      "dataset_sha256": "09d5eb57be992a06e3c7f80b4c6aa34b4ea111ac6dc0d674d2fcc639e6226299",
+      "split": "test",
+      "query_ids": [
+        "aic26-20260926:qa-query-01",
+        "aic26-20260926:qa-query-03",
+        "aic26-20260926:qa-query-04",
+        "aic26-20260926:qa-query-05",
+        "aic26-20260926:qa-query-06",
+        "aic26-20260926:qa-query-07",
+        "aic26-20260926:qa-query-08",
+        "aic26-20260926:qa-query-09",
+        "aic26-20260926:qa-query-10",
+        "aic26-20260926:qa-query-12",
+        "aic26-20260926:qa-query-13",
+        "aic26-20260926:qa-query-14",
+        "aic26-20260926:tkis-query-01",
+        "aic26-20260926:tkis-query-02",
+        "aic26-20260926:tkis-query-03",
+        "aic26-20260926:tkis-query-07",
+        "aic26-20260926:tkis-query-08",
+        "aic26-20260926:tkis-query-10",
+        "aic26-20260926:tkis-query-14",
+        "aic26-20260926:tkis-query-15",
+        "aic26-20260926:tkis-query-16",
+        "aic26-20260926:tkis-query-17",
+        "aic26-20260926:tkis-query-18",
+        "aic26-20260926:tkis-query-21",
+        "aic26-20260926:tkis-query-22",
+        "aic26-20260926:tkis-query-23",
+        "aic26-20260926:tkis-query-24"
+      ],
+      "variants": [
+        "A",
+        "C",
+        "F"
+      ],
+      "hint_mode": "cumulative",
+      "hint_protocol": {
+        "name": "Cumulative-Hint Evaluation",
+        "version": 1,
+        "construction": "NFC/whitespace-equivalent reviewed hints_vi; newline-joined prefixes; full once",
+        "state": "fresh POST per query/level/variant; previous_hints=[]; no retrieval_id or replaces",
+        "partial_primary": "video recall",
+        "partial_secondary": "moment recall and strict task success against full-query labels",
+        "full_primary": "strict task success: moment + accepted QA answer / complete ordered TRAKE sequence",
+        "eligible_tasks": [
+          "T-KIS",
+          "QA"
+        ],
+        "minimum_hints": 2
+      },
+      "run_plan_sha256": "f27c9b6a1c2fc9bbf9438eca321d8bf7200599717f01381095c76c08d99c9e74",
+      "client_timeout_s": 300,
+      "poll_s": 0.5,
+      "quota_protocol": "archive interrupted attempt; retry fresh query/level/variant on resume",
+      "variant_parameters": {
+        "A": {
+          "policy": "retrieval"
+        },
+        "C": {
+          "policy": "parallel"
+        },
+        "F": {
+          "policy": "full"
+        }
+      },
+      "tolerance_s": 1.0,
+      "seed": 2026,
+      "status": {
+        "policy": "full",
+        "agents": {
+          "codex": {
+            "available": true,
+            "model": "gpt-6.1-sol",
+            "effort": "high",
+            "fast": true
+          },
+          "claude": {
+            "available": true,
+            "model": "claude-opus-5-5",
+            "effort": "high",
+            "fast": true
+          }
+        },
+        "jev": {
+          "model": "typesafe/jev-1.13",
+          "configured": true
+        },
+        "timeout_seconds": 240.0,
+        "controller_config": {
+          "max_steps": 6,
+          "max_tool_calls": 40,
+          "verify_top_k": 5,
+          "stop_threshold": 0.9,
+          "stop_margin": 0.1,
+          "jev_timeout_seconds": 12.0,
+          "llm_judge_model": "anthropic/claude-opus-5.5",
+          "calibration_sha256": null
+        }
+      },
+      "mode": "live",
+      "code_sha256": "abce3b096637451aef48f2198983c867ed6ec4c7caaca2921329a7e0385e76b4"
+    },
+    "created_at": "2026-10-04T15:51:36.837352+00:00",
+    "git_head": "24975acba04329b801954360a895cdca18105907",
+    "sources": {
+      "dev": {
+        "source_directory": "/home/bao/Projects/AIC2026/benchmarks/agent/runs/soict-f54c83c/cumulative-dev",
+        "source_fingerprint": "bfe9fc73ef899f5bd26f98d64d2ba12dc0f6e05f2502b8d345c1228086e54bbc",
+        "git_head": "f54c83c1c1028be19e1967fdc90403cbb5438b52",
+        "code_sha256": "10da38bd14ffe15b6513a416f3e81e892ce3b44a9d549636cf29024dcf280576",
+        "results_sha256": "44722d2eecb1a702e9737cbbf4da1c5130d4071d3aa0c968b0283256ef48d205",
+        "source_snapshot_bytes": 30463850,
+        "rows": 33
+      },
+      "test": {
+        "source_directory": "/home/bao/Projects/AIC2026/benchmarks/agent/runs/soict-test-raw-tol1-v1/cumulative-test",
+        "source_fingerprint": "2a0fce4c2b5ac1ed6ad93e80ea5522b37a73fe2d4005d462bfc0fdfaba7f46f5",
+        "git_head": "24975acba04329b801954360a895cdca18105907",
+        "code_sha256": "abce3b096637451aef48f2198983c867ed6ec4c7caaca2921329a7e0385e76b4",
+        "results_sha256": "b6159334db0774b95c9f8a3039d4cd49fb3ff3d99420be6c275c3bef326fb6b4",
+        "source_snapshot_bytes": 240721698,
+        "rows": 270
+      }
+    },
+    "resume_source": "benchmarks/agent/runs/soict-test-all111-tol1-v1/cumulative-test",
+    "evaluation_note": "Combined cumulative evaluation: 27 base queries (3 originally DEV + 24 originally TEST), independent fresh hint-level runs, tolerance 1s. Successful source attempts reused; failures archived for retry."
+  },
+  "source_dataset_sha256": "e6b4f312d2a98765e8cc431d44a32395bf69a7ecead3ed6c3586aec2c986610a"
+}

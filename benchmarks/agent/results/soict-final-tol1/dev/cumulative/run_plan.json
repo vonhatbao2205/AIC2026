@@ -1,0 +1,250 @@
+{
+  "hint_mode": "cumulative",
+  "protocol": {
+    "name": "Cumulative-Hint Evaluation",
+    "version": 1,
+    "construction": "NFC/whitespace-equivalent reviewed hints_vi; newline-joined prefixes; full once",
+    "state": "fresh POST per query/level/variant; previous_hints=[]; no retrieval_id or replaces",
+    "partial_primary": "video recall",
+    "partial_secondary": "moment recall and strict task success against full-query labels",
+    "full_primary": "strict task success: moment + accepted QA answer / complete ordered TRAKE sequence",
+    "eligible_tasks": [
+      "T-KIS",
+      "QA"
+    ],
+    "minimum_hints": 2
+  },
+  "variants": [
+    "A",
+    "C",
+    "F"
+  ],
+  "limit": null,
+  "base_queries": 3,
+  "stage_queries": 11,
+  "planned_runs": 33,
+  "excluded": [
+    {
+      "query_id": "T-KIS:query-p1-1-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p1-7-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p1-14-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p1-17-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p1-25-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-7-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-8-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-19-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-20-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-23-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-27-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-6-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-7-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-12-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-17-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-18-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-29-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-31-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "QA:query-p1-19-qa",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "QA:query-p1-22-qa",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "TRAKE:query-p1-18-trake",
+      "reason": "unsupported task for partial-query evaluation"
+    },
+    {
+      "query_id": "aic26-20260926:trake-query-02",
+      "reason": "unsupported task for partial-query evaluation"
+    }
+  ],
+  "stages": [
+    {
+      "query_id": "aic26-20260926:tkis-query-02",
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "query": "Phân cảnh này nằm trong một đoạn video giới thiệu về Rạch Giá, cụ thể hơn là giới thiệu về Đình Ông Nguyễn.",
+      "query_type": "T-KIS",
+      "split": "dev",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-02",
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "query": "Phân cảnh này nằm trong một đoạn video giới thiệu về Rạch Giá, cụ thể hơn là giới thiệu về Đình Ông Nguyễn.\nTiếp theo là bức tranh 1 chiếc tàu chiến bị đốt cháy trên sông.",
+      "query_type": "T-KIS",
+      "split": "dev",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-02",
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "query": "Phân cảnh này nằm trong một đoạn video giới thiệu về Rạch Giá, cụ thể hơn là giới thiệu về Đình Ông Nguyễn.\nTiếp theo là bức tranh 1 chiếc tàu chiến bị đốt cháy trên sông.\nCuối cùng là cảnh hai câu thơ của nhà thơ Huỳnh Mẫn Đạt ở hai bên tượng đồng, nói lên những chiến công vang dội của ông: “Hỏa hồng nhật tảo oanh thiên địa, kiếm bạt Kiên Giang khấp quỷ thần”.",
+      "query_type": "T-KIS",
+      "split": "dev",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-02",
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "query": "Phân cảnh này nằm trong một đoạn video giới thiệu về Rạch Giá, cụ thể hơn là giới thiệu về Đình Ông Nguyễn.\nTiếp theo là bức tranh 1 chiếc tàu chiến bị đốt cháy trên sông.\nCuối cùng là cảnh hai câu thơ của nhà thơ Huỳnh Mẫn Đạt ở hai bên tượng đồng, nói lên những chiến công vang dội của ông: “Hỏa hồng nhật tảo oanh thiên địa, kiếm bạt Kiên Giang khấp quỷ thần”.\nÔng là anh hùng dân tộc Nguyễn Trung Trực.",
+      "query_type": "T-KIS",
+      "split": "dev",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-21",
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "query": "Một lễ hội truyền thống thường niên ở một thành phố Châu Âu, nơi các tình nguyện viên cùng chuẩn bị một món ăn khổng lồ bằng chảo lớn và những mái chèo gỗ dài.",
+      "query_type": "T-KIS",
+      "split": "dev",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-21",
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "query": "Một lễ hội truyền thống thường niên ở một thành phố Châu Âu, nơi các tình nguyện viên cùng chuẩn bị một món ăn khổng lồ bằng chảo lớn và những mái chèo gỗ dài.\nPhần nguyên liệu khác được chiên trên một chảo lớn và đảo đều.",
+      "query_type": "T-KIS",
+      "split": "dev",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-21",
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "query": "Một lễ hội truyền thống thường niên ở một thành phố Châu Âu, nơi các tình nguyện viên cùng chuẩn bị một món ăn khổng lồ bằng chảo lớn và những mái chèo gỗ dài.\nPhần nguyên liệu khác được chiên trên một chảo lớn và đảo đều.\nNguyên liệu màu vàng được đánh đều lúc này được đổ vào chảo.",
+      "query_type": "T-KIS",
+      "split": "dev",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-21",
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "query": "Một lễ hội truyền thống thường niên ở một thành phố Châu Âu, nơi các tình nguyện viên cùng chuẩn bị một món ăn khổng lồ bằng chảo lớn và những mái chèo gỗ dài.\nPhần nguyên liệu khác được chiên trên một chảo lớn và đảo đều.\nNguyên liệu màu vàng được đánh đều lúc này được đổ vào chảo.\nPhần thức ăn sau đó được chia cho mọi người xung quanh.",
+      "query_type": "T-KIS",
+      "split": "dev",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-22",
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "query": "Bánh được xếp thành nhiều tầng, xen giữa các lớp bánh là phần kem màu vàng, socola, các loại hạt và trái cây.",
+      "query_type": "T-KIS",
+      "split": "dev",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 3,
+      "hint_fraction": 0.3333333333333333,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-22",
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "query": "Bánh được xếp thành nhiều tầng, xen giữa các lớp bánh là phần kem màu vàng, socola, các loại hạt và trái cây.\nSau đó một miếng pancake được nhấc lên bằng nĩa, để lộ rõ cấu trúc xen kẽ giữa lớp bánh socola mềm và phần nhân kem bên trong.",
+      "query_type": "T-KIS",
+      "split": "dev",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 3,
+      "hint_fraction": 0.6666666666666666,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-22",
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "query": "Bánh được xếp thành nhiều tầng, xen giữa các lớp bánh là phần kem màu vàng, socola, các loại hạt và trái cây.\nSau đó một miếng pancake được nhấc lên bằng nĩa, để lộ rõ cấu trúc xen kẽ giữa lớp bánh socola mềm và phần nhân kem bên trong.\nBên cạnh còn có một ly đồ uống và chén kem dùng kèm.",
+      "query_type": "T-KIS",
+      "split": "dev",
+      "hint_stage": "full",
+      "hint_level": 3,
+      "hint_count": 3,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    }
+  ]
+}

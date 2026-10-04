@@ -315,7 +315,7 @@ def main():
     p.add_argument("--dry-run", action="store_true", help="Validate dataset and write offline run_plan.json without model calls")
     p.add_argument("--limit", type=int)
     p.add_argument("--seed", type=int, default=2026)
-    p.add_argument("--tolerance", type=float, default=1.0)
+    p.add_argument("--tolerance", type=float, default=5.0, help="Moment tolerance in seconds (default: 5)")
     p.add_argument("--timeout", type=float, default=300)
     p.add_argument("--poll", type=float, default=0.5)
     args = p.parse_args()

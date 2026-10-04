@@ -1,0 +1,70 @@
+{
+  "created_at": "2026-10-04T16:12:18.567803+00:00",
+  "status": "complete",
+  "tolerance_s": 1,
+  "model_calls_during_export": 0,
+  "sources": {
+    "main": {
+      "directory": "/home/bao/Projects/AIC2026/benchmarks/agent/runs/soict-test-all111-tol1-retry-v1/main-test",
+      "rows": 666,
+      "snapshot_bytes": 566953741,
+      "results_sha256": "a4ef1dee4083b60127b26d8a0b3472faa7b05ae61e802142daef96dda4a8db25",
+      "fingerprint": "2916c1223385018a1ded3e26b7fe9976b754f908305c72a5f6208b3ba2aa4b25"
+    },
+    "cumulative": {
+      "directory": "/home/bao/Projects/AIC2026/benchmarks/agent/runs/soict-test-all111-tol1-retry-v1/cumulative-all27-test",
+      "rows": 303,
+      "snapshot_bytes": 273128206,
+      "results_sha256": "a10df18538eb5e276200542345c2d09c4e519515d5b69ca8e453820a161159ae",
+      "fingerprint": "b0028bc7128fb4f17035dd96a6a7525cdd2d708cd10d7c6ed7c43f0f016cef9c"
+    }
+  },
+  "dataset": "/home/bao/Projects/AIC2026/benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl",
+  "cohorts": {
+    "dev": {
+      "main": {
+        "directory": "dev/main",
+        "base_queries": 25,
+        "stage_queries": 25,
+        "planned_runs": 150
+      },
+      "cumulative": {
+        "directory": "dev/cumulative",
+        "base_queries": 3,
+        "stage_queries": 11,
+        "planned_runs": 33
+      }
+    },
+    "test": {
+      "main": {
+        "directory": "test/main",
+        "base_queries": 86,
+        "stage_queries": 86,
+        "planned_runs": 516
+      },
+      "cumulative": {
+        "directory": "test/cumulative",
+        "base_queries": 24,
+        "stage_queries": 90,
+        "planned_runs": 270
+      }
+    },
+    "pooled": {
+      "main": {
+        "directory": "pooled/main",
+        "base_queries": 111,
+        "stage_queries": 111,
+        "planned_runs": 666
+      },
+      "cumulative": {
+        "directory": "pooled/cumulative",
+        "base_queries": 27,
+        "stage_queries": 101,
+        "planned_runs": 303
+      }
+    }
+  },
+  "execution_errors": 0,
+  "excluded_base_queries": 0,
+  "note": "All original queries restored after successful retries. Pooled metrics combine both original splits."
+}

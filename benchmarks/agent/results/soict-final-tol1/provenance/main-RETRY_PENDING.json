@@ -1,0 +1,17 @@
+{
+  "count": 0,
+  "attempts": [],
+  "preserved_completed_runs": 665,
+  "resolved_attempts": [
+    {
+      "query_id": "T-KIS:query-p3-29-kis",
+      "hint_stage": "full",
+      "variant": "F",
+      "reason": "model_quota",
+      "retry_on_resume": true,
+      "status": "completed",
+      "r1": 1
+    }
+  ],
+  "verified_at": "2026-10-04T15:25:32.769064+00:00"
+}

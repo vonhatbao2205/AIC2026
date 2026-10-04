@@ -1,0 +1,1358 @@
+{
+  "hint_mode": "cumulative",
+  "protocol": {
+    "name": "Cumulative-Hint Evaluation",
+    "version": 1,
+    "construction": "NFC/whitespace-equivalent reviewed hints_vi; newline-joined prefixes; full once",
+    "state": "fresh POST per query/level/variant; previous_hints=[]; no retrieval_id or replaces",
+    "partial_primary": "video recall",
+    "partial_secondary": "moment recall and strict task success against full-query labels",
+    "full_primary": "strict task success: moment + accepted QA answer / complete ordered TRAKE sequence",
+    "eligible_tasks": [
+      "T-KIS",
+      "QA"
+    ],
+    "minimum_hints": 2
+  },
+  "variants": [
+    "A",
+    "C",
+    "F"
+  ],
+  "limit": null,
+  "base_queries": 24,
+  "stage_queries": 90,
+  "planned_runs": 270,
+  "excluded": [
+    {
+      "query_id": "T-KIS:query-p1-2-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p1-5-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p1-6-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p1-8-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p1-9-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p1-10-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p1-11-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p1-13-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p1-20-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p1-23-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p1-24-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-1-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-2-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-4-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-5-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-6-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-9-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-11-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-12-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-13-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-14-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-15-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-17-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-18-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-24-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-25-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-26-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-28-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-29-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p2-30-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-2-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-4-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-8-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-9-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-10-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-11-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-14-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-16-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-19-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-21-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-22-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-23-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-26-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-27-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-28-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-33-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "T-KIS:query-p3-34-kis",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "QA:query-p1-15-qa",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "QA:query-p2-21-qa",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "QA:query-p2-3-qa",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "QA:query-p3-13-qa",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "QA:query-p3-20-qa",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "QA:query-p3-32-qa",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "QA:query-p3-35-qa",
+      "reason": "requires at least two reviewed hints_vi"
+    },
+    {
+      "query_id": "TRAKE:query-p1-16-trake",
+      "reason": "unsupported task for partial-query evaluation"
+    },
+    {
+      "query_id": "TRAKE:query-p1-4-trake",
+      "reason": "unsupported task for partial-query evaluation"
+    },
+    {
+      "query_id": "TRAKE:query-p2-10-trake",
+      "reason": "unsupported task for partial-query evaluation"
+    },
+    {
+      "query_id": "TRAKE:query-p2-22-trake",
+      "reason": "unsupported task for partial-query evaluation"
+    },
+    {
+      "query_id": "TRAKE:query-p3-1-trake",
+      "reason": "unsupported task for partial-query evaluation"
+    },
+    {
+      "query_id": "TRAKE:query-p3-24-trake",
+      "reason": "unsupported task for partial-query evaluation"
+    },
+    {
+      "query_id": "aic26-20260926:trake-cyclists",
+      "reason": "unsupported task for partial-query evaluation"
+    },
+    {
+      "query_id": "aic26-20260926:trake-query-04",
+      "reason": "unsupported task for partial-query evaluation"
+    }
+  ],
+  "stages": [
+    {
+      "query_id": "aic26-20260926:tkis-query-01",
+      "base_query_id": "aic26-20260926:tkis-query-01",
+      "query": "Cánh đồng lúa nghệ thuật rộng hơn 120 ha, nơi nông dân dùng các giống lúa nhiều màu để tạo thành những bức tranh khổng lồ nhằm thu hút du khách.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 3,
+      "hint_fraction": 0.3333333333333333,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-01",
+      "base_query_id": "aic26-20260926:tkis-query-01",
+      "query": "Cánh đồng lúa nghệ thuật rộng hơn 120 ha, nơi nông dân dùng các giống lúa nhiều màu để tạo thành những bức tranh khổng lồ nhằm thu hút du khách.\nĐoạn video chứa hình ảnh bức tranh có những đứa trẻ đang chơi đùa. Một trong những đứa trẻ cầm một chiếc chong chóng trên tay.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 3,
+      "hint_fraction": 0.6666666666666666,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-01",
+      "base_query_id": "aic26-20260926:tkis-query-01",
+      "query": "Cánh đồng lúa nghệ thuật rộng hơn 120 ha, nơi nông dân dùng các giống lúa nhiều màu để tạo thành những bức tranh khổng lồ nhằm thu hút du khách.\nĐoạn video chứa hình ảnh bức tranh có những đứa trẻ đang chơi đùa. Một trong những đứa trẻ cầm một chiếc chong chóng trên tay.\nPhân cảnh có chính xác 3 đứa trẻ, trong đó 2 đứa trẻ mặc áo vàng, một đứa trẻ mặc áo màu xanh lá cây.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 3,
+      "hint_count": 3,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-08",
+      "base_query_id": "aic26-20260926:tkis-query-08",
+      "query": "Đoạn clip giới thiệu nghệ nhân làm bánh cưới độc bản thủ công, không dùng AI để giữ tính nghệ thuật, phục vụ khách hàng Trung Đông và châu Âu với giá trên 10.000 euro.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-08",
+      "base_query_id": "aic26-20260926:tkis-query-08",
+      "query": "Đoạn clip giới thiệu nghệ nhân làm bánh cưới độc bản thủ công, không dùng AI để giữ tính nghệ thuật, phục vụ khách hàng Trung Đông và châu Âu với giá trên 10.000 euro.\nNghệ thuật làm bánh cưới cao cấp tại Pháp, nơi những chiếc bánh được chế tác như các tác phẩm điêu khắc thời trang dành cho khách hàng quốc tế.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-08",
+      "base_query_id": "aic26-20260926:tkis-query-08",
+      "query": "Đoạn clip giới thiệu nghệ nhân làm bánh cưới độc bản thủ công, không dùng AI để giữ tính nghệ thuật, phục vụ khách hàng Trung Đông và châu Âu với giá trên 10.000 euro.\nNghệ thuật làm bánh cưới cao cấp tại Pháp, nơi những chiếc bánh được chế tác như các tác phẩm điêu khắc thời trang dành cho khách hàng quốc tế.\nCó cảnh hai người đầu bếp đang tỉ mỉ tạo hình những nụ hoa. Góc quay cận cho thấy nụ hoa này được đính trên một cái que màu trắng.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-08",
+      "base_query_id": "aic26-20260926:tkis-query-08",
+      "query": "Đoạn clip giới thiệu nghệ nhân làm bánh cưới độc bản thủ công, không dùng AI để giữ tính nghệ thuật, phục vụ khách hàng Trung Đông và châu Âu với giá trên 10.000 euro.\nNghệ thuật làm bánh cưới cao cấp tại Pháp, nơi những chiếc bánh được chế tác như các tác phẩm điêu khắc thời trang dành cho khách hàng quốc tế.\nCó cảnh hai người đầu bếp đang tỉ mỉ tạo hình những nụ hoa. Góc quay cận cho thấy nụ hoa này được đính trên một cái que màu trắng.\nTiếp đó, người đầu bếp giới thiệu tấm khuôn màu xanh dương để tạo hình chi tiết trang trí. Ta còn có thể thấy nhiều mẫu bánh kem được trưng bày trên tường trong cảnh quay sau đó.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-16",
+      "base_query_id": "aic26-20260926:tkis-query-16",
+      "query": "Lực lượng công an ứng cứu một phụ nữ trẻ bị cô lập tại nhà do nước lũ dâng cao và dòng chảy xiết.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-16",
+      "base_query_id": "aic26-20260926:tkis-query-16",
+      "query": "Lực lượng công an ứng cứu một phụ nữ trẻ bị cô lập tại nhà do nước lũ dâng cao và dòng chảy xiết.\nNgười được hỗ trợ là một người phụ nữ đang mang thai, ngồi trên một chiếc xuồng hơi chuyên dụng.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-16",
+      "base_query_id": "aic26-20260926:tkis-query-16",
+      "query": "Lực lượng công an ứng cứu một phụ nữ trẻ bị cô lập tại nhà do nước lũ dâng cao và dòng chảy xiết.\nNgười được hỗ trợ là một người phụ nữ đang mang thai, ngồi trên một chiếc xuồng hơi chuyên dụng.\nCó tổng cộng 6 cán bộ chiến sĩ công an hỗ trợ chị.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-16",
+      "base_query_id": "aic26-20260926:tkis-query-16",
+      "query": "Lực lượng công an ứng cứu một phụ nữ trẻ bị cô lập tại nhà do nước lũ dâng cao và dòng chảy xiết.\nNgười được hỗ trợ là một người phụ nữ đang mang thai, ngồi trên một chiếc xuồng hơi chuyên dụng.\nCó tổng cộng 6 cán bộ chiến sĩ công an hỗ trợ chị.\nChị mang một chiếc áo mưa màu hồng, đeo khẩu trang màu đen và cầm chiếc ô màu xanh dương.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-07",
+      "base_query_id": "aic26-20260926:tkis-query-07",
+      "query": "Chương trình phục hiện hệ thống khoa cử xưa tại Việt Nam, được diễn ra ở gần hồ nước.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-07",
+      "base_query_id": "aic26-20260926:tkis-query-07",
+      "query": "Chương trình phục hiện hệ thống khoa cử xưa tại Việt Nam, được diễn ra ở gần hồ nước.\nCó đèn lồng, cờ nghi lễ, ánh sáng và sương mù trong khuôn viên 1 di tích lịch sử ở miền Bắc.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-07",
+      "base_query_id": "aic26-20260926:tkis-query-07",
+      "query": "Chương trình phục hiện hệ thống khoa cử xưa tại Việt Nam, được diễn ra ở gần hồ nước.\nCó đèn lồng, cờ nghi lễ, ánh sáng và sương mù trong khuôn viên 1 di tích lịch sử ở miền Bắc.\nCó cảnh hai người đàn ông ngồi trong lều chõng, một người đang giơ tờ giấy viết chữ Nghĩa bằng Hán tự.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-07",
+      "base_query_id": "aic26-20260926:tkis-query-07",
+      "query": "Chương trình phục hiện hệ thống khoa cử xưa tại Việt Nam, được diễn ra ở gần hồ nước.\nCó đèn lồng, cờ nghi lễ, ánh sáng và sương mù trong khuôn viên 1 di tích lịch sử ở miền Bắc.\nCó cảnh hai người đàn ông ngồi trong lều chõng, một người đang giơ tờ giấy viết chữ Nghĩa bằng Hán tự.\nSau đó là cảnh một người đàn ông trong bộ lễ phục đó trả lời phỏng vấn, xung quanh ông là hai lá cờ ngũ sắc.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-10",
+      "base_query_id": "aic26-20260926:tkis-query-10",
+      "query": "Các tay đua xe đạp rẽ trái vào một cây cầu bắc qua sông. Trên cầu, ở bên trái đường đua, có người đang cầm 4-5 bong bóng trắng và các du khách mặc áo trắng đang chụp hình/quay phim.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 3,
+      "hint_fraction": 0.3333333333333333,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-10",
+      "base_query_id": "aic26-20260926:tkis-query-10",
+      "query": "Các tay đua xe đạp rẽ trái vào một cây cầu bắc qua sông. Trên cầu, ở bên trái đường đua, có người đang cầm 4-5 bong bóng trắng và các du khách mặc áo trắng đang chụp hình/quay phim.\nSau đó một cảnh quay trực diện từ phía trước cho thấy sáu tay đua xe đạp đang chạy trên cầu, và trên vỉa hè đang có hai người đang đi bộ.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 3,
+      "hint_fraction": 0.6666666666666666,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-10",
+      "base_query_id": "aic26-20260926:tkis-query-10",
+      "query": "Các tay đua xe đạp rẽ trái vào một cây cầu bắc qua sông. Trên cầu, ở bên trái đường đua, có người đang cầm 4-5 bong bóng trắng và các du khách mặc áo trắng đang chụp hình/quay phim.\nSau đó một cảnh quay trực diện từ phía trước cho thấy sáu tay đua xe đạp đang chạy trên cầu, và trên vỉa hè đang có hai người đang đi bộ.\nPhía xa ta còn thấy được cầu Trường Tiền của thành phố Huế.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 3,
+      "hint_count": 3,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-15",
+      "base_query_id": "aic26-20260926:tkis-query-15",
+      "query": "Đoạn video này cho thấy một cậu bé hướng dẫn cách sử dụng nhạc cụ truyền thống làm từ tre và gỗ trong một hoạt động ngoài trời ở sân trường, nơi kỹ thuật thủ công truyền thống được kết hợp với công nghệ hiện đại.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-15",
+      "base_query_id": "aic26-20260926:tkis-query-15",
+      "query": "Đoạn video này cho thấy một cậu bé hướng dẫn cách sử dụng nhạc cụ truyền thống làm từ tre và gỗ trong một hoạt động ngoài trời ở sân trường, nơi kỹ thuật thủ công truyền thống được kết hợp với công nghệ hiện đại.\nTrong đoạn phim này, cậu bé ngồi xổm và giới thiệu 2 loại nhạc cụ khác nhau.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-15",
+      "base_query_id": "aic26-20260926:tkis-query-15",
+      "query": "Đoạn video này cho thấy một cậu bé hướng dẫn cách sử dụng nhạc cụ truyền thống làm từ tre và gỗ trong một hoạt động ngoài trời ở sân trường, nơi kỹ thuật thủ công truyền thống được kết hợp với công nghệ hiện đại.\nTrong đoạn phim này, cậu bé ngồi xổm và giới thiệu 2 loại nhạc cụ khác nhau.\nKế cậu bé này là một cô bé.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-15",
+      "base_query_id": "aic26-20260926:tkis-query-15",
+      "query": "Đoạn video này cho thấy một cậu bé hướng dẫn cách sử dụng nhạc cụ truyền thống làm từ tre và gỗ trong một hoạt động ngoài trời ở sân trường, nơi kỹ thuật thủ công truyền thống được kết hợp với công nghệ hiện đại.\nTrong đoạn phim này, cậu bé ngồi xổm và giới thiệu 2 loại nhạc cụ khác nhau.\nKế cậu bé này là một cô bé.\nCả 2 người đều là người dân tộc Êđê.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-18",
+      "base_query_id": "aic26-20260926:tkis-query-18",
+      "query": "Nguyên liệu có kích thước to khoảng gấp 4 lần cọng hành lá được cho vào chảo, sau đó đến hai loại nguyên liệu khác được cắt hạt lựu cũng lần lượt được cho vào.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-18",
+      "base_query_id": "aic26-20260926:tkis-query-18",
+      "query": "Nguyên liệu có kích thước to khoảng gấp 4 lần cọng hành lá được cho vào chảo, sau đó đến hai loại nguyên liệu khác được cắt hạt lựu cũng lần lượt được cho vào.\nSau khi nấu xong, tất cả được cho vào trong những quả đã được hấp từ trước.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-18",
+      "base_query_id": "aic26-20260926:tkis-query-18",
+      "query": "Nguyên liệu có kích thước to khoảng gấp 4 lần cọng hành lá được cho vào chảo, sau đó đến hai loại nguyên liệu khác được cắt hạt lựu cũng lần lượt được cho vào.\nSau khi nấu xong, tất cả được cho vào trong những quả đã được hấp từ trước.\nNhững quả này tiếp tục được đưa vào nồi hấp. Có tổng cộng 4 quả.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-18",
+      "base_query_id": "aic26-20260926:tkis-query-18",
+      "query": "Nguyên liệu có kích thước to khoảng gấp 4 lần cọng hành lá được cho vào chảo, sau đó đến hai loại nguyên liệu khác được cắt hạt lựu cũng lần lượt được cho vào.\nSau khi nấu xong, tất cả được cho vào trong những quả đã được hấp từ trước.\nNhững quả này tiếp tục được đưa vào nồi hấp. Có tổng cộng 4 quả.\nMón này có tên là “Đồ hấp hạt sen”.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-17",
+      "base_query_id": "aic26-20260926:tkis-query-17",
+      "query": "Lễ ra quân chiến dịch tình nguyện hè hỗ trợ người dân nâng cao kỹ năng số và sử dụng các dịch vụ trực tuyến an toàn.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-17",
+      "base_query_id": "aic26-20260926:tkis-query-17",
+      "query": "Lễ ra quân chiến dịch tình nguyện hè hỗ trợ người dân nâng cao kỹ năng số và sử dụng các dịch vụ trực tuyến an toàn.\n8 người đứng trước 1 màn hình lớn, trong đó có 4 người đặt tay lên 1 vật hình cầu.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-17",
+      "base_query_id": "aic26-20260926:tkis-query-17",
+      "query": "Lễ ra quân chiến dịch tình nguyện hè hỗ trợ người dân nâng cao kỹ năng số và sử dụng các dịch vụ trực tuyến an toàn.\n8 người đứng trước 1 màn hình lớn, trong đó có 4 người đặt tay lên 1 vật hình cầu.\nTrong số 8 người trên sân khấu, có 5 người mặc áo màu xanh dương và 3 người mặc áo màu trắng.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-17",
+      "base_query_id": "aic26-20260926:tkis-query-17",
+      "query": "Lễ ra quân chiến dịch tình nguyện hè hỗ trợ người dân nâng cao kỹ năng số và sử dụng các dịch vụ trực tuyến an toàn.\n8 người đứng trước 1 màn hình lớn, trong đó có 4 người đặt tay lên 1 vật hình cầu.\nTrong số 8 người trên sân khấu, có 5 người mặc áo màu xanh dương và 3 người mặc áo màu trắng.\nMột vài bạn áo đỏ ngồi giữa nhóm mặc áo xanh lá và xanh dương. Cuối clip là cảnh người đàn ông trung niên đeo kính trông lúc được người thanh niên hướng dẫn thao tác trên điện thoại.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-03",
+      "base_query_id": "aic26-20260926:tkis-query-03",
+      "query": "Đoạn clip giới thiệu văn hóa ăn sáng đa dạng, từ những bữa ăn cao cấp được chế biến cầu kỳ đến các suất ăn bình dân, giá rẻ dành cho người lao động.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-03",
+      "base_query_id": "aic26-20260926:tkis-query-03",
+      "query": "Đoạn clip giới thiệu văn hóa ăn sáng đa dạng, từ những bữa ăn cao cấp được chế biến cầu kỳ đến các suất ăn bình dân, giá rẻ dành cho người lao động.\nCó cảnh trải nghiệm bữa sáng đa giác quan ở Luân Đôn với các món được chế biến cầu kỳ như cá hồi hun khói ăn cùng trứng chần.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-03",
+      "base_query_id": "aic26-20260926:tkis-query-03",
+      "query": "Đoạn clip giới thiệu văn hóa ăn sáng đa dạng, từ những bữa ăn cao cấp được chế biến cầu kỳ đến các suất ăn bình dân, giá rẻ dành cho người lao động.\nCó cảnh trải nghiệm bữa sáng đa giác quan ở Luân Đôn với các món được chế biến cầu kỳ như cá hồi hun khói ăn cùng trứng chần.\nCó cảnh bếp ăn có một lò nướng than lớn, nằm trong chuỗi quán pub Wetherspoons, ở Luân Đôn, nước Anh.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-03",
+      "base_query_id": "aic26-20260926:tkis-query-03",
+      "query": "Đoạn clip giới thiệu văn hóa ăn sáng đa dạng, từ những bữa ăn cao cấp được chế biến cầu kỳ đến các suất ăn bình dân, giá rẻ dành cho người lao động.\nCó cảnh trải nghiệm bữa sáng đa giác quan ở Luân Đôn với các món được chế biến cầu kỳ như cá hồi hun khói ăn cùng trứng chần.\nCó cảnh bếp ăn có một lò nướng than lớn, nằm trong chuỗi quán pub Wetherspoons, ở Luân Đôn, nước Anh.\nMột trong các phân cảnh có ghi hình một người đàn ông đang xếp các miếng thịt lên trên lò nướng. Trên lò nướng có tổng cộng 5 miếng thịt.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-14",
+      "base_query_id": "aic26-20260926:tkis-query-14",
+      "query": "Đoạn phim bắt đầu bằng cảnh quay trên cao cho thấy đầy đủ 3 tốp đua xe đạp khác nhau.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-14",
+      "base_query_id": "aic26-20260926:tkis-query-14",
+      "query": "Đoạn phim bắt đầu bằng cảnh quay trên cao cho thấy đầy đủ 3 tốp đua xe đạp khác nhau.\nBa tốp lần lượt gồm 5 tay đua, 2 tay đua và một đoàn đông tay đua.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-14",
+      "base_query_id": "aic26-20260926:tkis-query-14",
+      "query": "Đoạn phim bắt đầu bằng cảnh quay trên cao cho thấy đầy đủ 3 tốp đua xe đạp khác nhau.\nBa tốp lần lượt gồm 5 tay đua, 2 tay đua và một đoàn đông tay đua.\nBình luận viên cho biết tốp hai cách tốp đầu dưới 10 giây, tốp ba cách tốp đầu khoảng 15 giây.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-14",
+      "base_query_id": "aic26-20260926:tkis-query-14",
+      "query": "Đoạn phim bắt đầu bằng cảnh quay trên cao cho thấy đầy đủ 3 tốp đua xe đạp khác nhau.\nBa tốp lần lượt gồm 5 tay đua, 2 tay đua và một đoàn đông tay đua.\nBình luận viên cho biết tốp hai cách tốp đầu dưới 10 giây, tốp ba cách tốp đầu khoảng 15 giây.\nCuối đoạn, một tay đua từ tốp ba nỗ lực vươn lên.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-04",
+      "base_query_id": "aic26-20260926:qa-query-04",
+      "query": "Tên người xuất hiện trong phân cảnh này? Đoạn clip có cảnh một nhà thiết kế thời trang rất trẻ nhắc đến những nguồn cảm hứng khác thường như một loại rau màu xanh và những chiếc thìa, xen kẽ cảnh trình diễn bộ sưu tập thời trang.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-04",
+      "base_query_id": "aic26-20260926:qa-query-04",
+      "query": "Tên người xuất hiện trong phân cảnh này? Đoạn clip có cảnh một nhà thiết kế thời trang rất trẻ nhắc đến những nguồn cảm hứng khác thường như một loại rau màu xanh và những chiếc thìa, xen kẽ cảnh trình diễn bộ sưu tập thời trang.\nTên người xuất hiện trong phân cảnh này? Đoạn clip có cảnh một nhà thiết kế thời trang rất trẻ nhắc đến những nguồn cảm hứng khác thường như một loại rau màu xanh và những chiếc thìa, xen kẽ cảnh trình diễn bộ sưu tập thời trang.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-04",
+      "base_query_id": "aic26-20260926:qa-query-04",
+      "query": "Tên người xuất hiện trong phân cảnh này? Đoạn clip có cảnh một nhà thiết kế thời trang rất trẻ nhắc đến những nguồn cảm hứng khác thường như một loại rau màu xanh và những chiếc thìa, xen kẽ cảnh trình diễn bộ sưu tập thời trang.\nTên người xuất hiện trong phân cảnh này? Đoạn clip có cảnh một nhà thiết kế thời trang rất trẻ nhắc đến những nguồn cảm hứng khác thường như một loại rau màu xanh và những chiếc thìa, xen kẽ cảnh trình diễn bộ sưu tập thời trang.\nTên người xuất hiện trong phân cảnh này? Có hình ảnh một cậu bé tóc xoăn đang cầm một cây thước đo và một tấm vải nhỏ, bên cạnh là các cuộn chỉ được treo đầy màu sắc.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-04",
+      "base_query_id": "aic26-20260926:qa-query-04",
+      "query": "Tên người xuất hiện trong phân cảnh này? Đoạn clip có cảnh một nhà thiết kế thời trang rất trẻ nhắc đến những nguồn cảm hứng khác thường như một loại rau màu xanh và những chiếc thìa, xen kẽ cảnh trình diễn bộ sưu tập thời trang.\nTên người xuất hiện trong phân cảnh này? Đoạn clip có cảnh một nhà thiết kế thời trang rất trẻ nhắc đến những nguồn cảm hứng khác thường như một loại rau màu xanh và những chiếc thìa, xen kẽ cảnh trình diễn bộ sưu tập thời trang.\nTên người xuất hiện trong phân cảnh này? Có hình ảnh một cậu bé tóc xoăn đang cầm một cây thước đo và một tấm vải nhỏ, bên cạnh là các cuộn chỉ được treo đầy màu sắc.\nTên người xuất hiện trong phân cảnh này? Các sản phẩm được cậu bé thiết kế và trình diễn tại tuần lễ thời trang Paris 2026-2027. Theo Kỷ lục Thế giới Guinness, cậu bé là nhà thiết kế thời trang trẻ tuổi nhất.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-05",
+      "base_query_id": "aic26-20260926:qa-query-05",
+      "query": "Hoạt động trong cảnh quay được tổ chức tại tỉnh nào? Cảnh nhiều người lớn đang hướng dẫn các bạn nhỏ làm tranh kim tuyến trong một phòng học.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 3,
+      "hint_fraction": 0.3333333333333333,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-05",
+      "base_query_id": "aic26-20260926:qa-query-05",
+      "query": "Hoạt động trong cảnh quay được tổ chức tại tỉnh nào? Cảnh nhiều người lớn đang hướng dẫn các bạn nhỏ làm tranh kim tuyến trong một phòng học.\nHoạt động trong cảnh quay được tổ chức tại tỉnh nào? Chuyển ra khỏi không gian phòng học, ta tiếp tục thấy các tình nguyện viên chuẩn bị những phần quà để trao tặng cho người dân ở địa phương này.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 3,
+      "hint_fraction": 0.6666666666666666,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-05",
+      "base_query_id": "aic26-20260926:qa-query-05",
+      "query": "Hoạt động trong cảnh quay được tổ chức tại tỉnh nào? Cảnh nhiều người lớn đang hướng dẫn các bạn nhỏ làm tranh kim tuyến trong một phòng học.\nHoạt động trong cảnh quay được tổ chức tại tỉnh nào? Chuyển ra khỏi không gian phòng học, ta tiếp tục thấy các tình nguyện viên chuẩn bị những phần quà để trao tặng cho người dân ở địa phương này.\nHoạt động trong cảnh quay được tổ chức tại tỉnh nào? Đây là cảnh quay về hoạt động tình nguyện của thanh niên Thành phố Hồ Chí Minh tại nước bạn Lào.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 3,
+      "hint_count": 3,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-06",
+      "base_query_id": "aic26-20260926:qa-query-06",
+      "query": "Ba chữ cái nào xuất hiện ở mục \"input\" (viết liền 3 chữ cái)? Đoạn clip giới thiệu một siêu dự án công nghệ sử dụng hoàn toàn năng lượng tái tạo và hệ thống làm mát không cần nước.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 3,
+      "hint_fraction": 0.3333333333333333,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-06",
+      "base_query_id": "aic26-20260926:qa-query-06",
+      "query": "Ba chữ cái nào xuất hiện ở mục \"input\" (viết liền 3 chữ cái)? Đoạn clip giới thiệu một siêu dự án công nghệ sử dụng hoàn toàn năng lượng tái tạo và hệ thống làm mát không cần nước.\n3 chữ cái nào xuất hiện ở phần input (viết 3 chữ cái dính liền)? Sau đó người đàn ông này còn gạt một cái cần gạt xuống.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 3,
+      "hint_fraction": 0.6666666666666666,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-06",
+      "base_query_id": "aic26-20260926:qa-query-06",
+      "query": "Ba chữ cái nào xuất hiện ở mục \"input\" (viết liền 3 chữ cái)? Đoạn clip giới thiệu một siêu dự án công nghệ sử dụng hoàn toàn năng lượng tái tạo và hệ thống làm mát không cần nước.\n3 chữ cái nào xuất hiện ở phần input (viết 3 chữ cái dính liền)? Sau đó người đàn ông này còn gạt một cái cần gạt xuống.\nBa chữ cái nào xuất hiện ở phần input (viết 3 chữ cái dính liền)? Đây là tin về một trung tâm dữ liệu ở Brazil.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 3,
+      "hint_count": 3,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-23",
+      "base_query_id": "aic26-20260926:tkis-query-23",
+      "query": "Đoạn video camera giao thông từ trên cao tại một giao lộ, một công nhân vệ sinh chạy xe máy kéo theo một thùng rác vô tình làm một túi màu trắng rớt xuống đường.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-23",
+      "base_query_id": "aic26-20260926:tkis-query-23",
+      "query": "Đoạn video camera giao thông từ trên cao tại một giao lộ, một công nhân vệ sinh chạy xe máy kéo theo một thùng rác vô tình làm một túi màu trắng rớt xuống đường.\nChiếc túi nằm dưới đường cho đến một lúc sau có một phụ nữ mặc áo xanh dương, đội nón lá tới nhặt.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-23",
+      "base_query_id": "aic26-20260926:tkis-query-23",
+      "query": "Đoạn video camera giao thông từ trên cao tại một giao lộ, một công nhân vệ sinh chạy xe máy kéo theo một thùng rác vô tình làm một túi màu trắng rớt xuống đường.\nChiếc túi nằm dưới đường cho đến một lúc sau có một phụ nữ mặc áo xanh dương, đội nón lá tới nhặt.\nCó một chiếc xe cứu thương chạy qua giao lộ trong khoảng thời gian này.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-23",
+      "base_query_id": "aic26-20260926:tkis-query-23",
+      "query": "Đoạn video camera giao thông từ trên cao tại một giao lộ, một công nhân vệ sinh chạy xe máy kéo theo một thùng rác vô tình làm một túi màu trắng rớt xuống đường.\nChiếc túi nằm dưới đường cho đến một lúc sau có một phụ nữ mặc áo xanh dương, đội nón lá tới nhặt.\nCó một chiếc xe cứu thương chạy qua giao lộ trong khoảng thời gian này.\nĐây là camera giao thông tại giao lộ NKKN - Trần Quốc Toản.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-24",
+      "base_query_id": "aic26-20260926:tkis-query-24",
+      "query": "Đoạn video camera giao thông từ trên cao tại một giao lộ, một chiếc xe buýt màu đỏ 2 tầng mui trần đang di chuyển ở nửa bên phải khung hình, tiến tới giao lộ và dừng đèn đỏ.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 3,
+      "hint_fraction": 0.3333333333333333,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-24",
+      "base_query_id": "aic26-20260926:tkis-query-24",
+      "query": "Đoạn video camera giao thông từ trên cao tại một giao lộ, một chiếc xe buýt màu đỏ 2 tầng mui trần đang di chuyển ở nửa bên phải khung hình, tiến tới giao lộ và dừng đèn đỏ.\nTrên tầng 2 hiện đang có 4 hành khách.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 3,
+      "hint_fraction": 0.6666666666666666,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-24",
+      "base_query_id": "aic26-20260926:tkis-query-24",
+      "query": "Đoạn video camera giao thông từ trên cao tại một giao lộ, một chiếc xe buýt màu đỏ 2 tầng mui trần đang di chuyển ở nửa bên phải khung hình, tiến tới giao lộ và dừng đèn đỏ.\nTrên tầng 2 hiện đang có 4 hành khách.\nỞ góc giao lộ bên trái khung hình, có một trạm xăng dầu Petrolimex.",
+      "query_type": "T-KIS",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 3,
+      "hint_count": 3,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-03",
+      "base_query_id": "aic26-20260926:qa-query-03",
+      "query": "Hỏi đây là địa danh thuộc Tỉnh/Thành phố nào (Hiện nay)? (Đáp án viết không dấu và không có khoảng trắng). Trong phân cảnh này là hình ảnh ở một làng quê có truyền thống 1 loại lá có liên quan đến một thức ăn thuộc tập tục văn hóa của người dân chăn xưa.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 3,
+      "hint_fraction": 0.3333333333333333,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-03",
+      "base_query_id": "aic26-20260926:qa-query-03",
+      "query": "Hỏi đây là địa danh thuộc Tỉnh/Thành phố nào (Hiện nay)? (Đáp án viết không dấu và không có khoảng trắng). Trong phân cảnh này là hình ảnh ở một làng quê có truyền thống 1 loại lá có liên quan đến một thức ăn thuộc tập tục văn hóa của người dân chăn xưa.\nHỏi đây là địa danh thuộc Tỉnh/Thành phố nào (hiện nay)? (Đáp án viết không dấu và không có khoảng trắng). Từ Thành phố đi theo hướng Quốc lộ 61 đến ngôi làng này cách 13km.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 3,
+      "hint_fraction": 0.6666666666666666,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-03",
+      "base_query_id": "aic26-20260926:qa-query-03",
+      "query": "Hỏi đây là địa danh thuộc Tỉnh/Thành phố nào (Hiện nay)? (Đáp án viết không dấu và không có khoảng trắng). Trong phân cảnh này là hình ảnh ở một làng quê có truyền thống 1 loại lá có liên quan đến một thức ăn thuộc tập tục văn hóa của người dân chăn xưa.\nHỏi đây là địa danh thuộc Tỉnh/Thành phố nào (hiện nay)? (Đáp án viết không dấu và không có khoảng trắng). Từ Thành phố đi theo hướng Quốc lộ 61 đến ngôi làng này cách 13km.\nHỏi đây là địa danh thuộc Tỉnh/Thành phố nào (hiện nay)? (Đáp án viết không dấu và không có khoảng trắng). Hình ảnh địa danh này có tên là Làng trầu Vị Thủy.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 3,
+      "hint_count": 3,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-01",
+      "base_query_id": "aic26-20260926:qa-query-01",
+      "query": "Địa danh này có tên là gì (tiếng Anh)? Trong video có cảnh cần cẩu lắp đặt một mô-đun đá cao hơn 15 mét lên công trình tôn giáo có kiến trúc đá chạm khắc tinh xảo, xen kẽ với nghi lễ được tổ chức bên trong.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-01",
+      "base_query_id": "aic26-20260926:qa-query-01",
+      "query": "Địa danh này có tên là gì (tiếng Anh)? Trong video có cảnh cần cẩu lắp đặt một mô-đun đá cao hơn 15 mét lên công trình tôn giáo có kiến trúc đá chạm khắc tinh xảo, xen kẽ với nghi lễ được tổ chức bên trong.\nĐịa danh này có tên là gì (tiếng Anh)? Trong phân cảnh có một mảnh ghép cao 17m và rộng 13,5m được hạ xuống đỉnh tháp. Phân cảnh này miêu tả hình ảnh một nhà thờ đang được xây dựng.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-01",
+      "base_query_id": "aic26-20260926:qa-query-01",
+      "query": "Địa danh này có tên là gì (tiếng Anh)? Trong video có cảnh cần cẩu lắp đặt một mô-đun đá cao hơn 15 mét lên công trình tôn giáo có kiến trúc đá chạm khắc tinh xảo, xen kẽ với nghi lễ được tổ chức bên trong.\nĐịa danh này có tên là gì (tiếng Anh)? Trong phân cảnh có một mảnh ghép cao 17m và rộng 13,5m được hạ xuống đỉnh tháp. Phân cảnh này miêu tả hình ảnh một nhà thờ đang được xây dựng.\nĐịa danh này có tên là gì (tiếng Anh)? Đây là công trình kiến trúc được tham quan nhiều nhất tại Tây Ban Nha với 4 triệu vé được bán ra năm 2024.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-01",
+      "base_query_id": "aic26-20260926:qa-query-01",
+      "query": "Địa danh này có tên là gì (tiếng Anh)? Trong video có cảnh cần cẩu lắp đặt một mô-đun đá cao hơn 15 mét lên công trình tôn giáo có kiến trúc đá chạm khắc tinh xảo, xen kẽ với nghi lễ được tổ chức bên trong.\nĐịa danh này có tên là gì (tiếng Anh)? Trong phân cảnh có một mảnh ghép cao 17m và rộng 13,5m được hạ xuống đỉnh tháp. Phân cảnh này miêu tả hình ảnh một nhà thờ đang được xây dựng.\nĐịa danh này có tên là gì (tiếng Anh)? Đây là công trình kiến trúc được tham quan nhiều nhất tại Tây Ban Nha với 4 triệu vé được bán ra năm 2024.\nĐịa danh này có tên là gì (tiếng Anh)? Sau khi lắp mảnh ghép cuối cùng, địa danh này trở thành nhà thờ cao nhất thế giới với chiều cao tổng cộng 172,5m.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-07",
+      "base_query_id": "aic26-20260926:qa-query-07",
+      "query": "Tốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Cảnh quay liên tục từ trên cao, bắt đầu khi 1 nhóm các tay đua xe đạp đang tiến về 500m cuối cùng của chặng đua. Có thể thấy các tay đua gần như hình 1 đường thẳng, người này nối đuôi người kia.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-07",
+      "base_query_id": "aic26-20260926:qa-query-07",
+      "query": "Tốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Cảnh quay liên tục từ trên cao, bắt đầu khi 1 nhóm các tay đua xe đạp đang tiến về 500m cuối cùng của chặng đua. Có thể thấy các tay đua gần như hình 1 đường thẳng, người này nối đuôi người kia.\nTốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Tay đua duy nhất mặc áo xanh lá giữ vững vị trí thứ hai, và trên màn hình có một chú thích đang vẫn bám gắn với người này, cho biết mã số, tốc độ và tên của tay đua.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-07",
+      "base_query_id": "aic26-20260926:qa-query-07",
+      "query": "Tốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Cảnh quay liên tục từ trên cao, bắt đầu khi 1 nhóm các tay đua xe đạp đang tiến về 500m cuối cùng của chặng đua. Có thể thấy các tay đua gần như hình 1 đường thẳng, người này nối đuôi người kia.\nTốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Tay đua duy nhất mặc áo xanh lá giữ vững vị trí thứ hai, và trên màn hình có một chú thích đang vẫn bám gắn với người này, cho biết mã số, tốc độ và tên của tay đua.\nTốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Nhóm này có tổng cộng 7 tay đua xe đạp.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-07",
+      "base_query_id": "aic26-20260926:qa-query-07",
+      "query": "Tốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Cảnh quay liên tục từ trên cao, bắt đầu khi 1 nhóm các tay đua xe đạp đang tiến về 500m cuối cùng của chặng đua. Có thể thấy các tay đua gần như hình 1 đường thẳng, người này nối đuôi người kia.\nTốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Tay đua duy nhất mặc áo xanh lá giữ vững vị trí thứ hai, và trên màn hình có một chú thích đang vẫn bám gắn với người này, cho biết mã số, tốc độ và tên của tay đua.\nTốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Nhóm này có tổng cộng 7 tay đua xe đạp.\nTốc độ lớn nhất người này đạt được (thể hiện trên chú thích) là bao nhiêu km/h? Thông tin trong Chặng 4 Cúp Truyền hình Tp Hồ Chí Minh năm 2024 của tay đua R. Maikin.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-08",
+      "base_query_id": "aic26-20260926:qa-query-08",
+      "query": "Đây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Bắt đầu với cảnh các loại trái cây được sắp xếp thành hình bản đồ Việt Nam.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-08",
+      "base_query_id": "aic26-20260926:qa-query-08",
+      "query": "Đây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Bắt đầu với cảnh các loại trái cây được sắp xếp thành hình bản đồ Việt Nam.\nĐây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Tiếp theo, nhiều người đàn ông mặc áo trắng ngồi phía trước một tháp trái cây lớn.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-08",
+      "base_query_id": "aic26-20260926:qa-query-08",
+      "query": "Đây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Bắt đầu với cảnh các loại trái cây được sắp xếp thành hình bản đồ Việt Nam.\nĐây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Tiếp theo, nhiều người đàn ông mặc áo trắng ngồi phía trước một tháp trái cây lớn.\nĐây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Sau đó xuất hiện một loại trái cây màu đỏ xen kẽ với một số loại trái cây có gai.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-08",
+      "base_query_id": "aic26-20260926:qa-query-08",
+      "query": "Đây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Bắt đầu với cảnh các loại trái cây được sắp xếp thành hình bản đồ Việt Nam.\nĐây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Tiếp theo, nhiều người đàn ông mặc áo trắng ngồi phía trước một tháp trái cây lớn.\nĐây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Sau đó xuất hiện một loại trái cây màu đỏ xen kẽ với một số loại trái cây có gai.\nĐây là lễ hội thuộc tỉnh nào (hiện nay) của Việt Nam? (Đáp án viết không dấu và không có khoảng trắng) Cuối cùng, hai cô gái mặc áo dài đang trang trí một tháp trái cây.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-09",
+      "base_query_id": "aic26-20260926:qa-query-09",
+      "query": "Đây là con vật gì? Một nhóm 5 người đang ngồi xung quanh một vật có chiều dài gần bằng chiều dài của một người trưởng thành, vật này dính đất xung quanh.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-09",
+      "base_query_id": "aic26-20260926:qa-query-09",
+      "query": "Đây là con vật gì? Một nhóm 5 người đang ngồi xung quanh một vật có chiều dài gần bằng chiều dài của một người trưởng thành, vật này dính đất xung quanh.\nĐây là con vật gì? Người đàn ông mặc áo đỏ nằm bên cạnh để so sánh với chiều dài của vật này.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-09",
+      "base_query_id": "aic26-20260926:qa-query-09",
+      "query": "Đây là con vật gì? Một nhóm 5 người đang ngồi xung quanh một vật có chiều dài gần bằng chiều dài của một người trưởng thành, vật này dính đất xung quanh.\nĐây là con vật gì? Người đàn ông mặc áo đỏ nằm bên cạnh để so sánh với chiều dài của vật này.\nĐây là con vật gì? Vật này là xương đùi của một loài động vật.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-09",
+      "base_query_id": "aic26-20260926:qa-query-09",
+      "query": "Đây là con vật gì? Một nhóm 5 người đang ngồi xung quanh một vật có chiều dài gần bằng chiều dài của một người trưởng thành, vật này dính đất xung quanh.\nĐây là con vật gì? Người đàn ông mặc áo đỏ nằm bên cạnh để so sánh với chiều dài của vật này.\nĐây là con vật gì? Vật này là xương đùi của một loài động vật.\nĐây là con vật gì? Tên khoa học của loài động vật này là Dasosaurus tocantinensis.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-10",
+      "base_query_id": "aic26-20260926:qa-query-10",
+      "query": "Đây là bánh gì? Người đàn ông đổ bột để làm bánh, loại bánh này có màu nâu vàng, bột được đổ thành hình tròn, sau đó được rắc một ít nguyên liệu được làm từ thịt lên trên.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-10",
+      "base_query_id": "aic26-20260926:qa-query-10",
+      "query": "Đây là bánh gì? Người đàn ông đổ bột để làm bánh, loại bánh này có màu nâu vàng, bột được đổ thành hình tròn, sau đó được rắc một ít nguyên liệu được làm từ thịt lên trên.\nĐây là bánh gì? Phô mai và xúc xích cũng được cho lên trên bánh này.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-10",
+      "base_query_id": "aic26-20260926:qa-query-10",
+      "query": "Đây là bánh gì? Người đàn ông đổ bột để làm bánh, loại bánh này có màu nâu vàng, bột được đổ thành hình tròn, sau đó được rắc một ít nguyên liệu được làm từ thịt lên trên.\nĐây là bánh gì? Phô mai và xúc xích cũng được cho lên trên bánh này.\nĐây là bánh gì? Bánh được cuộn tròn bọc xúc xích lại.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-10",
+      "base_query_id": "aic26-20260926:qa-query-10",
+      "query": "Đây là bánh gì? Người đàn ông đổ bột để làm bánh, loại bánh này có màu nâu vàng, bột được đổ thành hình tròn, sau đó được rắc một ít nguyên liệu được làm từ thịt lên trên.\nĐây là bánh gì? Phô mai và xúc xích cũng được cho lên trên bánh này.\nĐây là bánh gì? Bánh được cuộn tròn bọc xúc xích lại.\nĐây là bánh gì? Loại bánh này được một nhân vật mèo máy rất thích ăn.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-13",
+      "base_query_id": "aic26-20260926:qa-query-13",
+      "query": "Đây là làng hoa nào? Những chậu hoa đủ màu sắc được trồng trong chậu trên những chiếc giàn kim loại, bên dưới là mặt nước.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-13",
+      "base_query_id": "aic26-20260926:qa-query-13",
+      "query": "Đây là làng hoa nào? Những chậu hoa đủ màu sắc được trồng trong chậu trên những chiếc giàn kim loại, bên dưới là mặt nước.\nĐây là làng hoa nào? Có 2 người đang ngồi trên một chiếc ghe di chuyển trong vườn hoa này, 1 người có vẻ đang cầm điện thoại để chụp ảnh/quay phim người còn lại.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-13",
+      "base_query_id": "aic26-20260926:qa-query-13",
+      "query": "Đây là làng hoa nào? Những chậu hoa đủ màu sắc được trồng trong chậu trên những chiếc giàn kim loại, bên dưới là mặt nước.\nĐây là làng hoa nào? Có 2 người đang ngồi trên một chiếc ghe di chuyển trong vườn hoa này, 1 người có vẻ đang cầm điện thoại để chụp ảnh/quay phim người còn lại.\nĐây là làng hoa nào? Trước đó ta còn thấy cảnh những khách du lịch khác đang đi bộ tham quan vườn hoa.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-13",
+      "base_query_id": "aic26-20260926:qa-query-13",
+      "query": "Đây là làng hoa nào? Những chậu hoa đủ màu sắc được trồng trong chậu trên những chiếc giàn kim loại, bên dưới là mặt nước.\nĐây là làng hoa nào? Có 2 người đang ngồi trên một chiếc ghe di chuyển trong vườn hoa này, 1 người có vẻ đang cầm điện thoại để chụp ảnh/quay phim người còn lại.\nĐây là làng hoa nào? Trước đó ta còn thấy cảnh những khách du lịch khác đang đi bộ tham quan vườn hoa.\nĐây là làng hoa nào? Các chậu hoa được sắp xếp thành hình quốc kỳ Việt Nam và hình trái tim rất lớn.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-12",
+      "base_query_id": "aic26-20260926:qa-query-12",
+      "query": "Có bao nhiêu cái cánh gà đã được sử dụng trong quá trình chế biến món ăn này? Đầu tiên, người đầu bếp cắt bỏ phần chóp cánh gà.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-12",
+      "base_query_id": "aic26-20260926:qa-query-12",
+      "query": "Có bao nhiêu cái cánh gà đã được sử dụng trong quá trình chế biến món ăn này? Đầu tiên, người đầu bếp cắt bỏ phần chóp cánh gà.\nTiếp theo ông ấy cắt mỗi cái cánh gà thành 2 miếng, tạo hình chúng như những chiếc đùi gà.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-12",
+      "base_query_id": "aic26-20260926:qa-query-12",
+      "query": "Có bao nhiêu cái cánh gà đã được sử dụng trong quá trình chế biến món ăn này? Đầu tiên, người đầu bếp cắt bỏ phần chóp cánh gà.\nTiếp theo ông ấy cắt mỗi cái cánh gà thành 2 miếng, tạo hình chúng như những chiếc đùi gà.\nKhi trộn xong xốt ướp, người đầu bếp nhúng từng miếng gà vào đó. Nước cốt dừa là một thành phần của hỗn hợp này.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-12",
+      "base_query_id": "aic26-20260926:qa-query-12",
+      "query": "Có bao nhiêu cái cánh gà đã được sử dụng trong quá trình chế biến món ăn này? Đầu tiên, người đầu bếp cắt bỏ phần chóp cánh gà.\nTiếp theo ông ấy cắt mỗi cái cánh gà thành 2 miếng, tạo hình chúng như những chiếc đùi gà.\nKhi trộn xong xốt ướp, người đầu bếp nhúng từng miếng gà vào đó. Nước cốt dừa là một thành phần của hỗn hợp này.\nSau đó, ông ấy còn cho gà vào tô dừa khô bào sợi để nó áo đều miếng gà trước khi chiên gà trong chảo dầu.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-14",
+      "base_query_id": "aic26-20260926:qa-query-14",
+      "query": "Đây là làng nào? Hoạt động có sự tham gia của giáo viên và sinh viên vẽ trang trí các mô hình thuyền thúng bằng những hình ảnh văn hóa địa phương cũng như nghề làm nước mắm, để chuẩn bị cho một lễ hội.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h1",
+      "hint_level": 1,
+      "hint_count": 4,
+      "hint_fraction": 0.25,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-14",
+      "base_query_id": "aic26-20260926:qa-query-14",
+      "query": "Đây là làng nào? Hoạt động có sự tham gia của giáo viên và sinh viên vẽ trang trí các mô hình thuyền thúng bằng những hình ảnh văn hóa địa phương cũng như nghề làm nước mắm, để chuẩn bị cho một lễ hội.\nĐây là làng nào? Phân cảnh miêu tả một người giáo viên đang cầm bảng màu và cảnh biển với các loại hải sản.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h2",
+      "hint_level": 2,
+      "hint_count": 4,
+      "hint_fraction": 0.5,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-14",
+      "base_query_id": "aic26-20260926:qa-query-14",
+      "query": "Đây là làng nào? Hoạt động có sự tham gia của giáo viên và sinh viên vẽ trang trí các mô hình thuyền thúng bằng những hình ảnh văn hóa địa phương cũng như nghề làm nước mắm, để chuẩn bị cho một lễ hội.\nĐây là làng nào? Phân cảnh miêu tả một người giáo viên đang cầm bảng màu và cảnh biển với các loại hải sản.\nĐây là làng nào? Phân cảnh nằm trong hoạt động lễ hội diễn ra vào cuối Tháng 7 tại tỉnh Đắk Lắk. Hoạt động chuẩn bị cho Lễ hội Cầu ngư.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "h3",
+      "hint_level": 3,
+      "hint_count": 4,
+      "hint_fraction": 0.75,
+      "is_full_hint": false
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-14",
+      "base_query_id": "aic26-20260926:qa-query-14",
+      "query": "Đây là làng nào? Hoạt động có sự tham gia của giáo viên và sinh viên vẽ trang trí các mô hình thuyền thúng bằng những hình ảnh văn hóa địa phương cũng như nghề làm nước mắm, để chuẩn bị cho một lễ hội.\nĐây là làng nào? Phân cảnh miêu tả một người giáo viên đang cầm bảng màu và cảnh biển với các loại hải sản.\nĐây là làng nào? Phân cảnh nằm trong hoạt động lễ hội diễn ra vào cuối Tháng 7 tại tỉnh Đắk Lắk. Hoạt động chuẩn bị cho Lễ hội Cầu ngư.\nĐây là làng nào? Cô giáo mặc màu áo xanh có vị là giáo viên Trường Tiểu học Nguyễn Chí Thanh, Phường Bình Kiến.",
+      "query_type": "QA",
+      "split": "test",
+      "hint_stage": "full",
+      "hint_level": 4,
+      "hint_count": 4,
+      "hint_fraction": 1.0,
+      "is_full_hint": true
+    }
+  ]
+}

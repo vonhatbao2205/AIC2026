@@ -1,5 +1,115 @@
 # CAD-VR: chạy benchmark agent
 
+### Bộ báo cáo cuối sau khi retry hoàn tất
+
+Kết quả cuối nằm trong `benchmarks/agent/runs/soict-final-dev-test-pooled-tol1-v1/`:
+
+| Cohort | Main | Cumulative |
+|---|---|---|
+| DEV | `dev/main/`: 25 câu, 150 lượt | `dev/cumulative/`: 3 câu, 33 lượt |
+| TEST | `test/main/`: 86 câu, 516 lượt | `test/cumulative/`: 24 câu, 270 lượt |
+| Pooled | `pooled/main/`: 111 câu, 666 lượt | `pooled/cumulative/`: 27 câu, 303 lượt |
+
+Mỗi thư mục có báo cáo strict, bootstrap intervals, CSV và `video-report/`.
+Cumulative có thêm bảng theo mức hint, hints-to-solve và biểu đồ PDF/PNG theo
+cohort cố định. Không còn query bị loại sau khi các retry thành công. DEV/TEST
+được khôi phục theo nhãn gốc, kể cả lượt retry đã chạy bằng dataset gộp TEST.
+`README.md`, `SUITE_SUMMARY.json` và `ALL_PAPER_TABLES.csv` ở root tổng hợp cả ba
+cohort. Đây là export offline; nguồn kết quả và archive lỗi được giữ để đối chiếu.
+
+Bản báo cáo gọn được lưu trong Git tại
+[`results/soict-final-tol1/`](results/soict-final-tol1/README.md), gồm bảng,
+summary/manifest, CSV và biểu đồ. Raw rankings/traces đầy đủ nằm trong `runs/`
+và không đưa vào Git. Mọi lệnh chạy/chấm cho bộ paper cuối dùng `--tolerance 1`
+tường minh; default CLI vẫn là 5s cho các run khác.
+
+Để xuất một phiên bản mới từ cùng nguồn đã hoàn tất, dùng output chưa tồn tại:
+
+```bash
+.venv/bin/python -m tools.finalize_soict_reports \
+  --main-run benchmarks/agent/runs/soict-test-all111-tol1-retry-v1/main-test \
+  --cumulative-run benchmarks/agent/runs/soict-test-all111-tol1-retry-v1/cumulative-all27-test \
+  --dataset benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl \
+  --output benchmarks/agent/runs/soict-final-dev-test-pooled-tol1-v1
+```
+
+### Chấm bổ sung theo video từ kết quả đã lưu
+
+Không gọi model hoặc thay đổi fingerprint/resume của benchmark đang chạy:
+
+```bash
+.venv/bin/python -m tools.benchmark_video_report \
+  --dataset benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl \
+  --run-dir benchmarks/agent/runs/soict-test-raw-tol1-v1/main-test
+```
+
+Xuất `video-report/REPORT.md`, `summary.json`, `query_results.csv`.
+Video được xếp theo lần xuất hiện đầu tiên trong ranking frame; mỗi video chiếm
+một slot. **Video R@k** chỉ kiểm tra đúng video. **Group moment R@k** yêu cầu
+video top-k chứa ít nhất một frame đúng trong danh sách frame đã trả về, với
+tolerance của run. **Group strict R@k** thêm yêu cầu answer đúng cho QA; TRAKE
+vẫn cần chuỗi event đầy đủ, đúng thứ tự theo evaluator hiện tại.
+Đây là đo coverage của candidate pool trong video, bên cạnh strict R@k cũ;
+không thay thế accuracy của một frame/answer được submit. Báo cáo dùng cohort
+chạy đủ các variant tại mỗi hint level, có breakdown theo task. Chạy lại lệnh
+export sau khi có thêm kết quả để cập nhật; có thể áp dụng cho DEV hoặc cumulative.
+
+### Gộp các kết quả DEV gốc và TEST để báo cáo trên 111 câu
+
+```bash
+.venv/bin/python -m tools.merge_benchmark_results \
+  --dev-run benchmarks/agent/runs/soict-f54c83c/main-dev \
+  --test-run benchmarks/agent/runs/soict-test-raw-tol1-v1/main-test \
+  --dataset benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl \
+  --output benchmarks/agent/runs/soict-test-all111-tol1-v1/main-test \
+  --treat-dev-as-test
+```
+
+Chỉ dùng output mới chưa tồn tại. Lệnh kiểm tra cùng dataset, tolerance,
+model/controller và đủ mọi query/variant trước khi gộp. Không gọi model.
+Dataset trong output gán split `test`, giữ `original_split`; nguồn gốc và các
+revision code được ghi trong manifest/provenance. Báo cáo gộp giữ mọi lượt lỗi
+trong mẫu số, gồm lỗi quota cũ của DEV; kết quả nguồn không đổi.
+Đây là thư mục báo cáo offline, không dùng làm output để resume `run_soict`.
+`summary_by_split.json` vẫn có thống kê riêng theo nguồn DEV/TEST để đối chiếu.
+
+### Cumulative theo video và gộp DEV/TEST
+
+Exporter video tự nhận `hint_mode=cumulative`, xuất bảng từng mức hint và task,
+cohort đủ mọi level/variant, strata theo tổng số hint, và hints-to-solve cho
+Video / Group moment / Group strict. `--plots` xuất đường recall PDF/PNG theo
+cohort có cùng tổng số hint; không trộn H1/H2/Full để tính một recall chung.
+
+```bash
+.venv/bin/python -m tools.benchmark_video_report \
+  --dataset benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl \
+  --run-dir benchmarks/agent/runs/soict-test-raw-tol1-v1/cumulative-test \
+  --plots
+
+.venv/bin/python -m tools.merge_benchmark_results \
+  --dev-run benchmarks/agent/runs/soict-f54c83c/cumulative-dev \
+  --test-run benchmarks/agent/runs/soict-test-raw-tol1-v1/cumulative-test \
+  --dataset benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl \
+  --output benchmarks/agent/runs/soict-test-all111-tol1-v1/cumulative-test \
+  --treat-dev-as-test
+```
+
+Bản gộp lịch sử có 27 base queries, 303 stage/variant runs, bao gồm các lượt lỗi
+DEV cũ được ghi rõ trong report. Để xuất cohort sạch theo yêu cầu bỏ query lỗi:
+
+```bash
+.venv/bin/python -m tools.filter_benchmark_failures \
+  --source benchmarks/agent/runs/soict-test-all111-tol1-v1/cumulative-test \
+  --output benchmarks/agent/runs/soict-test-all111-tol1-retry-v1/cumulative-test
+```
+
+Lệnh loại **toàn bộ base query** nếu bất kỳ hint/variant nào có agent failure,
+controller failure/fallback, retrieval error/degradation hoặc quota interruption;
+không loại theo accuracy. Mọi level và A/C/F của query đó cùng bị loại để giữ
+cohort so sánh. `EXCLUSIONS.json` ghi số lượng/lý do; `excluded_attempts.jsonl`
+giữ các lượt bị loại. Dataset và manifest của report được cập nhật đúng cohort
+còn lại. Không gọi model, không tạo retry. Các output phải là thư mục mới.
+
 CAD-VR nằm trong `backend/app/agent/`. Mặc định `AGENT_POLICY=full`.
 Codex dùng `gpt-6.1-sol`, reasoning `high`, fast. Jev gọi
 `https://openrouter.ai/api/alpha/decisions` với `typesafe/jev-1.13`.
@@ -150,7 +260,11 @@ bản sidecar trước nâng cấp chạy agent cùng lúc với main retrieval.
   --output benchmarks/agent/runs/test-v5 --split test --variants A,B,C,D,E,F
 ```
 
-Có `--limit`, `--url`, `--timeout`, `--poll`, `--tolerance` (giây, mặc định 1), `--seed`.
+Có `--limit`, `--url`, `--timeout`, `--poll`, `--tolerance` (giây, mặc định 5), `--seed`.
+Raw DEV trước đây dùng tolerance=1; khi đối chiếu với run mới cần chấm lại cả hai
+ở cùng tolerance. Không sửa ground truth để tăng tolerance; tham số chỉ áp dụng
+trong evaluator và được khóa trong manifest. Target keyframe ID exact và accepted
+QA answers vẫn giữ exact matching; TRAKE vẫn cần đủ events, cùng video, đúng thứ tự.
 Lệnh này gọi model thật nếu backend chạy live. Không gọi endpoint DRES submit.
 Mỗi query random thứ tự variants với seed cố định để giảm thiên lệch cache/độ nóng.
 Từng run tự retrieval, dùng cùng cấu hình; không dùng ground truth để seed controller.
@@ -412,6 +526,27 @@ nạp cả config và code quota/controller mới. Dùng output mới, ví dụ:
 
 Chạy lại đúng lệnh này sau khi quota hồi để resume/retry lượt quota. Giữ nguyên
 dataset/code/calibration và cấu hình trong suốt TEST. Raw DEV ban đầu giữ riêng.
+
+### Run TEST ban đầu: raw DEV policy, tolerance 5 giây
+
+Theo lựa chọn sau DEV confirmation, tắt calibration bundle để quay lại policy
+raw DEV: `AGENT_CALIBRATION_PATH=` (rỗng), `AGENT_STOP_THRESHOLD=0.9`,
+`AGENT_STOP_MARGIN=0.1`. A–F vẫn chạy các policy tương ứng; không đổi E thành F
+hoặc thay architecture. Giữ budget/timeout/roles/toolset và cơ chế quota retry mới.
+Restart backend để nạp `.env`. Không resume raw/tuned/tolerance=1 vào run mới.
+
+```bash
+.venv/bin/python -m benchmarks.agent.run_soict \
+  --dataset benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl \
+  --output benchmarks/agent/runs/soict-test-raw-tol5-v1 \
+  --split test --tolerance 5
+```
+
+Policy raw và tolerance=5 được khóa trước TEST. Không suy luận rằng calibration
+làm giảm accuracy trên toàn corpus từ năm query confirmation; đây là lựa chọn
+cấu hình DEV của người dùng. Dùng cùng tolerance khi báo cáo/so sánh các variants.
+Kết quả paper cuối đã chấm lại ở tolerance=1, bổ sung retry và tách DEV/TEST/pooled
+như phần đầu README; các đường dẫn tol5 ở đây là lịch sử run ban đầu.
 
 Kiểm tra offline cho cả harness và state isolation:
 

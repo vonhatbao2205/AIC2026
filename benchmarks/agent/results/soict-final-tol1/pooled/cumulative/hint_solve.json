@@ -1,0 +1,4219 @@
+{
+  "planned_base_queries": 27,
+  "complete_base_queries": 27,
+  "query_ids": [
+    "aic26-20260926:qa-query-01",
+    "aic26-20260926:qa-query-03",
+    "aic26-20260926:qa-query-04",
+    "aic26-20260926:qa-query-05",
+    "aic26-20260926:qa-query-06",
+    "aic26-20260926:qa-query-07",
+    "aic26-20260926:qa-query-08",
+    "aic26-20260926:qa-query-09",
+    "aic26-20260926:qa-query-10",
+    "aic26-20260926:qa-query-12",
+    "aic26-20260926:qa-query-13",
+    "aic26-20260926:qa-query-14",
+    "aic26-20260926:tkis-query-01",
+    "aic26-20260926:tkis-query-02",
+    "aic26-20260926:tkis-query-03",
+    "aic26-20260926:tkis-query-07",
+    "aic26-20260926:tkis-query-08",
+    "aic26-20260926:tkis-query-10",
+    "aic26-20260926:tkis-query-14",
+    "aic26-20260926:tkis-query-15",
+    "aic26-20260926:tkis-query-16",
+    "aic26-20260926:tkis-query-17",
+    "aic26-20260926:tkis-query-18",
+    "aic26-20260926:tkis-query-21",
+    "aic26-20260926:tkis-query-22",
+    "aic26-20260926:tkis-query-23",
+    "aic26-20260926:tkis-query-24"
+  ],
+  "summary": {
+    "A": {
+      "video": {
+        "queries": 27,
+        "solved_queries": 22,
+        "unsolved_queries": 5,
+        "mean_hints_to_solve_solved_only": 1.5454545454545454,
+        "median_hints_to_solve_solved_only": 1.0,
+        "mean_hints_to_solve_penalized": 2.1481481481481484,
+        "early_solve_rate": 0.7777777777777778,
+        "mean_hint_saving": 0.6419753086419753,
+        "full_solve_rate": 0.5555555555555556,
+        "regression_rate": 0.25925925925925924
+      },
+      "moment": {
+        "queries": 27,
+        "solved_queries": 13,
+        "unsolved_queries": 14,
+        "mean_hints_to_solve_solved_only": 2.076923076923077,
+        "median_hints_to_solve_solved_only": 2,
+        "mean_hints_to_solve_penalized": 3.3703703703703702,
+        "early_solve_rate": 0.4444444444444444,
+        "mean_hint_saving": 0.2962962962962963,
+        "full_solve_rate": 0.2222222222222222,
+        "regression_rate": 0.25925925925925924
+      },
+      "strict": {
+        "queries": 27,
+        "solved_queries": 8,
+        "unsolved_queries": 19,
+        "mean_hints_to_solve_solved_only": 2.25,
+        "median_hints_to_solve_solved_only": 2.5,
+        "mean_hints_to_solve_penalized": 3.925925925925926,
+        "early_solve_rate": 0.2962962962962963,
+        "mean_hint_saving": 0.1728395061728395,
+        "full_solve_rate": 0.1111111111111111,
+        "regression_rate": 0.18518518518518517
+      }
+    },
+    "C": {
+      "video": {
+        "queries": 27,
+        "solved_queries": 25,
+        "unsolved_queries": 2,
+        "mean_hints_to_solve_solved_only": 1.36,
+        "median_hints_to_solve_solved_only": 1,
+        "mean_hints_to_solve_penalized": 1.6296296296296295,
+        "early_solve_rate": 0.8888888888888888,
+        "mean_hint_saving": 0.8024691358024691,
+        "full_solve_rate": 0.8148148148148148,
+        "regression_rate": 0.1111111111111111
+      },
+      "moment": {
+        "queries": 27,
+        "solved_queries": 21,
+        "unsolved_queries": 6,
+        "mean_hints_to_solve_solved_only": 1.5714285714285714,
+        "median_hints_to_solve_solved_only": 1,
+        "mean_hints_to_solve_penalized": 2.259259259259259,
+        "early_solve_rate": 0.7407407407407407,
+        "mean_hint_saving": 0.6049382716049383,
+        "full_solve_rate": 0.5555555555555556,
+        "regression_rate": 0.2962962962962963
+      },
+      "strict": {
+        "queries": 27,
+        "solved_queries": 13,
+        "unsolved_queries": 14,
+        "mean_hints_to_solve_solved_only": 1.6153846153846154,
+        "median_hints_to_solve_solved_only": 2,
+        "mean_hints_to_solve_penalized": 3.259259259259259,
+        "early_solve_rate": 0.4444444444444444,
+        "mean_hint_saving": 0.35185185185185186,
+        "full_solve_rate": 0.37037037037037035,
+        "regression_rate": 0.18518518518518517
+      }
+    },
+    "F": {
+      "video": {
+        "queries": 27,
+        "solved_queries": 26,
+        "unsolved_queries": 1,
+        "mean_hints_to_solve_solved_only": 1.2307692307692308,
+        "median_hints_to_solve_solved_only": 1.0,
+        "mean_hints_to_solve_penalized": 1.3703703703703705,
+        "early_solve_rate": 0.9629629629629629,
+        "mean_hint_saving": 0.8888888888888888,
+        "full_solve_rate": 0.8888888888888888,
+        "regression_rate": 0.1111111111111111
+      },
+      "moment": {
+        "queries": 27,
+        "solved_queries": 21,
+        "unsolved_queries": 6,
+        "mean_hints_to_solve_solved_only": 1.4761904761904763,
+        "median_hints_to_solve_solved_only": 1,
+        "mean_hints_to_solve_penalized": 2.185185185185185,
+        "early_solve_rate": 0.7777777777777778,
+        "mean_hint_saving": 0.6481481481481481,
+        "full_solve_rate": 0.6296296296296297,
+        "regression_rate": 0.2222222222222222
+      },
+      "strict": {
+        "queries": 27,
+        "solved_queries": 15,
+        "unsolved_queries": 12,
+        "mean_hints_to_solve_solved_only": 1.8,
+        "median_hints_to_solve_solved_only": 2,
+        "mean_hints_to_solve_penalized": 3.111111111111111,
+        "early_solve_rate": 0.5185185185185185,
+        "mean_hint_saving": 0.3888888888888889,
+        "full_solve_rate": 0.4444444444444444,
+        "regression_rate": 0.1111111111111111
+      }
+    }
+  },
+  "per_query": [
+    {
+      "base_query_id": "aic26-20260926:qa-query-01",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-03",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-04",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-05",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 3,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-06",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-07",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-08",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-09",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-10",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 3,
+      "solved_before_full": true,
+      "hint_saving": 0.3333333333333333,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-12",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-13",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-14",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-01",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-03",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-07",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-08",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-10",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.5,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-14",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-15",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-16",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-17",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-18",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-23",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-24",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.5,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-01",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-03",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-04",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-05",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": 3,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-06",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-07",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-08",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-09",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-10",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-12",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-13",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-14",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-01",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-03",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 3,
+      "solved_before_full": true,
+      "hint_saving": 0.3333333333333333,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-07",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-08",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 3,
+      "solved_before_full": true,
+      "hint_saving": 0.3333333333333333,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-10",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-14",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-15",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-16",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 3,
+      "solved_before_full": true,
+      "hint_saving": 0.3333333333333333,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-17",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-18",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 3,
+      "solved_before_full": true,
+      "hint_saving": 0.3333333333333333,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-23",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-24",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-01",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-03",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-04",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-05",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-06",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-07",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-08",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-09",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-10",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-12",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-13",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-14",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-01",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-03",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 3,
+      "solved_before_full": true,
+      "hint_saving": 0.3333333333333333,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-07",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-08",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 3,
+      "solved_before_full": true,
+      "hint_saving": 0.3333333333333333,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-10",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-14",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-15",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-16",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 3,
+      "solved_before_full": true,
+      "hint_saving": 0.3333333333333333,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-17",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-18",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 3,
+      "solved_before_full": true,
+      "hint_saving": 0.3333333333333333,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-23",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-24",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-01",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-03",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-04",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-05",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-06",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.5,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-07",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 4,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-08",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-09",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-10",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-12",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-13",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-14",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-01",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-03",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-07",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-08",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-10",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.5,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-14",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-15",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-16",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-17",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-18",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-23",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-24",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-01",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-03",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-04",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-05",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-06",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.5,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-07",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 4,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-08",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-09",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-10",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-12",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-13",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-14",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-01",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.5,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-03",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-07",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-08",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-10",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.5,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-14",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-15",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-16",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-17",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-18",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.5,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-23",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-24",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-01",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-03",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-04",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-05",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": 3,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-06",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-07",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-08",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-09",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-10",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-12",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-13",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-14",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-01",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.5,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-03",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-07",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-08",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-10",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.5,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-14",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-15",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-16",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-17",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-18",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.5,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-23",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-24",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-01",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-03",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-04",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-05",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-06",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-07",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-08",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-09",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-10",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-12",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-13",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-14",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-01",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-03",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-07",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-08",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-10",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-14",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 3,
+      "solved_before_full": true,
+      "hint_saving": 0.3333333333333333,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-15",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-16",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-17",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-18",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 3,
+      "solved_before_full": true,
+      "hint_saving": 0.3333333333333333,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-23",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-24",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-01",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-03",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-04",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-05",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-06",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-07",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-08",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-09",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-10",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-12",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-13",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-14",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-01",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-03",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 3,
+      "solved_before_full": true,
+      "hint_saving": 0.3333333333333333,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-07",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-08",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-10",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-14",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 3,
+      "solved_before_full": true,
+      "hint_saving": 0.3333333333333333,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-15",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-16",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-17",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-18",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.5,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-23",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-24",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-01",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-03",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-04",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-05",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": 3,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-06",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-07",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-08",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-09",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-10",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-12",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-13",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:qa-query-14",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-01",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-03",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 3,
+      "solved_before_full": true,
+      "hint_saving": 0.3333333333333333,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-07",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-08",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-10",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-14",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 3,
+      "solved_before_full": true,
+      "hint_saving": 0.3333333333333333,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-15",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-16",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-17",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-18",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.5,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-23",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-24",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}

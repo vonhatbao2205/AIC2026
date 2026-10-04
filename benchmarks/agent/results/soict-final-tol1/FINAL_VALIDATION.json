@@ -1,0 +1,14 @@
+{
+  "source_hashes_unchanged": true,
+  "runtime_code_hash_unchanged": true,
+  "split_keys_disjoint": true,
+  "pooled_exact_union_of_dev_test": true,
+  "pooled_metrics_exact_union": true,
+  "all_run_counts_match_plans": true,
+  "all_cohorts_complete": true,
+  "execution_errors": 0,
+  "fallbacks": 0,
+  "excluded_queries": 0,
+  "pending_retries": 0,
+  "tests_passed": 15
+}

@@ -1,0 +1,108 @@
+{
+  "count": 10,
+  "queries": 4,
+  "attempts": [
+    {
+      "query_id": "aic26-20260926:tkis-query-22",
+      "hint_stage": "h2",
+      "variant": "C",
+      "reasons": [
+        "agent_failed",
+        "quota_interrupted"
+      ],
+      "retry_on_resume": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-22",
+      "hint_stage": "full",
+      "variant": "F",
+      "reasons": [
+        "agent_failed",
+        "quota_interrupted"
+      ],
+      "retry_on_resume": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-22",
+      "hint_stage": "full",
+      "variant": "C",
+      "reasons": [
+        "agent_failed",
+        "quota_interrupted"
+      ],
+      "retry_on_resume": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-22",
+      "hint_stage": "h1",
+      "variant": "F",
+      "reasons": [
+        "agent_failed",
+        "quota_interrupted"
+      ],
+      "retry_on_resume": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-22",
+      "hint_stage": "h1",
+      "variant": "C",
+      "reasons": [
+        "agent_failed",
+        "quota_interrupted"
+      ],
+      "retry_on_resume": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-21",
+      "hint_stage": "h2",
+      "variant": "F",
+      "reasons": [
+        "agent_failed",
+        "quota_interrupted"
+      ],
+      "retry_on_resume": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-21",
+      "hint_stage": "h2",
+      "variant": "C",
+      "reasons": [
+        "agent_failed",
+        "quota_interrupted"
+      ],
+      "retry_on_resume": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-02",
+      "hint_stage": "h2",
+      "variant": "C",
+      "reasons": [
+        "agent_failed",
+        "quota_interrupted"
+      ],
+      "retry_on_resume": true
+    },
+    {
+      "query_id": "aic26-20260926:tkis-query-02",
+      "hint_stage": "h2",
+      "variant": "F",
+      "reasons": [
+        "agent_failed",
+        "quota_interrupted"
+      ],
+      "retry_on_resume": true
+    },
+    {
+      "query_id": "aic26-20260926:qa-query-10",
+      "hint_stage": "h2",
+      "variant": "F",
+      "reasons": [
+        "fallback"
+      ],
+      "retry_on_resume": true
+    }
+  ],
+  "preserved_completed_runs": 293,
+  "planned_runs": 303,
+  "strategy": "Archived failures are absent from active results.jsonl; runner retries only missing query/level/variant keys."
+}

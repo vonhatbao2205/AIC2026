@@ -1,0 +1,577 @@
+{
+  "planned_base_queries": 3,
+  "complete_base_queries": 3,
+  "query_ids": [
+    "aic26-20260926:tkis-query-02",
+    "aic26-20260926:tkis-query-21",
+    "aic26-20260926:tkis-query-22"
+  ],
+  "summary": {
+    "A": {
+      "video": {
+        "queries": 3,
+        "solved_queries": 3,
+        "unsolved_queries": 0,
+        "mean_hints_to_solve_solved_only": 1.3333333333333333,
+        "median_hints_to_solve_solved_only": 1,
+        "mean_hints_to_solve_penalized": 1.3333333333333333,
+        "early_solve_rate": 1.0,
+        "mean_hint_saving": 0.8888888888888888,
+        "full_solve_rate": 0.3333333333333333,
+        "regression_rate": 0.6666666666666666
+      },
+      "moment": {
+        "queries": 3,
+        "solved_queries": 2,
+        "unsolved_queries": 1,
+        "mean_hints_to_solve_solved_only": 2.5,
+        "median_hints_to_solve_solved_only": 2.5,
+        "mean_hints_to_solve_penalized": 3,
+        "early_solve_rate": 0.6666666666666666,
+        "mean_hint_saving": 0.3333333333333333,
+        "full_solve_rate": 0.0,
+        "regression_rate": 0.6666666666666666
+      },
+      "strict": {
+        "queries": 3,
+        "solved_queries": 2,
+        "unsolved_queries": 1,
+        "mean_hints_to_solve_solved_only": 2.5,
+        "median_hints_to_solve_solved_only": 2.5,
+        "mean_hints_to_solve_penalized": 3,
+        "early_solve_rate": 0.6666666666666666,
+        "mean_hint_saving": 0.3333333333333333,
+        "full_solve_rate": 0.0,
+        "regression_rate": 0.6666666666666666
+      }
+    },
+    "C": {
+      "video": {
+        "queries": 3,
+        "solved_queries": 3,
+        "unsolved_queries": 0,
+        "mean_hints_to_solve_solved_only": 1.3333333333333333,
+        "median_hints_to_solve_solved_only": 1,
+        "mean_hints_to_solve_penalized": 1.3333333333333333,
+        "early_solve_rate": 1.0,
+        "mean_hint_saving": 0.8888888888888888,
+        "full_solve_rate": 1.0,
+        "regression_rate": 0.0
+      },
+      "moment": {
+        "queries": 3,
+        "solved_queries": 3,
+        "unsolved_queries": 0,
+        "mean_hints_to_solve_solved_only": 2,
+        "median_hints_to_solve_solved_only": 2,
+        "mean_hints_to_solve_penalized": 2,
+        "early_solve_rate": 1.0,
+        "mean_hint_saving": 0.611111111111111,
+        "full_solve_rate": 0.6666666666666666,
+        "regression_rate": 0.3333333333333333
+      },
+      "strict": {
+        "queries": 3,
+        "solved_queries": 3,
+        "unsolved_queries": 0,
+        "mean_hints_to_solve_solved_only": 2,
+        "median_hints_to_solve_solved_only": 2,
+        "mean_hints_to_solve_penalized": 2,
+        "early_solve_rate": 1.0,
+        "mean_hint_saving": 0.611111111111111,
+        "full_solve_rate": 0.6666666666666666,
+        "regression_rate": 0.3333333333333333
+      }
+    },
+    "F": {
+      "video": {
+        "queries": 3,
+        "solved_queries": 3,
+        "unsolved_queries": 0,
+        "mean_hints_to_solve_solved_only": 1.3333333333333333,
+        "median_hints_to_solve_solved_only": 1,
+        "mean_hints_to_solve_penalized": 1.3333333333333333,
+        "early_solve_rate": 1.0,
+        "mean_hint_saving": 0.8888888888888888,
+        "full_solve_rate": 1.0,
+        "regression_rate": 0.0
+      },
+      "moment": {
+        "queries": 3,
+        "solved_queries": 3,
+        "unsolved_queries": 0,
+        "mean_hints_to_solve_solved_only": 2,
+        "median_hints_to_solve_solved_only": 2,
+        "mean_hints_to_solve_penalized": 2,
+        "early_solve_rate": 1.0,
+        "mean_hint_saving": 0.611111111111111,
+        "full_solve_rate": 0.6666666666666666,
+        "regression_rate": 0.3333333333333333
+      },
+      "strict": {
+        "queries": 3,
+        "solved_queries": 3,
+        "unsolved_queries": 0,
+        "mean_hints_to_solve_solved_only": 2,
+        "median_hints_to_solve_solved_only": 2,
+        "mean_hints_to_solve_penalized": 2,
+        "early_solve_rate": 1.0,
+        "mean_hint_saving": 0.611111111111111,
+        "full_solve_rate": 0.6666666666666666,
+        "regression_rate": 0.3333333333333333
+      }
+    }
+  },
+  "per_query": [
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "A",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 3,
+      "solved_before_full": true,
+      "hint_saving": 0.3333333333333333,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "A",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 3,
+      "solved_before_full": true,
+      "hint_saving": 0.3333333333333333,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "A",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": null,
+      "solved_before_full": false,
+      "hint_saving": 0.0,
+      "full_solved": false,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "C",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "C",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.5,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "C",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.5,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 4,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "F",
+      "criterion": "video",
+      "hint_count": 3,
+      "first_solved_hint": 1,
+      "solved_before_full": true,
+      "hint_saving": 1.0,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "F",
+      "criterion": "moment",
+      "hint_count": 3,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.5,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-02",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": false,
+      "regressed_after_solve": true,
+      "outcomes": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-21",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 4,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.6666666666666666,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base_query_id": "aic26-20260926:tkis-query-22",
+      "variant": "F",
+      "criterion": "strict",
+      "hint_count": 3,
+      "first_solved_hint": 2,
+      "solved_before_full": true,
+      "hint_saving": 0.5,
+      "full_solved": true,
+      "regressed_after_solve": false,
+      "outcomes": [
+        0,
+        1,
+        1
+      ]
+    }
+  ]
+}
