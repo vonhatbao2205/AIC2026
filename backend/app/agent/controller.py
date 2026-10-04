@@ -13,7 +13,7 @@ from .decision.stopping import can_stop
 from .decision.verifier import verify
 from .cli import classify_error
 
-POLICIES = {"retrieval", "codex", "parallel", "rerank", "adaptive", "full", "rule"}
+POLICIES = {"retrieval", "codex", "parallel", "parallel_verify", "rerank", "adaptive", "full", "rule"}
 
 
 class ModelQuotaError(Exception):
@@ -171,6 +171,17 @@ class Controller:
         if run.policy in {"codex", "parallel"}:
             await self.launch(["codex"] if run.policy == "codex" else list(self.binaries))
             run.controller["stop_reason"] = "fixed_policy_complete"
+            return
+        if run.policy == "parallel_verify":
+            # C+V: identical acquisition to C, followed by E's holistic verifier.
+            # No pre-verification, adaptive routing, or early stopping. Preserve
+            # the same-evidence RRF ordering for the within-run ranking contrast.
+            await self.launch(list(self.binaries))
+            run.pre_verification_ranking = copy.deepcopy(run.board.ranked(verified=False))
+            self.trace("pre_verification", ranking=run.pre_verification_ranking)
+            run.controller["status"] = "verifying"
+            await self.evaluate()
+            run.controller["stop_reason"] = "fixed_verification_complete"
             return
         if run.policy == "rerank":
             await self.evaluate()

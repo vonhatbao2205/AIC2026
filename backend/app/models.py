@@ -224,7 +224,7 @@ class AgentRunRequest(ImageModelSelection):
     scope: SearchScope = Field(default_factory=SearchScope)
     previous_hints: list[str] = Field(default_factory=list, max_length=20)
     agents: list[AgentName] = Field(default_factory=lambda: ["codex", "claude"], min_length=1, max_length=2)
-    policy: Literal["retrieval", "codex", "parallel", "rerank", "adaptive", "full", "rule"] | None = None
+    policy: Literal["retrieval", "codex", "parallel", "parallel_verify", "rerank", "adaptive", "full", "rule"] | None = None
     # Experimental path is query-local; no progressive hints are consumed.
     toolset: Literal["base", "compare", "full"] = "full"
     specialization: bool = True

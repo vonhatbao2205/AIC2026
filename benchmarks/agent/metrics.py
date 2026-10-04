@@ -110,7 +110,7 @@ def measure(query, snapshot, trace, *, wall_s, tolerance_s=1.0):
 
     controller = snapshot.get("controller", {})
     agent_failed = any(a.get("status") in {"failed", "timeout", "cancelled"} for a in active)
-    required = {"codex"} if snapshot.get("policy") == "codex" else {"codex", "claude"} if snapshot.get("policy") == "parallel" else set()
+    required = {"codex"} if snapshot.get("policy") == "codex" else {"codex", "claude"} if snapshot.get("policy") in {"parallel", "parallel_verify"} else set()
     unavailable_required = any(agents.get(name, {}).get("status") == "unavailable" for name in required)
     return {
         "rank": rank, "video_rank": video_rank(ranking, query), "baseline_rank": base_rank,

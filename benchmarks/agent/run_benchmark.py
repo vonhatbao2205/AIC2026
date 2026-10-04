@@ -27,6 +27,7 @@ VARIANTS = {
     "A": {"policy": "retrieval"},
     "B": {"policy": "codex"},
     "C": {"policy": "parallel"},
+    "C+V": {"policy": "parallel_verify"},
     "D": {"policy": "rerank"},
     "E": {"policy": "adaptive"},
     "F": {"policy": "full"},

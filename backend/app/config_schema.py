@@ -159,7 +159,7 @@ GROUPS: tuple[ConfigGroup, ...] = (
             ConfigKey("AGENT_LLM_JUDGE_MODEL", "Optional generative judge ablation (anthropic/claude-opus-5.5)"),
             ConfigKey("JEV_MODEL", "Decision model (typesafe/jev-1.13)"),
             ConfigKey("JEV_TIMEOUT_SECONDS", "Timeout per decision request (12)"),
-            ConfigKey("AGENT_POLICY", "full | adaptive | rerank | retrieval | codex | parallel | rule"),
+            ConfigKey("AGENT_POLICY", "full | adaptive | rerank | retrieval | codex | parallel | parallel_verify | rule"),
             ConfigKey("AGENT_MAX_STEPS", "Controller action budget (6)"),
             ConfigKey("AGENT_MAX_TOOL_CALLS", "Tool budget per query (40)"),
             ConfigKey("AGENT_VERIFY_TOP_K", "Candidates verified per decision (5)"),

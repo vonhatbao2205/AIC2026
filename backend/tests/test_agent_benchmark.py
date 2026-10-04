@@ -109,7 +109,7 @@ async def test_all_six_variants_through_http_runner(tmp_path, monkeypatch):
     q = query(retrieval_database="btc", targets=[{"video_id": "K01_V001", "frame_idx": 500, "fps": 25}])
     rows = []
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app), base_url="http://local") as client:
-        for variant in "ABCDEF":
+        for variant in [*"ABCDEF", "C+V"]:
             snapshot, trace, wall = await run_one(client, q, variant, 5, .001)
             assert snapshot["finished"]
             assert snapshot["controller"]["status"] == "done"
@@ -117,10 +117,11 @@ async def test_all_six_variants_through_http_runner(tmp_path, monkeypatch):
             rows.append({"query_id": "q", "variant": variant, "metrics": measure(q, snapshot, trace["trace"], wall_s=wall)})
     write_report(tmp_path, rows)
     summary = json.loads((tmp_path / "summary.json").read_text())
-    assert set(summary) == set("ABCDEF")
+    assert set(summary) == {*"ABCDEF", "C+V"}
     assert summary["A"]["codex_calls"] == 0
     assert summary["B"]["codex_calls"] == 1 and summary["B"]["claude_calls"] == 0
     assert summary["C"]["codex_calls"] == summary["C"]["claude_calls"] == 1
+    assert summary["C+V"]["codex_calls"] == summary["C+V"]["claude_calls"] == 1
     assert summary["D"]["jev_calls"] == 0  # mock mode cannot make paid calls
     assert summary["F"]["fallback"] == 1
 

@@ -235,6 +235,35 @@ FPS dùng từ nhãn hoặc candidate, không tự giả định 25 nếu thiế
 
 ## Sáu cấu hình chính
 
+### Ablation bổ sung: C+V
+
+`C+V` (`parallel_verify`) chạy Codex và Claude song song như C, rồi gọi holistic
+verifier của E một lần cuối. Không có verification trước agent, adaptive routing
+hoặc early stopping. Snapshot giữ `pre_verification_ranking`, trace giữ event
+`pre_verification`, để so sánh RRF với ranking sau verifier trên cùng evidence.
+
+Chạy C/C+V/E mới trong cùng đợt, không gộp với kết quả A–F đã khóa của paper:
+
+```bash
+.venv/bin/python -m benchmarks.agent.run_benchmark \
+  --dataset benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl \
+  --output benchmarks/agent/runs/soict-cv-20261005-v1/dev \
+  --split dev --variants 'C,C+V,E' --tolerance 1
+
+.venv/bin/python -m benchmarks.agent.run_benchmark \
+  --dataset benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl \
+  --output benchmarks/agent/runs/soict-cv-20261005-v1/test \
+  --split test --variants 'C,C+V,E' --tolerance 1
+```
+
+DEV có 75 lượt; TEST có 258 lượt. Kiểm tra execution/fallback trên DEV, giữ nguyên
+code/config rồi mới chạy TEST. Chạy lại đúng lệnh để resume; quota interruption
+được archive rồi thử lại từ state mới. Không tune theo accuracy TEST. C+V–E vẫn
+là so sánh cả controller package, chưa cô lập riêng causal effect của call allocation.
+Implementation đã qua kiểm thử offline; chưa có kết quả live hoàn chỉnh cho C+V.
+
+### Cấu hình A–F
+
 | ID | Policy | Hành vi |
 |---|---|---|
 | A | retrieval | Chỉ main retrieval |

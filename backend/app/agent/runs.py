@@ -156,6 +156,7 @@ class AgentRun:
         self.policy = request.policy or "full"
         self.board = EvidenceBoard(request.query, request.query_type)
         self.baseline: list[dict] = []
+        self.pre_verification_ranking: list[dict] | None = None
         self.ranking: list[dict] = []
         self.trace: list[dict] = []
         self.controller: dict = {"status": "pending", "steps": 0}
@@ -212,6 +213,7 @@ class AgentRun:
             "controller": self.controller,
             "ranking": self.ranking,
             "baseline_ranking": self.baseline,
+            "pre_verification_ranking": self.pre_verification_ranking,
             "metrics": {"tool_calls": self.tool_count, "cache_hits": self.cache_hits,
                         "agent_disagreement": self.board.disagreement(),
                         "agent_calls": self.agent_invocations},
