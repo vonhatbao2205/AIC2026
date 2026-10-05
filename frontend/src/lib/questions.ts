@@ -50,23 +50,22 @@ const NAME_RE = /^(?:.*\/)?([^/]*?-(\d+)-(kis|qa|trake|vkis))\.txt$/i;
  *  width. Taking the highest index instead would be wrong the other way round,
  *  on a statement that merely skips a number.
  *
- *  Markers deliberately mirror `_split_trake_events` in the backend parser: that
- *  runs one retrieval per event while this validates the row width, and the two
- *  disagreeing means generated rows get rejected by the very export they were
- *  generated for.
+ *  Markers are the backend's (`app/trake_events.py`), which splits one
+ *  retrieval per event: this validates the row width, and the two disagreeing
+ *  means generated rows get rejected by the very export they were generated for.
  *
- *  Punctuation after the number is OPTIONAL. A real organiser pack ships
- *  `E1 Khoảnh khắc…` with nothing but a space, and requiring a colon there
- *  matched nothing: the statement came back with `null` events, so this width
- *  check silently switched itself off on exactly the question it exists for.
- *
- *  A bare numbered list ("1) … 2) …") is NOT counted, unlike in the backend. A
- *  wrong split there only costs some retrieval quality; a wrong count here blocks
- *  the export outright, and `null` degrades safely — the width check is skipped,
- *  the audit warns that it was, and the operator types the frames they mean. */
+ *  Only E1, E2, … mark events, and only where a marker stands: at the start of
+ *  the statement, a line or a sentence, or followed by a colon. A number in the
+ *  prose ("(1)", "(4)", "cột số 4.") or an event mentioned in it ("như ở E1")
+ *  is text: counting those widened every row. The colon is optional: a real
+ *  organiser pack ships `E1 Khoảnh khắc…` with nothing but a space. */
 export function trakeEventCount(text: string): number | null {
-  const marker = /(?:^|[\s,;(\[])(?:sự\s*kiện|event|e)\s*\d+(?:\s*[:.)\]–—-]|(?=\s))/gi;
-  const count = [...text.matchAll(marker)].length;
+  const marker = /(?<![\p{L}\p{N}])E\d{1,2}(\s*:|\s*[.)\]–—-]|(?=\s)|$)/giu;
+  let count = 0;
+  for (const match of text.matchAll(marker)) {
+    const before = text.slice(0, match.index).replace(/[ \t]+$/, "");
+    if (match[1].includes(":") || !before || "\n.!?;,".includes(before[before.length - 1])) count += 1;
+  }
   return count >= 2 ? count : null;
 }
 

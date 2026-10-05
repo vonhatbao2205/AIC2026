@@ -105,12 +105,25 @@ describe("query pack parsing", () => {
     expect(trakeEventCount("E1: a.\nE2: b.\nE4: c.")).toBe(3);
   });
 
-  it("accepts the marker spellings the backend event splitter accepts", () => {
-    expect(trakeEventCount("Sự kiện 1: chạy đà.\nSự kiện 2: giậm nhảy.")).toBe(2);
-    expect(trakeEventCount("Event 1) take-off.\nEvent 2) landing.")).toBe(2);
+  it("accepts the marker spellings the backend event splitter accepts: E1, E2, … only", () => {
     expect(trakeEventCount("E1 - vào bếp.\nE2 - ra món.")).toBe(2);
     // Two events written on one line still count as two.
     expect(trakeEventCount("E1: bột vào tô. E2: chạm dầu.")).toBe(2);
+    // Other labels are not markers, in the backend either (app/trake_events.py).
+    expect(trakeEventCount("Sự kiện 1: chạy đà.\nSự kiện 2: giậm nhảy.")).toBeNull();
+    expect(trakeEventCount("Event 1) take-off.\nEvent 2) landing.")).toBeNull();
+  });
+
+  it("counts a number or an event mentioned inside an event as its text", () => {
+    // Regression: "(1)", "(4)", "(5)", "(6)" in the prose were counted as events.
+    const statement = [
+      "Đoạn video múa lân (1) con lân màu vàng:",
+      "E1: Lân quay vòng trên cột số 4. Có 2 người (4), (5), (6) đứng xem.",
+      "E2: Khoảnh khắc 4 chân chạm đất (2) lần, giống như ở E1.",
+      "E3: Khoảnh khắc lân cúi chào (E1) lần (3).",
+    ].join("\n");
+    expect(trakeEventCount(statement)).toBe(3);
+    expect(trakeEventCount("Có (1) con rồng và (2) con lân. Sau đó (3) người chào.")).toBeNull();
   });
 
   it("reads markers that carry no punctuation after the number", () => {
@@ -125,7 +138,6 @@ describe("query pack parsing", () => {
       "E3 Khoảnh khắc đầu tiên dùi chạm vào kẻng đồng múa lân.",
     ].join("\n");
     expect(trakeEventCount(statement)).toBe(3);
-    expect(trakeEventCount("Sự kiện 1 chạy đà.\nSự kiện 2 giậm nhảy.")).toBe(2);
   });
 
   it("does not mistake prose for event markers", () => {

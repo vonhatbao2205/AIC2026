@@ -1,0 +1,90 @@
+% Native 16 cm architecture diagram, included at LNCS text width.
+% Three processing roles; orthogonal edges and generous gutters.
+% Provider logos identify services; Font Awesome symbols identify functions.
+\definecolor{arInk}{HTML}{263648}
+\definecolor{arBlue}{HTML}{245C86}
+\definecolor{arTeal}{HTML}{176D63}
+\definecolor{arAmber}{HTML}{9A611C}
+\begin{tikzpicture}[
+ x=1cm,y=1cm,
+ font=\fontfamily{qhv}\fontsize{9}{11}\selectfont,text=arInk,
+ block/.style={draw=arBlue!65,fill=white,rounded corners=2pt,
+   line width=.7pt,align=center,text width=3.05cm,minimum height=1.45cm,inner sep=5pt},
+ control/.style={block,draw=arTeal!75},
+ agent/.style={block,draw=arAmber!75},
+ heading/.style={anchor=west,font=\fontfamily{qhv}\bfseries\fontsize{9}{11}\selectfont},
+ edge/.style={-{Stealth[length=2mm,width=1.4mm]},line width=.85pt,draw=arBlue},
+ ce/.style={edge,draw=arTeal},
+ ae/.style={edge,draw=arAmber},
+ label/.style={font=\fontfamily{qhv}\fontsize{8}{9.5}\selectfont,
+   fill=white,inner sep=2pt,align=center},
+ band/.style={rounded corners=3pt,line width=.5pt},
+ stagebadge/.style={circle,inner sep=0pt,minimum size=4.1mm,text=white,
+   font=\fontfamily{qhv}\bfseries\fontsize{8}{9}\selectfont}]
+
+\draw[band,draw=arInk!25,fill=arInk!3] (0,0) rectangle (16,-1.35);
+\node[heading,text=arInk!80] at (.22,-.25) {\faIcon{database}\enspace OFFLINE INDEXES AND MEDIA};
+\node[align=left,anchor=west] at (.28,-.87)
+ {\raisebox{-2pt}{\includegraphics[height=3.8mm]{logos/milvus.png}}\enspace\textbf{Milvus}\\PE / Qwen image vectors; GLAP audio};
+\node[align=left,anchor=west] at (6.0,-.87)
+ {\raisebox{-2pt}{\includegraphics[height=3.3mm]{logos/elasticsearch.png}}\enspace\textbf{Elasticsearch}\\OCR, ASR, audio tags, frame registry};
+\node[align=left,anchor=west] at (12.25,-.87)
+ {\textcolor{arBlue}{\faIcon{film}}\enspace\textbf{Clips and media}\\TARA; frames / videos};
+
+\draw[band,draw=arBlue!35,fill=arBlue!4] (0,-1.85) rectangle (11.65,-4.15);
+\node[stagebadge,fill=arBlue] at (.43,-2.13) {1};
+\node[heading,text=arBlue] at (.82,-2.13) {SYSTEM-1: CANDIDATE RETRIEVAL};
+\node[block] (query) at (1.95,-3.22)
+ {\textcolor{arBlue}{\faIcon{comment-dots}}\enspace\textbf{Query routing}\\KIS / QA / TRAKE\\modality and scope};
+\node[block] (retrieval) at (5.8,-3.22)
+ {\textcolor{arBlue}{\faIcon{search}}\enspace\textbf{Retrieval}\\visual / text / audio\\TARA clips};
+\node[block] (groups) at (9.65,-3.22)
+ {\textcolor{arBlue}{\faIcon{layer-group}}\enspace\textbf{Fusion}\\RRF; video groups\\TRAKE chains};
+\node[block,draw=arInk!50,fill=arInk!3] (console) at (14.05,-3.22)
+ {\textcolor{arInk}{\faIcon{desktop}}\enspace\textbf{Console}\\video groups\\agent results};
+\draw[edge] (query) -- (retrieval);
+\draw[edge] (retrieval) -- (groups);
+\draw[edge] (groups) -- node[label,above,font=\fontfamily{qhv}\fontsize{7}{8}\selectfont]{\faIcon{clock}\,${\approx}2$ s} (console);
+\draw[edge] (7.62,-1.35) -- (7.62,-2.48) -- (retrieval.north east);
+
+% The controller enclosure extends downwards to contain the action router.
+\path[band,draw=arTeal!40,fill=arTeal!4]
+ (0,-4.85) -- (11.65,-4.85) -- (11.65,-10.85)
+ -- (7.8,-10.85) -- (7.8,-7.25) -- (0,-7.25) -- cycle;
+\node[stagebadge,fill=arTeal] at (.43,-5.14) {2};
+\node[heading,text=arTeal] at (.82,-5.14) {CAD-VR: EVIDENCE AND CONTROL};
+\node[control] (board) at (1.95,-6.24)
+ {\textcolor{arTeal}{\faIcon{clipboard-list}}\enspace\textbf{Evidence board}\\candidate evidence\\constraints; sources};
+\node[control] (verify) at (5.8,-6.24)
+ {\raisebox{-2pt}{\includegraphics[height=4mm]{logos/typesafe-pink.png}}\enspace\textbf{Jev verifier}\\typed probabilities\\score and rank};
+\node[control] (guard) at (9.65,-6.24)
+ {\textcolor{arTeal}{\faIcon{shield-alt}}\enspace\textbf{Stop guard}\\support and margin\\task-specific checks};
+\node[control] (router) at (9.65,-9.03)
+ {\raisebox{-2pt}{\includegraphics[height=4mm]{logos/typesafe-pink.png}}\enspace\textbf{Jev router}\\select next action\\guarded STOP};
+\node[block,draw=arInk!50,fill=arInk!3] (result) at (14.05,-6.24)
+ {\textcolor{arTeal}{\faIcon{file-alt}}\enspace\textbf{Result + status}\\evidence sufficient\\or limit reached};
+\draw[ce] (board) -- (verify);
+\draw[ce] (verify) -- (guard);
+\draw[ce] (guard) -- node[label,above]{\textcolor{arTeal}{\faIcon{check}}\,pass} (result);
+\draw[ce] (guard) -- node[label,right]{\textcolor{arTeal}{\faIcon{redo}}\,continue} (router);
+\draw[ce] (result) -- node[label,right]{agent strip} (console);
+\draw[ce,dashed] (router.east) -- (14.05,-9.03)
+ -- node[label,right]{\faIcon{hourglass-half}\\budget / action\\limit} (result.south);
+\draw[edge] (groups.south) -- (9.65,-4.48)
+ -- node[label,above,pos=.53]{seed candidates} (-.3,-4.48) |- (board.west);
+
+\draw[band,draw=arAmber!40,fill=arAmber!4] (0,-7.85) rectangle (7.55,-10.85);
+\node[stagebadge,fill=arAmber] at (.43,-8.14) {3};
+\node[heading,text=arAmber] at (.82,-8.14) {SYSTEM-2: SEARCH AND INSPECTION};
+\node[agent,minimum height=1.65cm] (tools) at (1.95,-9.5)
+ {\textcolor{arAmber}{\faIcon{tools}}\enspace\textbf{10 MCP tools}\\search and browse\\inspect and compare\\probe and report};
+\node[agent,minimum height=1.65cm] (agents) at (5.8,-9.55)
+ {\raisebox{-2pt}{\includegraphics[height=6mm]{logos/openai-blossom.pdf}}\enspace\textbf{Codex scout}\\exploration\\[2pt]\raisebox{-2pt}{\includegraphics[height=4mm]{logos/claude-spark.pdf}}\enspace\textbf{Claude agent}\\investigation};
+\draw[ae] (router.west) -- (agents.east |- router.west);
+
+\draw[ae] (agents.west) -- (tools.east);
+\draw[ae] (tools.west) -- (-.3,-9.5) -- (-.3,-7.58) -- node[label,above]{evidence} (1.95,-7.58) -- (board.south);
+\draw[ce,dashed] (router.south) -- (9.65,-11.35)
+ -- node[label,below]{F only: backend evidence actions through the same tools}
+ (1.95,-11.35) -- (tools.south);
+\end{tikzpicture}

@@ -1,0 +1,13 @@
+% From Paper/soict2026: pdflatex -output-directory=/tmp tools/preview.tex
+\documentclass{llncs}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,graphicx,microtype}
+\usepackage{tikz,fontawesome5}
+\usepackage[active,tightpage]{preview}
+\PreviewEnvironment{tikzpicture}
+\setlength\PreviewBorder{3pt}
+\usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds}
+\graphicspath{{figures/}}
+\begin{document}
+\input{figures/\figname.tex}
+\end{document}

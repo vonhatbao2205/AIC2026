@@ -1,0 +1,45 @@
+% Qualitative TEST example T-KIS:query-p1-5-kis (target L27_V014, frames 634/675 @25 fps).
+% Times, probabilities and tool counts are copied from the logged E/C/A runs in
+% benchmarks/agent/runs/soict-final-dev-test-pooled-tol1-v1/test/main/results.jsonl.
+\definecolor{csInk}{HTML}{243449}
+\definecolor{csBlue}{HTML}{286A9B}
+\definecolor{csTeal}{HTML}{1F7A70}
+\definecolor{csAmber}{HTML}{B5651D}
+\definecolor{csRed}{HTML}{B64342}
+\definecolor{csGreen}{HTML}{2E7D32}
+\begin{tikzpicture}[x=1cm,y=1cm,font=\fontfamily{qhvc}\fontsize{6.2}{7.3}\selectfont,text=csInk,
+ capt/.style={font=\fontfamily{qhvc}\fontsize{6}{7}\selectfont,align=left,anchor=north west,inner sep=0pt,text width=3.85cm},
+ tag/.style={font=\fontfamily{qhvc}\bfseries\fontsize{6.2}{7.3}\selectfont,anchor=south west,inner sep=1.4pt},
+ ev/.style={font=\fontfamily{qhvc}\fontsize{5.6}{6.5}\selectfont,align=center,inner sep=.8pt}]
+% ---------------- query ----------------
+\node[draw=black!25,fill=black!3,rounded corners=1.6pt,text width=11.95cm,align=left,inner sep=3pt,anchor=north west] (q) at (0,0)
+ {\textbf{T-KIS query} (Vietnamese, translated): \emph{Two women are feeding goats: one wears a white T-shirt with a red shirt draped
+ over her shoulders, the other a traditional purple striped long-sleeved top. Both smile and look delighted. A spacious farm with a
+ corrugated-iron roof and wooden fences dividing rows of pens, holding a long row of goats.}};
+% ---------------- three candidates ----------------
+\foreach \k/\x/\name/\col/\mark in {855/0/A\ \ System-1 top-1/csRed/\faTimes, 1060/4.08/C\ \ always-two top-1/csRed/\faTimes, 145/8.16/E\ \ CAD-VR top-1/csGreen/\faCheck} {
+  \node[inner sep=0pt,anchor=north west,draw=\col,line width=1.1pt] (img\k) at (\x,-0.98) {\includegraphics[width=3.85cm]{keyframes/L27_V014_\k_640.jpg}};
+  \node[tag,fill=white,text=\col] at (img\k.south west) {\mark\ \name};
+}
+\node[capt] at (0,-3.25) {\textbf{3:55}, correct video, wrong moment (interview).\\Strict rank of the target: 18.};
+\node[capt] at (4.08,-3.25) {\textbf{4:55}, near-duplicate: same pair, but the woman\\in white is talking. Both agents reported it; RRF\\placed it first. In E, Jev: \emph{refuted} 0.81.};
+\node[capt] at (8.16,-3.25) {\textbf{0:26}, all clauses hold (target 0:25.4--0:27.0).\\Claude 0.82, Codex 0.92; Jev: \emph{supported} 0.73\\after Claude, 0.60 at the end. Strict rank 1.};
+% ---------------- timeline of the E run ----------------
+\def\s{0.1625}% cm per second, 0..72 s
+\begin{scope}[shift={(0.25,-4.75)}]
+ \draw[-{Stealth[length=1.3mm]},line width=.5pt,draw=black!60] (0,0) -- (72*\s+0.2,0) node[right,ev] {s};
+ \foreach \t in {0,10,...,70} { \draw[draw=black!60,line width=.4pt] (\t*\s,0) -- (\t*\s,-0.06) node[below,ev,text=black!60] {\t}; }
+ % agent work spans
+ \fill[csAmber!25,draw=csAmber!70,line width=.4pt,rounded corners=.8pt] (3.71*\s,0.07) rectangle (21.19*\s,0.33);
+ \node[ev,text=csAmber!80!black] at (12.45*\s,0.2) {\textbf{Claude} 17.5 s, 5 tools};
+ \fill[csAmber!12,draw=csAmber!70,line width=.4pt,rounded corners=.8pt] (22.25*\s,0.07) rectangle (69.81*\s,0.33);
+ \node[ev,text=csAmber!80!black] at (46.0*\s,0.2) {\textbf{Codex} 47.6 s, 10 tools incl.\ \texttt{constraint\_probe}(``both women smiling'')};
+ % controller events
+ \foreach \t in {2.73,3.71,21.83,22.25,71.25} { \fill[csTeal] (\t*\s,0) circle (1.1pt); }
+ \draw[csTeal,line width=.4pt] (2.73*\s,0) -- (0.0,0.62) node[above,ev,anchor=south west,text=csInk] {\textbf{2.7 s} retrieval seeds board};
+ \draw[csTeal,line width=.4pt] (3.71*\s,0) -- (1.05,0.42) node[above,ev,anchor=south west,text=csInk,xshift=3pt] {\textbf{3.7 s} Jev route: \texttt{CALL\_CLAUDE} (0.80); visual, compositional};
+ \draw[csTeal,line width=.4pt] (21.83*\s,0) -- (3.40,-0.34) node[ev,anchor=north east,text=csInk] {\textbf{21.8 s} Jev verify: 0:26 \emph{sup} 0.73, 4:55 \emph{ref} 0.81};
+ \draw[csTeal,line width=.4pt] (22.25*\s,0) -- (3.95,-0.34) node[ev,anchor=north west,text=csInk] {\textbf{22.3 s} router \emph{P}(STOP)\,=\,0.97, but guard fails (0.73\,<\,$\tau$)\,$\Rightarrow$\,\texttt{CALL\_CODEX}};
+ \draw[csTeal,line width=.4pt] (71.25*\s,0) -- (11.55,0.42) node[above,ev,anchor=south east,text=csInk] {\textbf{71.2 s} final verify, 0:26 top-1};
+\end{scope}
+\end{tikzpicture}

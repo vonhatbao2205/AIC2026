@@ -1,0 +1,345 @@
+query_id,query_type,variant,r1,r5,mrr,latency_s,codex_calls,claude_calls,failed,agent_failed,retrieval_failed,retrieval_degraded,fallback
+QA:query-p1-15-qa,QA,C,0,0,0.0,36.69494429200131,1,1,False,False,False,False,False
+QA:query-p1-15-qa,QA,C+V,0,0,0.0,43.83540299699234,1,1,False,False,False,False,False
+QA:query-p1-15-qa,QA,E,0,0,0.0,50.119109100007336,1,1,False,False,False,False,False
+QA:query-p1-15-qa,QA,C+V pre,0,0,0.0,,,,,,,,
+QA:query-p2-21-qa,QA,C,0,1,0.2,45.005056330992375,1,1,False,False,False,False,False
+QA:query-p2-21-qa,QA,C+V,0,0,0.0,42.47768235500553,1,1,False,False,False,False,False
+QA:query-p2-21-qa,QA,E,0,0,0.0,84.74868939700536,1,1,False,False,False,False,False
+QA:query-p2-21-qa,QA,C+V pre,0,0,0.0,,,,,,,,
+QA:query-p2-3-qa,QA,C,1,1,1.0,30.450917412003037,1,1,False,False,False,False,False
+QA:query-p2-3-qa,QA,C+V,1,1,1.0,34.03121390999877,1,1,False,False,False,False,False
+QA:query-p2-3-qa,QA,E,1,1,1.0,43.7103498110082,1,1,False,False,False,False,False
+QA:query-p2-3-qa,QA,C+V pre,1,1,1.0,,,,,,,,
+QA:query-p3-13-qa,QA,C,0,0,0.0,91.90564161300426,1,1,False,False,False,False,False
+QA:query-p3-13-qa,QA,C+V,0,0,0.0,74.17850503900263,1,1,False,False,False,False,False
+QA:query-p3-13-qa,QA,E,0,0,0.0,164.34891940599482,1,1,False,False,False,False,False
+QA:query-p3-13-qa,QA,C+V pre,0,0,0.0,,,,,,,,
+QA:query-p3-20-qa,QA,C,1,1,1.0,43.34886199099128,1,1,False,False,False,False,False
+QA:query-p3-20-qa,QA,C+V,1,1,1.0,39.253086701006396,1,1,False,False,False,False,False
+QA:query-p3-20-qa,QA,E,1,1,1.0,55.82321604699246,1,1,False,False,False,False,False
+QA:query-p3-20-qa,QA,C+V pre,1,1,1.0,,,,,,,,
+QA:query-p3-32-qa,QA,C,0,0,0.0,97.47109400499903,1,1,False,False,False,False,False
+QA:query-p3-32-qa,QA,C+V,0,0,0.0,98.01611818998936,1,1,False,False,False,False,False
+QA:query-p3-32-qa,QA,E,0,0,0.0,156.86058140799287,1,1,False,False,False,False,False
+QA:query-p3-32-qa,QA,C+V pre,0,0,0.0,,,,,,,,
+QA:query-p3-35-qa,QA,C,1,1,1.0,40.4486313519883,1,1,False,False,False,False,False
+QA:query-p3-35-qa,QA,C+V,1,1,1.0,57.07680633300333,1,1,False,False,False,False,False
+QA:query-p3-35-qa,QA,E,1,1,1.0,48.18689971900312,1,1,False,False,False,False,False
+QA:query-p3-35-qa,QA,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p1-10-kis,T-KIS,C,1,1,1.0,35.2944885859979,1,1,False,False,False,False,False
+T-KIS:query-p1-10-kis,T-KIS,C+V,1,1,1.0,31.224527418002253,1,1,False,False,False,False,False
+T-KIS:query-p1-10-kis,T-KIS,E,1,1,1.0,57.697708350999164,1,1,False,False,False,False,False
+T-KIS:query-p1-10-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p1-11-kis,T-KIS,C,0,1,0.5,43.49657428700448,1,1,False,False,False,False,False
+T-KIS:query-p1-11-kis,T-KIS,C+V,1,1,1.0,51.28249130699987,1,1,False,False,False,False,False
+T-KIS:query-p1-11-kis,T-KIS,E,1,1,1.0,78.339228198005,1,1,False,False,False,False,False
+T-KIS:query-p1-11-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p1-13-kis,T-KIS,C,1,1,1.0,69.96593828000186,1,1,False,False,False,False,False
+T-KIS:query-p1-13-kis,T-KIS,C+V,1,1,1.0,61.87341700000252,1,1,False,False,False,False,False
+T-KIS:query-p1-13-kis,T-KIS,E,1,1,1.0,75.89889387500443,1,1,False,False,False,False,False
+T-KIS:query-p1-13-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p1-2-kis,T-KIS,C,0,0,0.010638297872340425,40.78031419200124,1,1,False,False,False,False,False
+T-KIS:query-p1-2-kis,T-KIS,C+V,0,0,0.010416666666666666,31.402301617003104,1,1,False,False,False,False,False
+T-KIS:query-p1-2-kis,T-KIS,E,0,0,0.010869565217391304,68.1162696159954,1,1,False,False,False,False,False
+T-KIS:query-p1-2-kis,T-KIS,C+V pre,0,0,0.010416666666666666,,,,,,,,
+T-KIS:query-p1-20-kis,T-KIS,C,0,0,0.038461538461538464,43.23815934400045,1,1,False,False,False,False,False
+T-KIS:query-p1-20-kis,T-KIS,C+V,0,1,0.5,62.211228462998406,1,1,False,False,False,False,False
+T-KIS:query-p1-20-kis,T-KIS,E,1,1,1.0,75.69162705200142,1,1,False,False,False,False,False
+T-KIS:query-p1-20-kis,T-KIS,C+V pre,0,1,0.5,,,,,,,,
+T-KIS:query-p1-23-kis,T-KIS,C,0,0,0.004201680672268907,46.07005278699944,1,1,False,False,False,False,False
+T-KIS:query-p1-23-kis,T-KIS,C+V,0,0,0.006802721088435374,44.55584845699923,1,1,False,False,False,False,False
+T-KIS:query-p1-23-kis,T-KIS,E,0,0,0.006756756756756757,59.48870249200263,1,1,False,False,False,False,False
+T-KIS:query-p1-23-kis,T-KIS,C+V pre,0,0,0.006802721088435374,,,,,,,,
+T-KIS:query-p1-24-kis,T-KIS,C,0,0,0.16666666666666666,55.49684900700231,1,1,False,False,False,False,False
+T-KIS:query-p1-24-kis,T-KIS,C+V,0,0,0.16666666666666666,56.6921022250026,1,1,False,False,False,False,False
+T-KIS:query-p1-24-kis,T-KIS,E,0,0,0.14285714285714285,78.04671573400265,1,1,False,False,False,False,False
+T-KIS:query-p1-24-kis,T-KIS,C+V pre,0,0,0.16666666666666666,,,,,,,,
+T-KIS:query-p1-5-kis,T-KIS,C,0,1,0.5,35.275620021995564,1,1,False,False,False,False,False
+T-KIS:query-p1-5-kis,T-KIS,C+V,0,0,0.05263157894736842,33.629506099001446,1,1,False,False,False,False,False
+T-KIS:query-p1-5-kis,T-KIS,E,0,0,0.05263157894736842,64.34313652000128,1,1,False,False,False,False,False
+T-KIS:query-p1-5-kis,T-KIS,C+V pre,0,0,0.05263157894736842,,,,,,,,
+T-KIS:query-p1-6-kis,T-KIS,C,0,1,0.5,40.633531936997315,1,1,False,False,False,False,False
+T-KIS:query-p1-6-kis,T-KIS,C+V,1,1,1.0,36.70903376000206,1,1,False,False,False,False,False
+T-KIS:query-p1-6-kis,T-KIS,E,1,1,1.0,64.04675214999588,1,1,False,False,False,False,False
+T-KIS:query-p1-6-kis,T-KIS,C+V pre,0,1,0.5,,,,,,,,
+T-KIS:query-p1-8-kis,T-KIS,C,1,1,1.0,31.901310071996704,1,1,False,False,False,False,False
+T-KIS:query-p1-8-kis,T-KIS,C+V,1,1,1.0,35.5167658270002,1,1,False,False,False,False,False
+T-KIS:query-p1-8-kis,T-KIS,E,1,1,1.0,132.06030021599872,1,1,False,False,False,False,False
+T-KIS:query-p1-8-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p1-9-kis,T-KIS,C,1,1,1.0,38.15303898399725,1,1,False,False,False,False,False
+T-KIS:query-p1-9-kis,T-KIS,C+V,1,1,1.0,42.45339578099811,1,1,False,False,False,False,False
+T-KIS:query-p1-9-kis,T-KIS,E,1,1,1.0,71.63728570200328,1,1,False,False,False,False,False
+T-KIS:query-p1-9-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p2-1-kis,T-KIS,C,0,1,0.5,83.67348934700567,1,1,False,False,False,False,False
+T-KIS:query-p2-1-kis,T-KIS,C+V,0,0,0.0,84.7710870459996,1,1,False,False,False,False,False
+T-KIS:query-p2-1-kis,T-KIS,E,0,1,0.5,214.32840545300132,1,1,False,False,False,False,False
+T-KIS:query-p2-1-kis,T-KIS,C+V pre,0,0,0.0,,,,,,,,
+T-KIS:query-p2-11-kis,T-KIS,C,0,1,0.5,89.50755948601,1,1,False,False,False,False,False
+T-KIS:query-p2-11-kis,T-KIS,C+V,1,1,1.0,71.52168477899977,1,1,False,False,False,False,False
+T-KIS:query-p2-11-kis,T-KIS,E,1,1,1.0,198.90233804899617,1,1,False,False,False,False,False
+T-KIS:query-p2-11-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p2-12-kis,T-KIS,C,1,1,1.0,60.564051823996124,1,1,False,False,False,False,False
+T-KIS:query-p2-12-kis,T-KIS,C+V,1,1,1.0,83.99133349400654,1,1,False,False,False,False,False
+T-KIS:query-p2-12-kis,T-KIS,E,1,1,1.0,134.8180055180128,1,1,False,False,False,False,False
+T-KIS:query-p2-12-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p2-13-kis,T-KIS,C,0,0,0.0045045045045045045,84.32460295400233,1,1,False,False,False,False,False
+T-KIS:query-p2-13-kis,T-KIS,C+V,0,0,0.0037593984962406013,73.95024215099693,1,1,False,False,False,False,False
+T-KIS:query-p2-13-kis,T-KIS,E,0,0,0.0,148.9983048819995,1,1,False,False,False,False,False
+T-KIS:query-p2-13-kis,T-KIS,C+V pre,0,0,0.0037593984962406013,,,,,,,,
+T-KIS:query-p2-14-kis,T-KIS,C,1,1,1.0,94.04586439799459,1,1,False,False,False,False,False
+T-KIS:query-p2-14-kis,T-KIS,C+V,1,1,1.0,51.39725593299954,1,1,False,False,False,False,False
+T-KIS:query-p2-14-kis,T-KIS,E,1,1,1.0,95.66839081099897,1,1,False,False,False,False,False
+T-KIS:query-p2-14-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p2-15-kis,T-KIS,C,0,1,0.3333333333333333,66.84508948300208,1,1,False,False,False,False,False
+T-KIS:query-p2-15-kis,T-KIS,C+V,0,1,0.25,80.44107883599645,1,1,False,False,False,False,False
+T-KIS:query-p2-15-kis,T-KIS,E,1,1,1.0,215.17539043800207,1,1,False,False,False,False,False
+T-KIS:query-p2-15-kis,T-KIS,C+V pre,0,1,0.25,,,,,,,,
+T-KIS:query-p2-17-kis,T-KIS,C,1,1,1.0,38.34167621699453,1,1,False,False,False,False,False
+T-KIS:query-p2-17-kis,T-KIS,C+V,1,1,1.0,36.67741565000324,1,1,False,False,False,False,False
+T-KIS:query-p2-17-kis,T-KIS,E,1,1,1.0,51.56163414599723,1,1,False,False,False,False,False
+T-KIS:query-p2-17-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p2-18-kis,T-KIS,C,0,1,0.5,32.08602416499343,1,1,False,False,False,False,False
+T-KIS:query-p2-18-kis,T-KIS,C+V,0,1,0.5,36.733758018992376,1,1,False,False,False,False,False
+T-KIS:query-p2-18-kis,T-KIS,E,1,1,1.0,81.30230796099931,1,1,False,False,False,False,False
+T-KIS:query-p2-18-kis,T-KIS,C+V pre,0,1,0.5,,,,,,,,
+T-KIS:query-p2-2-kis,T-KIS,C,1,1,1.0,84.88164077900001,1,1,False,False,False,False,False
+T-KIS:query-p2-2-kis,T-KIS,C+V,1,1,1.0,71.04481025800487,1,1,False,False,False,False,False
+T-KIS:query-p2-2-kis,T-KIS,E,1,1,1.0,98.59114285000396,1,1,False,False,False,False,False
+T-KIS:query-p2-2-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p2-24-kis,T-KIS,C,1,1,1.0,48.09467807201145,1,1,False,False,False,False,False
+T-KIS:query-p2-24-kis,T-KIS,C+V,1,1,1.0,64.90709823500947,1,1,False,False,False,False,False
+T-KIS:query-p2-24-kis,T-KIS,E,1,1,1.0,126.0199001669971,1,1,False,False,False,False,False
+T-KIS:query-p2-24-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p2-25-kis,T-KIS,C,0,0,0.0,44.632904775004135,1,1,False,False,False,False,False
+T-KIS:query-p2-25-kis,T-KIS,C+V,0,0,0.0,46.661342327002785,1,1,False,False,False,False,False
+T-KIS:query-p2-25-kis,T-KIS,E,0,0,0.0,55.54830889600271,1,1,False,False,False,False,False
+T-KIS:query-p2-25-kis,T-KIS,C+V pre,0,0,0.0,,,,,,,,
+T-KIS:query-p2-26-kis,T-KIS,C,0,1,0.5,56.12017897400074,1,1,False,False,False,False,False
+T-KIS:query-p2-26-kis,T-KIS,C+V,1,1,1.0,47.94633744099701,1,1,False,False,False,False,False
+T-KIS:query-p2-26-kis,T-KIS,E,1,1,1.0,68.93303086499509,1,1,False,False,False,False,False
+T-KIS:query-p2-26-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p2-28-kis,T-KIS,C,0,1,0.5,70.31931918799819,1,1,False,False,False,False,False
+T-KIS:query-p2-28-kis,T-KIS,C+V,0,1,0.5,79.15116220500204,1,1,False,False,False,False,False
+T-KIS:query-p2-28-kis,T-KIS,E,0,1,0.5,122.0256903610134,1,1,False,False,False,False,False
+T-KIS:query-p2-28-kis,T-KIS,C+V pre,0,1,0.5,,,,,,,,
+T-KIS:query-p2-29-kis,T-KIS,C,1,1,1.0,51.535925714008044,1,1,False,False,False,False,False
+T-KIS:query-p2-29-kis,T-KIS,C+V,1,1,1.0,55.59412208601134,1,1,False,False,False,False,False
+T-KIS:query-p2-29-kis,T-KIS,E,1,1,1.0,73.6335458800022,1,1,False,False,False,False,False
+T-KIS:query-p2-29-kis,T-KIS,C+V pre,0,1,0.5,,,,,,,,
+T-KIS:query-p2-30-kis,T-KIS,C,1,1,1.0,58.050059880988556,1,1,False,False,False,False,False
+T-KIS:query-p2-30-kis,T-KIS,C+V,1,1,1.0,43.06643044399971,1,1,False,False,False,False,False
+T-KIS:query-p2-30-kis,T-KIS,E,1,1,1.0,65.92291983500763,1,1,False,False,False,False,False
+T-KIS:query-p2-30-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p2-4-kis,T-KIS,C,1,1,1.0,30.577725037001073,1,1,False,False,False,False,False
+T-KIS:query-p2-4-kis,T-KIS,C+V,1,1,1.0,38.515657749994716,1,1,False,False,False,False,False
+T-KIS:query-p2-4-kis,T-KIS,E,1,1,1.0,57.83826781699463,1,1,False,False,False,False,False
+T-KIS:query-p2-4-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p2-5-kis,T-KIS,C,1,1,1.0,34.041833540999505,1,1,False,False,False,False,False
+T-KIS:query-p2-5-kis,T-KIS,C+V,1,1,1.0,48.475537610000174,1,1,False,False,False,False,False
+T-KIS:query-p2-5-kis,T-KIS,E,1,1,1.0,63.49997193500167,1,1,False,False,False,False,False
+T-KIS:query-p2-5-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p2-6-kis,T-KIS,C,1,1,1.0,42.483599966995826,1,1,False,False,False,False,False
+T-KIS:query-p2-6-kis,T-KIS,C+V,1,1,1.0,55.6437720929971,1,1,False,False,False,False,False
+T-KIS:query-p2-6-kis,T-KIS,E,1,1,1.0,67.76503815400065,1,1,False,False,False,False,False
+T-KIS:query-p2-6-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p2-9-kis,T-KIS,C,1,1,1.0,53.928983316000085,1,1,False,False,False,False,False
+T-KIS:query-p2-9-kis,T-KIS,C+V,1,1,1.0,51.18938818800234,1,1,False,False,False,False,False
+T-KIS:query-p2-9-kis,T-KIS,E,1,1,1.0,73.4960635460011,1,1,False,False,False,False,False
+T-KIS:query-p2-9-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p3-10-kis,T-KIS,C,1,1,1.0,37.047949692001566,1,1,False,False,False,False,False
+T-KIS:query-p3-10-kis,T-KIS,C+V,1,1,1.0,50.12566776399035,1,1,False,False,False,False,False
+T-KIS:query-p3-10-kis,T-KIS,E,1,1,1.0,65.26753757099505,1,1,False,False,False,False,False
+T-KIS:query-p3-10-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p3-11-kis,T-KIS,C,1,1,1.0,62.33314731498831,1,1,False,False,False,False,False
+T-KIS:query-p3-11-kis,T-KIS,C+V,1,1,1.0,44.38424818200292,1,1,False,False,False,False,False
+T-KIS:query-p3-11-kis,T-KIS,E,1,1,1.0,59.70330305000243,1,1,False,False,False,False,False
+T-KIS:query-p3-11-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p3-14-kis,T-KIS,C,1,1,1.0,55.7606562479923,1,1,False,False,False,False,False
+T-KIS:query-p3-14-kis,T-KIS,C+V,1,1,1.0,64.70309508299397,1,1,False,False,False,False,False
+T-KIS:query-p3-14-kis,T-KIS,E,1,1,1.0,61.61174200898677,1,1,False,False,False,False,False
+T-KIS:query-p3-14-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p3-16-kis,T-KIS,C,1,1,1.0,58.74927615399065,1,1,False,False,False,False,False
+T-KIS:query-p3-16-kis,T-KIS,C+V,1,1,1.0,61.056225906009786,1,1,False,False,False,False,False
+T-KIS:query-p3-16-kis,T-KIS,E,1,1,1.0,59.294775921996916,1,1,False,False,False,False,False
+T-KIS:query-p3-16-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p3-19-kis,T-KIS,C,1,1,1.0,50.06594168700394,1,1,False,False,False,False,False
+T-KIS:query-p3-19-kis,T-KIS,C+V,1,1,1.0,65.9477525009861,1,1,False,False,False,False,False
+T-KIS:query-p3-19-kis,T-KIS,E,1,1,1.0,69.10290655899735,1,1,False,False,False,False,False
+T-KIS:query-p3-19-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p3-2-kis,T-KIS,C,0,1,0.5,44.29623137800081,1,1,False,False,False,False,False
+T-KIS:query-p3-2-kis,T-KIS,C+V,0,0,0.07142857142857142,45.24261550599476,1,1,False,False,False,False,False
+T-KIS:query-p3-2-kis,T-KIS,E,0,0,0.07142857142857142,56.33503671600192,1,1,False,False,False,False,False
+T-KIS:query-p3-2-kis,T-KIS,C+V pre,0,0,0.07142857142857142,,,,,,,,
+T-KIS:query-p3-21-kis,T-KIS,C,0,0,0.0,144.14841710600012,1,1,False,False,False,False,False
+T-KIS:query-p3-21-kis,T-KIS,C+V,0,0,0.0,106.9283341410046,1,1,False,False,False,False,False
+T-KIS:query-p3-21-kis,T-KIS,E,0,0,0.004784688995215311,119.00301634700736,1,1,False,False,False,False,False
+T-KIS:query-p3-21-kis,T-KIS,C+V pre,0,0,0.0,,,,,,,,
+T-KIS:query-p3-22-kis,T-KIS,C,1,1,1.0,73.66729704699537,1,1,False,False,False,False,False
+T-KIS:query-p3-22-kis,T-KIS,C+V,0,1,0.5,71.70706816200982,1,1,False,False,False,False,False
+T-KIS:query-p3-22-kis,T-KIS,E,1,1,1.0,135.82198136599618,1,1,False,False,False,False,False
+T-KIS:query-p3-22-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p3-23-kis,T-KIS,C,1,1,1.0,65.36090499300917,1,1,False,False,False,False,False
+T-KIS:query-p3-23-kis,T-KIS,C+V,1,1,1.0,64.4903756089916,1,1,False,False,False,False,False
+T-KIS:query-p3-23-kis,T-KIS,E,1,1,1.0,89.68441085200175,1,1,False,False,False,False,False
+T-KIS:query-p3-23-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p3-26-kis,T-KIS,C,0,1,0.5,37.69356899301056,1,1,False,False,False,False,False
+T-KIS:query-p3-26-kis,T-KIS,C+V,0,1,0.5,39.28602972399676,1,1,False,False,False,False,False
+T-KIS:query-p3-26-kis,T-KIS,E,0,1,0.5,69.70490736600186,1,1,False,False,False,False,False
+T-KIS:query-p3-26-kis,T-KIS,C+V pre,0,1,0.5,,,,,,,,
+T-KIS:query-p3-27-kis,T-KIS,C,1,1,1.0,37.95118798300973,1,1,False,False,False,False,False
+T-KIS:query-p3-27-kis,T-KIS,C+V,1,1,1.0,41.74506927499897,1,1,False,False,False,False,False
+T-KIS:query-p3-27-kis,T-KIS,E,1,1,1.0,61.18422492200625,1,1,False,False,False,False,False
+T-KIS:query-p3-27-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p3-28-kis,T-KIS,C,1,1,1.0,75.46442363300594,1,1,False,False,False,False,False
+T-KIS:query-p3-28-kis,T-KIS,C+V,1,1,1.0,48.90859801600163,1,1,False,False,False,False,False
+T-KIS:query-p3-28-kis,T-KIS,E,1,1,1.0,69.62877845099138,1,1,False,False,False,False,False
+T-KIS:query-p3-28-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p3-33-kis,T-KIS,C,1,1,1.0,62.24497944499308,1,1,False,False,False,False,False
+T-KIS:query-p3-33-kis,T-KIS,C+V,1,1,1.0,34.77901634100999,1,1,False,False,False,False,False
+T-KIS:query-p3-33-kis,T-KIS,E,1,1,1.0,64.36742152000079,1,1,False,False,False,False,False
+T-KIS:query-p3-33-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+T-KIS:query-p3-34-kis,T-KIS,C,0,1,0.5,37.574275003993534,1,1,False,False,False,False,False
+T-KIS:query-p3-34-kis,T-KIS,C+V,0,1,0.5,48.0112254859996,1,1,False,False,False,False,False
+T-KIS:query-p3-34-kis,T-KIS,E,1,1,1.0,61.83256755399634,1,1,False,False,False,False,False
+T-KIS:query-p3-34-kis,T-KIS,C+V pre,0,1,0.5,,,,,,,,
+T-KIS:query-p3-4-kis,T-KIS,C,1,1,1.0,73.17432184200152,1,1,False,False,False,False,False
+T-KIS:query-p3-4-kis,T-KIS,C+V,0,1,0.5,97.68833674200869,1,1,False,False,False,False,False
+T-KIS:query-p3-4-kis,T-KIS,E,1,1,1.0,75.7071209679998,1,1,False,False,False,False,False
+T-KIS:query-p3-4-kis,T-KIS,C+V pre,0,1,0.5,,,,,,,,
+T-KIS:query-p3-8-kis,T-KIS,C,1,1,1.0,61.28872141300235,1,1,False,False,False,False,False
+T-KIS:query-p3-8-kis,T-KIS,C+V,1,1,1.0,62.664144524009316,1,1,False,False,False,False,False
+T-KIS:query-p3-8-kis,T-KIS,E,0,0,0.01020408163265306,83.65108435500588,1,1,False,False,False,False,False
+T-KIS:query-p3-8-kis,T-KIS,C+V pre,0,1,0.5,,,,,,,,
+T-KIS:query-p3-9-kis,T-KIS,C,1,1,1.0,53.40646872200887,1,1,False,False,False,False,False
+T-KIS:query-p3-9-kis,T-KIS,C+V,1,1,1.0,63.888866902998416,1,1,False,False,False,False,False
+T-KIS:query-p3-9-kis,T-KIS,E,1,1,1.0,131.15667697199387,1,1,False,False,False,False,False
+T-KIS:query-p3-9-kis,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+TRAKE:query-p1-16-trake,TRAKE,C,0,1,0.5,133.713132149991,1,1,False,False,False,False,False
+TRAKE:query-p1-16-trake,TRAKE,C+V,0,0,0.0,106.75992398400558,1,1,False,False,False,False,False
+TRAKE:query-p1-16-trake,TRAKE,E,0,1,0.5,217.53098971399595,1,1,False,False,False,False,False
+TRAKE:query-p1-16-trake,TRAKE,C+V pre,0,0,0.0,,,,,,,,
+TRAKE:query-p1-4-trake,TRAKE,C,0,0,0.0,98.01375349400041,1,1,False,False,False,False,False
+TRAKE:query-p1-4-trake,TRAKE,C+V,0,0,0.0,89.07180620600411,1,1,False,False,False,False,False
+TRAKE:query-p1-4-trake,TRAKE,E,0,0,0.0,149.55282873500255,1,1,False,False,False,False,False
+TRAKE:query-p1-4-trake,TRAKE,C+V pre,0,0,0.0,,,,,,,,
+TRAKE:query-p2-10-trake,TRAKE,C,0,0,0.0,97.8949658240017,1,1,False,False,False,False,False
+TRAKE:query-p2-10-trake,TRAKE,C+V,0,0,0.0,98.53884999098955,1,1,False,False,False,False,False
+TRAKE:query-p2-10-trake,TRAKE,E,0,0,0.0,141.21923994900135,1,1,False,False,False,False,False
+TRAKE:query-p2-10-trake,TRAKE,C+V pre,0,0,0.0,,,,,,,,
+TRAKE:query-p2-22-trake,TRAKE,C,0,0,0.0,93.88969166699098,1,1,False,False,False,False,False
+TRAKE:query-p2-22-trake,TRAKE,C+V,0,0,0.0,82.74774661799893,1,1,False,False,False,False,False
+TRAKE:query-p2-22-trake,TRAKE,E,0,0,0.0,127.34537530700618,1,1,False,False,False,False,False
+TRAKE:query-p2-22-trake,TRAKE,C+V pre,0,0,0.0,,,,,,,,
+TRAKE:query-p3-1-trake,TRAKE,C,1,1,1.0,64.46285059000365,1,1,False,False,False,False,False
+TRAKE:query-p3-1-trake,TRAKE,C+V,1,1,1.0,71.94588079299137,1,1,False,False,False,False,False
+TRAKE:query-p3-1-trake,TRAKE,E,0,1,0.5,128.30317180500424,1,1,False,False,False,False,False
+TRAKE:query-p3-1-trake,TRAKE,C+V pre,1,1,1.0,,,,,,,,
+TRAKE:query-p3-24-trake,TRAKE,C,0,0,0.0,97.41234327600978,1,1,False,False,False,False,False
+TRAKE:query-p3-24-trake,TRAKE,C+V,0,0,0.0,85.84595095399709,1,1,False,False,False,False,False
+TRAKE:query-p3-24-trake,TRAKE,E,0,0,0.0,140.44301438100229,1,1,False,False,False,False,False
+TRAKE:query-p3-24-trake,TRAKE,C+V pre,0,0,0.0,,,,,,,,
+aic26-20260926:qa-query-01,QA,C,0,0,0.0,45.91302947700024,1,1,False,False,False,False,False
+aic26-20260926:qa-query-01,QA,C+V,0,0,0.0,49.5855865279882,1,1,False,False,False,False,False
+aic26-20260926:qa-query-01,QA,E,0,0,0.0,28.939594251001836,0,1,False,False,False,False,False
+aic26-20260926:qa-query-01,QA,C+V pre,0,0,0.0,,,,,,,,
+aic26-20260926:qa-query-03,QA,C,0,0,0.0,63.53446787400753,1,1,False,False,False,False,False
+aic26-20260926:qa-query-03,QA,C+V,0,0,0.0,78.78332729799149,1,1,False,False,False,False,False
+aic26-20260926:qa-query-03,QA,E,0,0,0.0,87.0993995119934,1,1,False,False,False,False,False
+aic26-20260926:qa-query-03,QA,C+V pre,0,0,0.0,,,,,,,,
+aic26-20260926:qa-query-04,QA,C,0,0,0.0,47.23893336599576,1,1,False,False,False,False,False
+aic26-20260926:qa-query-04,QA,C+V,0,0,0.0,41.392124448000686,1,1,False,False,False,False,False
+aic26-20260926:qa-query-04,QA,E,0,0,0.0,58.10166172700701,1,1,False,False,False,False,False
+aic26-20260926:qa-query-04,QA,C+V pre,0,0,0.0,,,,,,,,
+aic26-20260926:qa-query-05,QA,C,1,1,1.0,32.54733494800166,1,1,False,False,False,False,False
+aic26-20260926:qa-query-05,QA,C+V,1,1,1.0,33.46034672099631,1,1,False,False,False,False,False
+aic26-20260926:qa-query-05,QA,E,1,1,1.0,22.945835704987985,0,1,False,False,False,False,False
+aic26-20260926:qa-query-05,QA,C+V pre,0,1,0.5,,,,,,,,
+aic26-20260926:qa-query-06,QA,C,0,0,0.0,78.89268300299591,1,1,False,False,False,False,False
+aic26-20260926:qa-query-06,QA,C+V,0,0,0.0,72.69077711099817,1,1,False,False,False,False,False
+aic26-20260926:qa-query-06,QA,E,0,0,0.0,152.99601477899705,1,1,False,False,False,False,False
+aic26-20260926:qa-query-06,QA,C+V pre,0,0,0.0,,,,,,,,
+aic26-20260926:qa-query-07,QA,C,0,1,0.3333333333333333,65.90067823100253,1,1,False,False,False,False,False
+aic26-20260926:qa-query-07,QA,C+V,0,1,0.5,61.358337469995604,1,1,False,False,False,False,False
+aic26-20260926:qa-query-07,QA,E,1,1,1.0,94.58809370800736,1,1,False,False,False,False,False
+aic26-20260926:qa-query-07,QA,C+V pre,0,1,0.3333333333333333,,,,,,,,
+aic26-20260926:qa-query-08,QA,C,1,1,1.0,47.98081082299177,1,1,False,False,False,False,False
+aic26-20260926:qa-query-08,QA,C+V,1,1,1.0,42.98954294298892,1,1,False,False,False,False,False
+aic26-20260926:qa-query-08,QA,E,1,1,1.0,65.63707117800368,1,1,False,False,False,False,False
+aic26-20260926:qa-query-08,QA,C+V pre,1,1,1.0,,,,,,,,
+aic26-20260926:qa-query-09,QA,C,0,0,0.0,42.8329303329956,1,1,False,False,False,False,False
+aic26-20260926:qa-query-09,QA,C+V,0,0,0.0,39.13384711300023,1,1,False,False,False,False,False
+aic26-20260926:qa-query-09,QA,E,0,0,0.0,30.026447936004843,0,1,False,False,False,False,False
+aic26-20260926:qa-query-09,QA,C+V pre,0,0,0.0,,,,,,,,
+aic26-20260926:qa-query-10,QA,C,0,0,0.0,51.357476442004554,1,1,False,False,False,False,False
+aic26-20260926:qa-query-10,QA,C+V,0,0,0.0,60.821607471007155,1,1,False,False,False,False,False
+aic26-20260926:qa-query-10,QA,E,0,0,0.0,94.4455468160013,1,1,False,False,False,False,False
+aic26-20260926:qa-query-10,QA,C+V pre,0,0,0.0,,,,,,,,
+aic26-20260926:qa-query-12,QA,C,0,0,0.0,38.80432920799649,1,1,False,False,False,False,False
+aic26-20260926:qa-query-12,QA,C+V,0,0,0.0,40.14812353400339,1,1,False,False,False,False,False
+aic26-20260926:qa-query-12,QA,E,0,0,0.0,71.79854489100398,1,1,False,False,False,False,False
+aic26-20260926:qa-query-12,QA,C+V pre,0,0,0.0,,,,,,,,
+aic26-20260926:qa-query-13,QA,C,0,0,0.0,42.81103398099367,1,1,False,False,False,False,False
+aic26-20260926:qa-query-13,QA,C+V,0,0,0.0,47.12388685699261,1,1,False,False,False,False,False
+aic26-20260926:qa-query-13,QA,E,0,0,0.0,62.60482975898776,1,1,False,False,False,False,False
+aic26-20260926:qa-query-13,QA,C+V pre,0,0,0.0,,,,,,,,
+aic26-20260926:qa-query-14,QA,C,0,0,0.0,41.865393907995895,1,1,False,False,False,False,False
+aic26-20260926:qa-query-14,QA,C+V,0,0,0.0,46.08982449999894,1,1,False,False,False,False,False
+aic26-20260926:qa-query-14,QA,E,0,0,0.0,22.471693105006125,0,1,False,False,False,False,False
+aic26-20260926:qa-query-14,QA,C+V pre,0,0,0.0,,,,,,,,
+aic26-20260926:tkis-query-01,T-KIS,C,0,1,0.5,72.5304261919955,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-01,T-KIS,C+V,0,0,0.16666666666666666,74.76986199400562,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-01,T-KIS,E,1,1,1.0,130.45700516199577,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-01,T-KIS,C+V pre,0,0,0.16666666666666666,,,,,,,,
+aic26-20260926:tkis-query-03,T-KIS,C,1,1,1.0,45.86134275300719,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-03,T-KIS,C+V,1,1,1.0,51.52008803799981,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-03,T-KIS,E,1,1,1.0,76.9187948609906,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-03,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+aic26-20260926:tkis-query-07,T-KIS,C,0,0,0.06666666666666667,41.32455474000017,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-07,T-KIS,C+V,0,1,0.5,54.468750945001375,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-07,T-KIS,E,0,0,0.0625,59.022852020003484,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-07,T-KIS,C+V pre,0,1,0.5,,,,,,,,
+aic26-20260926:tkis-query-08,T-KIS,C,1,1,1.0,52.30162272899179,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-08,T-KIS,C+V,1,1,1.0,53.71044603799237,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-08,T-KIS,E,1,1,1.0,77.43267243998707,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-08,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+aic26-20260926:tkis-query-10,T-KIS,C,1,1,1.0,102.40314828300325,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-10,T-KIS,C+V,1,1,1.0,106.5079998489964,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-10,T-KIS,E,1,1,1.0,108.7606874310004,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-10,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+aic26-20260926:tkis-query-14,T-KIS,C,0,1,0.3333333333333333,103.4622128100018,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-14,T-KIS,C+V,0,1,0.3333333333333333,95.69014082399372,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-14,T-KIS,E,1,1,1.0,134.51920004200656,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-14,T-KIS,C+V pre,0,1,0.3333333333333333,,,,,,,,
+aic26-20260926:tkis-query-15,T-KIS,C,1,1,1.0,52.39964725999744,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-15,T-KIS,C+V,1,1,1.0,47.1175068779994,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-15,T-KIS,E,1,1,1.0,72.17567069700453,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-15,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+aic26-20260926:tkis-query-16,T-KIS,C,1,1,1.0,46.2641437699931,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-16,T-KIS,C+V,1,1,1.0,64.46453958400525,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-16,T-KIS,E,1,1,1.0,66.4105744369881,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-16,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+aic26-20260926:tkis-query-17,T-KIS,C,1,1,1.0,57.51992243999848,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-17,T-KIS,C+V,1,1,1.0,70.90748484300275,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-17,T-KIS,E,1,1,1.0,100.21128488700197,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-17,T-KIS,C+V pre,1,1,1.0,,,,,,,,
+aic26-20260926:tkis-query-18,T-KIS,C,0,1,0.5,64.0795254179975,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-18,T-KIS,C+V,0,1,0.5,64.42624694900587,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-18,T-KIS,E,0,0,0.0,87.94680570000492,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-18,T-KIS,C+V pre,0,1,0.5,,,,,,,,
+aic26-20260926:tkis-query-23,T-KIS,C,0,0,0.14285714285714285,91.48739054100588,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-23,T-KIS,C+V,0,0,0.14285714285714285,51.59278328799701,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-23,T-KIS,E,1,1,1.0,92.2012184530031,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-23,T-KIS,C+V pre,0,0,0.14285714285714285,,,,,,,,
+aic26-20260926:tkis-query-24,T-KIS,C,0,1,0.2,61.62061540200375,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-24,T-KIS,C+V,0,1,0.25,61.772091707010986,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-24,T-KIS,E,0,1,0.25,107.72568840200256,1,1,False,False,False,False,False
+aic26-20260926:tkis-query-24,T-KIS,C+V pre,0,1,0.25,,,,,,,,
+aic26-20260926:trake-cyclists,TRAKE,C,0,0,0.0,111.76112790098705,1,1,False,False,False,False,False
+aic26-20260926:trake-cyclists,TRAKE,C+V,1,1,1.0,118.80338726899936,1,1,False,False,False,False,False
+aic26-20260926:trake-cyclists,TRAKE,E,0,0,0.0,198.7820321420004,1,1,False,False,False,False,False
+aic26-20260926:trake-cyclists,TRAKE,C+V pre,1,1,1.0,,,,,,,,
+aic26-20260926:trake-query-04,TRAKE,C,1,1,1.0,109.84847098198952,1,1,False,False,False,False,False
+aic26-20260926:trake-query-04,TRAKE,C+V,0,1,0.5,86.46167576799053,1,1,False,False,False,False,False
+aic26-20260926:trake-query-04,TRAKE,E,0,1,0.25,221.2419149280031,1,1,False,False,False,False,False
+aic26-20260926:trake-query-04,TRAKE,C+V pre,0,1,0.5,,,,,,,,

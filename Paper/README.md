@@ -1,5 +1,9 @@
 # ClueScope Video Retrieval Paper
 
+The SOICT 2026 paper on CAD-VR is in **[soict2026/](soict2026/README.md)**:
+[PDF](soict2026/main.pdf) · [LaTeX](soict2026/main.tex) · [Overleaf ZIP](soict2026/cadvr-soict2026-source.zip) · [Claim map](soict2026/SOURCE_MAP.md) · [Ghi chú](soict2026/GHI_CHU_VI.md).
+It presents controller-assisted fast–slow agent orchestration (main contribution) and group-by-video ranking and evaluation, evaluated on the frozen 86-query TEST benchmark.
+
 The ClueScope VBS 2027 system paper is in **[vbs2027/](vbs2027/README.md)**:
 [PDF](vbs2027/main.pdf) · [LaTeX](vbs2027/main.tex) · [Editorial notes](vbs2027/EDITORIAL_NOTES_VI.md).
 It presents multimodal retrieval, video exploration, VQA assistance, and progressive hint memory, with a controlled component evaluation.

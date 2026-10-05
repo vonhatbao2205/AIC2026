@@ -1,0 +1,168 @@
+{
+  "fingerprint": "3acfe171bdb0fc257e139bbd2b61ef3af87eb6e61c30467bc21758c15e0b9f3f",
+  "config": {
+    "dataset_sha256": "e6b4f312d2a98765e8cc431d44a32395bf69a7ecead3ed6c3586aec2c986610a",
+    "split": "test",
+    "query_ids": [
+      "QA:query-p1-15-qa",
+      "QA:query-p2-21-qa",
+      "QA:query-p2-3-qa",
+      "QA:query-p3-13-qa",
+      "QA:query-p3-20-qa",
+      "QA:query-p3-32-qa",
+      "QA:query-p3-35-qa",
+      "T-KIS:query-p1-10-kis",
+      "T-KIS:query-p1-11-kis",
+      "T-KIS:query-p1-13-kis",
+      "T-KIS:query-p1-2-kis",
+      "T-KIS:query-p1-20-kis",
+      "T-KIS:query-p1-23-kis",
+      "T-KIS:query-p1-24-kis",
+      "T-KIS:query-p1-5-kis",
+      "T-KIS:query-p1-6-kis",
+      "T-KIS:query-p1-8-kis",
+      "T-KIS:query-p1-9-kis",
+      "T-KIS:query-p2-1-kis",
+      "T-KIS:query-p2-11-kis",
+      "T-KIS:query-p2-12-kis",
+      "T-KIS:query-p2-13-kis",
+      "T-KIS:query-p2-14-kis",
+      "T-KIS:query-p2-15-kis",
+      "T-KIS:query-p2-17-kis",
+      "T-KIS:query-p2-18-kis",
+      "T-KIS:query-p2-2-kis",
+      "T-KIS:query-p2-24-kis",
+      "T-KIS:query-p2-25-kis",
+      "T-KIS:query-p2-26-kis",
+      "T-KIS:query-p2-28-kis",
+      "T-KIS:query-p2-29-kis",
+      "T-KIS:query-p2-30-kis",
+      "T-KIS:query-p2-4-kis",
+      "T-KIS:query-p2-5-kis",
+      "T-KIS:query-p2-6-kis",
+      "T-KIS:query-p2-9-kis",
+      "T-KIS:query-p3-10-kis",
+      "T-KIS:query-p3-11-kis",
+      "T-KIS:query-p3-14-kis",
+      "T-KIS:query-p3-16-kis",
+      "T-KIS:query-p3-19-kis",
+      "T-KIS:query-p3-2-kis",
+      "T-KIS:query-p3-21-kis",
+      "T-KIS:query-p3-22-kis",
+      "T-KIS:query-p3-23-kis",
+      "T-KIS:query-p3-26-kis",
+      "T-KIS:query-p3-27-kis",
+      "T-KIS:query-p3-28-kis",
+      "T-KIS:query-p3-33-kis",
+      "T-KIS:query-p3-34-kis",
+      "T-KIS:query-p3-4-kis",
+      "T-KIS:query-p3-8-kis",
+      "T-KIS:query-p3-9-kis",
+      "TRAKE:query-p1-16-trake",
+      "TRAKE:query-p1-4-trake",
+      "TRAKE:query-p2-10-trake",
+      "TRAKE:query-p2-22-trake",
+      "TRAKE:query-p3-1-trake",
+      "TRAKE:query-p3-24-trake",
+      "aic26-20260926:qa-query-01",
+      "aic26-20260926:qa-query-03",
+      "aic26-20260926:qa-query-04",
+      "aic26-20260926:qa-query-05",
+      "aic26-20260926:qa-query-06",
+      "aic26-20260926:qa-query-07",
+      "aic26-20260926:qa-query-08",
+      "aic26-20260926:qa-query-09",
+      "aic26-20260926:qa-query-10",
+      "aic26-20260926:qa-query-12",
+      "aic26-20260926:qa-query-13",
+      "aic26-20260926:qa-query-14",
+      "aic26-20260926:tkis-query-01",
+      "aic26-20260926:tkis-query-03",
+      "aic26-20260926:tkis-query-07",
+      "aic26-20260926:tkis-query-08",
+      "aic26-20260926:tkis-query-10",
+      "aic26-20260926:tkis-query-14",
+      "aic26-20260926:tkis-query-15",
+      "aic26-20260926:tkis-query-16",
+      "aic26-20260926:tkis-query-17",
+      "aic26-20260926:tkis-query-18",
+      "aic26-20260926:tkis-query-23",
+      "aic26-20260926:tkis-query-24",
+      "aic26-20260926:trake-cyclists",
+      "aic26-20260926:trake-query-04"
+    ],
+    "variants": [
+      "C",
+      "C+V",
+      "E"
+    ],
+    "hint_mode": "full",
+    "hint_protocol": {
+      "name": "Cumulative-Hint Evaluation",
+      "version": 1,
+      "construction": "NFC/whitespace-equivalent reviewed hints_vi; newline-joined prefixes; full once",
+      "state": "fresh POST per query/level/variant; previous_hints=[]; no retrieval_id or replaces",
+      "partial_primary": "video recall",
+      "partial_secondary": "moment recall and strict task success against full-query labels",
+      "full_primary": "strict task success: moment + accepted QA answer / complete ordered TRAKE sequence",
+      "eligible_tasks": [
+        "T-KIS",
+        "QA"
+      ],
+      "minimum_hints": 2
+    },
+    "run_plan_sha256": "e11e822ec6f4f638ea0016b3fd20b90f34fe4cedc71937f79cf9487ba1caf6b0",
+    "client_timeout_s": 300,
+    "poll_s": 0.5,
+    "quota_protocol": "archive interrupted attempt; retry fresh query/level/variant on resume",
+    "variant_parameters": {
+      "C": {
+        "policy": "parallel"
+      },
+      "C+V": {
+        "policy": "parallel_verify"
+      },
+      "E": {
+        "policy": "adaptive"
+      }
+    },
+    "tolerance_s": 1.0,
+    "seed": 2026,
+    "status": {
+      "policy": "full",
+      "agents": {
+        "codex": {
+          "available": true,
+          "model": "gpt-6.1-sol",
+          "effort": "high",
+          "fast": true
+        },
+        "claude": {
+          "available": true,
+          "model": "claude-opus-5-5",
+          "effort": "high",
+          "fast": true
+        }
+      },
+      "jev": {
+        "model": "typesafe/jev-1.13",
+        "configured": true
+      },
+      "timeout_seconds": 240.0,
+      "controller_config": {
+        "max_steps": 6,
+        "max_tool_calls": 40,
+        "verify_top_k": 5,
+        "stop_threshold": 0.9,
+        "stop_margin": 0.1,
+        "jev_timeout_seconds": 12.0,
+        "llm_judge_model": "anthropic/claude-opus-5.5",
+        "calibration_sha256": null
+      }
+    },
+    "mode": "live",
+    "code_sha256": "f0e907677d72e34b5c9e04e2f9448640c800cd2f41141457a316805fdc56cea5"
+  },
+  "git_head": "b2f945de3d1a3b0545298a2da2cbf4ffd959c24a",
+  "created_at": "2026-10-04T19:10:33.557067+00:00"
+}

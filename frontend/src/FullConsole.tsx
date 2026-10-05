@@ -509,7 +509,9 @@ export default function FullConsole({
   // A verified TRAKE peak IS the current frame while it is pinned, so everything
   // that reads the selection — player start time, timeline marker, detail panel,
   // neighbour anchor — describes the same moment instead of disagreeing.
-  const trakePeakFrame: FrameResult | null =
+  // Memoised: a new object on every render made everything keyed on the
+  // selection re-run once a second (the clocks tick), the submit preview too.
+  const trakePeakFrame: FrameResult | null = useMemo(() =>
     trakePeak && selectedGroup && trakePeak.videoId === selectedGroup.video_id
       ? {
           image_id: trakePeak.peak.submit_keyframe_id,
@@ -526,7 +528,8 @@ export default function FullConsole({
           video_url: selectedGroup.video_url,
           evidence: [],
         }
-      : null;
+      : null,
+  [trakePeak, selectedGroup]);
   const selectedFrameObj: FrameResult | null =
     trakePeakFrame ?? selectedGroup?.frames[selectedFrame] ?? null;
   // How many events the statement asked for; the slots are the fallback when the
@@ -2087,13 +2090,18 @@ export default function FullConsole({
 
   // While the guard is open, ask the backend for the exact DRES body. This is
   // what turns "hope the format is right" into something the operator can read.
+  // Keyed on the body's CONTENT: keyed on the objects it is built from, a frame
+  // rebuilt on every render (a TRAKE peak) restarted the preview each time the
+  // console re-rendered — and the preview arriving re-renders it. The guard sat
+  // on "building…" with Confirm disabled, re-requesting several times a second.
+  const previewKey = dresEnabled && guardOpen ? JSON.stringify(buildSubmitBody()) : "";
   useEffect(() => {
     if (!dresEnabled || !guardOpen) {
       setSubmitPreview(null);
       setPreviewError(null);
       return;
     }
-    const body = buildSubmitBody();
+    const body: SubmitBody | null = JSON.parse(previewKey);
     if (!body) {
       setSubmitPreview(null);
       setPreviewError("No frame selected for submission.");
@@ -2119,9 +2127,8 @@ export default function FullConsole({
         .finally(() => !cancelled && setPreviewLoading(false));
     }, 150); // debounce: the answer / pad inputs change on every keystroke
     return () => { cancelled = true; clearTimeout(id); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dresEnabled, guardOpen, guardTarget, queryType, answer, answerMode, segmentPadMs, taskNameOverride,
-      evaluationId, currentTaskName, selectedFrameObj, agentFrame, pausedFrame, trakeSlots]);
+    // The task name is resolved by the backend, so a new open task re-previews too.
+  }, [dresEnabled, guardOpen, previewKey, currentTaskName]);
 
   async function confirmSubmit() {
     if (!dresEnabled) {

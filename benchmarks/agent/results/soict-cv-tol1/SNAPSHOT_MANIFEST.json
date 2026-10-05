@@ -1,0 +1,13 @@
+{
+  "description": "Compact audited supplementary C/C+V/E TEST snapshot; original raw traces are unchanged and remain local.",
+  "exporter_sha256": "2ed7947651a7a5f647176ed064fff173cd5f55ccaf1727ff3d6e2549d2c45ff2",
+  "artifacts": {
+    "PROTOCOL.json": "bc522a1c050bbd996346ecdd481b79133f6ff36f13c6c6966d7542c7b35e533b",
+    "README.md": "6267a4f571794ab4064d90933a8ea760a095dd728f55c1baebf31a3184569547",
+    "ablation_stats.json": "fcf6af3f1cb5dcdd499f1a2b5e4e2af660e76c605c3c897cd48c7bef35b23fb9",
+    "manifest.json": "fe5a3fa2ad75e166ff4143a92be12d4684f903125fced8470a92d247c2e2760e",
+    "query_outcomes.csv": "a8bc8a2ed46985da3f14176786c1117539b9de97b306b8bbd31224e34f8d9600",
+    "summary.json": "e6dab33dfefa72a8a53c2e840f05ae99da612e01d0d117e3713d4414f8435375",
+    "summary_by_task.json": "f6289d5be960ea6247d635b97f94dc06e1a1b88d4962cbfc33a83621750670bd"
+  }
+}

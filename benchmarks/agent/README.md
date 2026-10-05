@@ -237,6 +237,12 @@ FPS dùng từ nhãn hoặc candidate, không tự giả định 25 nếu thiế
 
 ### Ablation bổ sung: C+V
 
+Đã hoàn tất TEST (86 câu × 3 cấu hình = 258 lượt). [Báo cáo đã audit](results/soict-cv-tol1/README.md)
+có paired bootstrap/McNemar, so sánh cùng evidence trước/sau verifier và quota audit.
+R@1 C/C+V/E = **47.7/50.0/58.1%**. Đây là đợt mới; không thay thế số liệu A–F cũ.
+Tái xuất offline bằng `.venv/bin/python -m tools.benchmark_cv_report`.
+
+
 `C+V` (`parallel_verify`) chạy Codex và Claude song song như C, rồi gọi holistic
 verifier của E một lần cuối. Không có verification trước agent, adaptive routing
 hoặc early stopping. Snapshot giữ `pre_verification_ranking`, trace giữ event
@@ -260,7 +266,8 @@ DEV có 75 lượt; TEST có 258 lượt. Kiểm tra execution/fallback trên DE
 code/config rồi mới chạy TEST. Chạy lại đúng lệnh để resume; quota interruption
 được archive rồi thử lại từ state mới. Không tune theo accuracy TEST. C+V–E vẫn
 là so sánh cả controller package, chưa cô lập riêng causal effect của call allocation.
-Implementation đã qua kiểm thử offline; chưa có kết quả live hoàn chỉnh cho C+V.
+Implementation và full TEST traces đã được kiểm tra. C+V−C và E−C+V vẫn chưa
+conclusive; xem report để lấy khoảng tin cậy và giới hạn diễn giải.
 
 ### Cấu hình A–F
 

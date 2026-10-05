@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
@@ -1628,6 +1628,32 @@ describe("AIC26 retrieval console (full)", () => {
     // whole submission — so the guard must refuse, not merely warn.
     expect(screen.getByTestId("guard-order-violation")).toBeInTheDocument();
     expect(screen.getByTestId("confirm-submit")).toBeDisabled();
+  });
+
+  it("TRAKE: with a heat peak pinned, the DRES preview is built once and Confirm stays enabled", async () => {
+    // Regression: a pinned peak was rebuilt as a new object on every render, so
+    // the preview restarted on every render — the console's clocks tick each
+    // second, and the preview arriving re-renders it too. The guard sat on
+    // "building…" with Confirm disabled, re-requesting several times a second.
+    dresConfigured = true;
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("tab", { name: "TRAKE" }));
+    await user.type(screen.getByTestId("query-input"), "a then b");
+    await user.click(screen.getByTestId("search-btn"));
+    await waitFor(() => expect(screen.getByTestId("trake-videos")).toBeInTheDocument());
+    const card = screen.getAllByTestId("trake-video-card")[0];
+    await user.click(within(within(card).getByTestId("trake-heat-row-1")).getAllByTestId("trake-heat-peak")[1]);
+    await user.click(screen.getByTestId("trake-quick-submit"));
+
+    await waitFor(() => expect(screen.getByTestId("submit-guard")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("confirm-submit")).toBeEnabled());
+    const previews = () =>
+      vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("/api/submit/preview")).length;
+    await act(() => new Promise((resolve) => setTimeout(resolve, 1300))); // at least one clock tick
+    expect(previews()).toBe(1);
+    expect(screen.getByTestId("confirm-submit")).toBeEnabled();
+    expect(screen.getByTestId("guard-json")).toHaveTextContent("answerSets");
   });
 
   it("TRAKE: a full-coverage video can be submitted directly from the result list", async () => {

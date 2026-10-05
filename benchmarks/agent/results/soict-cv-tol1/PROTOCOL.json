@@ -1,0 +1,44 @@
+{
+  "created_at": "2026-10-04T19:08:07.571142+00:00",
+  "purpose": "Live fixed parallel acquisition + final holistic verification (C+V); contemporaneous C/E controls.",
+  "variants": {
+    "C": "parallel",
+    "C+V": "parallel_verify",
+    "E": "adaptive"
+  },
+  "dataset": "benchmarks/agent/runs/workbooks-v5-submit-audited.jsonl",
+  "dataset_sha256": "e6b4f312d2a98765e8cc431d44a32395bf69a7ecead3ed6c3586aec2c986610a",
+  "dev_queries": 25,
+  "test_queries": 86,
+  "tolerance_seconds": 1,
+  "random_seed": 2026,
+  "budgets": {
+    "wall_seconds": 240,
+    "tool_calls": 40,
+    "verify_top_k": 5
+  },
+  "calibration": null,
+  "stop_threshold": 0.9,
+  "stop_margin": 0.1,
+  "selection": "No accuracy-driven policy or threshold tuning in this experiment. DEV validates execution; freeze before TEST.",
+  "ordering": "Sequential queries; randomly permuted C/C+V/E within each query, seed 2026.",
+  "contrasts": [
+    "C+V versus C (independent live acquisitions)",
+    "E versus C+V (controller package, not call-allocation-only causality)",
+    "C+V final versus its recorded pre-verification RRF (same live candidate evidence)"
+  ],
+  "primary": "strict R@1; paired query bootstrap 10000 draws, seed 2026; exact McNemar; exploratory, no multiplicity correction",
+  "secondary": [
+    "R@5",
+    "MRR",
+    "agent calls",
+    "Jev calls",
+    "tool calls",
+    "p50/p95 wall latency",
+    "tokens and cost coverage",
+    "execution failures and quota attempts"
+  ],
+  "failures": "Preserve failures in denominators. Archive quota interruptions and stop; fresh attempt on explicit resume. Never silently replace results based on accuracy.",
+  "interpretation": "Supplementary experiment on an already analyzed corpus, not a new independent held-out benchmark. Does not erase hosted-model drift or single-run variance limitations.",
+  "runtime_source_sha256": "f0e907677d72e34b5c9e04e2f9448640c800cd2f41141457a316805fdc56cea5"
+}

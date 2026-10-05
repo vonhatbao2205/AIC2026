@@ -1,0 +1,232 @@
+\begin{thebibliography}{10}
+\providecommand{\url}[1]{\texttt{#1}}
+\providecommand{\urlprefix}{URL }
+\providecommand{\doi}[1]{https://doi.org/#1}
+
+\bibitem{mcp2024}
+{Anthropic}: Model context protocol specification.
+  \url{https://modelcontextprotocol.io} (2024), accessed 4 October 2026
+
+\bibitem{claudeopus2026}
+{Anthropic}: {Claude Opus 5.5}. \url{https://www.anthropic.com/claude} (2026),
+  used through Claude Code; accessed 4 October 2026
+
+\bibitem{tara2026}
+Bagad, P., Zisserman, A.: Adapting {MLLMs} for nuanced video retrieval. In:
+  European Conference on Computer Vision (2026),
+  \url{https://www.robots.ox.ac.uk/~vgg/research/tara/}
+
+\bibitem{whisperx2023}
+Bain, M., Huh, J., Han, T., Zisserman, A.: {WhisperX}: Time-accurate speech
+  transcription of long-form audio. arXiv:2303.00747  (2023)
+
+\bibitem{pe2025}
+Bolya, D., et~al.: {Perception Encoder}: The best visual embeddings are not at
+  the output of the network. In: Advances in Neural Information Processing
+  Systems. vol.~38, pp. 60884--60937. Curran Associates, Inc. (2025).
+  \doi{10.52202/085713-2036}
+
+\bibitem{brier1950}
+Brier, G.W.: Verification of forecasts expressed in terms of probability.
+  Monthly Weather Review  \textbf{78}(1), ~1--3 (1950)
+
+\bibitem{frugalgpt2024}
+Chen, L., Zaharia, M., Zou, J.: {FrugalGPT}: How to use large language models
+  while reducing cost and improving performance. Transactions on Machine
+  Learning Research  (2024)
+
+\bibitem{vireo2026}
+Cheng, Y.T., Nguyen, P.A., Kha, K.T., Ngo, C.W.: {VIREO} @ {Video Browser
+  Showdown} 2026. In: MultiMedia Modeling. LNCS, vol. 16415, pp. 183--190.
+  Springer (2026). \doi{10.1007/978-981-95-6963-2_19}
+
+\bibitem{rrf2009}
+Cormack, G.V., Clarke, C.L.A., Buettcher, S.: Reciprocal rank fusion
+  outperforms {Condorcet} and individual rank learning methods. In: SIGIR. pp.
+  758--759. ACM (2009). \doi{10.1145/1571941.1572114}
+
+\bibitem{ced2023}
+Dinkel, H., Wang, Y., Yan, Z., Zhang, J., Wang, Y.: {CED}: Consistent ensemble
+  distillation for audio tagging. arXiv:2308.11957  (2023)
+
+\bibitem{glap2025}
+Dinkel, H., et~al.: {GLAP}: General contrastive audio-text pretraining across
+  domains and languages. arXiv:2506.11350  (2025)
+
+\bibitem{efron1979}
+Efron, B.: Bootstrap methods: Another look at the jackknife. The Annals of
+  Statistics  \textbf{7}(1),  1--26 (1979). \doi{10.1214/aos/1176344552}
+
+\bibitem{guo2017calibration}
+Guo, C., Pleiss, G., Sun, Y., Weinberger, K.Q.: On calibration of modern neural
+  networks. In: Proceedings of the 34th International Conference on Machine
+  Learning. PMLR, vol.~70, pp. 1321--1330 (2017)
+
+\bibitem{ho2025lucifer}
+Ho, D.K., Tran, V.D., Nguyen, S., Nguyen, D., Tran, C.H., Nguyen, B.T.:
+  {Lucifer-TRACE}: Dynamic programming and {LVLM}-aided verification for
+  event-based video retrieval. In: Information and Communication Technology
+  (SOICT 2025). CCIS, vol.~2914, pp. 53--66. Springer Nature Singapore,
+  Singapore (2027). \doi{10.1007/978-981-92-2590-3_5}
+
+\bibitem{hole2025lifelog}
+Ho-Le, M.Q., Ho, D.K., Do-Huu, H.H., Le-Hinh, N.T., Vo-Hoang, H.V., Ninh, V.T.,
+  Tran, M.T.: Applying large language model ({LLM}) agents for automated
+  lifelog retrieval. In: Information and Communication Technology (SOICT 2025).
+  CCIS, vol.~2916, pp. 510--524. Springer Nature Singapore, Singapore (2027).
+  \doi{10.1007/978-981-92-2600-9_40}
+
+\bibitem{snapmind2026}
+Ho-Le, M.Q., Ho, D.K., Ninh, T.V., Gurrin, C., Tran, M.T.: From expert
+  practices to intelligent agents: Autonomy in interactive video retrieval. In:
+  MultiMedia Modeling. LNCS, vol. 16415, pp. 191--198. Springer (2026).
+  \doi{10.1007/978-981-95-6963-2_20}
+
+\bibitem{hunyuanocr2025}
+{Hunyuan Vision Team}: {HunyuanOCR} technical report. arXiv:2511.19575  (2025)
+
+\bibitem{jackl2026agents}
+J{\"a}ckl, B., Vop{\'a}lkov{\'a}, Z., Keim, D.A., Loko{\v c}, J.: Can agents
+  win the {Video Browser Showdown}? arXiv:2609.07311  (2026)
+
+\bibitem{prak2026}
+J{\"a}ckl, B., et~al.: {PraK V4} at the {Video Browser Showdown} 2026. In:
+  MultiMedia Modeling. LNCS, vol. 16415, pp. 230--237. Springer (2026).
+  \doi{10.1007/978-981-95-6963-2_25}
+
+\bibitem{kahneman2011}
+Kahneman, D.: Thinking, Fast and Slow. Farrar, Straus and Giroux, New York
+  (2011)
+
+\bibitem{exquisitor2026}
+Khan, O.S., Sharma, U., Marcelino, G., Rudinac, S., J{\'o}nsson, B.{\TH}.:
+  {Exquisitor} at the {Video Browser Showdown} 2026: Temporal queries
+  revisited. In: MultiMedia Modeling. LNCS, vol. 16415, pp. 245--251. Springer
+  (2026). \doi{10.1007/978-981-95-6963-2_27}
+
+\bibitem{fusionista2026}
+Le, H.M., et~al.: {Fusionista2.0}: Efficiency retrieval system for large-scale
+  datasets. In: MultiMedia Modeling. LNCS, vol. 16415, pp. 167--175. Springer
+  (2026). \doi{10.1007/978-981-95-6963-2_17}
+
+\bibitem{phowhisper2024}
+Le, T.T., Nguyen, L.T., Nguyen, D.Q.: {PhoWhisper}: Automatic speech
+  recognition for {V}ietnamese. arXiv:2406.02555  (2024)
+
+\bibitem{lenswalk2026}
+Li, K., Li, Y., Shen, H., Liu, M., Chang, H., Shan, S.: {LensWalk}: Agentic
+  video understanding by planning how you see in videos. In: IEEE/CVF
+  Conference on Computer Vision and Pattern Recognition (CVPR) (2026)
+
+\bibitem{qwen2026}
+Li, M., et~al.: {Qwen3-VL-Embedding} and {Qwen3-VL-Reranker}: A unified
+  framework for state-of-the-art multimodal retrieval and ranking.
+  arXiv:2601.04720  (2026)
+
+\bibitem{swiftsage2023}
+Lin, B.Y., Fu, Y., Yang, K., Brahman, F., Huang, S., Bhagavatula, C.,
+  Ammanabrolu, P., Choi, Y., Ren, X.: {SwiftSage}: A generative agent with fast
+  and slow thinking for complex interactive tasks. In: Advances in Neural
+  Information Processing Systems. vol.~36 (2023)
+
+\bibitem{videomind2026}
+Liu, Y., Lin, K.Q., Chen, C.W., Shou, M.Z.: {VideoMind}: A chain-of-{LoRA}
+  agent for temporal-grounded video reasoning. In: International Conference on
+  Learning Representations (ICLR) (2026)
+
+\bibitem{lokoc2023lessons}
+Loko{\v c}, J., Andreadis, S., Bailer, W., Duane, A., Gurrin, C., Ma, Z.,
+  Messina, N., Nguyen, T.N., Pe{\v s}ka, L., Rossetto, L., Sauter, L., Schall,
+  K., Schoeffmann, K., Khan, O.S., Spiess, F., Vadicamo, L., Vrochidis, S.:
+  Interactive video retrieval in the age of effective joint embedding deep
+  models: Lessons from the 11th {VBS}. Multimedia Systems  \textbf{29},
+  3481--3504 (2023). \doi{10.1007/s00530-023-01143-5}
+
+\bibitem{mcnemar1947}
+McNemar, Q.: Note on the sampling error of the difference between correlated
+  proportions or percentages. Psychometrika  \textbf{12}(2),  153--157 (1947).
+  \doi{10.1007/BF02295996}
+
+\bibitem{nguyen2025adaptivedp}
+Nguyen, K., Nguyen~Hung, Q., Phan~Thanh, D., Huynh~Viet, T., Tran~Van, H., Vo,
+  M., Do, T., Ngo, T.D.: Adaptive agent-guided dynamic programming for temporal
+  optimization in multi-event video retrieval. In: Information and
+  Communication Technology (SOICT 2025). CCIS, vol.~2913, pp. 588--598.
+  Springer Nature Singapore, Singapore (2027).
+  \doi{10.1007/978-981-92-2587-3_46}
+
+\bibitem{routellm2025}
+Ong, I., Almahairi, A., Wu, V., Chiang, W.L., Wu, T., Gonzalez, J.E., Kadous,
+  M.W., Stoica, I.: {RouteLLM}: Learning to route {LLMs} from preference data.
+  In: International Conference on Learning Representations (ICLR) (2025)
+
+\bibitem{gpt61sol2026}
+{OpenAI}: {GPT-6.1 Sol} model documentation.
+  \url{https://developers.openai.com/api/docs/models/gpt-6.1-sol} (2026), used
+  through the Codex CLI; accessed 4 October 2026
+
+\bibitem{vbs2025results}
+Rossetto, L., Schoeffmann, K., Gurrin, C., Loko{\v c}, J., Bailer, W.: Results
+  of the 2025 {Video Browser Showdown}. arXiv:2509.12000  (2025).
+  \doi{10.48550/arXiv.2509.12000}
+
+\bibitem{dres2024}
+Sauter, L., Gasser, R., Schuldt, H., Bernstein, A., Rossetto, L.: Performance
+  evaluation in multimedia retrieval. ACM Transactions on Multimedia Computing,
+  Communications, and Applications  (2024). \doi{10.1145/3678881}
+
+\bibitem{nii2026}
+Tran, B., Do, T., Ngo, T.D., Le, D.D., Satoh, S.: {NII-UIT} at {VBS2026}:
+  Towards effective visual question answering for interactive and multimodal
+  video retrieval. In: MultiMedia Modeling. LNCS, vol. 16415, pp. 238--244.
+  Springer (2026). \doi{10.1007/978-981-95-6963-2_26}
+
+\bibitem{jev2026}
+{TypeSafe}: Introducing {System One} models and {Jev}.
+  \url{https://typesafe.ai/blog/introducing-system-one-models-and-jev} (2026),
+  model \texttt{typesafe/jev-1.13} via the OpenRouter Decisions API; accessed 4
+  October 2026
+
+\bibitem{nguyen2025conversational}
+Vinh, N.M., Anh, K.N.N., Khanh, D.T., Quoc, D.D., Chan, H.B., Gia, B.T., Vo,
+  M., Do, T., Ngo, T.D.: Towards conversational video retrieval with an
+  intelligent search agent. In: Information and Communication Technology (SOICT
+  2025). CCIS, vol.~2913, pp. 483--497. Springer Nature Singapore, Singapore
+  (2027). \doi{10.1007/978-981-92-2587-3_38}
+
+\bibitem{milvus2021}
+Wang, J., et~al.: {Milvus}: A purpose-built vector data management system. In:
+  Proceedings of the 2021 International Conference on Management of Data. pp.
+  2614--2627. ACM (2021). \doi{10.1145/3448016.3457550}
+
+\bibitem{videoagent2024}
+Wang, X., Zhang, Y., Zohar, O., Yeung-Levy, S.: {VideoAgent}: Long-form video
+  understanding with large language model as agent. In: European Conference on
+  Computer Vision (ECCV). LNCS, Springer (2024)
+
+\bibitem{wu2026adaptive}
+Wu, J., Wei, X.Y., Li, Q.: Adaptive multi-agent reasoning for text-to-video
+  retrieval. arXiv:2602.19040  (2026)
+
+\bibitem{react2023}
+Yao, S., Zhao, J., Yu, D., Du, N., Shafran, I., Narasimhan, K., Cao, Y.:
+  {ReAct}: Synergizing reasoning and acting in language models. In:
+  International Conference on Learning Representations (ICLR) (2023)
+
+\bibitem{dvd2025}
+Zhang, X., Jia, Z., Guo, Z., Li, J., Li, B., Li, H., Lu, Y.: {Deep Video
+  Discovery}: Agentic search with tool use for long-form video understanding.
+  In: Advances in Neural Information Processing Systems. vol.~38 (2025)
+
+\bibitem{infoshot2026}
+Zhao, M., et~al.: Shot-aware frame sampling for video understanding.
+  arXiv:2603.17374  (2026)
+
+\bibitem{zheng2023judge}
+Zheng, L., Chiang, W.L., Sheng, Y., Zhuang, S., Wu, Z., Zhuang, Y., Lin, Z.,
+  Li, Z., Li, D., Xing, E.P., Zhang, H., Gonzalez, J.E., Stoica, I.: Judging
+  {LLM}-as-a-judge with {MT-Bench} and {Chatbot Arena}. In: Advances in Neural
+  Information Processing Systems (Datasets and Benchmarks Track). vol.~36
+  (2023)
+
+\end{thebibliography}
